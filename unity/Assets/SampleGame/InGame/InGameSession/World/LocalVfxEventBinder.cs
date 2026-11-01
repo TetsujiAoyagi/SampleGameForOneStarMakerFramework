@@ -22,9 +22,9 @@ namespace SampleGame.InGame.World
     /// </summary>
     internal sealed class LocalVfxEventBinder
     {
-        private readonly List<(LocalVfxEventSession Session, string Address)> _entries;
+        private readonly List<(LocalVfxEventSession Session, string AssetName)> _entries;
 
-        private LocalVfxEventBinder(List<(LocalVfxEventSession Session, string Address)> entries)
+        private LocalVfxEventBinder(List<(LocalVfxEventSession Session, string AssetName)> entries)
         {
             _entries = entries;
         }
@@ -54,16 +54,16 @@ namespace SampleGame.InGame.World
                 {
                     var transform = trigger.transform;
                     logger ??= loggerFactory.CreateLogger<LocalVfxEventSession>();
-                    var address = trigger.VfxAddress;
+                    var assetName = trigger.VfxAsset;
                     var session = new LocalVfxEventSession(
                         vfx,
                         AssetOwner.Bind(trigger.gameObject),
                         transform.position,
                         transform.rotation,
-                        $"{sceneIdentity}/{trigger.name} ({address})",
+                        $"{sceneIdentity}/{trigger.name} ({assetName})",
                         logger);
                     trigger.Attach(session);
-                    (entries ??= new List<(LocalVfxEventSession, string)>()).Add((session, address));
+                    (entries ??= new List<(LocalVfxEventSession, string)>()).Add((session, assetName));
                 }
             }
 
@@ -73,7 +73,7 @@ namespace SampleGame.InGame.World
         /// <summary>
         /// 各 session の source を順にロードする。ロードの失敗は session が trigger ごとに記録し、外へ出さない。
         /// </summary>
-        /// <param name="load">address から source をロードする。所有者（Scene）は呼び出し側が決める。</param>
+        /// <param name="load">付随 asset の名前から source をロードする。所有者（Scene）と読み口は呼び出し側が決める。</param>
         internal async UniTask PrepareAllAsync(Func<string, UniTask<Object?>> load)
         {
             if (load == null)
@@ -81,9 +81,9 @@ namespace SampleGame.InGame.World
                 throw new ArgumentNullException(nameof(load));
             }
 
-            foreach (var (session, address) in _entries)
+            foreach (var (session, assetName) in _entries)
             {
-                await session.PrepareAsync(() => load(address));
+                await session.PrepareAsync(() => load(assetName));
             }
         }
 

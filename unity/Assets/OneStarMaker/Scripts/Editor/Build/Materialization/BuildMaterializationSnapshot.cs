@@ -8,28 +8,44 @@ using OneStarMaker.Build.Selection;
 
 namespace OneStarMaker.Editor.Build.Materialization
 {
-    // 1 回の materialize 呼び出しで確定した候補・タグ・要求・依存閉包をまとめる。
+    // 1 回の materialize 呼び出しで確定した候補・タグ・要求・依存閉包と、到達規則に渡す graph をまとめる。
     public sealed class BuildMaterializationSnapshot
     {
         private readonly ReadOnlyCollection<BuildContentCandidate> _candidates;
         private readonly ReadOnlyCollection<IBuildTagProvider> _providers;
         private readonly ReadOnlyCollection<BuildContentRequirement> _requirements;
         private readonly ReadOnlyCollection<BuildDependencySnapshot> _dependencies;
+        private readonly ReadOnlyCollection<BuildGraphNode> _graph;
 
         internal BuildMaterializationSnapshot(IEnumerable<BuildContentCandidate> candidates,
             IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> tags,
             IEnumerable<BuildContentRequirement> requirements, IEnumerable<BuildDependencySnapshot> dependencies)
+            : this(candidates, tags, requirements, dependencies, Array.Empty<BuildGraphNode>())
+        {
+        }
+
+        internal BuildMaterializationSnapshot(IEnumerable<BuildContentCandidate> candidates,
+            IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> tags,
+            IEnumerable<BuildContentRequirement> requirements, IEnumerable<BuildDependencySnapshot> dependencies,
+            IEnumerable<BuildGraphNode> graph)
         {
             _candidates = Array.AsReadOnly(candidates.OrderBy(x => x.StableKey, StringComparer.Ordinal).ToArray());
             _providers = Array.AsReadOnly<IBuildTagProvider>(new IBuildTagProvider[] { new SnapshotTagProvider(tags) });
-            _requirements = Array.AsReadOnly(requirements.OrderBy(x => x.LogicalKey, StringComparer.Ordinal).ToArray());
+            _requirements = Array.AsReadOnly(requirements.OrderBy(x => x.LogicalKey, StringComparer.Ordinal)
+                .ThenBy(x => x.Representation, StringComparer.Ordinal).ToArray());
             _dependencies = Array.AsReadOnly(dependencies.OrderBy(x => x.RootGuid, StringComparer.Ordinal).ToArray());
+            _graph = Array.AsReadOnly(graph.OrderBy(x => x.Identity, StringComparer.Ordinal).ToArray());
         }
 
         public IReadOnlyList<BuildContentCandidate> Candidates => _candidates;
         public IReadOnlyList<IBuildTagProvider> TagProviders => _providers;
         public IReadOnlyList<BuildContentRequirement> Requirements => _requirements;
         public IReadOnlyList<BuildDependencySnapshot> Dependencies => _dependencies;
+
+        // SceneResourceMap の親子・ロード種別・宣言済み表現・付随 asset を Selection の形に写した graph。
+        // 到達規則（BuildPurposeResolver）の入力で、SceneResource 自体は Selection へ渡さない。
+        public IReadOnlyList<BuildGraphNode> Graph => _graph;
+
         public BuildDependencySnapshot? FindDependency(string physicalKey) =>
             _dependencies.FirstOrDefault(x => string.Equals(x.RootGuid, physicalKey, StringComparison.Ordinal));
 

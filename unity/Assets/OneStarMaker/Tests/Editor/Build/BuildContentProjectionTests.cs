@@ -104,7 +104,8 @@ namespace OneStarMaker.Tests.Editor.Build
         private sealed class FailingAdapter : IContentDirectoryAdapter
         {
             public void ValidateTarget() { }
-            public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace) =>
+            public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
+                BuildPurposeDeclaration? declaration) =>
                 throw new IOException("fixture failure");
         }
     }

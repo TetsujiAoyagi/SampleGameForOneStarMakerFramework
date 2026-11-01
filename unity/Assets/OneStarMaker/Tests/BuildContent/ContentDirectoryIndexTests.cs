@@ -25,9 +25,38 @@ namespace OneStarMaker.Tests.BuildContent
             Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
             Assert.That(index!.TryResolveScene("scene", "Missing", out var scene, out _), Is.True);
             Assert.That(scene!.StableKey, Is.EqualTo("full"));
+            // Object の fallback も Full にだけ落ちる。Scene entry は Object として解決しない。
             Assert.That(index.TryResolveObject("scene", "Missing", out _, out var issue), Is.False);
             Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryMissing));
             UnityEngine.Object.DestroyImmediate(root);
+        }
+
+        [Test]
+        public void ObjectResolution_FallsBackToFull_AndMissingNameIsEntryMissing()
+        {
+            var asset = AssetDatabase.LoadMainAssetAtPath("Assets/TutorialInfo/Icons/URP.png");
+            Assert.That(asset, Is.Not.Null);
+            Assert.That(AssetDatabase.TryGetGUIDAndLocalFileIdentifier(asset, out var guid, out long localId), Is.True);
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize("build", "StandaloneWindows64", new[] {
+                new BuildContentEntry("InGameSession:Lit", "lit-full", "Full",
+                    new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset)), guid, localId),
+            });
+            try
+            {
+                Assert.That(ContentDirectoryIndex.TryCreate(root, "build", "StandaloneWindows64", out var index, out _), Is.True);
+                // 付随 asset は Full だけを宣言するのが普通。Whitebox の Play でも Full の entry に落ちて解決する。
+                Assert.That(index!.TryResolveObject("InGameSession:Lit", "Whitebox", out var fallback, out _), Is.True);
+                Assert.That(fallback!.StableKey, Is.EqualTo("lit-full"));
+                Assert.That(index.TryResolveObject("InGameSession:Lit", "Full", out var exact, out _), Is.True);
+                Assert.That(exact!.StableKey, Is.EqualTo("lit-full"));
+                // 存在しない名前は EntryMissing で、失敗した logical key と表現が issue に入る。
+                Assert.That(index.TryResolveObject("InGameSession:Missing", "Whitebox", out _, out var issue), Is.False);
+                Assert.That(issue.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryMissing));
+                Assert.That(issue.LogicalKey, Is.EqualTo("InGameSession:Missing"));
+                Assert.That(issue.Representation, Is.EqualTo("Whitebox"));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
         }
 
         [Test]

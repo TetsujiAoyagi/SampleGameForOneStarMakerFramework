@@ -46,7 +46,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 new[] { new BuildDependencyEntry(prefabGuid, prefabPath) });
             var composedSnapshot = new BuildMaterializationSnapshot(snapshot.Candidates.Concat(new[] { candidate }), tags,
                 snapshot.Requirements.Concat(new[] { new BuildContentRequirement(LogicalKey, BuildContentCardinality.ExactlyOne) }),
-                snapshot.Dependencies.Concat(new[] { dependency }));
+                snapshot.Dependencies.Concat(new[] { dependency }), snapshot.Graph);
             var composedPlan = new BuildPlan(plan.Request, plan.SelectedContent.Concat(new[] { candidate }), plan.ExcludedContent);
             return new Bs4FixtureComposition(composedPlan, composedSnapshot);
         }

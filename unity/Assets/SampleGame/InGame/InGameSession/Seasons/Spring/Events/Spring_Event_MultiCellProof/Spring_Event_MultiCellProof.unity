@@ -214,7 +214,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4cf705bbef13a34ba11c9d6752f4b74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SampleGame.InGame::SampleGame.InGame.World.MajorEventVfxAnchor
-  _vfxAddress: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Events/Spring_Event_MultiCellProof/Spring_Event_MultiCellProof_Burst.vfx
+  _vfxAsset: Burst
 --- !u!4 &1671080055
 Transform:
   m_ObjectHideFlags: 0
@@ -259,7 +259,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4cf705bbef13a34ba11c9d6752f4b74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: SampleGame.InGame::SampleGame.InGame.World.MajorEventVfxAnchor
-  _vfxAddress: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Events/Spring_Event_MultiCellProof/Spring_Event_MultiCellProof_Burst.vfx
+  _vfxAsset: Burst
 --- !u!4 &1823558719
 Transform:
   m_ObjectHideFlags: 0

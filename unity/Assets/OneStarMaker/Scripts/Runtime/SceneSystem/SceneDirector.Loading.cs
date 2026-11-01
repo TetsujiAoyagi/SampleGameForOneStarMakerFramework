@@ -420,8 +420,10 @@ namespace OneStarMaker.Runtime.SceneSystem
                 };
                 _currentScenes.Add(sceneIdentify, pair);
                 newlyCreatedScenes.Add(sceneIdentify);
-                // OnPreLoadedImpl 以降で Assets.LoadAsync(ref, sceneId) が使えるよう注入
-                newInstance.BindAssets(_assetManagement);
+                // OnPreLoadedImpl 以降で Assets.LoadAsync(ref, sceneId) と付随 asset の読み口が使えるよう注入。
+                // 読み口は起動時の mode と Variant、自分と祖先の付随 asset の宣言だけ（Map 全体は渡さない）。
+                newInstance.BindAssets(_assetManagement,
+                    SceneContentBinding.FromResource(sceneResource, _useContentDirectory, _sceneVariant));
 
                 _sceneEventSubject.OnNext(new SceneEvent(
                     SceneEventType.StateChanged, sceneIdentify, SceneState.PreLoading));

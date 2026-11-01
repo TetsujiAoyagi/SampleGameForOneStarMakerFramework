@@ -21,7 +21,9 @@ namespace OneStarMaker.Editor.Build.Content
     internal interface IContentDirectoryAdapter
     {
         void ValidateTarget();
-        ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace);
+        // declaration は root に写す宣言。無ければ root は宣言無しで作る（合成 fixture・旧経路）。
+        ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
+            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration);
     }
 
     // 1回の build の所有者。入力検証、preflight、Unity build、公開、outcome の順序を固定する。
@@ -58,11 +60,11 @@ namespace OneStarMaker.Editor.Build.Content
             // Unity I/O の前に plan と snapshot を照合し、失敗でも preflight を残す。
             // ここで止めた場合は成功 directory を作らず、構造化 issue を outcome に記録する。
             var projection = BuildContentProjection.Create(request.Plan, request.Snapshot);
-            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection);
+            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection, request.Requirements);
             if (!projection.IsValid)
             {
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
-                    "Preflight failed", projection.Issues.ToArray());
+                    "Preflight failed", projection.Issues.ToArray(), request.Declaration);
                 BuildContentReport.WriteOutcome(outcome, failure);
                 return failure;
             }
@@ -71,7 +73,7 @@ namespace OneStarMaker.Editor.Build.Content
             {
                 _adapter.ValidateTarget();
                 Directory.CreateDirectory(workspace);
-                var built = _adapter.Build(projection, identity, workspace);
+                var built = _adapter.Build(projection, identity, workspace, request.Declaration);
                 // Unity report が成功でも、manifest と metadata が所定 workspace に無ければ公開しない。
                 // adapter から返る path の包含も調べ、別の directory を誤って配布しない。
                 if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
@@ -93,7 +95,7 @@ namespace OneStarMaker.Editor.Build.Content
                 var success = new BuildContentResult(identity, preflight, outcome, final,
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
-                    Array.Empty<BuildContentIssue>());
+                    Array.Empty<BuildContentIssue>(), request.Declaration);
                 BuildContentReport.WriteOutcome(outcome, success);
                 return success;
             }
@@ -104,7 +106,7 @@ namespace OneStarMaker.Editor.Build.Content
                 if (Directory.Exists(staging)) Directory.Delete(staging, true);
                 if (published && Directory.Exists(final)) Directory.Delete(final, true);
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
-                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) });
+                    ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) }, request.Declaration);
                 BuildContentReport.WriteOutcome(outcome, failure);
                 return failure;
             }

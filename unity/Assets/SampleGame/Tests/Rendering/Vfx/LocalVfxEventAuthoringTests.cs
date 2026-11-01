@@ -68,15 +68,21 @@ namespace SampleGame.Tests.Rendering.Vfx
             var roots = scene.GetRootGameObjects();
             var triggers = roots.SelectMany(root => root.GetComponentsInChildren<LocalVfxEventTrigger>(includeInactive: true)).ToArray();
             Assert.That(triggers, Is.Not.Empty, "trigger が無い");
+            var eventsResource = AssetDatabase.LoadAssetAtPath<SceneResource>(EventsResourcePath);
+            Assert.That(eventsResource != null, Is.True, $"Events の SceneResource が無い: {EventsResourcePath}");
 
             foreach (var trigger in triggers)
             {
                 var name = trigger.name;
                 Assert.That(trigger.GetComponents<Collider>().Any(collider => collider.isTrigger), Is.True,
                     $"{name}: 同じ GameObject に isTrigger の Collider が無い");
-                var address = trigger.VfxAddress;
-                TestContext.Out.WriteLine($"trigger={name} address={address} position={trigger.transform.position:R}");
-                Assert.That(address, Is.Not.Empty, $"{name}: address が空");
+                // trigger は address ではなく付随 asset の名前を持つ。.vfx の所在は Events の SceneResource の宣言から引く。
+                var assetName = trigger.VfxAsset;
+                Assert.That(assetName, Is.Not.Empty, $"{name}: 付随 asset の名前が空");
+                Assert.That(eventsResource!.FindAttachedAsset(assetName), Is.Not.Null, $"{name}: Events の SceneResource が付随 asset '{assetName}' を宣言していない");
+                var address = AssetDatabase.GUIDToAssetPath(AttachedAssetGuid(eventsResource, assetName));
+                TestContext.Out.WriteLine($"trigger={name} asset={assetName} path={address} position={trigger.transform.position:R}");
+                Assert.That(address, Is.Not.Empty, $"{name}: 付随 asset の参照先が無い");
                 Assert.That(address.StartsWith(SeasonsRoot, StringComparison.Ordinal) && address.EndsWith(".vfx", StringComparison.Ordinal),
                     Is.True, $"{name}: address が Seasons/ 配下の .vfx でない: {address}");
                 Assert.That(AssetDatabase.LoadAssetAtPath<VisualEffectAsset>(address) != null, Is.True, $"{name}: .vfx が無い: {address}");
@@ -122,6 +128,22 @@ namespace SampleGame.Tests.Rendering.Vfx
         }
 
         // Addressables の Editor 型はこの asmdef から参照しないので、VfxSceneStructureTests と同じく reflection で読む。
+        // この asmdef は Addressables を参照しないので、宣言の参照 GUID は serialized property から読む。
+        private static string AttachedAssetGuid(SceneResource resource, string name)
+        {
+            var attached = new SerializedObject(resource).FindProperty("_attachedAssets");
+            for (var i = 0; i < attached.arraySize; i++)
+            {
+                var element = attached.GetArrayElementAtIndex(i);
+                if (element.FindPropertyRelative("_name").stringValue != name) continue;
+                var payloads = element.FindPropertyRelative("_payloads");
+                Assert.That(payloads.arraySize, Is.EqualTo(1), $"{name}: payload は 1 件");
+                return payloads.GetArrayElementAtIndex(0).FindPropertyRelative("Reference").FindPropertyRelative("m_AssetGUID").stringValue;
+            }
+            Assert.Fail($"付随 asset '{name}' の宣言が無い");
+            return string.Empty;
+        }
+
         private static object? FindAddressableEntry(string guid)
         {
             var type = Type.GetType("UnityEditor.AddressableAssets.AddressableAssetSettingsDefaultObject, Unity.Addressables.Editor");

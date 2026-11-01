@@ -237,6 +237,16 @@ namespace OneStarMaker.Runtime
                 // Config を構築（ConfigFile → 環境変数 → コマンドライン引数 の優先順）
                 _config = BuildConfig();
                 _contentDirectoryConfiguration = ReadContentDirectoryConfiguration(_config);
+                if (_contentDirectoryConfiguration != null && _assetManagement is AssetManagement.AssetManagement sealable)
+                {
+                    // directory と決まった直後に Addressables の取得経路を封じる。config の読み込みだけが封じる前の
+                    // Addressables 利用で、以後の bootstrap（UICommon・SceneResourceMap）は directory の読み口を使う。
+                    // Player の required JSON の経路は Addressables を使わないので、封じても失うものは無い。
+                    // この 1 行は検証 Play の起動ログで「封じた」ことを確かめる目印でもある。
+                    sealable.SealAddressables();
+                    Debug.Log("[AppInit] Content directory mode: Addressables backend sealed after reading the configuration. " +
+                              "Only Content Directory loads are accepted from here on.");
+                }
 
                 // Updater は scene object の Awake register を受ける必要があるため、
                 // BeforeSceneLoad の時点で install しておく。
@@ -588,6 +598,25 @@ namespace OneStarMaker.Runtime
                 throw;
             }
             _contentDirectorySession = session;
+            WarnOnDeclarationMismatch(session.Declaration, configuration.Representation);
+        }
+
+        /// <summary>
+        /// root の宣言（runtime 既定値と表現の主値）と起動設定・実効表現を比べ、違いを Warning 1 行で出す。
+        /// Framework は key を解釈しない。宣言の無い root は何も出さない。目的違いの directory を Play したことを
+        /// Scene の欠落ではなく起動時の 1 行で分かるようにする。
+        /// </summary>
+        private void WarnOnDeclarationMismatch(BuildContentDeclaration? declaration, string effectiveRepresentation)
+        {
+            var config = _config;
+            if (declaration == null || config == null)
+                return;
+            var differences = ContentDeclarationMismatch.Find(declaration,
+                key => config.ContainsKey(key) ? config.GetString(key) : null, effectiveRepresentation);
+            if (differences.Count == 0)
+                return;
+            Debug.LogWarning($"[AppInit] Content directory declaration '{declaration.Name}' differs from the startup configuration: " +
+                             ContentDeclarationMismatch.Format(differences));
         }
 
         private async UniTask<SceneResourceMap> LoadDirectorySceneResourceMapAsync()

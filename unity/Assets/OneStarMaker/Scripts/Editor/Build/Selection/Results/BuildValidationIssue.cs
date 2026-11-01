@@ -14,7 +14,9 @@ namespace OneStarMaker.Build.Selection
     {
         Request,
         Candidate,
-        Requirement
+        Requirement,
+        /// <summary>到達規則の入力 graph の node。</summary>
+        Node
     }
 
     /// <summary>

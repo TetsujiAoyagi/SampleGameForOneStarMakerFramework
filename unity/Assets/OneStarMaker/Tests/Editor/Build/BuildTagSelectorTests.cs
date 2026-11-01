@@ -388,6 +388,105 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(result.Plan.SelectedContent[0].Provenance.Properties[0].Value, Is.EqualTo("1"));
         }
 
+        // ═══ 宣言からの到達（BS5a）で足した policy: requirement の無い候補と、選ばれなかった表現の除外 ═══
+
+        [Test]
+        public void ExcludeUnrequired_CandidateWithoutRequirement_IsUnreachableExclusion()
+        {
+            var result = SelectExcludingUnrequired(
+                new[] { Candidate("kept", "required", "p1"), Candidate("dropped", "elsewhere", "p2") },
+                new[] { new FakeProvider("provider", _ => new[] { Tag("Representation", "Full") }) },
+                Request(Tag("Representation", "Full")),
+                new BuildContentRequirement("required", BuildContentCardinality.ExactlyOne, "Full"));
+
+            Assert.That(result.IsSuccess, Is.True, Snapshot(result));
+            Assert.That(result.Plan!.SelectedContent.Select(item => item.StableKey), Is.EqualTo(new[] { "kept" }));
+            var exclusion = result.Plan.ExcludedContent.Single();
+            Assert.That(exclusion.Candidate.StableKey, Is.EqualTo("dropped"));
+            Assert.That(exclusion.ReasonCode, Is.EqualTo(BuildExclusionReasonCode.Unreachable));
+            Assert.That(exclusion.Dimension, Is.EqualTo("LogicalKey"));
+            Assert.That(exclusion.Value, Is.EqualTo("elsewhere"));
+        }
+
+        [Test]
+        public void ExcludeUnrequired_RepresentationNotInRequirement_IsRepresentationNotPreferred()
+        {
+            // request は Full と Whitebox の両方を許すが、requirement は Whitebox だけ。Full は tag では落ちず requirement で落ちる。
+            var result = SelectExcludingUnrequired(
+                new[] { Candidate("cell/full", "cell", "p1"), Candidate("cell/whitebox", "cell", "p2") },
+                new[] { new FakeProvider("provider", candidate => new[] { Tag("Representation", candidate.StableKey.EndsWith("/full", StringComparison.Ordinal) ? "Full" : "Whitebox") }) },
+                Request(Tag("Representation", "Full"), Tag("Representation", "Whitebox")),
+                new BuildContentRequirement("cell", BuildContentCardinality.ExactlyOne, "Whitebox"));
+
+            Assert.That(result.IsSuccess, Is.True, Snapshot(result));
+            Assert.That(result.Plan!.SelectedContent.Select(item => item.StableKey), Is.EqualTo(new[] { "cell/whitebox" }));
+            var exclusion = result.Plan.ExcludedContent.Single();
+            Assert.That(exclusion.ReasonCode, Is.EqualTo(BuildExclusionReasonCode.RepresentationNotPreferred));
+            Assert.That(exclusion.Dimension, Is.EqualTo("Representation"));
+            Assert.That(exclusion.Value, Is.EqualTo("Full"));
+        }
+
+        [Test]
+        public void RepresentationRequirement_CountsPerRepresentation()
+        {
+            var provider = new FakeProvider("provider", candidate => new[] { Tag("Representation", candidate.StableKey.Split('/').Last()) });
+            var request = Request(Tag("Representation", "Full"), Tag("Representation", "Whitebox"));
+
+            // 宣言した表現の候補が無い: 別の表現があっても RequiredGroupMissing（CardinalityViolation ではない）。
+            var missing = SelectExcludingUnrequired(new[] { Candidate("cell/Full", "cell", "p1") }, new[] { provider }, request,
+                new BuildContentRequirement("cell", BuildContentCardinality.ExactlyOne, "Whitebox"));
+            AssertError(missing, BuildValidationCode.RequiredGroupMissing);
+            Assert.That(missing.Issues.Single(issue => issue.Code == BuildValidationCode.RequiredGroupMissing).Value, Is.EqualTo("Whitebox"));
+            Assert.That(missing.Issues.Any(issue => issue.Code == BuildValidationCode.CardinalityViolation), Is.False);
+
+            // 同じ表現の候補が 2 つ: CardinalityViolation。
+            var twice = SelectExcludingUnrequired(new[] { Candidate("cell/Whitebox", "cell", "p1"), Candidate("cell2/Whitebox", "cell", "p2") },
+                new[] { provider }, request, new BuildContentRequirement("cell", BuildContentCardinality.ExactlyOne, "Whitebox"));
+            AssertError(twice, BuildValidationCode.CardinalityViolation);
+
+            // 両表現を 1 つずつ要求（All）: 両方選ばれ、issue は無い。
+            var both = SelectExcludingUnrequired(new[] { Candidate("cell/Full", "cell", "p1"), Candidate("cell/Whitebox", "cell", "p2") },
+                new[] { provider }, request,
+                new BuildContentRequirement("cell", BuildContentCardinality.ExactlyOne, "Full"),
+                new BuildContentRequirement("cell", BuildContentCardinality.ExactlyOne, "Whitebox"));
+            Assert.That(both.IsSuccess, Is.True, Snapshot(both));
+            Assert.That(both.Plan!.SelectedContent.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void RepresentationRequirements_SameKeyDifferentRepresentation_AreNotDuplicates()
+        {
+            var candidate = Candidate("group/Full", "group", "physical");
+            var provider = new FakeProvider("provider", _ => new[] { Tag("Representation", "Full") });
+            var distinct = SelectExcludingUnrequired(new[] { candidate }, new[] { provider }, Request(Tag("Representation", "Full")),
+                new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne, "Full"),
+                new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne, "Whitebox"));
+            Assert.That(distinct.Issues.Any(issue => issue.Code == BuildValidationCode.DuplicateRequirement), Is.False);
+
+            var duplicate = SelectExcludingUnrequired(new[] { candidate }, new[] { provider }, Request(Tag("Representation", "Full")),
+                new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne, "Full"),
+                new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne, "Full"));
+            AssertError(duplicate, BuildValidationCode.DuplicateRequirement);
+        }
+
+        [Test]
+        public void Policy_RepresentationRequirementWithoutDimension_IsRejected()
+        {
+            Assert.Throws<ArgumentException>(() => new BuildSelectionPolicy(Schema,
+                new[] { new BuildContentRequirement("group", BuildContentCardinality.ExactlyOne, "Full") }, false, null));
+            Assert.Throws<ArgumentException>(() => new BuildSelectionPolicy(Schema, null, true, null));
+        }
+
+        private static BuildPlanResult SelectExcludingUnrequired(
+            IEnumerable<BuildContentCandidate> candidates,
+            IEnumerable<IBuildTagProvider> providers,
+            BuildRequest request,
+            params BuildContentRequirement[] requirements)
+        {
+            return new BuildTagSelector().Select(request, candidates, providers,
+                new BuildSelectionPolicy(Schema, requirements, true, "Representation"));
+        }
+
         private static BuildPlanResult Select(
             IEnumerable<BuildContentCandidate> candidates,
             IEnumerable<IBuildTagProvider> providers,

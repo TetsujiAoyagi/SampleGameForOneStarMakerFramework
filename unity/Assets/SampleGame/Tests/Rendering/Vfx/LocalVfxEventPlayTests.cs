@@ -53,11 +53,15 @@ namespace SampleGame.Tests.Rendering.Vfx
     public sealed partial class LocalVfxEventPlayTests : VfxPlayTestFixture
     {
         private const string SeasonsRoot = "Assets/SampleGame/InGame/InGameSession/Seasons/Spring";
+        // 共有 Lit は InGameSession が付随 asset として宣言する。Season_Spring の祖先として複製の Map の根に置く
+        // （Scene class は無反応の SceneBase に差し替え、Session の初期 Ensure・streaming・companion driver は動かさない）。
+        private const string SessionResourcePath = "Assets/OneStarMakerCommon/SceneMap/InGameSession.asset";
         private const string SeasonResourcePath = SeasonsRoot + "/Season_Spring.asset";
         private const string CellResourcePath = SeasonsRoot + "/Cells/Spring_Cell_4_2/Spring_Cell_4_2.asset";
         private const string EventsResourcePath = SeasonsRoot + "/Cells/Spring_Cell_4_2/Spring_Events_4_2/Spring_Events_4_2.asset";
         private const string EventsScenePath = SeasonsRoot + "/Cells/Spring_Cell_4_2/Spring_Events_4_2/Spring_Events_4_2.unity";
 
+        private const string SessionIdentity = "InGameSession";
         private const string Season = "Season_Spring";
         private const string Cell = "Spring_Cell_4_2";
         private const string Events = "Spring_Events_4_2";
@@ -77,7 +81,8 @@ namespace SampleGame.Tests.Rendering.Vfx
                 await WithEventsAsync(host, backend, async scenes =>
                 {
                     var trigger = scenes.Trigger;
-                    var key = AssetKey.FromAddress(trigger.VfxAddress);
+                    // source の key は trigger の付随 asset の名前と Events の SceneResource の宣言から導く（address は持たない）。
+                    var key = scenes.SourceKey;
                     Assert.That(scenes.Owners(key), Does.Contain(AssetOwner.Scene(Events)), "前提: source を Events Scene が所有する");
                     Assert.That(scenes.IsLoaded(CellVfxIdentity), Is.False, "VFX companion を載せていない");
                     scenes.Log($"source loaded owners={string.Join(",", scenes.Owners(key))}");

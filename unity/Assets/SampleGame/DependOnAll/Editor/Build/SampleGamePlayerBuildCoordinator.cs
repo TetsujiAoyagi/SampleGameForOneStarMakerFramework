@@ -22,12 +22,15 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         internal static string Build()
         {
-            var token = Guid.NewGuid().ToString("N"); const string representation = "Full";
+            var token = Guid.NewGuid().ToString("N");
+            // Player の選択・表現・runtime 既定値は bs4-spring-full の宣言から取る。手書きの定数を 2 箇所に持たない。
+            var declaration = SampleGameBuildPurposes.Bs4SpringFull;
+            var representation = declaration.Representation.Primary;
             CreateProbe(token);
             try
             {
                 var guid = AssetDatabase.AssetPathToGUID(ProbePath);
-                var result = SampleGameContentBuild.BuildResult(new[] { "Spring" }, SeasonContentMode.Full, "bs4-spring-full",
+                var result = SampleGameContentBuild.BuildResult(declaration,
                     (plan, snapshot) =>
                     {
                         var value = Bs4FixtureComposer.Compose(plan, snapshot, guid, ProbePath, representation, token);
@@ -43,7 +46,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var transportPath = ContentTransportPublisher.Publish(result,
                     Path.Combine(artifactsRoot, "transport", result.Identity));
                 var exe = Path.Combine(playerWork, "SampleGame.exe");
-                var runtimeJson = RuntimeJson(result.Identity, representation, token);
+                var runtimeJson = RuntimeJson(result.Identity, declaration, token);
                 using (var mutation = new PlayerBuildProjectMutation(result.Identity, runtimeJson))
                 {
                     mutation.CopyGraphClosure(MapPath);
@@ -104,13 +107,16 @@ namespace SampleGame.DependOnAll.Editor.Build
             finally { UnityEngine.Object.DestroyImmediate(go); }
         }
 
-        private static string RuntimeJson(string identity, string representation, string token) => JsonUtility.ToJson(new RuntimeConfig
+        // baked config の contentSet・representation・cellCompanionSet は宣言から写す。Runtime はこの config を読み、
+        // directory の root の宣言と突き合わせて不一致を Warning にする。
+        internal static string RuntimeJson(string identity, OneStarMaker.Build.Selection.BuildPurposeDeclaration declaration, string token) => JsonUtility.ToJson(new RuntimeConfig
         {
             content = new ContentConfig { schemaVersion = 1, runtimeMode = "directory", buildIdentity = identity,
-                contentSet = "bs4-spring-full", target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title", representation = representation, probeToken = token },
+                contentSet = declaration.Name, target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title",
+                representation = declaration.Representation.Primary, probeToken = token },
             debugSocket = new DebugConfig { enabled = false },
             telemetry = new TelemetryConfig { profiler = new ProfilerConfig { enabled = true } },
-            world = new WorldConfig { cellCompanionSet = "Full" }
+            world = new WorldConfig { cellCompanionSet = SampleGameBuildPurposes.CellCompanionSetOf(declaration) }
         }, true);
 
         [Serializable] private sealed class RuntimeConfig { public ContentConfig content = new(); public DebugConfig debugSocket = new(); public TelemetryConfig telemetry = new(); public WorldConfig world = new(); }

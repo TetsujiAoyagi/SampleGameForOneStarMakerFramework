@@ -17,14 +17,14 @@ namespace SampleGame.InGame.World
     /// Material は Season が参照・事前ロードし、Cell は共有 + MPB で色分けする。
     /// GO 配線はしない。論理ノードは RootObjects 空。
     /// ハンドルの明示 Dispose はしない。Season Unload の Scene owner 解放に委ねる。
+    /// 共有 Lit は親の InGameSession が付随 asset <c>Lit</c> として 1 回だけ宣言し、4 つの Season がそれぞれ自分の所有で読む
+    /// （address も path も持たない。Content Directory の Play では directory の entry から読む）。
     /// </remarks>
     public sealed class SeasonScene : SceneBase
     {
-        /// <summary>
-        /// 共有 Lit の Addressables パス。GUID 維持で Seasons/Materials へ移した。
-        /// </summary>
-        private const string SharedLitAssetPath =
-            "Assets/SampleGame/InGame/InGameSession/Seasons/Materials/DemoCellLit.mat";
+        /// <summary>共有 Lit を宣言している祖先 node と、その付随 asset の名前。</summary>
+        private const string SharedLitOwner = "InGameSession";
+        private const string SharedLitName = "Lit";
 
         private readonly ILogger<SeasonScene> _logger;
         private IAssetHandle<Material>? _sharedLitHandle;
@@ -43,10 +43,9 @@ namespace SampleGame.InGame.World
         protected override async UniTask OnPreLoadedImpl(CancellationToken ct)
         {
             // キャンセル窓内の Scene スコープ PreLoad。owner は AssetOwner.Scene(Season_*).
-            var key = AssetKey.FromAddress(SharedLitAssetPath);
-            _sharedLitHandle = await LoadSceneScopedAssetAsync<Material>(key, ct);
+            _sharedLitHandle = await LoadAttachedAssetAsync<Material>(SharedLitOwner, SharedLitName, ct);
             _logger.ZLogInformation(
-                $"OnPreLoadedImpl SeasonScene: shared lit preloaded ({SharedLitAssetPath})");
+                $"OnPreLoadedImpl SeasonScene: shared lit preloaded ({SharedLitOwner}:{SharedLitName})");
         }
 
         protected override UniTask OnLoadedImpl(CancellationToken ct)

@@ -54,15 +54,74 @@ namespace OneStarMaker.Build.Selection
             foreach (var candidate in candidateSnapshot)
             {
                 var rejection = FindRejection(attributed[candidate], requested);
-                if (rejection == null)
+                if (rejection != null)
+                {
+                    excluded.Add(new BuildContentExclusion(candidate, ReclassifyRejection(candidate, rejection, policy),
+                        rejection.Item2.Dimension!, rejection.Item2.Value!));
+                    continue;
+                }
+                // tag の照合を通っても、宣言が要求しない候補は採らない（到達しない node、優先順で選ばれなかった表現）。
+                // request は dimension ごとの OR なので、Full と Whitebox の両方を request に含めたまま
+                // node ごとに 1 表現へ絞るには、requirement 側の表現で落とすしかない。
+                var unrequired = policy.ExcludeUnrequired
+                    ? FindUnrequired(candidate, RepresentationOf(attributed[candidate], policy.RepresentationDimension), policy)
+                    : null;
+                if (unrequired == null)
                     selected.Add(candidate);
                 else
-                    excluded.Add(new BuildContentExclusion(candidate, rejection.Item1, rejection.Item2.Dimension!, rejection.Item2.Value!));
+                    excluded.Add(unrequired);
             }
 
-            ValidateCardinality(candidateSnapshot, selected, policy.Requirements, issues);
+            ValidateCardinality(candidateSnapshot, selected, attributed, policy, issues);
             var plan = new BuildPlan(request, selected, excluded);
             return new BuildPlanResult(plan, issues);
+        }
+
+        /// <summary>
+        /// 候補の表現 tag の値。dimension が未指定、または候補にその tag が無ければ null。
+        /// AttributeAndValidate が同じ dimension の異なる値を Error にしているので、ここでは最初の 1 件でよい。
+        /// </summary>
+        internal static string? RepresentationOf(IReadOnlyList<BuildTag> tags, string? representationDimension)
+        {
+            if (representationDimension == null) return null;
+            foreach (var tag in tags)
+                if (string.Equals(tag.Dimension, representationDimension, StringComparison.Ordinal)) return tag.Value;
+            return null;
+        }
+
+        /// <summary>
+        /// 宣言が要求する logical key の候補が、表現の値で request に落とされた場合は RepresentationNotPreferred と記録する。
+        /// request の表現は宣言の優先順そのものなので、そこに無い値は「選ばれていない値」ではなく「優先順に無い表現」である。
+        /// requirement の無い key（到達しない node）の候補は従来の理由のまま残す。
+        /// </summary>
+        private static BuildExclusionReasonCode ReclassifyRejection(
+            BuildContentCandidate candidate, Tuple<BuildExclusionReasonCode, BuildTag> rejection, BuildSelectionPolicy policy)
+        {
+            if (!policy.ExcludeUnrequired
+                || rejection.Item1 != BuildExclusionReasonCode.ValueNotSelected
+                || policy.RepresentationDimension == null
+                || !string.Equals(rejection.Item2.Dimension, policy.RepresentationDimension, StringComparison.Ordinal))
+                return rejection.Item1;
+            foreach (var requirement in policy.Requirements)
+                if (string.Equals(requirement.LogicalKey, candidate.LogicalKey, StringComparison.Ordinal))
+                    return BuildExclusionReasonCode.RepresentationNotPreferred;
+            return rejection.Item1;
+        }
+
+        private static BuildContentExclusion? FindUnrequired(BuildContentCandidate candidate, string? representation, BuildSelectionPolicy policy)
+        {
+            var matchedKey = false;
+            foreach (var requirement in policy.Requirements)
+            {
+                if (!string.Equals(requirement.LogicalKey, candidate.LogicalKey, StringComparison.Ordinal)) continue;
+                matchedKey = true;
+                if (requirement.Representation == null || string.Equals(requirement.Representation, representation, StringComparison.Ordinal))
+                    return null;
+            }
+            return matchedKey
+                ? new BuildContentExclusion(candidate, BuildExclusionReasonCode.RepresentationNotPreferred,
+                    policy.RepresentationDimension!, representation ?? string.Empty)
+                : new BuildContentExclusion(candidate, BuildExclusionReasonCode.Unreachable, "LogicalKey", candidate.LogicalKey);
         }
 
         private static void ValidateProviderKeys(IReadOnlyList<IBuildTagProvider> providers)
@@ -101,13 +160,14 @@ namespace OneStarMaker.Build.Selection
             IReadOnlyList<BuildContentRequirement> requirements,
             ICollection<BuildValidationIssue> issues)
         {
-            foreach (var group in requirements.GroupBy(requirement => requirement.LogicalKey, StringComparer.Ordinal))
+            // 同じ logical key でも表現が違えば別の requirement（表現ごとの ExactlyOne）。表現の無い requirement は従来どおり key だけで重複を見る。
+            foreach (var group in requirements.GroupBy(requirement => requirement.LogicalKey + "\u001f" + requirement.Representation, StringComparer.Ordinal))
             {
                 if (group.Count() <= 1) continue;
                 var code = group.Select(requirement => requirement.Cardinality).Distinct().Count() == 1
                     ? BuildValidationCode.DuplicateRequirement
                     : BuildValidationCode.ConflictingRequirement;
-                AddError(issues, code, BuildValidationSubject.Requirement, group.Key, null, null, null,
+                AddError(issues, code, BuildValidationSubject.Requirement, group.First().LogicalKey, null, group.First().Representation, null,
                     "Logical requirement is declared more than once.");
             }
         }
@@ -115,11 +175,22 @@ namespace OneStarMaker.Build.Selection
         private static Dictionary<string, HashSet<string>> ValidateRequest(
             BuildRequest request,
             BuildTagSchema schema,
-            ICollection<BuildValidationIssue> issues)
+            ICollection<BuildValidationIssue> issues) => ValidateRequest(request, schema, issues, false);
+
+        /// <summary>
+        /// request を schema で検査し、dimension ごとの要求値の集合にする。到達規則の filter も同じ検査を通す
+        /// （filter は空でもよいので <paramref name="allowEmpty"/> で区別する）。2 つ目の解釈を作らないための共有。
+        /// </summary>
+        internal static Dictionary<string, HashSet<string>> ValidateRequest(
+            BuildRequest request,
+            BuildTagSchema schema,
+            ICollection<BuildValidationIssue> issues,
+            bool allowEmpty)
         {
             var requested = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
             if (request.Selections.Count == 0)
             {
+                if (allowEmpty) return requested;
                 AddError(issues, BuildValidationCode.InvalidRequestSelection, BuildValidationSubject.Request,
                     "request", null, null, null, "Request must contain at least one selection.");
                 return requested;
@@ -235,7 +306,11 @@ namespace OneStarMaker.Build.Selection
             return result;
         }
 
-        private static Tuple<BuildExclusionReasonCode, BuildTag>? FindRejection(
+        /// <summary>
+        /// request の述語。tag の dimension が request に無ければ UnrequestedDimension、値が選ばれていなければ ValueNotSelected、
+        /// tag の無い dimension は中立。到達規則の filter（OnDemand の子に掛ける）も同じ述語を使う。
+        /// </summary>
+        internal static Tuple<BuildExclusionReasonCode, BuildTag>? FindRejection(
             IReadOnlyList<BuildTag> tags,
             IReadOnlyDictionary<string, HashSet<string>> requested)
         {
@@ -252,23 +327,33 @@ namespace OneStarMaker.Build.Selection
         private static void ValidateCardinality(
             IReadOnlyList<BuildContentCandidate> candidates,
             IReadOnlyList<BuildContentCandidate> selected,
-            IReadOnlyList<BuildContentRequirement> requirements,
+            IReadOnlyDictionary<BuildContentCandidate, IReadOnlyList<BuildTag>> attributed,
+            BuildSelectionPolicy policy,
             ICollection<BuildValidationIssue> issues)
         {
-            foreach (var requirement in requirements.OrderBy(item => item.LogicalKey, StringComparer.Ordinal))
+            foreach (var requirement in policy.Requirements
+                .OrderBy(item => item.LogicalKey, StringComparer.Ordinal)
+                .ThenBy(item => item.Representation, StringComparer.Ordinal))
             {
-                var total = candidates.Count(candidate => string.Equals(candidate.LogicalKey, requirement.LogicalKey, StringComparison.Ordinal));
+                // 表現付きの requirement は、候補の存在も選択数も (logical key, 表現) の組で数える。
+                // 候補が別の表現でしか存在しない場合は CardinalityViolation ではなく RequiredGroupMissing（宣言した表現が無い）。
+                bool Matches(BuildContentCandidate candidate) =>
+                    string.Equals(candidate.LogicalKey, requirement.LogicalKey, StringComparison.Ordinal)
+                    && (requirement.Representation == null
+                        || string.Equals(RepresentationOf(attributed[candidate], policy.RepresentationDimension), requirement.Representation, StringComparison.Ordinal));
+                var dimension = requirement.Representation == null ? null : policy.RepresentationDimension;
+                var total = candidates.Count(Matches);
                 if (total == 0)
                 {
                     AddError(issues, BuildValidationCode.RequiredGroupMissing, BuildValidationSubject.Requirement,
-                        requirement.LogicalKey, null, null, null, "Required logical group has no candidates.");
+                        requirement.LogicalKey, dimension, requirement.Representation, null, "Required logical group has no candidates.");
                     continue;
                 }
-                var count = selected.Count(candidate => string.Equals(candidate.LogicalKey, requirement.LogicalKey, StringComparison.Ordinal));
+                var count = selected.Count(Matches);
                 var valid = requirement.Cardinality == BuildContentCardinality.OneOrMore ? count >= 1 : count == 1;
                 if (!valid)
                     AddError(issues, BuildValidationCode.CardinalityViolation, BuildValidationSubject.Requirement,
-                        requirement.LogicalKey, null, null, null, "Selected candidate count violates the requirement.");
+                        requirement.LogicalKey, dimension, requirement.Representation, null, "Selected candidate count violates the requirement.");
             }
         }
 

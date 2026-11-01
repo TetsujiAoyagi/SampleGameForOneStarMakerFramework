@@ -18,6 +18,23 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         public int playerConfigSchemaVersion;
         public ContentTransportFile[] files = Array.Empty<ContentTransportFile>();
         public ContentSourceFile[] sourceFiles = Array.Empty<ContentSourceFile>();
+        // 任意。directory を作った宣言の写し。無い manifest（旧 build）は name が空のまま読まれ、validation は見ない。
+        public ContentManifestDeclaration declaration = new();
+    }
+
+    [Serializable]
+    public sealed class ContentManifestDeclaration
+    {
+        public string name = "";
+        public string representation = "";
+        public ContentManifestDeclarationValue[] runtimeDefaults = Array.Empty<ContentManifestDeclarationValue>();
+    }
+
+    [Serializable]
+    public sealed class ContentManifestDeclarationValue
+    {
+        public string key = "";
+        public string value = "";
     }
 
     [Serializable]

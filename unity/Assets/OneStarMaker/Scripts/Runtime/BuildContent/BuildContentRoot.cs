@@ -65,13 +65,21 @@ namespace OneStarMaker.Runtime.BuildContent
         [SerializeField] private string _buildIdentity = "";
         [SerializeField] private string _target = "";
         [SerializeField] private BuildContentEntry[] _entries = Array.Empty<BuildContentEntry>();
+        // 任意の宣言。schema version は据え置き（宣言の無い旧 root は従来どおり受理する）。
+        [SerializeField] private BuildContentDeclaration? _declaration;
 
         public int SchemaVersion => _schemaVersion;
         public string BuildIdentity => _buildIdentity;
         public string Target => _target;
         public IReadOnlyList<BuildContentEntry> Entries => Array.AsReadOnly(_entries);
 
+        /// <summary>この directory を作った宣言。宣言を持たない root（旧 build、合成 fixture）では null。</summary>
+        public BuildContentDeclaration? Declaration => _declaration != null && _declaration.IsDeclared ? _declaration : null;
+
         public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries)
+            => Initialize(buildIdentity, target, entries, null);
+
+        public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries, BuildContentDeclaration? declaration)
         {
             // Editor adapter が asset 化する直前に呼ぶ。配列を複写して呼出側の collection 変更を切り離す。
             // identity は OSM report と Unity build name に一致させ、移設後にも照合可能にする。
@@ -83,6 +91,7 @@ namespace OneStarMaker.Runtime.BuildContent
             _entries = new BuildContentEntry[entries.Count];
             for (var i = 0; i < entries.Count; i++)
                 _entries[i] = entries[i] ?? throw new ArgumentException("Null content entry.", nameof(entries));
+            _declaration = declaration;
         }
     }
 }

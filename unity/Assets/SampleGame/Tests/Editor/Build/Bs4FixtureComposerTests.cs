@@ -62,6 +62,21 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(AssetDatabase.AssetPathToGUID(SampleGamePlayerBuildCoordinator.BootstrapScene), Is.Not.Empty);
         }
 
+        [Test]
+        public void RuntimeJson_CopiesContentSetRepresentationAndCompanionSetFromDeclaration()
+        {
+            // baked config は宣言から写す（AC14 の期待値 `cellCompanionSet` と `representation` の出どころ）。
+            var json = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.Bs4SpringFull, "token");
+            Assert.That(json, Does.Contain("\"contentSet\": \"bs4-spring-full\""));
+            Assert.That(json, Does.Contain("\"representation\": \"Full\""));
+            Assert.That(json, Does.Contain("\"cellCompanionSet\": \"Full\""));
+            Assert.That(json, Does.Contain("\"runtimeMode\": \"directory\""));
+
+            var planner = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.SpringPlannerWhitebox, "token");
+            Assert.That(planner, Does.Contain("\"cellCompanionSet\": \"Planner\""));
+            Assert.That(planner, Does.Contain("\"representation\": \"Whitebox\""));
+        }
+
         private static BuildContentCandidate Candidate(string stable, string logical, string physical) =>
             new(stable, logical, physical, new BuildProvenance("test", logical));
         private static BuildDependencySnapshot Dependency(string guid, string path) =>

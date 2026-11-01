@@ -47,7 +47,8 @@ namespace SampleGame.Tests.Rendering.Vfx
         private const string EventFolder = SpringRoot + "/Events/Spring_Event_MultiCellProof";
         private const string EventResourcePath = EventFolder + "/Spring_Event_MultiCellProof.asset";
         private const string EventScenePath = EventFolder + "/Spring_Event_MultiCellProof.unity";
-        private const string EventVfxAddress = EventFolder + "/Spring_Event_MultiCellProof_Burst.vfx";
+        // anchor が指す付随 asset の名前。source の AssetKey は Event の SceneResource の宣言とアプリの Variant から導く（address は持たない）。
+        private const string EventVfxAssetName = "Burst";
         private const string SummerResourcePath = "Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Season_Summer.asset";
         private const string SummerOriginResourcePath = "Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_4/Summer_Cell_0_4.asset";
 
@@ -116,7 +117,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                     ObserveDestroy(scenes, backend);
                     Assert.That(scenes.RequestEvent(), Is.EqualTo(MajorEventRequestResult.Accepted));
                     await scenes.WaitEventStableAsync();
-                    Assert.That(scenes.Owners(EventVfxAddress), Does.Contain(AssetOwner.Scene(EventIdentity)), "前提: source を Event Scene が所有する");
+                    Assert.That(scenes.EventSourceOwners(), Does.Contain(AssetOwner.Scene(EventIdentity)), "前提: source を Event Scene が所有する");
 
                     // AC7 (a): 完了の trigger。
                     await EnterAsync(scenes.Single<MajorEventCompletionTrigger>(EventScenePath).transform.position);
@@ -250,7 +251,7 @@ namespace SampleGame.Tests.Rendering.Vfx
                     TestContext.Out.WriteLine($"stateAtUnload={stateAtUnload}\n" + string.Join("\n", scenes.Timeline));
                     Assert.That(scenes.Director.IsSceneLoaded(EventIdentity), Is.False, "Removed の次のフレームに Event の個体が残る");
                     Assert.That(StartedEffects(baseline).Count, Is.Zero, "Removed の次のフレームに Event の VisualEffect が残る");
-                    Assert.That(scenes.Owners(EventVfxAddress), Has.No.Member(AssetOwner.Scene(EventIdentity)), "Event の所有者が残る");
+                    Assert.That(scenes.EventSourceOwners(), Has.No.Member(AssetOwner.Scene(EventIdentity)), "Event の所有者が残る");
                     Assert.That(scenes.EventPreLoadingCount, Is.EqualTo(1), "Session の unload の後に Event の Add が発行された");
                 });
             });
@@ -304,7 +305,7 @@ namespace SampleGame.Tests.Rendering.Vfx
         private static void ObserveDestroy(SessionScenes scenes, RecordingBackend backend)
         {
             backend.OnDestroy = id => scenes.Log(
-                $"destroy id={id.Value} ownedByEvent={scenes.Owners(EventVfxAddress).Contains(AssetOwner.Scene(EventIdentity))}");
+                $"destroy id={id.Value} ownedByEvent={scenes.EventSourceOwners().Contains(AssetOwner.Scene(EventIdentity))}");
         }
 
         /// <summary>

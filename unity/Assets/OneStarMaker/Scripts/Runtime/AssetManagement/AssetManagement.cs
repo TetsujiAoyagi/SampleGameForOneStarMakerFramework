@@ -17,12 +17,26 @@ namespace OneStarMaker.Runtime.AssetManagement
     /// </summary>
     public sealed partial class AssetManagement : IAssetManagement, IAssetDiagnostics
     {
-        private readonly IAssetBackend _backend;
+        // readonly ではない唯一の理由は SealAddressables。差し替えはそこで 1 回だけ起きる。
+        private IAssetBackend _backend;
         private readonly IAssetResidentCache? _cache;
         private readonly AssetRegistry _registry = new();
 
         /// <summary>同一 key の並行ロードを 1 本の backend ロードに集約する in-flight テーブル。</summary>
         private readonly Dictionary<string, UniTask<IBackendAsset>> _inFlight = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// key の共有をしない backend 呼び出し（Scene ロードと Instantiate）のうち、await 中のものの数。
+        /// これらは <see cref="_inFlight"/> に載らないが、封じる前の backend で完了して registry に入りうるので、
+        /// 封じる判定では in-flight として数える。
+        /// </summary>
+        private int _pendingUnsharedBackendCalls;
+
+        /// <summary>
+        /// 封じた時点で registry にあった Addressables 由来の key。null なら封じていない。
+        /// これ以外の address key は、封じた後は registry・cache・in-flight のどこからも返さない。
+        /// </summary>
+        private HashSet<string>? _sealedAddressKeys;
 
         public AssetManagement()
             : this(new AddressableBackend())
@@ -49,11 +63,63 @@ namespace OneStarMaker.Runtime.AssetManagement
             _cache = cache;
         }
 
+        /// <summary>
+        /// Content Directory mode の起動で、config を読んだ直後に Addressables の取得経路を封じる。
+        /// backend を <see cref="SealedAssetBackend"/> に差し替え（backend 呼び出しはどの公開 member から到達しても拒否）、
+        /// backend を経由しない経路も閉じる: in-flight が 1 件でもあれば例外（封じる時点を初期化の同期区間に限る）、
+        /// resident cache の Addressables 由来の entry を落とし、封じる時点で registry にある address key だけを以後も許可する
+        /// （現状は config の TextAsset 1 件）。安全性が呼ぶ時点の状態に依存することを、この assert と記録で明示する。
+        /// 2 回目以降は no-op。Addressables mode では呼ばない。
+        /// </summary>
+        internal void SealAddressables()
+        {
+            if (_sealedAddressKeys != null)
+            {
+                return;
+            }
+
+            var inFlight = _inFlight.Count + _pendingUnsharedBackendCalls;
+            if (inFlight != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot seal the Addressables backend while {inFlight} load(s) are in flight; seal only in the synchronous startup section.");
+            }
+
+            var allowed = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var loaded in _registry.GetAllLoadedAssets())
+            {
+                if (loaded.Backend is not IContentDirectoryToken)
+                {
+                    allowed.Add(loaded.Key);
+                }
+            }
+
+            // cache の key は canonical key。Addressables 由来は address: / description: で始まり、directory は directory: で始まる。
+            _cache?.EvictByPrefix(AssetKey.AddressPrefix);
+            _cache?.EvictByPrefix(AssetKey.DescriptionPrefix);
+            _backend = new SealedAssetBackend(_backend);
+            _sealedAddressKeys = allowed;
+        }
+
+        /// <summary>封じたか（診断・テスト用）。</summary>
+        internal bool IsAddressablesSealed => _sealedAddressKeys != null;
+
+        private void RejectIfSealed(AssetKey key)
+        {
+            if (_sealedAddressKeys != null && !_sealedAddressKeys.Contains(key.Canonical))
+            {
+                throw new InvalidOperationException(
+                    "Addressables backend is sealed: the key was not loaded before the Content Directory mode was decided. key=" + key.Canonical);
+            }
+        }
+
         public async UniTask<IAssetHandle<T>> LoadAssetAsync<T>(
             AssetKey key,
             AssetOwner owner,
             CancellationToken ct = default) where T : UnityEngine.Object
         {
+            // 封じた後は registry・cache・in-flight のどれからも、記録した key 以外を返さない。
+            RejectIfSealed(key);
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
@@ -75,6 +141,7 @@ namespace OneStarMaker.Runtime.AssetManagement
 
         public IAssetHandle<T> LoadAppAssetSync<T>(AssetKey key) where T : UnityEngine.Object
         {
+            RejectIfSealed(key);
             AssetRegistry.LoadedAsset loaded;
             if (_registry.TryGetAsset(key.Canonical, out var existing))
             {
@@ -110,13 +177,32 @@ namespace OneStarMaker.Runtime.AssetManagement
                 throw new ArgumentNullException(nameof(desc));
             }
 
+            // 封じた後は Scene 台帳の早期 return より前で拒否する。台帳には封じる前の Addressables Scene も
+            // LoadContentSceneAsync が載せた directory Scene も同じ identity で入るので、台帳を見てから拒否すると
+            // この Addressables 用の入口が成功してしまう。封じる前の Scene の unload は UnloadSceneAsync が受け持つ。
+            if (_sealedAddressKeys != null)
+            {
+                throw new InvalidOperationException(
+                    "Addressables backend is sealed: Scene loads by description are not available in Content Directory mode. scene=" + sceneIdentity);
+            }
+
             if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
             {
                 return new SceneHandle(sceneIdentity, existing.Backend);
             }
 
             var key = AssetKey.FromDescription(desc, variant);
-            var backendScene = await _backend.LoadSceneAsync(key.Address, options, ct);
+            IBackendScene backendScene;
+            _pendingUnsharedBackendCalls++;
+            try
+            {
+                backendScene = await _backend.LoadSceneAsync(key.Address, options, ct);
+            }
+            finally
+            {
+                _pendingUnsharedBackendCalls--;
+            }
+
             _registry.AddScene(sceneIdentity, backendScene);
             return new SceneHandle(sceneIdentity, backendScene);
         }
@@ -145,7 +231,17 @@ namespace OneStarMaker.Runtime.AssetManagement
             bool worldSpace = false,
             CancellationToken ct = default)
         {
-            var backendInstance = await _backend.InstantiateAsync(key.Address, parent, worldSpace, ct);
+            IBackendInstance backendInstance;
+            _pendingUnsharedBackendCalls++;
+            try
+            {
+                backendInstance = await _backend.InstantiateAsync(key.Address, parent, worldSpace, ct);
+            }
+            finally
+            {
+                _pendingUnsharedBackendCalls--;
+            }
+
             var instance = backendInstance.Instance
                 ?? throw new InvalidOperationException($"Instantiate failed: {key.Canonical}");
 

@@ -30,3 +30,13 @@ MonoBehaviour:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 0, y: 0, z: 0}
   _streamByDistance: 0
+  _attachedAssets:
+  - _name: Burst
+    _payloads:
+    - Reference:
+        m_AssetGUID: f1056ba4553cd454487b976e54856926
+        m_SubObjectName: 
+        m_SubObjectType: 
+        m_SubObjectGUID: 
+        m_EditorAssetChanged: 0
+      Variant: 

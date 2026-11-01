@@ -232,18 +232,48 @@ Missing / Changed / Complete に分類する。Missing / Changed は source を�
 検証済み content からの Player 起動を拒否する条件ではない。未 checkout Scene を Hierarchy で
 直接編集できることは意味しない。
 
-### SampleGame の季節選択と Editor build（現況）
+### 目的の宣言からの選択（現況）
 
-`SampleGame/DependOnAll/Editor/Build/` の `SeasonSceneSelectionPolicy` が project 固有の選択を担い、
-`SampleGameContentBuild` が本番 `SceneResourceMap` の複製、materialization、selection、Content Directory build を接続する。
-Framework の selection core と成果物 schema に季節名を持ち込まない。
+build の目的は `BuildPurposeDeclaration`（`OneStarMaker.Build.Selection`、pure）1 つで表す。欄は `Name`（contentSet と同じ規則）、`Roots`（logical key の列）、`Filter`（OnDemand の子に適用する tag の述語）、`Representation`（優先順の列と `First` / `All`）、`RuntimeDefaults`（Game が決める不透明な key=value。`content:` で始まる key は拒否）である。target・compression・defines 等の設定は宣言の欄にしない。
 
-- `InGameScene` / `OutGameScene` を graph root とし、親子関係を相互検証する。祖先の `Season_Spring` / `Summer` / `Autumn` / `Winter` から所属を導出し、季節祖先のない content は共通扱いにする。循環、片側だけの親子リンク、異なる季節への重複所属、payload と候補の不一致は選択前に失敗する。階層で表せない所属の明示的な override 入力はあり、通常は空である。
-- materializer の `Representation=Full`（空 Variant）と `Whitebox` を使う。季節内で Whitebox 候補がある logical group にだけ `SeasonalMode` を付け、Full のみの補助シーンと共通 content は Whitebox build にも残す。
-- requirement は要求した季節と共通 content の payload group に限る。通常は `ExactlyOne`。Full と Whitebox の両候補がある季節 group を同梱する場合だけ `OneOrMore` にし、両表現の候補が採用されたことも照合する。
-- Editor メニュー `Tools/OSM/Content/` に全季節 Full、Spring Full、Spring Whitebox、Spring Full And Whitebox の入口がある。選択した必須 group、候補、除外理由をログへ出し、成功 plan と対応 snapshot を既存の `BuildContentCoordinator` へ渡す。専用 EditMode テストと、本番 graph による四つの Content Directory build を確認済み。
+`BuildPurposeResolver` は graph node（`BuildGraphNode`。SceneGraph に固有ではない）と node 水準の tag（`IBuildNodeTagProvider`。Game が供給）と宣言から requirement を作る。
 
-この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。
+- 到達規則: `required(n) ⇔ n ∈ roots ∨ (required(parent) ∧ (LoadType ≠ OnDemand ∨ filter(tags(n))))`。filter の述語は `BuildTagSelector` の request と実装を共有し、2 つ目の解釈を作らない。payload の無い中間 node も到達の経路になる。
+- graph の検証: identity の重複、root の不在、orphan、親子リンクの不一致（多親）、全 node から祖先をたどるサイクル検査。到達しない島のサイクルも issue で止め、`Unreachable` として黙って通さない。
+- requirement は (logical key, 表現) ごとの `ExactlyOne`。表現は node の宣言済み payload から選ぶ（`First` は優先順で最初の 1 つ、`All` は優先順にある全て）。期待集合は宣言から、存在と一意性は materialize 済み候補で検査するので、候補が欠けても合格しない。
+- requirement ごとに root からの到達経路を持ち、`preflight.json` の後方互換の追加項目 `requirements[]`（`logicalKey` / `representation` / `path`）に「なぜ入っているか」が残る。除外は `excluded` の理由 code（`Unreachable`、`RepresentationNotPreferred`）に残る。
+- selector 側は `BuildSelectionPolicy(excludeUnrequired, representationDimension)` で、requirement の無い logical key の候補を `Unreachable` で除外し、cardinality を (logical key, 表現) で数える。
+
+宣言は `BuildContentRoot.Declaration` と transport manifest の `declaration`（どちらも任意 field。schema version は変えない）へ写る。directory mode の起動はそれを config と突き合わせる（[§4](04-app-startup.md)）。Framework は `content:*` 以外の key の意味を解釈しない。
+
+### 付随 asset（現況）
+
+Scene payload ではない asset（`.vfx`、共有 material 等）は、所有する `SceneResource` に `AttachedAssetDescription`（名前と payload 列。埋め込み `[Serializable]`）として宣言する。payload の無い node（例: `InGameSession`）も宣言できる。
+
+- materializer は付随 asset ごとに logical key `<所有 identity>:<名前>` の候補と閉包を作る。所有 identity は候補の `Owner` metadata で、selector の tag にはしない。所有 node が到達すれば選ばれ、Content Directory に `Object` entry として入る。
+- 同じ physical GUID を宣言できる node は 1 つだけ。共有は祖先に 1 回宣言し、子孫が所有者を指定して読む。名前の重複・空名・参照欠損・node identity との衝突は materialize の issue になる。
+- 読む側は `SceneBase.LoadAttachedAssetAsync<T>(name)` / `(ownerIdentity, name)`。`ownerIdentity` は自分か祖先に限る（読む Scene が到達するなら祖先も到達するので、directory に必ずある）。directory mode では `LoadContentAssetAsync(<owner>:<name>, sceneVariant, Scene(自分))`、Addressables mode では `AssetKey.FromDescription` 経由で同じ呼び出しが解決する。所有者は常に読む Scene で、寿命と回収順序は従来の `Scene(id)` 所有と同じ。
+- `ContentDirectoryIndex.TryResolveObject` は Scene と同じ Full fallback を持つ。
+- `.vfx` と material の Addressables entry は Addressables mode の読み口が要するので残している。
+
+### SampleGame の宣言と Editor build（現況）
+
+`SampleGame/DependOnAll/Editor/Build/` の `SampleGameBuildPurposes` が 6 つの宣言（`all-full`、`spring-full`、`spring-whitebox`、`spring-full-whitebox`、`bs4-spring-full`、`spring-planner-whitebox`）を持ち、`SeasonSceneTagPolicy` が node 水準の tag を導く。`SampleGameContentBuild` は宣言を受けて本番 `SceneResourceMap` の複製、materialization、resolver、Content Directory build を接続する。Framework の selection core と成果物 schema に季節名を持ち込まない。
+
+- root は全宣言で `InGameScene` / `OutGameScene`。filter は `Season` と `Role` で、tag の無い dimension は中立。`Season` は祖先の `Season_*` から、`Role` は SampleGame.InGame の `CellCompanionRoleClassifier` から導き、規則を複製しない。
+- 各宣言の Role の filter は `RuntimeDefaults` の `world:cellCompanionSet` から `SeasonSceneTagPolicy.RolesIncludedBy`（SampleGame.InGame の `CellCompanionPolicy` から導出）で作る。`spring-planner-whitebox` は Planner（Role = Events のみ）、表現 `First [Whitebox, Full]` で、Environment・Cell Lighting・Cell VFX を含まない 70 件になる。
+- 表現の対応: Full = `First [Full]`、Whitebox = `First [Whitebox, Full]`、Full と Whitebox の同梱 = `All [Full, Whitebox]`。
+- Editor メニュー `Tools/OSM/Content/Build <contentSet>` が宣言ごとにある。BS4 coordinator は `bs4-spring-full` 宣言を引数に呼び、Player の baked config（`cellCompanionSet`・representation）を宣言から写す。bootstrap composer と BS4 の fixture composer は resolver の後に合成する。
+- 付随 asset の実例は `Spring_Events_4_2:Burst`・`Spring_Event_MultiCellProof:Burst`（`.vfx`）と `InGameSession:Lit`（`DemoCellLit.mat`）。
+
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。Play As、宣言 1 つからの build → publish → install → 検証 Play、batch 入口、publish の `Full` 必須は BS5b の範囲で未実装である。
+
+### BuildSystem の後続（BS5a から送った事項）
+
+- **BS5b（運用経路）:** 同じ宣言を日常 Play・検証 Play・Player・batch に接続する（Play As、検証 Play の 1 操作、From published directory、開いている Scene の拒否、batch 入口と終了コード、publish の `Full` 必須、Delivery 窓の宣言対応、manifest の宣言を環境変数へ写す bridge）。Editor の空 Scene で Play すると first scene が読まれないので、検証 Play の手順化で扱う。
+- **入力 identity:** 宣言と選択候補の source 状態と設定 snapshot の hash、`content/index`、build を skip する再利用。revision の形式は変えていない。
+- **未着手の問い:** 経路の連鎖（source → local の object store → LAN / R2）、object 単位の格納と差分更新、再 build の決定性、Player の実行時差し替え、複数 directory と cross-directory 参照、設定の宣言化と Player の Debug の剥離、known-good の pin の呼び手、日常 Play で宣言に無い content を読んだ時の検出、`outcome.json` の選択・閉包の記録形式、directory に無い OnDemand content を要求した時の振る舞い。
+- **検証の残り:** directory mode の封鎖と宣言の不一致 Warning の配線には自動テストが無い（Editor Play と BS4 Player のログで観測済み）。directory mode の Editor Play で flight rig が spawn に置かれず原点に留まる観測があり、Addressables mode との比較による切り分けが要る（BS5a は該当箇所を変えていない）。Player の `content/` の manifest は `Object` entry を `ObjectIdHash` でしか持たないので、付随 asset を名前で同定する材料が無い。
 
 ---
 

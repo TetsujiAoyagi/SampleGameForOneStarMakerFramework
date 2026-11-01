@@ -6,7 +6,11 @@ namespace OneStarMaker.Build.Selection
     public enum BuildExclusionReasonCode
     {
         UnrequestedDimension,
-        ValueNotSelected
+        ValueNotSelected,
+        /// <summary>logical key に requirement が無い。宣言の root から到達しない node（または到達しない node の付随 asset）の候補。</summary>
+        Unreachable,
+        /// <summary>logical key には到達したが、その表現は優先順で選ばれなかった。</summary>
+        RepresentationNotPreferred
     }
 
     /// <summary>
