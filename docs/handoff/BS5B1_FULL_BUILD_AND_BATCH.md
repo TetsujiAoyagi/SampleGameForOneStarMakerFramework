@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **B（差し戻し 1 巡目）完了（2026-11-02）。次は発見 C（1 巡目の再レビュー）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `36b966c6`。作業: §6.1 の修正（§7.1 F1 と m1〜m3 の扱い）を確かめ、`pwsh tools/run-tests.ps1 -Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` で F1 の修正を確認する（Windows では最初から sandbox 外の承認済み経路で起動）。阻害する指摘が無ければ、判定 C へ進める（GO 候補 head の固定と判定必須テストは判定 C の担当）。権限・停止規則は従来のとおり（osm-workflow の巡の上限。今回の再レビューで差し戻せば 2 巡目）。入力: Phase A snapshot は発見 C では読まない。動作確認は対象なし（§5）。push と PR は未実施。
+- 引継ぎ票: **発見 C の再レビュー完了（2026-11-02）。阻害する指摘なし。次は判定 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `36b966c6`（GO 候補 head の固定は判定 C の担当）。作業: 判定必須テスト（全 EditMode 回帰）、`pwsh tools/contract-audit.ps1`、AC14、HC1 を §5 に従って行う。発見 C の記録は §7.1・§7.2。入力: Phase A snapshot は判定 C の起動指示で渡す。発見 C の所見を C' へ渡さない。push と PR は未実施（判定 C・C' の後に PR を作る）。
 
 ### PR 状態ブロック
 
@@ -284,6 +284,18 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
   - Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び消した（Phase B と同じ現象で範囲外）。`git checkout` で戻し、commit していない。
 - **未実行:** 全 EditMode 回帰、`BuildContentDirectoryIntegrationTests`（content build を伴う）、AC14、HC1、`pwsh tools/contract-audit.ps1`（B が errors=0 を確認済みで、発見 C では再実行していない）。F1 の修正後の判定 C で行う。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
+
+### 7.2 発見 C の再レビュー（1 巡目の後、2026-11-02）
+
+- **種別:** 発見 C（差し戻し 1 巡目の再レビュー）。判定 C ではない。
+- **使った evidence の取得案内と状態:** Phase A snapshot は使っていない。evidence bundle は未生成。入力は implementation head `3ceb19ab`..`36b966c6` の差分（`SampleGameContentBatch.cs` とそのテストだけ。Framework 側は無変更）と、引き継いだ commit `02966399`。
+- **構造適合:** 適合。差分は `Stages` に失敗 log の段 `LogError`（既定は `Debug.LogError`）を足し、`Run` の失敗経路の log をその段へ通しただけで、終了コードの分類・所有・結果 file の欄は変わらない。asmdef 参照の変更なし、Framework に語彙の追加なし。
+- **F1 の確認:** 解消。失敗経路のテストは log を記録して `exitCode=<code>` を確かめ、結果確定が常に失敗する経路では commit の例外の log も確かめる。成功経路は log が空であることを確かめる。
+- **m1〜m3 の扱い:** 妥当。m3 は `FailedBuildResultWithoutIssues_ReturnsFour` で固定。m1 は Phase D の harvest（Architecture §18 §4）へ、m2 は見送り（コード内コメントで明記済み）。
+- **差し戻し指摘:** なし。
+- **実行したコマンドと結果:** `pwsh tools/run-tests.ps1 -Filter "BuildContentFullModeTests;SampleGameContentBatchTests"`: total 23、passed 23、failed 0、exitCode 0。結果は `TestResults/62c951d6-6b14-4854-b6d4-807e3c63505d/`（git 管理外）。Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び消したので `git checkout` で戻し、commit していない。
+- **未実行:** 全 EditMode 回帰、`BuildContentDirectoryIntegrationTests`、AC14、HC1、`pwsh tools/contract-audit.ps1`（B が errors=0 を確認済みで、ここでは再実行していない）。判定 C の担当。
+- **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。
 
 ## 8. Phase C'
 
