@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `Phase B 差し戻し 1 巡目完了`（2026-11-02。A3 凍結は同日）
+- status: `判定 C 完了（HC1 を除く）`（2026-11-02。A3 凍結は同日）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
 - implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
@@ -17,9 +17,9 @@
 - workflow task: `bs5b1-full-build-batch`（2026-11-02 start）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
-- evidence bundle の取得案内・状態: 未到達
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は暫定 C' の起動指示で渡す。HC1 の原記録は未取得
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **発見 C の再レビュー完了（2026-11-02）。阻害する指摘なし。次は判定 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head `36b966c6`（GO 候補 head の固定は判定 C の担当）。作業: 判定必須テスト（全 EditMode 回帰）、`pwsh tools/contract-audit.ps1`、AC14、HC1 を §5 に従って行う。発見 C の記録は §7.1・§7.2。入力: Phase A snapshot は判定 C の起動指示で渡す。発見 C の所見を C' へ渡さない。push と PR は未実施（判定 C・C' の後に PR を作る）。
+- 引継ぎ票: **判定 C 完了（高コスト証拠 HC1 を除く。2026-11-02）。阻害する指摘なし。次は暫定 C'。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。判定 evidence を取った head はローカルの軽量 tag `evidence/bs5b1-full-build-batch/1` で保つ。判定 C の結果は §7.3。暫定 C' は GO 判定に使わず、阻害指摘が無くなった head で HC1（§5）を 1 回取得し、最終証拠ラウンドで判定 C と最終 C' をやり直す。発見 C・判定 C の所見を C' へ渡さない。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -296,6 +296,19 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **実行したコマンドと結果:** `pwsh tools/run-tests.ps1 -Filter "BuildContentFullModeTests;SampleGameContentBatchTests"`: total 23、passed 23、failed 0、exitCode 0。結果は `TestResults/62c951d6-6b14-4854-b6d4-807e3c63505d/`（git 管理外）。Editor の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を再び消したので `git checkout` で戻し、commit していない。
 - **未実行:** 全 EditMode 回帰、`BuildContentDirectoryIntegrationTests`、AC14、HC1、`pwsh tools/contract-audit.ps1`（B が errors=0 を確認済みで、ここでは再実行していない）。判定 C の担当。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。
+
+### 7.3 判定 C（2026-11-02。高コスト証拠 HC1 を除く）
+
+- **対象:** implementation base `26f34046`、head（GO 候補）`36b966c6`。引き継いだ commit `d4640ac5`（HEAD と一致、dirty は判定から外した `docs/reviews/` のみ）。
+- **使った evidence:** Phase A snapshot（取得案内は起動指示で受け、fetch して F1〜F5 を閲覧）。判定 evidence bundle はローカル固定済み（未昇格。§0）。
+- **判定:** 阻害する指摘なし。I4〜I7・E3・E4・E6 に対し AC10〜AC13・AC18 と AC14 の証拠が揃った。HC1 は未取得（暫定 C' の後。§5）。
+- **機械検査:** `pwsh tools/contract-audit.ps1` errors=0 warnings=0。
+- **全 EditMode 回帰（空 filter、`-nographics`）:** total 1587、passed 1562、failed 0、inconclusive 25。ハーネスの status は failed（Inconclusive があるため）。25 件は全て `SampleGame.Tests.Rendering.Vfx` の描画系で、理由は `GraphicsDeviceType.Null`（`-nographics`）。`BuildContentFullModeTests`・`SampleGameContentBatchTests`・`BuildContentDirectoryIntegrationTests`・`PlayerBuildIntegrationPolicyTests` に該当する 37 件は全て Passed。
+- **Inconclusive の解消:** `pwsh tools/run-tests.ps1 -WithGraphics -Filter "SampleGame.Tests.Rendering.Vfx"` で total 73、passed 73、failed 0、inconclusive 0。全 EditMode と合わせて必要な集合が全て Passed（このスライスは Rendering を変更していない）。
+- **AC14:** `-osmPurpose no-such-purpose` の batch 起動で process の終了コード 2、`last-result.json` の `exitCode` は 2（reason は未知の宣言名）、`artifacts/bs2b/transport/` は起動の前後とも存在せず増えていない。
+- **照合 script（offline、判定 C が作成）:** F1〜F5 を凍結した期待出力と照合し全件一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i) で不合格）。原記録（HC1）への適用は未実施。script は判定 evidence bundle にあり git に入れていない。
+- **範囲外の観測:** Unity の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を消すので、各実行後に `git checkout` で戻し commit していない。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は残っており、触っていない。
+- **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
 
 ## 8. Phase C'
 
