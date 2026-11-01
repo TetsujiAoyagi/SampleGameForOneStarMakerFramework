@@ -17,9 +17,9 @@
 - workflow task: `bs5b1-full-build-batch`（2026-11-02 start）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は暫定 C' の起動指示で渡す。HC1 の原記録は未取得
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。暫定 C' 用の blind audit bundle（head `36b966c6` 固定、所見を含まない）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は暫定 C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **判定 C 完了（高コスト証拠 HC1 を除く。2026-11-02）。阻害する指摘なし。次は暫定 C'。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。判定 evidence を取った head はローカルの軽量 tag `evidence/bs5b1-full-build-batch/1` で保つ。判定 C の結果は §7.3。暫定 C' は GO 判定に使わず、阻害指摘が無くなった head で HC1（§5）を 1 回取得し、最終証拠ラウンドで判定 C と最終 C' をやり直す。発見 C・判定 C の所見を C' へ渡さない。push と PR は未実施。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）用の blind audit bundle（head `36b966c6` 固定、所見を含まない）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
+- 引継ぎ票: **判定 C 完了（高コスト証拠 HC1 を除く。2026-11-02）。阻害する指摘なし。次は C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。判定 evidence を取った head はローカルの軽量 tag `evidence/bs5b1-full-build-batch/1` で保つ。判定 C の結果は §7.3。流れは「C' → 判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C」（§7 の DR1。最終 C' は行わない。C' の後に head が変われば C' をやり直す）。発見 C・判定 C の所見と DR1 を C' へ渡さない。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -143,7 +143,7 @@ UC2・UC4・UC7 は BS5b-2。UC1・UC3・UC5・UC8〜UC11 は BS5b で変えな�
 - **判定定義:** 不変条件 I4〜I7 と成立条件 E3・E4・E6 を AC10〜AC14・AC18 と HC1 で確かめ、全て成立で GO。1 つでも不成立なら NO-GO。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - **A3 後の例外承認:** なし。
-- **決定記録:** なし。
+- **決定記録:** §7 の決定記録（DR1）。
 - **本文へ転記した実装制約:** §1.2。
 - **未決事項:** §2.6。
 
@@ -203,8 +203,8 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **A0/A1 主担当・モデル・ベンダー:** Claude Opus 5.5（Anthropic）、2026-11-01。
 - **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** 入力版は A2 入力版 `bb671da6` の分割前の BS5b の HANDOFF（`docs/handoff/BS5B_OPERATION_ROUTES.md`、内容 sha256 `8ba57df617087d29229b4d059d94b605ad402e500481a83555a5ceffb0f315a6`）と関係ソース・文書の写し。Phase A snapshot に入れたものは無い。(R1) アーキテクチャゲート: Grok 4.7 high（xAI、cursor-agent）、判定「修正後に凍結可」（blocker 1・major 3・minor 7）。Codex（OpenAI）は利用上限で実行できなかった。(R2) A0 だけからの代替構成: Claude Opus（Anthropic、subagent。§1 の写しと関係ソースだけを読む）。外部レビュー（2026-11-02、発注者が受け取った。A2 の改訂版を対象）。分割後の外部レビュー（2026-11-02、分割後の 2 つの HANDOFF を対象。分割で生じた境界と差分の独立確認を兼ねる）。採否は下の「A2 の指摘と採否」。
 - **A3 統合担当・モデル・採否:** Claude Opus 5.5（Anthropic）と発注者、2026-11-02。採否は下の表のとおり（#33 の分割と #32 の結果 file は発注者の判断）。発注者が凍結を承認した。
-- **C' 用に予約した担当・モデル・ベンダー:** OpenAI（Codex）。A2 では実行していないので未関与。
-- **独立性の強化条件を満たせない場合の理由:** R2 は主担当と同じ系列（Anthropic）。A0 だけを読む制約で初稿へのアンカリングを断った。
+- **C' 用に予約した担当・モデル・ベンダー:** 当初は OpenAI（Codex、A2 では未関与）を予約した。利用上限で 2026-11-04 22:42 まで使えないため、C' の担当は Grok（xAI、cursor-agent）とする（2026-11-02、進行役の選択）。Grok は A2 の R1 に関与しているので**独立性制約あり**。
+- **独立性の強化条件を満たせない場合の理由:** R2 は主担当と同じ系列（Anthropic）。A0 だけを読む制約で初稿へのアンカリングを断った。C' の Grok は A2 の R1 と同じ系列で、未関与の担当を確保できない（上の予約の変更）。
 
 ### A2 の指摘と採否（A3 統合の入力）
 
@@ -301,7 +301,7 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 
 - **対象:** implementation base `26f34046`、head（GO 候補）`36b966c6`。引き継いだ commit `d4640ac5`（HEAD と一致、dirty は判定から外した `docs/reviews/` のみ）。
 - **使った evidence:** Phase A snapshot（取得案内は起動指示で受け、fetch して F1〜F5 を閲覧）。判定 evidence bundle はローカル固定済み（未昇格。§0）。
-- **判定:** 阻害する指摘なし。I4〜I7・E3・E4・E6 に対し AC10〜AC13・AC18 と AC14 の証拠が揃った。HC1 は未取得（暫定 C' の後。§5）。
+- **判定:** 阻害する指摘なし。I4〜I7・E3・E4・E6 に対し AC10〜AC13・AC18 と AC14 の証拠が揃った。HC1 は未取得（C' の後。§5・DR1）。
 - **機械検査:** `pwsh tools/contract-audit.ps1` errors=0 warnings=0。
 - **全 EditMode 回帰（空 filter、`-nographics`）:** total 1587、passed 1562、failed 0、inconclusive 25。ハーネスの status は failed（Inconclusive があるため）。25 件は全て `SampleGame.Tests.Rendering.Vfx` の描画系で、理由は `GraphicsDeviceType.Null`（`-nographics`）。`BuildContentFullModeTests`・`SampleGameContentBatchTests`・`BuildContentDirectoryIntegrationTests`・`PlayerBuildIntegrationPolicyTests` に該当する 37 件は全て Passed。
 - **Inconclusive の解消:** `pwsh tools/run-tests.ps1 -WithGraphics -Filter "SampleGame.Tests.Rendering.Vfx"` で total 73、passed 73、failed 0、inconclusive 0。全 EditMode と合わせて必要な集合が全て Passed（このスライスは Rendering を変更していない）。
@@ -309,6 +309,14 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **照合 script（offline、判定 C が作成）:** F1〜F5 を凍結した期待出力と照合し全件一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i) で不合格）。原記録（HC1）への適用は未実施。script は判定 evidence bundle にあり git に入れていない。
 - **範囲外の観測:** Unity の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を消すので、各実行後に `git checkout` で戻し commit していない。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は残っており、触っていない。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
+
+### 決定記録
+
+- **DR1（2026-11-02、発注者。進行役経由で受領）:** 人間（発注者）の判断で、HC1 の前に行う C'（いわゆる暫定 C'）を GO 判定に使う。
+  - 適用時点: 判定 C 完了後（GO 候補 head `36b966c6`）。
+  - 影響: §5 の順序「判定 C → 暫定 C' → HC1 → 最終判定 C と最終 C'」のうち、最終 C' を行わない。HC1 の取得と、HC1 を加えた最終判定 C は従来どおり行う。C' の後に head が変われば、「判定後の head 変更」に従って C' をやり直す。
+  - 凍結した AC・不変条件・成立条件と判定定義（HC1 を含む）の意味・合否は変えない。
+  - C' 担当には渡さない（C' 自身の指摘への裁定ではないため）。
 
 ## 8. Phase C'
 
