@@ -13,7 +13,7 @@ Phase C と C' は同じ実装を評価する。レビュー開始時に次を�
 
 テスト未実行でも、固定した diff と機械検査だけで欠陥発見レビューを開始してよい。その bundle では GO 判定も C' も開始しない。最終判定と C' に使う bundle には、判定必須テストの生ログと XML を含める。高コスト証拠は「高コスト証拠と最終証拠ラウンド」の順序で加える。
 
-implementation head はレビュー対象の実装差分を固定する値であり、HANDOFF に C/C' の結果だけを追記した review-record commit とは分ける。staged diff や可変な作業ツリーだけを正本にしない。実装対象の diff が変わった場合は [判定後の head 変更](#判定後の-head-変更) に従う。
+implementation head はレビュー対象の実装差分を固定する値であり、HANDOFF に C/C' の結果だけを追記した review-record commit とは分ける。次の担当が HEAD と照合する引き継ぐ commit との区別と票への書き方は [引継ぎ票](phases-and-handoff.md#引継ぎ票) に従う。staged diff や可変な作業ツリーだけを正本にしない。実装対象の diff が変わった場合は [判定後の head 変更](#判定後の-head-変更) に従う。
 
 **固定の対象:** 発見 C の差し戻し入力に限り、完全な変更集合を収録した stage snapshot（reference と packageSha256）で固定できる。判定 C と C' は commit 固定を必須とし、C / C' 用 bundle は同一 commit から生成する。snapshot を使うレビューでは、送信元の可変な作業ツリーをレビュー入力にしない。
 
