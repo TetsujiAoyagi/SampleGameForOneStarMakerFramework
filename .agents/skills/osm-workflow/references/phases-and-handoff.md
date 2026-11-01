@@ -29,7 +29,7 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
+Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、票には「この票を含む commit」と書き、SHA の実値は tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
 
 途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](../SKILL.md#公開点とgit履歴) に従う。
 
@@ -138,9 +138,11 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 - 必要な権限（Unity、実操作、資格情報、sandbox 外実行）
 - 停止規則と、引き渡さないもの（C' に所見を渡さない等）
 
+票は tracked HANDOFF の中にあるので、票を含む commit 自身の SHA は票に書けない（書き戻すと tree が変わり SHA がずれる）。票に SHA を書くのは、票を含む commit とは別の commit（implementation base / head、A2 入力版、B の出口の実装 commit 等）に限る。固定点が票を含む commit 自身になるとき（A3 凍結版、HANDOFF だけを変える出口）は、票に「引き継ぐ commit はこの票を含む commit」と書き、その SHA の実値は tree の外（次の担当の起動指示。PR が存在する間は [PR 状態ブロック](#pr-状態ブロック) にも書く）で渡す。起動指示の SHA は会話履歴ではなく開始入力であり、票が「この票を含む commit」と書いているのに SHA が渡されていない session は、§0 だけでは commit を特定できないので引き継がない。次の担当は、渡された SHA と HEAD が一致し、HEAD の tree にその票を含む HANDOFF があることを確認する。票を含む commit を切り直したら、票は書き戻さず、tree の外で渡す SHA を切り直し後の値にする。
+
 ### 実行担当と判断担当
 
-判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、引継ぎ票に SHA と取得案内の所在を書く。push は [公開点](../SKILL.md#公開点とgit履歴) の規則に従う）で終える。
+判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、引継ぎ票に implementation head の SHA と取得案内の所在を書く。票を含む記録 commit 自身は [引継ぎ票](#引継ぎ票) に従い「この票を含む commit」と書く。push は [公開点](../SKILL.md#公開点とgit履歴) の規則に従う）で終える。
 
 ### PR 状態ブロック
 
@@ -151,7 +153,7 @@ PR の本文先頭に、HANDOFF §0 の最小の写しとして状態ブロッ�
 - C' 完了まで、状態ブロックと本文に判定 C の結論・指摘を書かず、「判定 C 完了」の事実だけを書く。C / C' の結果は Phase D で本文に要約する。
 - Phase D の担当はマージ前に、状態ブロックと本文の要約が最終 head と一致することを確認する。
 
-引き継ぐ担当は開始時に、HANDOFF §0 の引継ぎ票の commit SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。レビュー用の worktree は固定 SHA からの detached worktree でよく、同じブランチを複数の worktree で checkout する必要はない。C' は PR を入力にせず、所見を含まない C' 用の取得案内だけで始める（[レビュー証拠](review-evidence.md#保存先とリモートへの配布)）。
+引き継ぐ担当は開始時に、HANDOFF §0 の引継ぎ票の commit SHA（票が「この票を含む commit」と書く場合は、起動時に渡された SHA）と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。レビュー用の worktree は固定 SHA からの detached worktree でよく、同じブランチを複数の worktree で checkout する必要はない。C' は PR を入力にせず、所見を含まない C' 用の取得案内だけで始める（[レビュー証拠](review-evidence.md#保存先とリモートへの配布)）。
 
 ### Cloud の担当
 

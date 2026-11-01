@@ -16,7 +16,7 @@ description: >-
 2. 自分が担当する Phase と成果物を特定する。
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
-5. 前の Phase から引き継ぐときは、HANDOFF §0 の引継ぎ票の commit SHA と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
+5. 前の Phase から引き継ぐときは、HANDOFF §0 の引継ぎ票の commit SHA（票が「この票を含む commit」と書く場合は、起動時に渡された SHA）と自分の worktree の HEAD を照合し、作業ツリーが dirty なら引き継がない。PR が存在する間は状態ブロックも照合する。同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。食い違えば引き継がずに停止する。C' は PR を読まない。詳細は [Phase 境界の引継ぎ](references/phases-and-handoff.md#phase-境界の引継ぎ)。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
 
@@ -30,7 +30,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
 - 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）は整理しない。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、公開面のリンク切れと手元層（git 管理外）への参照が無いことを確認する。機微な値の確認は次項の差分本文の点検で行う。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
-- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認し、`git log -p <前回公開head>..HEAD` で変更 file の差分本文を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script の本体、ローカル path、秘密、reference・packageSha256 の実値が file にも本文にも含まれていれば push せず、HEAD で消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。未 push の A2 入力版・A3 凍結版の commit 自体に含まれる場合は、その commit を捨てずに対象だけを外して切り直す（レビュー入力の同一性は内容 sha256 で保つので commit hash が変わってよい）。人間が読む導出の規則と、実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
+- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認し、`git log -p <前回公開head>..HEAD` で変更 file の差分本文を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script の本体、ローカル path、秘密、reference・packageSha256 の実値が file にも本文にも含まれていれば push せず、HEAD で消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。未 push の A2 入力版・A3 凍結版の commit 自体に含まれる場合は、その commit を捨てずに対象だけを外して切り直す（レビュー入力の同一性は内容 sha256 で保つので commit hash が変わってよい。引継ぎの照合に使う SHA は tree の外で切り直し後の値に更新する）。人間が読む導出の規則と、実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 
@@ -55,7 +55,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
 - 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。B限定のUnityテストは、A3で実行経路と対象集合を凍結したtaskに限る。完了済みH2cの実例（承認profile、初回疎通の扱い、固定記録の入口）は [Harness README](../../../tools/Harness/README.md#h2c-unity-pilot) を正とする。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
-- B の session は B の出口で commit し、引継ぎ票に SHA と取得案内の所在を書いて終える（PR が存在する間は状態ブロックも更新する）。push は [公開点](#公開点とgit履歴) の規則に従う。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
+- B の session は B の出口で commit し、引継ぎ票に implementation head の SHA と取得案内の所在を書いて終える（PR が存在する間は状態ブロックも更新する）。票を含む記録 commit 自身の SHA は票に書けないので、[引継ぎ票](references/phases-and-handoff.md#引継ぎ票) に従い「この票を含む commit」と書き、SHA は tree の外で渡す。push は [公開点](#公開点とgit履歴) の規則に従う。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
 
 ## 動作確認（Phase B の後）
 
