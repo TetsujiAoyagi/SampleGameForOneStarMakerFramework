@@ -305,7 +305,9 @@ handle を finally で回収し、実際に完了した段階だけを記録す�
 診断用 hold は代表 Prefab の検証後から destroy 前までに限り、有限 deadline と明示 signal で解除する。
 失敗、取消、timeout の場合も instance と handle は既存の `finally` で回収する。
 
-**Editor設定読取の未決:** 現行`BuildConfig()`はdirectory選択判定より前に`JsonFileConfigProvider`を使い、SampleGameの`GetConfigFilePath()`はAddressables keyを返す。したがって「通常Editor起動はconfigもAddressablesを読まない」とは現況を断定できない。この依存を許容した残存ownerか、通常経路からの切断漏れかは未決であり、文書更新で採用・正当化しない。BS4のrequired file configとfail-closed条件は変更しない。
+**directory mode の Addressables 封鎖:** Editor は mode を決めるために config を Addressables で 1 回読む（`BuildConfig()` の `JsonFileConfigProvider`、SampleGame の `GetConfigFilePath()` は Addressables key）。これが directory mode で Addressables を使う唯一の例外である。`ReadContentDirectoryConfiguration` が directory を返した直後に `AssetManagement.SealAddressables()`（internal）が backend を `SealedAssetBackend` に 1 回だけ差し替え、以後の取得系（同期・非同期ロード、Scene ロード、instantiate）はどの公開 member から到達しても `InvalidOperationException` で拒否する。`Release` / `UnloadSceneAsync` は内側へ通す。backend を経由しない経路も閉じる: 封じる時点で in-flight があれば例外、resident cache の Addressables 由来 entry を落とし、registry はその時点の address key（config の `TextAsset`）以外を返さない。起動ログに封じた 1 行を出す。Addressables mode では封じない。BS4 Player は config を required JSON から読むので封じる前にも Addressables を使わない。
+
+**宣言と config の不一致:** directory 登録後、root の `Declaration`（[§18](18-asset-description.md)）の runtime key=value を config と、表現の主値を実効表現と比べ、違いがあれば key と両方の値を Warning 1 行で出す（`ContentDeclarationMismatch`。不透明な文字列の比較で、値の意味は解釈しない）。目的違いの directory を Play したことが 1 行で分かる。
 
 ## 4.8 起動時 Scene Variant と職種 companion set
 

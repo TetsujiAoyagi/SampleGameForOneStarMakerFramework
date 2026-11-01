@@ -155,6 +155,7 @@ SampleGame/InGame/InGameSession/Seasons/
 ```
 
 - Cell は active Season の子・`LoadType.OnDemand` + `StreamByDistance`。親ロード時に自動ロードされず、距離 Tick の指示でのみ出入りする
+- `DemoCellLit.mat` は `InGameSession` の付随 asset `Lit` として 1 回だけ宣言し、各 Season が `LoadAttachedAssetAsync("InGameSession", "Lit")` で自分の所有として PreLoad する（[§18](18-asset-description.md)）
 - InGame 退出は Session のツリー Unload（または InGame ごと）で季節枝が再帰破棄される
 - `SessionSeasonController` が active Season ごとに距離/companion driver を構築し、InGame Session 寿命で停止する。`WorldStreamingController` 自体は候補の Season 文法を知らない
 

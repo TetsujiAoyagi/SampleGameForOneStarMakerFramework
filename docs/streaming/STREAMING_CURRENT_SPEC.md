@@ -40,7 +40,7 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | 飛行速度 | `FlyController._moveSpeed = 42` m/s（ブースト 2.4 倍で約 100 m/s） | `FlyController.cs` |
 | 制作 policy | S-4b 生成物は全216 Cellが `Generated`。一回限りの生成器と policy コードは生成後に撤去済み | git 履歴 / 生成物 |
 | セル実体 | 四季×54。各 Cell は Full と Whitebox payload、Environment 子を持つ | `SampleGame/.../InGameSession/Seasons/` |
-| Variant / representation | 全 Cell のソースは空文字と `Whitebox` payload。通常 Content buildでは Full / Whiteboxを選択し、directory起動中は表現を固定する | SceneResource payloads / `SeasonSceneSelectionPolicy` / `content:representation`（旧profileは互換用） |
+| Variant / representation | 全 Cell のソースは空文字と `Whitebox` payload。通常 Content buildでは Full / Whiteboxを選択し、directory起動中は表現を固定する | SceneResource payloads / `SampleGameBuildPurposes` の宣言 / `content:representation`（旧profileは互換用） |
 | S-4b の登録記録 | 生成時の652 Sceneは Scene/Resource/Graph/Map/Addressables の集合整合を検査した。現在の総Scene数や通常build backendを示す値ではない | S-4b生成・撤去記録 / `AddressableAssetsData/` |
 | シーン木 | `InGameSession → Season_* → *_Lighting / *_Cell_{x}_{y} → *_Environment_{x}_{y}` | SeasonはOnDemand、LightingはNecessaryAlways |
 

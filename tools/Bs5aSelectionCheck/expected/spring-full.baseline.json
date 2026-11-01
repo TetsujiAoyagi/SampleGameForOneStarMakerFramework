@@ -1,9 +1,0 @@
-{
-  "contentSet": "spring-full",
-  "sourceCommit": "840b6609",
-  "preflightIdentity": "20261031T124304272Z-ab4d5e1f54b8474cb5ba344b6c719925",
-  "selectedCount": 124,
-  "sha256": "e697d486dd6a51047d27f624d7b07dbff38f9d6af973c39cdadf0fdc1fa7a4eb",
-  "capturedUtc": "2026-10-31T13:02:25.4357329Z",
-  "note": "(i) 旧 policy の実測。実装の出力ではなく、sourceCommit の Editor で menu を実行して得た preflight.json の selected。"
-}
