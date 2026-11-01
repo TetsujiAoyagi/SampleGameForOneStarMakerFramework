@@ -35,13 +35,13 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## Phase A: 計画と設計レビュー
 
 - A0 で現況、要求、制約、対象外、未決事項に加え、このスライスが答える問い、次スライスへ進む最低条件、後続スライスへ送る問いを同じ planning packet に固定する。
-- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分け、不変条件は守る主張とそれを崩しうる既存コードの経路で書く。UC ごとの利用者の入力の正当化と、A2 前のスライス分割の検討も A1 で行う（[Phase A の内部フロー](references/phases-and-handoff.md#phase-a-の内部フロー)）。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。機械向けの期待値 file と script 本体の置き場所も同節に従う。
+- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分ける。UC ごとの利用者の入力と、A2 前のスライス分割の検討も A1 で行う（[Phase A の内部フロー](references/phases-and-handoff.md#phase-a-の内部フロー)）。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。機械向けの期待値 file と script 本体の置き場所も同節に従う。
 - 操作・実行時・目視を伴う最低条件は、凍結前に [検証経路の成立](references/phases-and-handoff.md#検証経路の成立) を確認する。AI が取得できない証拠を、暗黙の人間作業として凍結しない。
 - A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ[入力版](references/phases-and-handoff.md#phase-a-の内部フロー)を使い、互いの指摘を見せない。Phase A の commit は A2 入力版と A3 凍結版の 2 点だけとし、途中の版は Phase A snapshot で渡す（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。
 - 少なくとも1件は [アーキテクチャゲート](references/architecture-gates.md) に従い、フォルダ境界、クラス責務、依存、所有者、寿命、テスト可能性を専門に見る。
-- 1件は、目的と利用者だけを渡して何を保証すべきか・何を作らないべきかを問う目的レビューとする（[Phase A の内部フロー](references/phases-and-handoff.md#phase-a-の内部フロー)）。
-- 高リスク変更では、初稿を見ずに A0 だけから代替構成を出すレビューを追加する（目的レビューの後に続けて兼ねてよい）。C' の独立性が必要なら、Phase A で利用可能な全モデル系列・ベンダーを使い切らず、未関与の監査担当を予約する。
-- A3 で主担当と人間が指摘を採用・不採用・保留に分類し、理由（不採用は目的から。引き継いだ要求文だけを根拠にしない）を記録して HANDOFF と受け入れ境界を凍結する。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。
+- 1件は、計画の書き手が枠を与えない目的レビューとする（[Phase A の内部フロー](references/phases-and-handoff.md#phase-a-の内部フロー)）。
+- 高リスク変更では、初稿を見ずに A0 だけから代替構成を出すレビューを追加する。C' の独立性が必要なら、Phase A で利用可能な全モデル系列・ベンダーを使い切らず、未関与の監査担当を予約する。
+- A3 で主担当と人間が指摘を採用・不採用・保留に分類し、理由を記録して HANDOFF と受け入れ境界を凍結する。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。
 - A3 後の finding が現スライスを阻害できるのは、凍結済みの進める最低条件、受け入れ条件、または常時契約への違反を [blocker の基準](references/phases-and-handoff.md#blocker-の基準) で示す場合だけとする。凍結条件の意味・合否を変えない人間の裁定は [決定記録](references/phases-and-handoff.md#決定記録) に残し、変える裁定は Phase A の新しい revision にする。それ以外の新しい不確実性は重要度にかかわらず後続スライスへ移送する。現スライスへ例外的に取り込む場合は、人間が置き換える既存条件または期限・検証予算を明示して承認し、Phase A を新しい revision として再開する。
 - HANDOFF は [テンプレート](references/handoff-template.md) を基準にする。テスト方針には、差し戻し中の確認に使う起点 filter と、GO 候補 head の判定必須テストを分けて書く。実装変更を伴うスライスの判定必須には、最終の全 EditMode 回帰を標準として含める。適用除外は理由と代替証拠を本文へ書く。
 
