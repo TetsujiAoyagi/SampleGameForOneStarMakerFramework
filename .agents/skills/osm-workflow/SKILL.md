@@ -28,16 +28,16 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 判定 evidence を取った head は、push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。判定 evidence を取っていない中間 head は整理してよい。
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
-- 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）は整理しない。
+- 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の A3 凍結版の commit は整理しない。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、公開面のリンク切れと手元層（git 管理外）への参照が無いことを確認する。機微な値の確認は次項の差分本文の点検で行う。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
-- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認し、`git log -p <前回公開head>..HEAD` で変更 file の差分本文を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script の本体、ローカル path、秘密、reference・packageSha256 の実値が file にも本文にも含まれていれば push せず、HEAD で消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。未 push の A2 入力版・A3 凍結版の commit 自体に含まれる場合は、その commit を捨てずに対象だけを外して切り直す（レビュー入力の同一性は内容 sha256 で保つので commit hash が変わってよい）。人間が読む導出の規則と、実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
+- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認し、`git log -p <前回公開head>..HEAD` で変更 file の差分本文を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script の本体、ローカル path、秘密、reference・packageSha256 の実値が file にも本文にも含まれていれば push せず、HEAD で消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。未 push の A3 凍結版の commit 自体に含まれる場合は、その commit を捨てずに対象だけを外して切り直す（凍結版の同一性は内容 sha256 で保つので commit hash が変わってよい。引継ぎ票の SHA は切り直し後の値に更新する）。人間が読む導出の規則と、実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 
 - A0 で現況、要求、制約、対象外、未決事項に加え、このスライスが答える問い、次スライスへ進む最低条件、後続スライスへ送る問いを同じ planning packet に固定する。
 - A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分ける。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。機械向けの期待値 file と script 本体の置き場所も同節に従う。
 - 操作・実行時・目視を伴う最低条件は、凍結前に [検証経路の成立](references/phases-and-handoff.md#検証経路の成立) を確認する。AI が取得できない証拠を、暗黙の人間作業として凍結しない。
-- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ[入力版](references/phases-and-handoff.md#phase-a-の内部フロー)を使い、互いの指摘を見せない。Phase A の commit は A2 入力版と A3 凍結版の 2 点だけとし、途中の版は Phase A snapshot で渡す（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。
+- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ[入力版](references/phases-and-handoff.md#phase-a-の内部フロー)を使い、互いの指摘を見せない。Phase A の commit は A3 凍結版の 1 点だけとし、A2 の入力版と途中の版は内容 sha256 と Phase A snapshot で渡す（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。
 - 少なくとも1件は [アーキテクチャゲート](references/architecture-gates.md) に従い、フォルダ境界、クラス責務、依存、所有者、寿命、テスト可能性を専門に見る。
 - 高リスク変更では、初稿を見ずに A0 だけから代替構成を出すレビューを追加する。C' の独立性が必要なら、Phase A で利用可能な全モデル系列・ベンダーを使い切らず、未関与の監査担当を予約する。
 - A3 で主担当と人間が指摘を採用・不採用・保留に分類し、理由を記録して HANDOFF と受け入れ境界を凍結する。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。
