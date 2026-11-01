@@ -333,7 +333,7 @@ Planner Playは§3.1の経路で `content:representation=Whitebox` と
 
 ### 6.3 S-4d の分割
 
-順序は `d1 -> d2 -> d3 -> d4a -> d4b -> d5a -> BS5a -> d5b`。前のスライスのマージ後に次を始める。各行は Phase A の A0 入力であり、凍結済みの条件ではない。BS5a は S-4d のスライスではなく BuildSystem のスライスで、2026-11-01 に完了した。BS5 は 2026-10-31 に BS5a（中核）・BS5b（運用経路。BS5a の後に別 HANDOFF）・identity 後続に分割され、d5b の前提は BS5a だけで、BS5b は d5b と並行できる。
+順序は `d1 -> d2 -> d3 -> d4a -> d4b -> d5a -> BS5a -> d5b`。前のスライスのマージ後に次を始める。各行は Phase A の A0 入力であり、凍結済みの条件ではない。BS5a は S-4d のスライスではなく BuildSystem のスライスで、2026-11-01 に完了した。BS5 は 2026-10-31 に BS5a（中核）・BS5b（運用経路）・identity 後続に分割され（各系列の所在は [BuildSystem program §7](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md#7-buildsystem-の他の系列の所在)）、d5b の前提は BS5a だけで、BS5b は d5b と並行できる。
 
 | スライス | 答える問い | 範囲 | 対象外（所有スライス） |
 |---|---|---|---|
