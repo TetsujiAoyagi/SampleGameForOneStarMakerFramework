@@ -16,7 +16,7 @@ description: >-
 2. 自分が担当する Phase と成果物を特定する。
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
-5. 前の Phase から引き継ぐときは、起動時に渡された引き継ぐ commit の SHA と自分の worktree の HEAD、票の implementation head を [引継ぎ票](references/phases-and-handoff.md#引継ぎ票) の手順で照合し、食い違えば引き継がずに停止する。C' は PR を読まない。
+5. 前の Phase から引き継ぐときは、起動時に渡された引き継ぐ commit の SHA と自分の worktree の HEAD、§0 の implementation head 欄を [引継ぎ票](references/phases-and-handoff.md#引継ぎ票) の手順で照合し、食い違えば引き継がずに停止する。C' は PR を読まない。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
 
@@ -55,7 +55,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - Unity Editor、Scene、Prefab、Addressables等を扱う場合は `../osm-unity-editor/SKILL.md` を先に読む。
 - 対象を限定した Editor 操作とコンパイル確認は Phase B で行ってよい。Unity バッチテストと Addressables ビルドの実行・判定は Phase C の責任とし、H2未適用のPhase Bでは実行しない。H1適用済みのArtifacts/Harness作業は完了引渡し時に関連offline suiteのB exitを通す。中間commitやWIP救援にB exitを要求しない。B限定のUnityテストは、A3で実行経路と対象集合を凍結したtaskに限る。完了済みH2cの実例（承認profile、初回疎通の扱い、固定記録の入口）は [Harness README](../../../tools/Harness/README.md#h2c-unity-pilot) を正とする。完了時に未実行を明記する。
 - 実装を終えたら `pwsh tools/contract-audit.ps1` を実行する。Editor のコンパイル確認を行えなかった場合は、その未確認を明記する。
-- B の session は B の出口で commit し、引継ぎ票に implementation head と取得案内の所在を書いて終える（書き方と引き継ぐ commit の SHA の渡し方は [引継ぎ票](references/phases-and-handoff.md#引継ぎ票)。PR が存在する間は状態ブロックも更新する）。push は [公開点](#公開点とgit履歴) の規則に従う。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
+- B の session は B の出口で commit し、§0 の implementation head 欄と引継ぎ票（取得案内の所在を含む）を書いて終える（欄の書き方と引き継ぐ commit の SHA の渡し方は [引継ぎ票](references/phases-and-handoff.md#引継ぎ票)。PR が存在する間は状態ブロックも更新する）。push は [公開点](#公開点とgit履歴) の規則に従う。判定 C の実行や C' の起動を担わない。判定 C の照合 script も書かない。引継ぎ票の次の担当は、動作確認の対象があれば動作確認、無ければ発見 C とする。
 
 ## 動作確認（Phase B の後）
 

@@ -24,7 +24,7 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 - Phase B result snapshot の取得案内・状態:
 - evidence bundle の取得案内・状態:
 - C' blind bundle の取得案内・状態:
-- 引継ぎ票（次の Phase・役割と作業、implementation head、stage を使う場合は取得案内の所在、必要な権限、停止規則、引き渡さないもの。引き継ぐ commit の SHA はこの票に書けず tree の外で渡す。モデル名は書かない。reference・packageSha256 の実値は書かない）:
+- 引継ぎ票（次の Phase・役割と作業、stage を使う場合は取得案内の所在、必要な権限、停止規則、引き渡さないもの。implementation head は上の `implementation head commit` 行を正とし、票に再述しない。引き継ぐ commit の SHA はこの票に書けず tree の外で渡す。モデル名は書かない。reference・packageSha256 の実値は書かない）:
 
 Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。Phase A の commit 点と、snapshot で渡す未 commit の版の扱いは `phases-and-handoff.md` の「Phase A の commit と snapshot」に、機械向けの期待値・照合 script の置き場所は `review-evidence.md` の「判定 C の照合 script」に従う。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもstage・publish前は未保存、`evidence stage` で固定しR2へ昇格していなければローカル固定済み（未昇格）、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。引継ぎ票は各 Phase の出口の担当が書き換える。implementation head と引き継ぐ commit の区別、票への書き方、次の担当の照合は、リポジトリルートの `.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」に従う。
 

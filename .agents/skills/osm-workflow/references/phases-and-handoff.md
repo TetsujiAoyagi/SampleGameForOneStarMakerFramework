@@ -58,7 +58,7 @@ Phase B の完了 head で、検証経路に書いた条件のうち offline の
 - **対象外:** テスト suite、Unity バッチテスト、Build、高コスト証拠。これらは従来どおり Phase C と最終証拠ラウンドが担当する。Unity テスト・Build を要する条件は、ここで実行しない。
 - **担当:** 検証経路で条件ごとに決めた実行担当。B の session が実行できる条件は、B が出口で行ってよい。別の環境が要る条件（例: 仮想化された host 内の実行）は、その環境の実行担当が行う。実行担当は検証経路の手順だけを実行し、対象 head、コマンド、生の出力、事前・事後の観測と、検証経路の期待との差の有無を残す。GO / NO-GO と合否は書かない。差を見て B へ戻すのも実行担当である。想定外の結果が出ても、原因調査や再実行で埋めない。
 - **結果の扱い:** 検証経路の期待と違う観測があれば、発見 C を待たずに B へ戻す。この往復は、B と発見 C の差し戻しの巡（SKILL の 1 巡の定義、上限 4 巡）に数える。最初の動作確認は数えない。実行担当を用意できない条件は、理由と担当を記録して `未実施` とする。発見 C は開始してよいが、`未実施` は判定 C を完了と記録する前に解消する（取得は判定 C の担当が行ってよい）。未実施が無ければ `なし`、検証経路に該当する条件が無いスライスだけ `対象なし` と記録し、`対象なし` 以外は判定 C のゲート対象である。
-- **出口:** 動作確認の担当は、最後の手順として HANDOFF の引継ぎ票（PR が存在する間は PR の状態ブロックも）を次の担当（発見 C、差し戻しなら B）へ更新する。
+- **出口:** 動作確認の担当は、最後の手順として HANDOFF の引継ぎ票（PR が存在する間は PR の状態ブロックも）を次の担当（発見 C、差し戻しなら B）へ更新する。この記録 commit の implementation head 欄の扱いは [引継ぎ票](#引継ぎ票) に従う。
 - **判定 C との関係:** 判定 C は GO 候補 head で同じ条件の証拠を揃える。動作確認の対象 head が GO 候補 head と同じで、B 以外の実行担当が取った生の観測なら、判定 C はそれを判定の入力にしてよい。B の session が取った観測は判定の入力にしない（[実行担当と判断担当](#実行担当と判断担当)）。
 
 ## 意思決定境界とスコープ停止
@@ -133,18 +133,20 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 各 Phase の出口の担当は、次の担当が会話履歴なしで始められるよう、HANDOFF §0 に引継ぎ票を書く。正本は HANDOFF §0 とする。
 
 - 次の Phase と役割、次の作業。モデル名は書かない
-- 凍結した Phase A の revision、implementation base / head（下記の書き方に従う）。stage を使う場合は取得案内の所在（reference と packageSha256 の実値は取得案内に置き、tracked HANDOFF と PR 本文には転記しない）
+- 凍結した Phase A の revision、implementation base / head。値は §0 の `implementation base commit` / `implementation head commit` 行（以下「implementation head 欄」）を正とし、票に再述しない。書き方は下記。stage を使う場合は取得案内の所在（reference と packageSha256 の実値は取得案内に置き、tracked HANDOFF と PR 本文には転記しない）
 - 入力となる各 snapshot・bundle の取得案内の在処と状態
 - 必要な権限（Unity、実操作、資格情報、sandbox 外実行）
 - 停止規則と、引き渡さないもの（C' に所見を渡さない等）
 
-**引き継ぐ commit と implementation head は別の値である。** 次の担当が自分の HEAD と照合する **引き継ぐ commit** は、常に出口の担当が最後に切った commit、つまりその票を含む commit である。票は tracked HANDOFF の中にあるので、票を含む commit 自身の SHA は票に書けない（書き戻すと tree が変わり SHA がずれる）。引き継ぐ commit の SHA の実値は tree の外（次の担当の起動指示。PR が存在する間は [PR 状態ブロック](#pr-状態ブロック) の `引き継ぐ commit` 行にも書く）で渡す。**implementation head** はレビュー対象の実装差分を固定する commit で（[対象を固定する](review-evidence.md#対象を固定する)）、HANDOFF だけを変える記録 commit（発見 C・判定 C・C' の記録、票の更新）を切っても動かない。票に SHA を実値で書けるのは、票を含む commit とは別の commit（implementation base / head、A2 入力版等）だけである。B の出口は 2 つの場合に分かれる。(a) 実装と票を別の commit で切る: 先に実装 commit を切り、その SHA を implementation head として後の記録 commit の票に書く。引き継ぐ commit は記録 commit で、次の担当が HEAD と照合するのはその SHA であり implementation head ではない。(b) 実装と票を 1 つの commit で切る: その commit が implementation head かつ引き継ぐ commit なので、票には SHA を書かず「この票を含む commit」とだけ書き、その SHA は次の記録 commit を切る担当が自分の記録に実値で書く。発見 C・判定 C・C' の出口は implementation head を実値で書き、記録 commit 自身の扱いは (a) と同じである。Phase A の出口には implementation head が無く、引き継ぐ commit は A3 凍結版の commit である。起動指示の SHA は会話履歴ではなく開始入力であり、SHA が渡されていない session は、§0 だけでは引き継ぐ commit を特定できないので引き継がない。票を含む commit を切り直したら、票は書き戻さず、tree の外で渡す SHA を切り直し後の値にする。
+**引き継ぐ commit と implementation head は別の値である。** 次の担当が自分の HEAD と照合する **引き継ぐ commit** は、常に出口の担当が最後に切った commit、つまりその票を含む commit である。票は tracked HANDOFF の中にあるので、票を含む commit 自身の SHA は票に書けない（書き戻すと tree が変わり SHA がずれる）。引き継ぐ commit の SHA の実値は tree の外（次の担当の起動指示。PR が存在する間は [PR 状態ブロック](#pr-状態ブロック) の `引き継ぐ commit` 行にも書く）で渡す。**implementation head** はレビュー対象の実装差分を固定する commit で（[対象を固定する](review-evidence.md#対象を固定する)）、HANDOFF だけを変える記録 commit（発見 C・判定 C・C' の記録、票の更新）を切っても動かない。§0 に SHA を実値で書けるのは、その commit とは別の commit（implementation base / head、A2 入力版等）だけである。B の出口は 2 つの場合に分かれる。(a) 実装と票を別の commit で切る: 先に実装 commit を切り、その SHA を後の記録 commit の implementation head 欄に書く。引き継ぐ commit は記録 commit で、次の担当が HEAD と照合するのはその SHA であり implementation head ではない。(b) 実装と票を 1 つの commit で切る: その commit が implementation head かつ引き継ぐ commit なので、欄には SHA を書かず「この票を含む commit」とだけ書く。**この句は次の記録 commit へコピーしない。** 句を含む commit の次に記録 commit を切る担当（動作確認、発見 C、判定 C、C'、票だけの更新を含む）は、起動時に渡された SHA（句を含む commit の SHA）を自分の記録 commit の implementation head 欄に実値で書く。§7 などの本文にだけ実値を書いて欄を句のままにしない。発見 C・判定 C・C'・動作確認の出口の記録 commit 自身の扱いは (a) と同じで、implementation head 欄は動かさない。Phase A の出口には implementation head が無く（欄は未固定）、引き継ぐ commit は A3 凍結版の commit である。起動指示の SHA は会話履歴ではなく開始入力であり、SHA が渡されていない session は、§0 だけでは引き継ぐ commit を特定できないので引き継がない。票を含む commit を切り直したら、票は書き戻さず、tree の外で渡す SHA を切り直し後の値にする。
 
 次の担当は開始時に次を確認し、どれかが食い違えば引き継がずに停止する。
 
 - 渡された SHA と自分の worktree の HEAD が一致し、作業ツリーが dirty でない。HEAD の tree の HANDOFF にその票がある。
-- 票が implementation head の SHA を書いていれば、それが HEAD の祖先であり（`git merge-base --is-ancestor <implementation head> HEAD`）、implementation head から HEAD までの差分が `docs/handoff/` の HANDOFF だけである（`git diff --stat <implementation head> HEAD`）。他の file が差分に出れば implementation head の固定が壊れている。「この票を含む commit」と書かれていれば implementation head は HEAD 自身である。
-- PR が存在する間は状態ブロックの `引き継ぐ commit` と implementation base / head も票と一致する。
+- implementation head 欄が SHA なら、それが HEAD の祖先であり（`git merge-base --is-ancestor <implementation head> HEAD`）、implementation head から HEAD までの差分が `docs/handoff/` の HANDOFF だけである（`git diff --stat <implementation head> HEAD`）。他の file が差分に出れば implementation head の固定が壊れている。
+- 欄が「この票を含む commit」なら implementation head は HEAD 自身である。ただし HEAD の親の同じ欄（`git show HEAD^:docs/handoff/<HANDOFF>`）も句なら、句がコピーされて implementation head が記録 commit へずれているので停止する。
+- 欄が未固定なら Phase A の出口であり、自分が Phase B の担当でなければ停止する。
+- PR が存在する間（C' を除く。C' は PR を読まない）は、状態ブロックの `引き継ぐ commit` が渡された SHA および HEAD と一致し、implementation base / head が §0 の欄と一致する。`引き継ぐ commit` は票の中の値とは比べない。欄が句のときは、状態ブロックの implementation head は `引き継ぐ commit` と同じ SHA である（状態ブロックは tree の外なので SHA を書ける）。
 
 同一 PC ではローカルの SHA で照合し、origin との照合は Cloud・別 host の担当が割り当てられている時だけ行う。レビュー用の worktree は固定 SHA からの detached worktree でよく、同じブランチを複数の worktree で checkout する必要はない。C' は PR を入力にせず、所見を含まない C' 用の取得案内だけで始める（[レビュー証拠](review-evidence.md#保存先とリモートへの配布)）。
 
