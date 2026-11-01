@@ -23,20 +23,21 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 ## 公開点とGit履歴
 
 - **push は配布であり保存ではない。** リモートにしか居ない読者が居る時だけ push する。同一 PC の担当同士の引継ぎは、ローカルの commit SHA と、必要なら `evidence stage` の取得案内で行う。
-- **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。例外は、Cloud・別 host の担当が割り当てられた Phase 境界と、人間の明示指示。
+- **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。(b) は公開 PR のレビューに限る規則で、Phase A の A2 レビューは公開点ではなく、A2 中の改訂を巡ごとに commit しない（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。例外は、Cloud・別 host の担当が割り当てられた Phase 境界と、人間の明示指示。
 - 順序は「B ↔ 発見 C → 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C → C' → PR 作成・push」とする。履歴の整理は判定 C の前に済ませる。整理で head が変わったら [判定後の head 変更](references/review-evidence.md#判定後の-head-変更) に従う。
 - 判定 evidence を取った head は、push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。判定 evidence を取っていない中間 head は整理してよい。
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
-- 整理の対象は B 以降の実装の試行錯誤コミットに限る。A3 で凍結した Phase A の HANDOFF revision のコミットはレビュー入力の記録として整理しない。
+- 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）はレビュー入力の記録として整理しない。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、push するコミットに機微な path（ローカルの store・transfers・資格情報の場所、reference・packageSha256 の実値）が入っていないことを確認する。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
+- push 前に `git diff --stat <前回公開head>..HEAD` で push 範囲に入る file の種類を確認し、機械向けデータ（key 一覧・baseline・生成物等）、ローカル path、秘密が含まれていれば push せず、履歴から除くか Artifact Storage へ移す。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 
 - A0 で現況、要求、制約、対象外、未決事項に加え、このスライスが答える問い、次スライスへ進む最低条件、後続スライスへ送る問いを同じ planning packet に固定する。
-- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分ける。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。
+- A1 で主担当が進める最低条件、その詳細である受け入れ条件、責務配置、規模、テスト方針、停止規則を含む初稿を作る。新規 A1 のスライスは最低条件を [不変条件と成立条件](references/phases-and-handoff.md#不変条件と成立条件) に分ける。[高コスト証拠](references/review-evidence.md#高コスト証拠と最終証拠ラウンド) の分類・手順・期待値と、[判定 C の照合 script](references/review-evidence.md#判定-c-の照合-script) の方式も A1 で書き A3 で凍結する。機械向けの期待値 file と script 本体の置き場所も同節に従う。
 - 操作・実行時・目視を伴う最低条件は、凍結前に [検証経路の成立](references/phases-and-handoff.md#検証経路の成立) を確認する。AI が取得できない証拠を、暗黙の人間作業として凍結しない。
-- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ[入力版](references/phases-and-handoff.md#phase-a-の内部フロー)を使い、互いの指摘を見せない。
+- A2 で変更規模に応じて複数モデルへ独立レビューを依頼する。各レビューは同じ[入力版](references/phases-and-handoff.md#phase-a-の内部フロー)を使い、互いの指摘を見せない。Phase A の commit は A2 入力版と A3 凍結版の 2 点だけとし、途中の版は Phase A snapshot で渡す（[Phase A の commit と snapshot](references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。
 - 少なくとも1件は [アーキテクチャゲート](references/architecture-gates.md) に従い、フォルダ境界、クラス責務、依存、所有者、寿命、テスト可能性を専門に見る。
 - 高リスク変更では、初稿を見ずに A0 だけから代替構成を出すレビューを追加する。C' の独立性が必要なら、Phase A で利用可能な全モデル系列・ベンダーを使い切らず、未関与の監査担当を予約する。
 - A3 で主担当と人間が指摘を採用・不採用・保留に分類し、理由を記録して HANDOFF と受け入れ境界を凍結する。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。
