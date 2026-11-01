@@ -29,8 +29,8 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - 証拠の保存先と配布は [レビュー証拠](references/review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
 - 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）は整理しない。
-- push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、push するコミットに機微な path（ローカルの store・transfers・資格情報の場所、reference・packageSha256 の実値）が入っていないことを確認する。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
-- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script、ローカル path、秘密が含まれていれば push せず、HEAD で file を消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
+- push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、公開面のリンク切れと手元層（git 管理外）への参照が無いことを確認する。機微な値の確認は次項の差分本文の点検で行う。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
+- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認し、`git log -p <前回公開head>..HEAD` で変更 file の差分本文を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script の本体、ローカル path、秘密、reference・packageSha256 の実値が file にも本文にも含まれていれば push せず、HEAD で消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。未 push の A2 入力版・A3 凍結版の commit 自体に含まれる場合は、その commit を捨てずに対象だけを外して切り直す（レビュー入力の同一性は内容 sha256 で保つので commit hash が変わってよい）。人間が読む導出の規則と、実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 
