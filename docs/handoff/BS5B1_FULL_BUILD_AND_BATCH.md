@@ -18,7 +18,7 @@
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は暫定 C' の起動指示で渡す。HC1 の原記録は未取得
-- C' blind bundle の取得案内・状態: 未到達
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。暫定 C' 用の blind audit bundle（head `36b966c6` 固定、所見を含まない）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は暫定 C' 担当へ渡す（worktree の外）
 - 引継ぎ票: **判定 C 完了（高コスト証拠 HC1 を除く。2026-11-02）。阻害する指摘なし。次は暫定 C'。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。判定 evidence を取った head はローカルの軽量 tag `evidence/bs5b1-full-build-batch/1` で保つ。判定 C の結果は §7.3。暫定 C' は GO 判定に使わず、阻害指摘が無くなった head で HC1（§5）を 1 回取得し、最終証拠ラウンドで判定 C と最終 C' をやり直す。発見 C・判定 C の所見を C' へ渡さない。push と PR は未実施。
 
 ### PR 状態ブロック
