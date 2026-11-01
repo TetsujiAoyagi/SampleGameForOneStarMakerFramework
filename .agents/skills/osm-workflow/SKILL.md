@@ -30,7 +30,7 @@ Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](referenc
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
 - 整理の対象は B 以降の実装の試行錯誤コミットに限る。Phase A の 2 点の commit（A2 入力版・A3 凍結版）は整理しない。
 - push前に、前回公開headから増えるコミットを `git log --oneline <前回公開head>..HEAD` で確認する。数がレビュー上必要な単位を超えていれば、未公開分を整理してからpushする。あわせて `pwsh tools/docs-audit.ps1` を通し、push するコミットに機微な path（ローカルの store・transfers・資格情報の場所、reference・packageSha256 の実値）が入っていないことを確認する。公開済み履歴は明示的な合意なく書き換えない。既存履歴の大規模rebaseを対象外とする判断は、未公開の中間コミットを整理しない理由にならない。
-- push 前に `git diff --stat <前回公開head>..HEAD` で push 範囲に入る file の種類を確認し、判定 C 用の期待値（key 一覧・baseline）と照合 script、ローカル path、秘密が含まれていれば push せず、履歴から除くか Artifact Storage へ移す。実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
+- push 前に `git log --name-status <前回公開head>..HEAD` で、前回公開 head から HEAD までの全 commit で追加・変更・削除された file を確認する。HEAD の tree だけを見る `git diff` では、途中 commit で追加して後で消した file の blob を見落とすので代用しない。判定 C 用の期待値（key 一覧・baseline）と照合 script、ローカル path、秘密が含まれていれば push せず、HEAD で file を消すだけでなく公開予定の履歴から除くか Artifact Storage へ移す。実装から導ける恒久 fixture は対象外とする（[置き場所](references/review-evidence.md#判定-c-の照合-script)）。実害は commit ではなく push で起きるので、この確認を commit 時の点検で代用しない。
 
 ## Phase A: 計画と設計レビュー
 
