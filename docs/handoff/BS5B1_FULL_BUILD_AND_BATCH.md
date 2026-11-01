@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **発見 C 完了（2026-11-02）。次は B（差し戻し 1 巡目）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head は B の修正後に更新する（発見 C 時点は `3ceb19ab`）。作業: §7.1 の F1（`SampleGameContentBatchTests` の失敗経路 10 件。`Fail` の `Debug.LogError` をテストが期待していない）を直し、`-Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` を通す。軽微な m1〜m3 は B の判断（文書化・テスト追加・見送り）で、凍結条件は変えない。権限・停止規則は従来のとおり（osm-workflow の巡の上限。差し戻しは 1 巡目）。Unity テストは `pwsh tools/run-tests.ps1`。入力: Phase A snapshot は B では読まない。push と PR は未実施。
+- 引継ぎ票: **発見 C 完了（2026-11-02）。次は B（差し戻し 1 巡目）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。implementation base `26f34046`、implementation head は B の修正後に更新する（発見 C 時点は `3ceb19ab`）。作業: §7.1 の F1（`SampleGameContentBatchTests` の失敗経路 10 件。`Fail` の `Debug.LogError` をテストが期待していない）を直し、compile 確認と `pwsh tools/contract-audit.ps1` まで行う（Unity テストは B では実行しない。修正の確認は次の発見 C が `-Filter "BuildContentFullModeTests;SampleGameContentBatchTests"` で行う）。軽微な m1〜m3 は B の判断（文書化・テスト追加・見送り）で、凍結条件は変えない。権限・停止規則は従来のとおり（osm-workflow の巡の上限。差し戻しは 1 巡目）。入力: Phase A snapshot は B では読まない。push と PR は未実施。
 
 ### PR 状態ブロック
 
