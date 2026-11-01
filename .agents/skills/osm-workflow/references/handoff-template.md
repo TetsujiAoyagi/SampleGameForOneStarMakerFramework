@@ -26,7 +26,7 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 - C' blind bundle の取得案内・状態:
 - 引継ぎ票（次の Phase・役割と作業、引き継ぐ commit SHA、stage を使う場合は取得案内の所在、必要な権限、停止規則、引き渡さないもの。モデル名は書かない。reference・packageSha256 の実値は書かない）:
 
-Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもstage・publish前は未保存、`evidence stage` で固定しR2へ昇格していなければローカル固定済み（未昇格）、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。引継ぎ票は各 Phase の出口の担当が書き換える。規則はリポジトリルートの `.agents/skills/osm-workflow/references/phases-and-handoff.md` の「Phase 境界の引継ぎ」に従う。
+Phase A では implementation base commit と Phase A snapshot の取得案内・状態を記録する。Phase A の commit 点と、snapshot で渡す未 commit の版の扱いは `phases-and-handoff.md` の「Phase A の commit と snapshot」に、機械向けの期待値・照合 script の置き場所は `review-evidence.md` の「判定 C の照合 script」に従う。implementation head、Phase B result、evidence、C' blind bundle は各成果物が生成された Phase で追記し、未到達 Phase の値を推測して埋めない。生成済みでもstage・publish前は未保存、`evidence stage` で固定しR2へ昇格していなければローカル固定済み（未昇格）、取得案内や必須内容の受渡しが未確認なら引渡し未完了とする。HANDOFF へのレビュー記録だけの commit は implementation head に含めない。引継ぎ票は各 Phase の出口の担当が書き換える。規則はリポジトリルートの `.agents/skills/osm-workflow/references/phases-and-handoff.md` の「Phase 境界の引継ぎ」に従う。
 
 ### PR 状態ブロック
 
@@ -86,11 +86,11 @@ Evidence 取得案内: <未生成 / 未保存 / ローカル固定済み（未�
 - 操作・実行時・目視条件の検証経路（条件ごとの担当、環境・初期状態、操作、観測と合否、対象版・保存証拠・C / C' への受け渡し。既存テストは参照で可。動作確認の実行担当がそのまま実行できる粒度で書く）:
 - 未知の操作経路の疎通結果と、必要な検証支援・確認地点（未知経路が無い場合だけ `なし`。Phase C へ委譲する場合は「未確認。初回確認は Phase C」と理由・担当・確認地点、不成立時の対応）:
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方（観察記録の受理 / 画像の独立再評価。無ければ `なし`）:
-- 高コスト証拠（不可逆・高コストの証拠ごとの取得手順と、実装から独立した期待値。無ければ `なし`）:
-- 判定 C の照合 script の方式（判定 C の offline 実行 / A3 凍結 script、合成 fixture と期待値。無ければ `なし`）:
+- 高コスト証拠（不可逆・高コストの証拠ごとの取得手順と、実装から独立した期待値の導出規則。無ければ `なし`）:
+- 判定 C の照合 script の方式（判定 C の offline 実行 / A3 凍結 script、合成 fixture と期待値の導出規則。機械向けの期待値 file と script 本体はここに貼らず、置き場所は `review-evidence.md` の「判定 C の照合 script」に従う。無ければ `なし`）:
 - 機械検査:
 - A0/A1 主担当・モデル・ベンダー:
-- A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版（内容 sha256 を正、commit hash を補助）:
+- A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版（内容 sha256 を正、commit hash を補助。未 commit の版では commit hash を書かず「未 commit の版」と書く）:
 - A3 統合担当・モデル・採否:
 - C' 用に予約した担当・モデル・ベンダー:
 - 独立性の強化条件を満たせない場合の理由:
