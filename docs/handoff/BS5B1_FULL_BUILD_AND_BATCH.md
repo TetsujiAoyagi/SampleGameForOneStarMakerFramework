@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C 完了（HC1 を除く）`（2026-11-02。A3 凍結は同日）
+- status: `C' 1 巡目完了、判定 C の照合 script を修正済み（2 巡目待ち）`（2026-11-02。A3 凍結は同日）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
 - implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
@@ -18,8 +18,8 @@
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）用の blind audit bundle（head `36b966c6` 固定、所見を含まない）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **C' 1 巡目完了（2026-11-02）。阻害する指摘 2 件（CP1・CP2。どちらも判定 C の照合 script `check-hc1.ps1` の欠陥で、implementation head の製品コードには無い。§8）。次は判定 C（照合 script の修正）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。作業: CP1（HC1 (v) を `preflight.json` の selected の stable key 集合と `Resolve(SpringFull)` の比較にする）と CP2（HC1 (vi) を published directory の実 file と、そこから再構成した staging の path から導出する）を、§5 の導出規則のとおりに直す。凍結した F1〜F5 を通して期待出力との一致を確かめ、修正した script・F1〜F5 の出力・修正の差分を C' 用 bundle に入れ直して stage する。C' 用の取得案内は worktree の外に更新する。その後、C' 2 巡目（前巡の指摘の解消を中心に）→ 判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C と進む（§7 の DR1。最終 C' は行わない）。判定 C の結果は §7.3。発見 C・判定 C の所見と DR1 を C' へ渡さない。C' へ渡してよい裁定は、C' 自身の指摘への決定記録だけ。push と PR は未実施。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 2 巡目用 blind audit bundle（head `36b966c6` 固定、所見を含まない。1 巡目から、修正後の照合 script・F1〜F5 の出力・script の修正差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
+- 引継ぎ票: **判定 C の照合 script の修正完了（2026-11-02。C' 1 巡目の CP1・CP2 への対応）。次は C' 2 巡目（前巡の指摘の解消を中心に）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。修正の記録は §7.4。C' 2 巡目の後は、判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C と進む（§7 の DR1。最終 C' は行わない）。発見 C・判定 C の所見と DR1 を C' へ渡さない。C' へ渡してよい裁定は、C' 自身の指摘への決定記録だけ。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -309,6 +309,14 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **照合 script（offline、判定 C が作成）:** F1〜F5 を凍結した期待出力と照合し全件一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i) で不合格）。原記録（HC1）への適用は未実施。script は判定 evidence bundle にあり git に入れていない。
 - **範囲外の観測:** Unity の import が `unity/Assets/MobileDependencyResolver/` の `.pdb.meta` 5 件を消すので、各実行後に `git checkout` で戻し commit していない。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は残っており、触っていない。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
+
+### 7.4 判定 C の照合 script の修正（2026-11-02。C' 1 巡目の CP1・CP2 への対応）
+
+- **対象:** `check-hc1.ps1`（判定 evidence bundle と C' 用 bundle にあり git に入れていない）。implementation head `36b966c6` と製品コード・テストは変えていない。
+- **CP1:** (v) は `preflight.json` の `selected` の各要素（`StableKey|LogicalKey|PhysicalKey`）の先頭の欄（stable key）の集合を `resolve-selected.json` と比べる。`outcome.json` の `selected` は比べない（製品が空のまま書く。`BuildContentReport.cs`）。空の `selected` は不合格にする。
+- **CP2:** (vi) は `longest-paths.json` を見ない。published directory の実 file の相対 path から、final（`<publishPath>/<rel>`）、staging（`<publishPath の親>/.staging/<guid32>/<rel>`）、実 path の長さを計算し、いずれかが 259 を超える、または staging が final より長ければ不合格にする。`publishPath` は `last-result.json` の欄。
+- **確認:** 凍結した F1〜F5 を再実行し期待出力と全件一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。実形の `selected` と空の `outcome.selected` の F1 変形は合格、実際に 259 を超える file を足し一覧を古いままにした変形は (vi)、stable key 集合を誤った変形は (v) で不合格。変形は手元で作った記録で、生出力を C' 用 bundle に入れた。
+- **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。
 
 ### 決定記録
 
