@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 2 巡目用 blind audit bundle（head `36b966c6` 固定、所見を含まない。1 巡目から、修正後の照合 script・F1〜F5 の出力・script の修正差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **C' 2 巡目完了（2026-11-02）。CP1・CP2 は解消。阻害する指摘 1 件（CP3: 凍結した HC1 (v) の右辺が、既存の bootstrap 合成の 2 件を含まない。製品の欠陥ではない。§8）。次は発注者の裁定（CP3 の扱い）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。裁定の後の流れは、裁定の記録に従う（C' へ渡せるのは、C' 自身の指摘への裁定だけ）。その後、判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C（§7 の DR1。最終 C' は行わない）。判定 C の結果は §7.3。発見 C・判定 C の所見と DR1 を C' へ渡さない。push と PR は未実施。
+- 引継ぎ票: **C' 2 巡目の CP3 に発注者が裁定（§7 の DR2、2026-11-02）。次は判定 C（照合 script の (v) を DR2 に合わせて直す）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。作業: `check-hc1.ps1` の (v) の右辺を DR2 の集合にする（`resolve-selected.json` は Resolve の出力のままにし、script が bootstrap 2 件を足すか、別 file で渡すかは判定 C が選ぶ）。C' 2 巡目の後続入力にあった大小文字の区別（製品は `Ordinal`）は、合わせて直してよい。凍結した F1〜F5 の期待出力と一致することを確かめ、C' 用 bundle を作り直して stage する。C' 用の取得案内は worktree の外に r3 として置く。その後、C' 3 巡目（CP3 の解消を中心に。C' 用決定記録として DR2 を渡す）→ 判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C（DR1。最終 C' は行わない）。判定 C の結果は §7.3。発見 C・判定 C の所見と DR1 を C' へ渡さない。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -143,7 +143,7 @@ UC2・UC4・UC7 は BS5b-2。UC1・UC3・UC5・UC8〜UC11 は BS5b で変えな�
 - **判定定義:** 不変条件 I4〜I7 と成立条件 E3・E4・E6 を AC10〜AC14・AC18 と HC1 で確かめ、全て成立で GO。1 つでも不成立なら NO-GO。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - **A3 後の例外承認:** なし。
-- **決定記録:** §7 の決定記録（DR1）。
+- **決定記録:** §7 の決定記録（DR1・DR2）。
 - **本文へ転記した実装制約:** §1.2。
 - **未決事項:** §2.6。
 
@@ -325,6 +325,11 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
   - 影響: §5 の順序「判定 C → 暫定 C' → HC1 → 最終判定 C と最終 C'」のうち、最終 C' を行わない。HC1 の取得と、HC1 を加えた最終判定 C は従来どおり行う。C' の後に head が変われば、「判定後の head 変更」に従って C' をやり直す。
   - 凍結した AC・不変条件・成立条件と判定定義（HC1 を含む）の意味・合否は変えない。
   - C' 担当には渡さない（C' 自身の指摘への裁定ではないため）。
+- **DR2（2026-11-02、発注者。進行役経由で受領。C' 2 巡目の CP3 への裁定）:** §5 HC1 (v) の右辺「同じ head の Editor で `SampleGameContentBuild.Resolve(SpringFull)` が返す集合」を、「その集合に、`SampleGameContentBuild.BuildUnchecked` の `ComposeBootstrap` が足す bootstrap の 2 件（`samplegame:bootstrap:uicommon/Full`、`samplegame:bootstrap:scene-resource-map/Full`）を加えた集合」と読む。
+  - 理由: `Resolve` は doc comment で「bootstrap の合成は含まない」と明記しており、bootstrap の合成は本スライスより前からある既存の経路で、本スライスの差分は変えていない。字義のままでは、正しい成功経路でも (v) が必ず不合格になる。(v) の目的（preflight の選択が宣言の選択と一致する）は、この読みで保たれる。
+  - 位置づけ: 字義の合否を変える読みなので、規則上は Phase A の新しい revision にあたる。発注者の判断で、DR1 と同じく例外として決定記録で扱う。ほかの AC・不変条件・成立条件・判定定義は変えない。
+  - 適用時点: C' 2 巡目の後（GO 候補 head `36b966c6`）。照合 script の (v) をこの読みに合わせて直し、凍結した F1〜F5 の期待出力との一致を確かめる。
+  - C' 担当に渡す（C' 自身の指摘 CP3 への裁定。C' 用決定記録の版は DR2）。
 
 ## 8. Phase C'
 
