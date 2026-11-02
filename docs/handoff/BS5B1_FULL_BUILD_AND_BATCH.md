@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 3 巡目用 blind audit bundle（head `36b966c6` 固定、所見・DR1・DR2 を含まない。2 巡目から、改訂した照合 script・F1〜F5 の出力・script の改訂差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **判定 C の照合 script の (v) を DR2 に合わせて修正完了（2026-11-02）。次は C' 3 巡目（CP3 の解消を中心に。C' 用決定記録として DR2 を渡す）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。修正の記録は §7.5。C' 3 巡目の後は、判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C と進む（DR1。最終 C' は行わない）。発見 C・判定 C の所見と DR1 を C' へ渡さない。C' へ渡してよい裁定は、C' 自身の指摘への決定記録（DR2）だけ。push と PR は未実施。
+- 引継ぎ票: **C' 完了（3 巡目、阻害する指摘なし。2026-11-02。§8）。DR1 により、この C' を GO 判定に使う。次は判定 C の実行担当による HC1（§5）と、HC1 を加えた最終判定 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。作業: §5 の手順どおり、GO 候補 head から新しい detached worktree（ルート 109 文字以下、可能なら 97 文字以上、`Library/` 無し）で `-osmPurpose spring-full` の batch を起動し、原記録を取る。照合は改訂 3 の `check-hc1.ps1` を既定（`-ExtraSelected` を付けない。§7 の DR2）で原記録の複製に掛ける。複製先の絶対 path も 259 以下にする（(vi)）。HC1 を加えた判定 evidence bundle を作って stage し、最終判定 C を §7 に記録する。最終 C' は行わない（DR1）。head が変われば C' をやり直す。判定 C の結果は §7.3。push と PR は未実施（最終判定 C の後に Phase D で PR を作る。base は `develop`）。
 
 ### PR 状態ブロック
 
@@ -364,6 +364,15 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **後続スライスの入力（C' の記述を要約）:** script の (v) の比較は大小文字を区別しない（製品は `Ordinal`）。stable key に `|` が含まれる場合の分解は保証されない（現在のキーには無い）。
 - **残存リスク（C' の記述）:** CP3 はソースから導いたもので、実 Editor で `Resolve(SpringFull)` と preflight を並べた記録は無い。(vi) は証拠の複製先の絶対 path も 259 以下を要求するので、複製先が深いと製品が正しくても不合格になりうる。
 - 次: CP3 は凍結条件 (v) の読み方の問題なので、発注者の裁定を待つ（§0）。
+
+### C'（3 巡目。CP3 の解消と照合 script の改訂 3 を中心に）
+
+- 入力: 3 巡目の C' blind audit bundle（head は同じ `36b966c6`。改訂 3 の `check-hc1.ps1`、r2→r3 の差分、F1〜F5 と変種 3 件の出力を加えたもの）、C' 自身の 1・2 巡目の報告、C' 用決定記録 DR2（§7 の DR2 の結論と理由だけ）。状態はローカル固定済み（未昇格）。進行役が別 process で fetch して packageSha256 の一致を確かめ、所見と DR1 が含まれないことを確認した。
+- 担当・モデル: 1・2 巡目と同じ（Grok 4.7、xAI、cursor-agent。独立性制約あり）。2026-11-02。
+- **結論: 阻害する指摘なし。** CP3 は DR2 の下で解消（C' の判定）。DR2 への異議は無い。改訂 3 の (v) は、`preflight.json` の selected の stable key 集合を、`resolve-selected.json` に既定の `-ExtraSelected`（bootstrap の 2 件）を加えた集合と、大小文字を区別して比べる。F1〜F5 は `-ExtraSelected ''` で凍結した期待と一致する。
+- **後続スライスの入力（C' の記述を要約）:** 集合化の `Sort-Object -Unique -CaseSensitive` は culture の比較で、`Ordinal` そのものではない（ASCII の key では合否は揃う）。stable key に `|` が含まれる場合の分解は保証されない（2 巡目から継続。現在のキーには無い）。
+- **残存リスク（C' の記述）:** HC1 は未実施。HC1 の原記録へは、script を既定（`-ExtraSelected` を付けない）で掛ける必要がある。合格の JSON は `ExtraSelected` の実値を書かない。(vi) は証拠の複製先の絶対 path も 259 以下を要求する。
+- **C' の完了:** DR1 により、この C' を GO 判定に使う。最終 C' は行わない。C' の後に head が変われば、C' をやり直す。
 
 ## 9. Phase D
 
