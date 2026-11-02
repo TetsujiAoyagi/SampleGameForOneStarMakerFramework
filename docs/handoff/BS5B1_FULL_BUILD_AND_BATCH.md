@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 2 巡目用 blind audit bundle（head `36b966c6` 固定、所見を含まない。1 巡目から、修正後の照合 script・F1〜F5 の出力・script の修正差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **判定 C の照合 script の修正完了（2026-11-02。C' 1 巡目の CP1・CP2 への対応）。次は C' 2 巡目（前巡の指摘の解消を中心に）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。修正の記録は §7.4。C' 2 巡目の後は、判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C と進む（§7 の DR1。最終 C' は行わない）。発見 C・判定 C の所見と DR1 を C' へ渡さない。C' へ渡してよい裁定は、C' 自身の指摘への決定記録だけ。push と PR は未実施。
+- 引継ぎ票: **C' 2 巡目完了（2026-11-02）。CP1・CP2 は解消。阻害する指摘 1 件（CP3: 凍結した HC1 (v) の右辺が、既存の bootstrap 合成の 2 件を含まない。製品の欠陥ではない。§8）。次は発注者の裁定（CP3 の扱い）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。裁定の後の流れは、裁定の記録に従う（C' へ渡せるのは、C' 自身の指摘への裁定だけ）。その後、判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C（§7 の DR1。最終 C' は行わない）。判定 C の結果は §7.3。発見 C・判定 C の所見と DR1 を C' へ渡さない。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -340,6 +340,17 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **残存リスク（C' の記述）:** HC1 は未実施。全 EditMode の step は inconclusive 25（VFX、graphics なし）で status が failed になり、graphics ありの再実行は 73/73。AC14 の transport の一覧は、生の一覧ではなく「directory が無い」という注記である。
 - **監査できなかった範囲（C' の記述）:** HC1 の生記録、F1〜F5 の fixture 本体（script は実行していない）、全 EditMode の log 全文。
 - 次: CP1・CP2 は判定 C の照合 script の修正で解消する（implementation head は変わらない）。修正後の script と F1〜F5 の出力で、C' の 2 巡目（前巡の指摘の解消を中心に）を行い、その後に HC1 へ進む。
+
+### C'（2 巡目。前巡の指摘の解消と照合 script の改訂を中心に）
+
+- 入力: 2 巡目の C' blind audit bundle（head は 1 巡目と同じ `36b966c6`。1 巡目の内容に、改訂後の `check-hc1.ps1`、1 巡目の script、改訂差分、F1〜F5 と変種 3 件の出力を加えたもの）と、C' 自身の 1 巡目の報告。状態はローカル固定済み（未昇格）。進行役が別 process で fetch して packageSha256 の一致を確かめ、所見と DR1 が含まれないことを確認した。人間の裁定は無いので、C' 用決定記録は渡していない。
+- 担当・モデル: 1 巡目と同じ（Grok 4.7、xAI、cursor-agent。独立性制約あり）。2026-11-02。
+- 前巡の指摘: CP1・CP2 は解消（C' の判定）。F1〜F5 の出力は凍結した期待と一致する。
+- **阻害する指摘（1 件）:**
+  - **CP3（§5 HC1 (v)）:** 成功した `spring-full` の build では、`preflight.json` の selected の stable key 集合は、`Resolve(SpringFull)` の集合に bootstrap の 2 件（`samplegame:bootstrap:uicommon/Full`、`samplegame:bootstrap:scene-resource-map/Full`）を加えたものになる。そのため、凍結した (v) の字義（二つの集合が一致する）は、この head の正しい成功経路でも成り立たない。順序は次のとおり: `BuildUnchecked` が `Resolve` の plan を `ComposeBootstrap` で上書きする（`SampleGameContentBuild.cs:77-84`）。その plan で `WritePreflight` が書く。一方、`Resolve` は doc comment で「bootstrap の合成は含まない」と明記している（同 43-46）。進行役は head の該当箇所を読んで確かめた。bootstrap の合成は本スライスより前からある経路で、本スライスの差分は変えていない。欠陥は製品ではなく、凍結した導出規則 (v) の右辺の書き方にある。
+- **後続スライスの入力（C' の記述を要約）:** script の (v) の比較は大小文字を区別しない（製品は `Ordinal`）。stable key に `|` が含まれる場合の分解は保証されない（現在のキーには無い）。
+- **残存リスク（C' の記述）:** CP3 はソースから導いたもので、実 Editor で `Resolve(SpringFull)` と preflight を並べた記録は無い。(vi) は証拠の複製先の絶対 path も 259 以下を要求するので、複製先が深いと製品が正しくても不合格になりうる。
+- 次: CP3 は凍結条件 (v) の読み方の問題なので、発注者の裁定を待つ（§0）。
 
 ## 9. Phase D
 
