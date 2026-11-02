@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `Phase D 作業中（PR 作成済み。harvest と HANDOFF 削除は未実施）`（2026-11-03。最終判定 C の GO と A3 凍結は 2026-11-02）
+- status: `Phase A revision 2 の A2 中（HC1 の終了条件と番兵の置き場所。§5）`（2026-11-03。revision 1 の A3 凍結は 2026-11-02。§7.6 の最終判定 C の GO は revision 2 で取り直す）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
 - implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）と、HC1 を加えた最終判定用の bundle（HC1 の原記録の複製・Unity log・Resolve の出力・照合結果・改訂した照合 script と F1〜F5 の結果を追加）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は Phase D の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 3 巡目用 blind audit bundle（head `36b966c6` 固定、所見・DR1・DR2 を含まない。2 巡目から、改訂した照合 script・F1〜F5 の出力・script の改訂差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **Phase D 作業中。PR（base は `develop`）を作成した。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。GO head（implementation head）`36b966c6`、base `26f34046`。C' は DR1 により 3 巡目（阻害する指摘なし。§8）を GO 判定に使い、最終 C' は行っていない。§7.6 の照合 script の修正（C' 3 巡目の後）は、DR3 により C' で確かめない。残る Phase D の作業は、保存・引渡しの確認、恒久知見の harvest、HANDOFF の削除（マージ前の最終）。
+- 引継ぎ票: **Phase A revision 2 の A2 入力版。** A2 独立レビューの担当は、この票を含む commit（SHA は起動指示で渡す）の §5「Phase A revision 2」に挙げた変更点だけをレビューする。implementation head `36b966c6`、base `26f34046` は変わらない。§7.6 の最終判定 C の GO は、HC1 の (i)・(iv) の欠落により revision 2 の凍結後に HC1 を取り直して判定し直す。Phase A snapshot は revision 1 のものを変えずに使う。PR は作成済みで、状態ブロックは revision 2 に合わせて更新する。
 
 ### PR 状態ブロック
 
@@ -96,7 +96,7 @@ UC2・UC4・UC7 は BS5b-2。UC1・UC3・UC5・UC8〜UC11 は BS5b で変えな�
 | 主張 | 何で示すか | 示さないこと |
 |---|---|---|
 | 最小性 (2): publish の成果物に前回の workspace の残骸が混ざらない | AC10・AC11（番兵 file）、HC1 | 今回の build の物理 file 単位の最小性、bytes の決定性 |
-| batch で clean checkout から build と publish ができ、失敗が終了コードで分かる | AC13・AC14、HC1 | CI 基盤への組み込み、別 PC の実機 |
+| batch で clean checkout から build と publish ができ、失敗が終了コードで分かる | AC13・AC14、HC1 | CI 基盤への組み込み、別 PC の実機、成功した batch の後に Unity process が正常に終了すること（既知の native 終了 stall。revision 2） |
 | transport staging が path の予算に収まる | AC12、HC1 (vi) | DIST cache の install 先の path |
 
 ### 2.1 不変条件（起きてはいけないこと）
@@ -109,7 +109,7 @@ UC2・UC4・UC7 は BS5b-2。UC1・UC3・UC5・UC8〜UC11 は BS5b で変えな�
 ### 2.2 成立条件（起きなければならないこと）
 
 - **E3（`Full` 必須）:** build に mode（`Incremental` / `Full`）があり、`Full` は Unity の build の前に workspace を空にする。mode は `outcome.json` に記録され、publish は `Full` を要求する。batch と BS4 coordinator は `Full` で build する（BS5b-2 の検証 Play の 1 操作も `Full` を使う）。menu の `Build <contentSet>` は従来どおり `Incremental`（publish しない）。
-- **E4（batch）:** Unity の `-batchmode -executeMethod` で呼べる入口が、宣言名を引数に `Full` build と publish を行い、結果（identity・publish 先・manifest SHA-256・宣言・buildMode・終了コード）を固定 path の JSON に書き、終了コードで成否を返す。結果 file の欄は BS5b-2 の From published directory が期待値として読む（§2.4 D8）。
+- **E4（batch）:** Unity の `-batchmode -executeMethod` で呼べる入口が、宣言名を引数に `Full` build と publish を行い、結果（identity・publish 先・manifest SHA-256・宣言・buildMode・終了コード）を固定 path の JSON に書き、終了コードで成否を返す（終了コードを返す経路は AC13・AC14 で示す。成功した batch の後の Unity process の正常終了は示さない。§2.0、revision 2）。結果 file の欄は BS5b-2 の From published directory が期待値として読む（§2.4 D8）。
 - **E6（staging の path）:** transport の publish が作る staging（`<final の親>/.staging/<guid32>`）の中の各 path は、同じ file の final の path より長くならない。ルート 109 文字（= 259 − 150）の checkout で BS4 の publish が成功する長さになる。
 
 ### 2.3 受け入れ条件（検証する条件を併記）
@@ -137,13 +137,13 @@ UC2・UC4・UC7 は BS5b-2。UC1・UC3・UC5・UC8〜UC11 は BS5b で変えな�
 |---|---|
 | 宣言から Play する経路（Play As、検証 Play、From published directory、Editor directory Play の初回 Scene） | [BS5b-2](BS5B2_PURPOSE_PLAY_ROUTES.md) |
 | 入力 identity、設定 snapshot、`content/index`、`priorRevisions`、build を skip する再利用 | identity 後続（[BuildSystem program §7](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md#7-buildsystem-の他の系列の所在)） |
-| R2・HTTP への publish、別 PC の実機での受け取り、CI 基盤への組み込み | BuildSystem 後続（Storage program §6「取得経路と配布」と接続） |
+| R2・HTTP への publish、別 PC の実機での受け取り、CI 基盤への組み込み（成功した batch の後に Unity process が終わらない場合の、呼ぶ側の終了監視・timeout・結果の照合を含む。revision 2） | BuildSystem 後続（Storage program §6「取得経路と配布」と接続） |
 | `.staging` と `work/` の残置の清掃 | Storage program §6「ローカルの残置の清掃」 |
 
 - **判定定義:** 不変条件 I4〜I7 と成立条件 E3・E4・E6 を AC10〜AC14・AC18 と HC1 で確かめ、全て成立で GO。1 つでも不成立なら NO-GO。
 - **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - **A3 後の例外承認:** なし。
-- **決定記録:** §7 の決定記録（DR1・DR2）。
+- **決定記録:** §7 の決定記録（DR1・DR2・DR3）。DR2 の読みは revision 2 で HC1 (v) の本文に取り込んだ。
 - **本文へ転記した実装制約:** §1.2。
 - **未決事項:** §2.6。
 
@@ -196,15 +196,25 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **未知の操作経路の疎通結果と、必要な検証支援・確認地点:** clean checkout からの batch build の所要時間は未測定。初回確認は HC1 で Phase C（時間は判定に使わず記録する）。
 - **人間の判断が必要な条件:** なし。
 - **高コスト証拠:**
-  - **HC1（clean checkout からの batch build と publish）:** 判定 C の実行担当が、GO 候補 head から新しい detached worktree をルート 109 文字以下（予算の上限の確認を兼ねて、可能なら 97 文字以上）の path に作り（`Library/` 無し）、Editor を開かずに AC14 と同じ形で `-osmPurpose spring-full` を起動する。観測: 終了コード、`last-result.json`、published directory の `transport.json`・`content/` の一覧、`outcome.json` の `buildMode`、`preflight.json` の selected、log、所要時間。期待値の導出規則: (i) 終了コード 0、`buildMode` は `Full`、`last-result.json` の `manifestSha256` が published directory の `transport.json` の SHA-256 と一致し、`identity` が `transport.json` の `revision` と一致し、`declaration` が `transport.json` の `declaration` の名前と一致する。(ii) `transport.json` の `declaration` は `SampleGameBuildPurposes.SpringFull` の欄（名前 `spring-full`、表現の主値 `Full`、`world:cellCompanionSet=Full`）。(iii) `transport.json` の `files` の path 集合が published directory の `content/` の実 file 集合と一致し、その全 file の SHA-256 が `files` と一致する。(iv) build の前に worktree の `artifacts/bs2b/work/<target>/spring-full/` に番兵 file `bs5b-sentinel.txt` を置き（新しい worktree なので directory を作る）、published directory に番兵が無い。(v) `preflight.json` の selected の stable key 集合が、同じ head の Editor で `SampleGameContentBuild.Resolve(SpringFull)` が返す集合と一致する（Resolve の出力は判定 C が同じ head で取る。BS5a の I4 で `840b6609` の policy と一致することは確かめ済み）。(vi) 最長の path（published directory と staging の中）が 259 文字以下。
+  - **HC1（clean checkout からの batch build と publish）:** 判定 C の実行担当が、GO 候補 head から新しい detached worktree をルート 109 文字以下（予算の上限の確認を兼ねて、可能なら 97 文字以上）の path に作り（`Library/` 無し）、Editor を開かずに AC14 と同じ形で `-osmPurpose spring-full` を起動する。観測: process の終了（下記）、`last-result.json`、published directory の `transport.json`・`content/` の一覧、`outcome.json` の `buildMode`、`preflight.json` の selected、log、所要時間、build の前後の workspace の一覧。**process の終了**（revision 2）: publish 完了の log の行から終了待ちの上限（30 分）まで待ち、上限内に終わったかと実際の終了コードを `last-result.json` と別の観測として記録する。合否には使わない。上限を過ぎたら強制終了し、そのとおり記録する（process の正常終了の証拠にしない。stall の原因は調査しない）。期待値の導出規則: (i) `last-result.json` の `exitCode` が 0、`buildMode` は `Full`、`last-result.json` の `manifestSha256` が published directory の `transport.json` の SHA-256 と一致し、`identity` が `transport.json` の `revision` と一致し、`declaration` が `transport.json` の `declaration` の名前と一致する。(ii) `transport.json` の `declaration` は `SampleGameBuildPurposes.SpringFull` の欄（名前 `spring-full`、表現の主値 `Full`、`world:cellCompanionSet=Full`）。(iii) `transport.json` の `files` の path 集合が published directory の `content/` の実 file 集合と一致し、その全 file の SHA-256 が `files` と一致する。(iv) build の前に、coordinator が `Full` で空にする実際の workspace `artifacts/bs2b/work/StandaloneWindows64-Player/spring-full/`（`BuildContentCoordinator.TargetName`）に番兵 file `bs5b-sentinel.txt` を置き（新しい worktree なので directory を作る）、その存在を記録する。build の後に、その workspace にも published directory にも番兵が無い（revision 2 で path を明記し、workspace の確認を加えた）。(v) `preflight.json` の selected の stable key 集合が、同じ head の Editor で `SampleGameContentBuild.Resolve(SpringFull)` が返す集合に、`BuildUnchecked` の `ComposeBootstrap` が足す bootstrap の 2 件（`samplegame:bootstrap:uicommon/Full`、`samplegame:bootstrap:scene-resource-map/Full`）を加えた集合と一致する（revision 2 で DR2 を取り込んだ。Resolve の出力は判定 C が同じ head で取る。BS5a の I4 で `840b6609` の policy と一致することは確かめ済み）。(vi) 最長の path（published directory と staging の中）が 259 文字以下。
   - 順序は review-evidence の「高コスト証拠と最終証拠ラウンド」に従う（判定 C → 暫定 C' → HC1 → 最終判定 C と最終 C'）。
-- **判定 C の照合 script の方式:** **判定 C の offline 実行。** 照合するのは HC1 の原記録（`transport.json`・`content/` の一覧と hash・`outcome.json`・`preflight.json`・`last-result.json`）の file 検査だけで、通信も資格情報も要らない（publish は local）。判定 C の担当が script を書き、原記録の複製に対して、資格情報・本番設定・通信に届かない環境（sandbox 内の pwsh）で実行する。script は判定 evidence bundle に置く。原記録へ適用する前に通す合成 fixture は、A3 で次の 5 件と期待出力を作って Phase A snapshot に収録し凍結する: (F1) 合格（`files` と実 file が一致、番兵無し、`buildMode=Full`、宣言一致、結果 file と manifest の SHA-256・identity が一致）、(F2) 実 file に `files` に無い 1 file がある → 不合格、(F3) 番兵がある → 不合格、(F4) `outcome.json` の `buildMode` が欠落 → 不合格、(F5) `last-result.json` の `identity` が `transport.json` の `revision` と違う → 不合格。期待値の導出は上の (i)〜(vi) の規則で、機械向けの期待値 file と script 本体は git に入れない。
+- **判定 C の照合 script の方式:** **判定 C の offline 実行。** 照合するのは HC1 の原記録（`transport.json`・`content/` の一覧と hash・`outcome.json`・`preflight.json`・`last-result.json`・build の後の workspace の一覧）の file 検査だけで、通信も資格情報も要らない（publish は local）。判定 C の担当が script を書き、原記録の複製に対して、資格情報・本番設定・通信に届かない環境（sandbox 内の pwsh）で実行する。script は判定 evidence bundle に置く。原記録へ適用する前に通す合成 fixture は、A3 で次の 5 件と期待出力を作って Phase A snapshot に収録し凍結する: (F1) 合格（`files` と実 file が一致、番兵無し、`buildMode=Full`、宣言一致、結果 file と manifest の SHA-256・identity が一致）、(F2) 実 file に `files` に無い 1 file がある → 不合格、(F3) 番兵がある → 不合格、(F4) `outcome.json` の `buildMode` が欠落 → 不合格、(F5) `last-result.json` の `identity` が `transport.json` の `revision` と違う → 不合格。期待値の導出は上の (i)〜(vi) の規則で、機械向けの期待値 file と script 本体は git に入れない。revision 2 は F1〜F5 とその期待出力を変えない（F4・F5 の (i) の不合格は `buildMode` と identity によるもので、process の終了コードに依らない）。
 - **機械検査:** `pwsh tools/contract-audit.ps1`（`#nullable enable`、Editor コードの配置、path 予算等）。
 - **A0/A1 主担当・モデル・ベンダー:** Claude Opus 5.5（Anthropic）、2026-11-01。
 - **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** 入力版は A2 入力版 `bb671da6` の分割前の BS5b の HANDOFF（`docs/handoff/BS5B_OPERATION_ROUTES.md`、内容 sha256 `8ba57df617087d29229b4d059d94b605ad402e500481a83555a5ceffb0f315a6`）と関係ソース・文書の写し。Phase A snapshot に入れたものは無い。(R1) アーキテクチャゲート: Grok 4.7 high（xAI、cursor-agent）、判定「修正後に凍結可」（blocker 1・major 3・minor 7）。Codex（OpenAI）は利用上限で実行できなかった。(R2) A0 だけからの代替構成: Claude Opus（Anthropic、subagent。§1 の写しと関係ソースだけを読む）。外部レビュー（2026-11-02、発注者が受け取った。A2 の改訂版を対象）。分割後の外部レビュー（2026-11-02、分割後の 2 つの HANDOFF を対象。分割で生じた境界と差分の独立確認を兼ねる）。採否は下の「A2 の指摘と採否」。
 - **A3 統合担当・モデル・採否:** Claude Opus 5.5（Anthropic）と発注者、2026-11-02。採否は下の表のとおり（#33 の分割と #32 の結果 file は発注者の判断）。発注者が凍結を承認した。
 - **C' 用に予約した担当・モデル・ベンダー:** 当初は OpenAI（Codex、A2 では未関与）を予約した。利用上限で 2026-11-04 22:42 まで使えないため、C' の担当は Grok（xAI、cursor-agent）とする（2026-11-02、進行役の選択）。Grok は A2 の R1 に関与しているので**独立性制約あり**。
 - **独立性の強化条件を満たせない場合の理由:** R2 は主担当と同じ系列（Anthropic）。A0 だけを読む制約で初稿へのアンカリングを断った。C' の Grok は A2 の R1 と同じ系列で、未関与の担当を確保できない（上の予約の変更）。
+
+### Phase A revision 2（2026-11-03。HC1 の終了条件と番兵の置き場所）
+
+- **契機:** PR のレビューで、最終判定 C（§7.6）の HC1 に 2 つの欠落が見つかった。(iv) の番兵を、`Full` が空にする workspace（`work/StandaloneWindows64-Player/`）の外の `work/StandaloneWindows64/` に置いていた。(i) の「終了コード 0」は process の終了コードを取れず（既知の native 終了 stall で強制終了）、`last-result.json` の値で合格としていた。強制終了した取得は成功の証拠にしない（`tools/Harness/README.md`）。決定記録では合否を変えられないので、Phase A を新しい revision として再開した。
+- **発注者の判断:** 成功した batch の後に Unity process が正常に終了することは、本スライスの GO 条件から外し、既知の制限として後続（CI 基盤への組み込み）へ送る。原因の調査、Unity の修正、CI の wrapper・watchdog は作らない。
+- **変更点（これだけ）:** §2.0 の「示さないこと」、E4 の括弧書き、§2.5 の CI の行、HC1 の観測と (i)・(iv)・(v)、照合 script の原記録の一覧、§2.5 の決定記録の行。I5・AC・設計・判定定義・製品コードは変えない。
+- **変えないことの理由:** I5 と D8 の「成否の正は process の終了コード」は製品コードの契約で、`EditorApplication.Exit(code)` を全ての分岐で呼ぶ（AC13 の単体）。実際の process が終了コードを返すことは AC14（終了コード 2）で観測した。示せないのは成功経路の終了だけである。
+- **HC1 の再取得:** 凍結後に判定 C の実行担当が 1 回だけ取り直す（(iv) の置き場所は条件の変更では直らない）。implementation head `36b966c6` は変わらない。
+- **C' の扱い:** C'（1〜3 巡）は実装と照合 script を監査したもので、本 revision はそれを変えない。DR1 のとおり最終 C' は行わない。
+- **A2 と A3:** 下の「revision 2 の A2」に記録する。
 
 ### A2 の指摘と採否（A3 統合の入力）
 
@@ -338,6 +348,7 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **script の修正（C' 3 巡目の後。C' の目を通っていない）:** 実記録に掛けると (v) が不合格になった。実際の `selected` の要素は `StableKey|LogicalKey|PhysicalKey` で、stable key 自体が `|` を含む（`osm-build-candidate-v1|…`）ため、「先頭の欄」では全候補が 1 つの値に潰れる。凍結 fixture の要素は 1 欄だけで、この形は現れなかった。(v) の意図（stable key の集合の比較）は変えず、要素を `|` で分け、3 欄以上なら末尾の 2 欄を除いた残りを stable key とし、3 欄未満なら先頭の欄を使う。F1〜F5 の出力は変わらず全件期待と一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。この 1 箇所は C' に見せておらず、Phase D か人間が必要と見るなら、HC1 の記録と script を確認する余地がある。
 - **範囲外の観測:** Unity の import が `.pdb.meta` 5 件を消すので `git checkout` で戻し commit していない。HC1 用 worktree は git の登録を外したが、終了済みの Unity process の handle が `unity/` を掴んだままディレクトリが削除できず残っている（後で消す）。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は触っていない。
 - **判定:** 阻害する指摘なし。HC1 を含む凍結済みの AC・不変条件・成立条件を満たす。**GO。**
+- **取り消し（2026-11-03）:** この GO は取り消した。PR のレビューで、HC1 (iv) の番兵が `Full` の workspace（`work/StandaloneWindows64-Player/`）の外にあったこと、(i) を process の終了コードではなく `last-result.json` の値で合格としたことが分かった（判定 C の担当が事実を確認）。§5「Phase A revision 2」の凍結後に HC1 を取り直して判定し直す。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
 ### 決定記録
 
