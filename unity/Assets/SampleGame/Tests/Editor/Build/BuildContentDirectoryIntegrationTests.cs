@@ -229,14 +229,14 @@ namespace OneStarMaker.Tests.Editor.Build
                 // 実 build の生成物はこのテスト専用領域へ置き、過去の検証ログを上書きしない。
                 var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
                 var workspace = Path.Combine(artifacts, "work", BuildContentCoordinator.TargetName, "fixture");
-                var request = new BuildContentRequest(bootstrap.Plan, snapshot, "fixture", artifacts);
                 var coordinator = new BuildContentCoordinator();
                 // 同じ target/contentSet の workspace へ連続 build。公開先は identity ごとに別 directory。
                 // 両 report と manifest を確認し、2 回目が前回の成功 path を上書きしないことを示す。
-                var first = coordinator.Build(request);
+                // 1 回目は Full（publish に渡す）、2 回目は Incremental で workspace の再利用を確かめる。build の回数は増やさない。
+                var first = coordinator.Build(new BuildContentRequest(bootstrap.Plan, snapshot, "fixture", artifacts, null, null, BuildContentMode.Full));
                 Assert.That(first.IsSuccess, Is.True, first.Summary);
                 Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
-                var result = coordinator.Build(request);
+                var result = coordinator.Build(new BuildContentRequest(bootstrap.Plan, snapshot, "fixture", artifacts, null, null, BuildContentMode.Incremental));
                 Assert.That(result.IsSuccess, Is.True, result.Summary);
                 Assert.That(File.Exists(Path.Combine(workspace, "BuildManifestHash.txt")), Is.True);
                 Assert.That(result.Identity, Is.Not.EqualTo(first.Identity));
@@ -253,20 +253,22 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(File.ReadAllText(result.PreflightPath), Does.Contain("ValueNotSelected"));
                 // Unity 内部ファイルを解釈せず、公開 directory に content file と resource file があることを確認する。
                 // 選択 root の意味づけは、登録後に同梱 root を読む側で確認する。
-                Assert.That(Directory.GetFiles(result.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
-                Assert.That(Directory.GetFiles(result.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
-                _copy = Path.Combine(artifacts, "integration-copy-" + result.Identity);
-                Copy(result.ContentPath!, _copy);
+                // 以降の登録・配信・install は publish できる 1 回目（Full）の成果物で行う（copy の名前の identity が revision になる）。
+                Assert.That(Directory.GetFiles(first.ContentPath!, "*.cf").Length, Is.GreaterThan(0));
+                Assert.That(Directory.GetFiles(first.ContentPath!, "*.resS").Length, Is.GreaterThan(0));
+                _copy = Path.Combine(artifacts, "integration-copy-" + first.Identity);
+                Copy(first.ContentPath!, _copy);
                 // 配信 fixture は checkout の深さに依存させない。Windows Mono の file open
                 // 制限に build identity と staging 名が重なるため、専有する短い一時 root を使う。
                 _deliveryRoot = Path.Combine(Path.GetTempPath(), "osm-dist-integration", Guid.NewGuid().ToString("N"));
-                var published = ContentTransportPublisher.Publish(result, Path.Combine(_deliveryRoot, "published"));
+                // publish は Full の build だけを受け付ける。
+                var published = ContentTransportPublisher.Publish(first, Path.Combine(_deliveryRoot, "published"));
                 _manifestDigest = HashFile(Path.Combine(published, "transport.json"));
                 // 本物の HTTP response を installer に渡す。Unity へ URL や staging を渡さず、
                 // 完全検証された installed directory を後段の実 load に使う。
                 StartInstallForTest(async cancellation =>
                 {
-                    var installRequest = new ContentInstallRequest(_manifestDigest, "fixture", result.Identity,
+                    var installRequest = new ContentInstallRequest(_manifestDigest, "fixture", first.Identity,
                         BuildContentCoordinator.TargetName, Application.unityVersion, 2, long.MaxValue);
                     var server = new LoopbackArtifactServer(published, cancellation);
                     await ContentInstallTestOperation.RunWithShutdownAsync(async () =>

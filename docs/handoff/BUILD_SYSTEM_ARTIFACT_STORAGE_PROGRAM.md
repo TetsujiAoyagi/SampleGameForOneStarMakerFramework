@@ -229,3 +229,14 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
   - Evidence: `evidence stage` が約1,100 fileのbundleで `record-limit` になり `unconfirmed` だけを返す、古いBuildの `inspect`／`fetch` はpublish時のbuild-configと同じbytesを要し書き直したconfigでは `receipt-unavailable` で理由が出ない、`build use` の `--until` が往復形式だけ。回復できない `failed` へのcleanupの試行が残すoperationが、そのprocessの生存中だけ同じtaskの他のartifactのnetwork付きpreflightを `operation-pending` で止めうる。`put-pending` の回復が解決しない間にtask全体のnetwork付き操作が止まる既存挙動、publish由来のremote削除の確定順序、catalogの組み合わせ検査の厳格化。`use` / `release` のpreflightはnetwork形のままで、READMEの事前承認の一文と範囲が合っているかを決める。
 - **送信まわりの整理** — 削除intentの照合GETが一致して `staged` に戻ったartifactをresumeしてpromoteすると、objectが在るkeyへ同じbytesをPUTする（安全だが「re-PUTは404の後だけ」の前提の外）。receipt再利用の照合の拡張（今はkey・packageSha256・manifestSha256の3つ）、回復一致時にpromoteのreadback stagingが未登録fileごとadoptedになる、送信部の共有（`EvidenceSend.psm1`）、intentの `createdAt`・`process` の型検査、「DELETE → GET 404 → 記録」の共通primitive化（Evidence清掃・reset・Build清掃・Content）。再開: RC2。判断: owner。
 - **テストと証拠の整理** — suiteのhermetic化（既存suiteは `SeriesRetirementStore` のテスト用rootを注入せず実storeの `retirements-v1` を読む）、退役確認の規則が2か所にある、回復できる `failed` のfixtureとpromote停止のhelperの重複（`EvidenceTestSupport.ps1` へ）、`Get-EvidenceDeletionRoute` の `catch{}` が fail-closed で `none` にする理由のコメント、一部のsuiteが集計行だけを出しcase名を復元できない、`EvidenceCleanup.Tests.ps1` の1 caseが `rg` をPATHに要する（READMEに記載）、Buildのpublish intentのpath置換した写しを `receipt.intentSha256` と結び付けられない（証拠の加工規則）、`changes.patch` が `.gitignore` に該当する未追跡fileを含まないことと、改行を含むpathの列挙。試験範囲の不足: CLI経由のconfig失敗のstdout・stderr、fetch・use・releaseの `unknown-deployment`、guard非取得の直接観測。再開: RC2。判断: owner。
+
+## 7. BuildSystem の他の系列の所在
+
+本 program の完了（§0）は Artifact Storage の範囲だけで、BuildSystem の選択・運用経路の系列はこの節に所在だけを置く。各系列の契約と未着手の問いの内容は [Architecture §18 §4](../../unity/Assets/Docs/Architecture/18-asset-description.md#4-buildsystem-との接続) を正とし、ここに写さない。
+
+| 系列 | 状態 | 所在 |
+|---|---|---|
+| BS5a 目的からの最小選択（中核） | 完了（2026-11-01、PR #150） | 契約は Architecture §18 §4 へ harvest 済み |
+| BS5b-1 `Full` の build・publish と batch | 完了（2026-11-03、PR #155） | 契約は Architecture §18 §4 へ harvest 済み |
+| BS5b-2 宣言からの Play 経路 | Phase A（A2 完了。A3 は BS5b-1 のマージ後） | [BS5B2_PURPOSE_PLAY_ROUTES.md](BS5B2_PURPOSE_PLAY_ROUTES.md) |
+| identity 後続（入力 identity・設定 snapshot・`content/index`・build を skip する再利用） | 未着手。HANDOFF 無し | 問いは Architecture §18 §4「BuildSystem の後続」 |

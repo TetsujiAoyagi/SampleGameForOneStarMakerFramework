@@ -9,6 +9,17 @@ using UnityEngine;
 
 namespace OneStarMaker.Editor.Build.Content
 {
+    /// <summary>
+    /// workspace の扱い。<see cref="Incremental"/> は前回の Unity の出力を残したまま build する（日常の build の速さのため）。
+    /// <see cref="Full"/> は build の前に workspace を空にし、成果物がその build の出力だけからなる。
+    /// publish は <see cref="Full"/> の成果物だけを受け付ける（前回の選択の file を配布しないため）。
+    /// </summary>
+    public enum BuildContentMode
+    {
+        Incremental,
+        Full,
+    }
+
     // BS1 の成功 plan と、同じ候補集合に対する BS2a materialization snapshot を対で渡す。
     // ContentSet は固定 workspace の識別子。ArtifactsRoot は coordinator が許可範囲を検証する。
     public sealed class BuildContentRequest
@@ -28,9 +39,17 @@ namespace OneStarMaker.Editor.Build.Content
         /// </param>
         public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
             string contentSet, string artifactsRoot, BuildPurposeDeclaration? declaration, IReadOnlyList<BuildPurposeRequirement>? requirements)
+            : this(plan, snapshot, contentSet, artifactsRoot, declaration, requirements, BuildContentMode.Incremental)
+        {
+        }
+
+        /// <param name="mode">workspace の扱い。publish する build は <see cref="BuildContentMode.Full"/> にする。</param>
+        public BuildContentRequest(BuildPlan plan, OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot snapshot,
+            string contentSet, string artifactsRoot, BuildPurposeDeclaration? declaration, IReadOnlyList<BuildPurposeRequirement>? requirements,
+            BuildContentMode mode)
         {
             Plan = plan; Snapshot = snapshot; ContentSet = contentSet; ArtifactsRoot = artifactsRoot;
-            Declaration = declaration; Requirements = requirements;
+            Declaration = declaration; Requirements = requirements; Mode = mode;
         }
         public BuildPlan Plan { get; }
         public OneStarMaker.Editor.Build.Materialization.BuildMaterializationSnapshot Snapshot { get; }
@@ -38,6 +57,7 @@ namespace OneStarMaker.Editor.Build.Content
         public string ArtifactsRoot { get; }
         public BuildPurposeDeclaration? Declaration { get; }
         public IReadOnlyList<BuildPurposeRequirement>? Requirements { get; }
+        public BuildContentMode Mode { get; }
     }
 
     // 1回の build の結果。preflight/outcome は失敗時にも診断用に残す。
@@ -52,7 +72,14 @@ namespace OneStarMaker.Editor.Build.Content
 
         public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
             string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues, BuildPurposeDeclaration? declaration)
-        { Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
+            : this(identity, preflightPath, outcomePath, contentPath, manifestPointer, metadataPath, summary, issues, declaration, BuildContentMode.Incremental)
+        {
+        }
+
+        public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
+            string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues, BuildPurposeDeclaration? declaration,
+            BuildContentMode mode)
+        { Mode = mode; Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
           ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; Declaration = declaration; }
         public string Identity { get; }
         public string PreflightPath { get; }
@@ -64,12 +91,15 @@ namespace OneStarMaker.Editor.Build.Content
         public BuildContentIssue[] Issues { get; }
         // request の宣言をそのまま運ぶ。publisher が manifest に写す（preflight の形は変えない）。
         public BuildPurposeDeclaration? Declaration { get; }
+        // request の mode。outcome の buildMode に書かれ、publisher は file の側を正として読む。
+        public BuildContentMode Mode { get; }
         public bool IsSuccess => ContentPath != null && Issues.Length == 0;
     }
 
     // JsonUtility 用の保存形。Unity の内部 BuildReport 型を外部 protocol にしない。
     // preflight と outcome は同じ形を使うが、前者は入力判断、後者は build 結果を記録する。
-    // requirements は後方互換の追加項目。既存の読み手（判定 script、Artifacts の collect、Player build の検証）は未知の項目を無視する。
+    // requirements と buildMode は後方互換の追加項目。既存の読み手（判定 script、Artifacts の collect、Player build の検証）は未知の項目を無視する。
+    // buildMode は outcome だけに書く（preflight では空）。欄の無い旧 outcome は publish できない。
     [Serializable] internal sealed class ContentReportFile
     {
         public string identity = "";
@@ -85,6 +115,7 @@ namespace OneStarMaker.Editor.Build.Content
         public string manifestPointer = "";
         public string metadataPath = "";
         public ContentReportRequirement[] requirements = Array.Empty<ContentReportRequirement>();
+        public string buildMode = "";
     }
 
     // 「なぜ入っているか」: (logical key, 表現) と root からの到達経路。logicalKey、次に representation の ordinal で並ぶ。
@@ -128,7 +159,8 @@ namespace OneStarMaker.Editor.Build.Content
                 identity = result.Identity, target = BuildContentCoordinator.TargetName,
                 summary = result.Summary, contentPath = result.ContentPath ?? "",
                 manifestPointer = result.ManifestPointer ?? "", metadataPath = result.MetadataPath ?? "",
-                issues = result.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray()
+                issues = result.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray(),
+                buildMode = result.Mode.ToString()
             });
         }
 

@@ -164,9 +164,14 @@ materialization や Editor build の成功だけをこれらの成立と同一�
 root と依存閉包を照合し、欠損・衝突を build 前の構造化 issue にする。選択 policy と依存閉包は
 再計算しない。Unity API を使う root 生成と build は Editor adapter に隔離している。
 
-- 固定 target は StandaloneWindows64 Player。`artifacts/bs2b/work/<target>/<content-set>/` を
-  再 build 用 workspace とし、成功した directory 一式を build identity ごとの
+- 固定 target は StandaloneWindows64 Player（`BuildContentCoordinator.TargetName` は `StandaloneWindows64-Player`）。
+  `artifacts/bs2b/work/StandaloneWindows64-Player/<content-set>/` を再 build 用 workspace とし、成功した directory 一式を build identity ごとの
   `artifacts/bs2b/content/<identity>/` へ staging を経て公開する。失敗成果物は成功 path として返さない。
+- build mode（`BuildContentRequest.Mode`、既定 `Incremental`）。`Full` は adapter を呼ぶ前に workspace の中身を消す
+  （workspace 自体は残す）。approved root から workspace までの各 segment と中の directory に reparse point
+  （junction・symbolic link 等）が 1 つでもあれば、何も消さずに build 前の失敗にする。他 process の lock で
+  消せない場合も Unity の build を始めない。mode は `outcome.json` の `buildMode` に記録する。
+  `Incremental` は workspace を再利用する日常の build 用で、publish には使えない（次節）。
 - 生成した単一 `BuildContentRoot` に schema version、build identity、target と entry 配列を保存する。
   entry は logical key、stable key、`Representation`、Scene / Object 種別と Unity の
   `LoadableSceneId` / `Loadable<UnityEngine.Object>` を持つ。複数表現を同一 directory に格納できる。
@@ -218,6 +223,10 @@ Editor Play と directory Player は起動時に表現を固定する。同一 s
 
 `ContentTransportPublisher` は成功した Content Directory build result と preflight の identity を照合し、
 公開 directory の opaque files と OSM transport manifest v1 を staging へ生成して公開する。
+publish は outcome の `buildMode` が `Full` の result だけを受け付け、それ以外（欄の無い旧 outcome を含む）は
+publish 先も staging も作らずに `InvalidOperationException` で拒否する。staging は
+`<final の親>/.staging/<guid32>` に作り、staging の各 path が final の同じ file の path より長くならないようにする
+（同じ volume の move で確定し、失敗時は staging だけを消す）。
 BuildReport の内容を配信層で独自に再検証するものではない。manifest の `files` は配信する content subtree の
 完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包を
 path/hash で案内する metadata であり、転送先 path、Unity load identity、Runtime 起動条件には使わない。
@@ -265,12 +274,17 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 - 表現の対応: Full = `First [Full]`、Whitebox = `First [Whitebox, Full]`、Full と Whitebox の同梱 = `All [Full, Whitebox]`。
 - Editor メニュー `Tools/OSM/Content/Build <contentSet>` が宣言ごとにある。BS4 coordinator は `bs4-spring-full` 宣言を引数に呼び、Player の baked config（`cellCompanionSet`・representation）を宣言から写す。bootstrap composer と BS4 の fixture composer は resolver の後に合成する。
 - 付随 asset の実例は `Spring_Events_4_2:Burst`・`Spring_Event_MultiCellProof:Burst`（`.vfx`）と `InGameSession:Lit`（`DemoCellLit.mat`）。
+- menu の `Build <contentSet>` は `Incremental` で build し、publish しない。BS4 coordinator と batch 入口は `Full` で build して publish する。
+- batch 入口 `SampleGameContentBatch.BuildAndPublish` は `-batchmode -executeMethod … -osmPurpose <宣言名>` で呼び、宣言を `SampleGameBuildPurposes.Find` で引いて `Full` build と publish（`artifacts/bs2b/transport/<identity>`）を行う。結果 file `artifacts/bs2b/batch/last-result.json`（identity・publishPath・manifestSha256・declaration・buildMode・exitCode）は開始時に消し、一時 file から move で確定する。終了コードは 0 成功、2 引数の誤り、3 選択の issue、4 Unity build の失敗、5 publish の失敗、1 その他で、全ての分岐で `EditorApplication.Exit(code)` を呼ぶ。0 以外では結果 file に `exitCode` と理由だけを書き、その実行が作った published directory だけを消す（結果 file の確定の失敗を含む）。
+- 成否の正は process の終了コードで、呼ぶ側は終了コード 0 の時だけ結果 file を読む（Unity が method を呼ぶ前に終わる場合、たとえば project の lock や compile error では、前回の結果 file が残る）。結果 file の欄は BS5b-2 の From published directory が期待値として読む。pwsh の wrapper は持たない。
+- **既知の制限（2026-11-03）:** 成功した batch の後に Unity process が終了しないことがある（Unity 6000.6.0f1 の既知の native 終了 stall。[Harness README](../../../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）。clean checkout の batch（約 23〜29 分）では、結果 file の確定と publish の log の後、30 分待っても process handle が signal しなかった。CI が成功した batch を終了コードだけで判定できることは未実証である。失敗経路の実 process の終了コード（未知の宣言名で 2）は観測済み。
 
-この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。Play As、宣言 1 つからの build → publish → install → 検証 Play、batch 入口、publish の `Full` 必須は BS5b の範囲で未実装である。
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。batch 入口と publish の `Full` 必須は BS5b-1 で上の経路に入った。Play As、宣言 1 つからの build → publish → install → 検証 Play は BS5b-2 の範囲で未実装である。
 
-### BuildSystem の後続（BS5a から送った事項）
+### BuildSystem の後続（BS5a・BS5b-1 から送った事項）
 
-- **BS5b（運用経路）:** 同じ宣言を日常 Play・検証 Play・Player・batch に接続する（Play As、検証 Play の 1 操作、From published directory、開いている Scene の拒否、batch 入口と終了コード、publish の `Full` 必須、Delivery 窓の宣言対応、manifest の宣言を環境変数へ写す bridge）。Editor の空 Scene で Play すると first scene が読まれないので、検証 Play の手順化で扱う。
+- **BS5b-2（宣言からの Play 経路）:** 同じ宣言を日常 Play・検証 Play に接続する（Play As、検証 Play の 1 操作、From published directory（BS5b-1 の `last-result.json` を期待値に読む）、開いている Scene の拒否、Delivery 窓の宣言対応、manifest の宣言を環境変数へ写す bridge）。Editor の空 Scene で Play すると first scene が読まれないので、検証 Play の手順化で扱う。
+- **CI 組み込み（BS5b-1 から）:** 成功した batch の後に Unity process が終わらない場合の、呼ぶ側の終了監視・timeout・結果 file と manifest の照合。R2・HTTP への publish と別 PC での受け取り。`.staging` と `work/` の残置の清掃は Storage program §6「ローカルの残置の清掃」。
 - **入力 identity:** 宣言と選択候補の source 状態と設定 snapshot の hash、`content/index`、build を skip する再利用。revision の形式は変えていない。
 - **未着手の問い:** 経路の連鎖（source → local の object store → LAN / R2）、object 単位の格納と差分更新、再 build の決定性、Player の実行時差し替え、複数 directory と cross-directory 参照、設定の宣言化と Player の Debug の剥離、known-good の pin の呼び手、日常 Play で宣言に無い content を読んだ時の検出、`outcome.json` の選択・閉包の記録形式、directory に無い OnDemand content を要求した時の振る舞い。
 - **検証の残り:** directory mode の封鎖と宣言の不一致 Warning の配線には自動テストが無い（Editor Play と BS4 Player のログで観測済み）。directory mode の Editor Play で flight rig が spawn に置かれず原点に留まる観測があり、Addressables mode との比較による切り分けが要る（BS5a は該当箇所を変えていない）。Player の `content/` の manifest は `Object` entry を `ObjectIdHash` でしか持たないので、付随 asset を名前で同定する材料が無い。

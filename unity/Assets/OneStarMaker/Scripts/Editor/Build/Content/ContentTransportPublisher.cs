@@ -20,6 +20,17 @@ namespace OneStarMaker.Editor.Build.Content
                 ?? throw new InvalidOperationException("Preflight report is invalid.");
             if (preflight.identity != result.Identity || preflight.target != BuildContentCoordinator.TargetName)
                 throw new InvalidOperationException("Build result and preflight identity do not match.");
+            // Full の build だけを publish する。Incremental の workspace には前回の選択の file が残りうるので、
+            // 配布物に混ぜない。mode は result の欄ではなく outcome の file を正とし、欄の無い旧 outcome も拒む。
+            // publish 先と staging を作る前に止める。
+            if (!File.Exists(result.OutcomePath))
+                throw new InvalidOperationException("Outcome report is missing; only a Full build can be published.");
+            var outcome = JsonUtility.FromJson<Outcome>(File.ReadAllText(result.OutcomePath))
+                ?? throw new InvalidOperationException("Outcome report is invalid.");
+            if (outcome.identity != result.Identity)
+                throw new InvalidOperationException("Build result and outcome identity do not match.");
+            if (outcome.buildMode != nameof(BuildContentMode.Full))
+                throw new InvalidOperationException("Only a Full build can be published (buildMode='" + outcome.buildMode + "').");
 
             var final = Path.GetFullPath(publishRoot);
             var sourceRoot = Path.GetFullPath(result.ContentPath!);
@@ -29,9 +40,9 @@ namespace OneStarMaker.Editor.Build.Content
             if (Directory.Exists(final))
                 throw new IOException("Publish destination already exists.");
 
-            // この呼出し専用の sibling staging だけを所有する。既存の公開先を更新せず、
+            // この呼出し専用の staging だけを所有する。既存の公開先を更新せず、
             // manifest と全 bytes が揃ってから同一 volume の rename で公開する。
-            var staging = final + "." + Guid.NewGuid().ToString("N") + ".staging";
+            var staging = StagingPathFor(final);
             try
             {
                 var contentRoot = Path.Combine(staging, "content");
@@ -99,11 +110,25 @@ namespace OneStarMaker.Editor.Build.Content
             }
         }
 
+        // staging は公開先の親の下の `.staging/<guid32>` に置く。名前（41 文字）が build identity（52 文字）より短いので、
+        // staging の中の各 path は final の同じ file より長くならない（final の名前に接尾辞を足すと path の予算を超えた）。
+        // 同じ親の下なので final への move は同じ volume。GUID は切り詰めない。
+        // 空になった `.staging` 自体は他の publish と共有しうるので消さない。
+        internal static string StagingPathFor(string final) =>
+            Path.Combine(Path.GetDirectoryName(Path.GetFullPath(final))!, ".staging", Guid.NewGuid().ToString("N"));
+
         private static string Sha256(string path)
         {
             using var stream = File.OpenRead(path);
             using var hash = System.Security.Cryptography.SHA256.Create();
             return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
+        }
+
+        [Serializable]
+        private sealed class Outcome
+        {
+            public string identity = "";
+            public string buildMode = "";
         }
 
         [Serializable]

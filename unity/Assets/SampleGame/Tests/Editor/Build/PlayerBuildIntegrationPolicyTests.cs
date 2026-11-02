@@ -98,7 +98,9 @@ namespace OneStarMaker.Tests.Editor.Build
         {
             var content = Path.Combine(_root, "content"); var metadata = Path.Combine(_root, "metadata"); Directory.CreateDirectory(content); Directory.CreateDirectory(metadata);
             var manifest = Path.Combine(content, "manifest"); File.WriteAllText(manifest, "x");
-            return new BuildContentResult(identity, "preflight", "outcome", content, manifest, metadata, "ok", Array.Empty<BuildContentIssue>());
+            // Player build は transport へ publish する result を受けるので Full。
+            return new BuildContentResult(identity, "preflight", "outcome", content, manifest, metadata, "ok", Array.Empty<BuildContentIssue>(),
+                null, BuildContentMode.Full);
         }
 
         private static string Report(string identity, BuildContentResult result, string target = "StandaloneWindows64-Player") => JsonUtility.ToJson(new PlayerContentReportData
