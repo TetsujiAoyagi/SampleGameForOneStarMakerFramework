@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `最終判定 C 完了（HC1 を含む。GO。次は Phase D）`（2026-11-02。A3 凍結は同日）
+- status: `Phase D 作業中（PR 作成済み。harvest と HANDOFF 削除は未実施）`（2026-11-03。最終判定 C の GO と A3 凍結は 2026-11-02）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
 - implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）と、HC1 を加えた最終判定用の bundle（HC1 の原記録の複製・Unity log・Resolve の出力・照合結果・改訂した照合 script と F1〜F5 の結果を追加）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は Phase D の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 3 巡目用 blind audit bundle（head `36b966c6` 固定、所見・DR1・DR2 を含まない。2 巡目から、改訂した照合 script・F1〜F5 の出力・script の改訂差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **最終判定 C 完了（HC1 を含む。GO。§7.6）。次は Phase D。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO head（implementation head）`36b966c6`、base `26f34046`。C' は DR1 により 3 巡目（阻害する指摘なし。§8）を GO 判定に使い、最終 C' は行っていない。**§7.6 のとおり、C' 3 巡目の後に照合 script の (v) を実データの形に合わせて 1 箇所直した。この変更は C' の目を通っていない。** Phase D は、保存・引渡しの確認、恒久知見の harvest、PR（base は `develop`）の作成を行う。push と PR は未実施。
+- 引継ぎ票: **Phase D 作業中。PR（base は `develop`）を作成した。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。GO head（implementation head）`36b966c6`、base `26f34046`。C' は DR1 により 3 巡目（阻害する指摘なし。§8）を GO 判定に使い、最終 C' は行っていない。§7.6 の照合 script の修正（C' 3 巡目の後）は、DR3 により C' で確かめない。残る Phase D の作業は、保存・引渡しの確認、恒久知見の harvest、HANDOFF の削除（マージ前の最終）。
 
 ### PR 状態ブロック
 
@@ -335,7 +335,7 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
   - **batch の結果:** `last-result.json`: identity と publishPath を持ち、`declaration` は `spring-full`、`buildMode` は `Full`、`exitCode` は 0。publish 先の `transport.json` の `files` は 253 件、実 file は 254 件（`transport.json` を含む）。
   - **選択の照合:** 同じ head の Editor で `SampleGameContentBuild.Resolve(SampleGameBuildPurposes.SpringFull)` を評価し 125 件の stable key を得た（`resolve-selected.json`）。preflight の `selected` は 127 件で、DR2 のとおり bootstrap の 2 件を加えた集合と一致した。
 - **照合（offline、改訂 3 の script を既定で。`-ExtraSelected` なし）:** 原記録を、絶対 path が 259 以下になる場所へ複製して掛け、(i)〜(vi) が全て合格。最長の published file の相対 path は 45 文字、publishPath は 178 文字で、final 224、staging 213（上限 259）。sentinel は work directory に残り、publish 先には無い（(iv)）。
-- **script の修正（C'' 3 巡目の後。C'' の目を通っていない）:** 実記録に掛けると (v) が不合格になった。実際の `selected` の要素は `StableKey|LogicalKey|PhysicalKey` で、stable key 自体が `|` を含む（`osm-build-candidate-v1|…`）ため、「先頭の欄」では全候補が 1 つの値に潰れる。凍結 fixture の要素は 1 欄だけで、この形は現れなかった。(v) の意図（stable key の集合の比較）は変えず、要素を `|` で分け、3 欄以上なら末尾の 2 欄を除いた残りを stable key とし、3 欄未満なら先頭の欄を使う。F1〜F5 の出力は変わらず全件期待と一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。この 1 箇所は C'' に見せておらず、Phase D か人間が必要と見るなら、HC1 の記録と script を確認する余地がある。
+- **script の修正（C' 3 巡目の後。C' の目を通っていない）:** 実記録に掛けると (v) が不合格になった。実際の `selected` の要素は `StableKey|LogicalKey|PhysicalKey` で、stable key 自体が `|` を含む（`osm-build-candidate-v1|…`）ため、「先頭の欄」では全候補が 1 つの値に潰れる。凍結 fixture の要素は 1 欄だけで、この形は現れなかった。(v) の意図（stable key の集合の比較）は変えず、要素を `|` で分け、3 欄以上なら末尾の 2 欄を除いた残りを stable key とし、3 欄未満なら先頭の欄を使う。F1〜F5 の出力は変わらず全件期待と一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。この 1 箇所は C' に見せておらず、Phase D か人間が必要と見るなら、HC1 の記録と script を確認する余地がある。
 - **範囲外の観測:** Unity の import が `.pdb.meta` 5 件を消すので `git checkout` で戻し commit していない。HC1 用 worktree は git の登録を外したが、終了済みの Unity process の handle が `unity/` を掴んだままディレクトリが削除できず残っている（後で消す）。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は触っていない。
 - **判定:** 阻害する指摘なし。HC1 を含む凍結済みの AC・不変条件・成立条件を満たす。**GO。**
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
@@ -351,6 +351,10 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
   - 位置づけ: 字義の合否を変える読みなので、規則上は Phase A の新しい revision にあたる。発注者の判断で、DR1 と同じく例外として決定記録で扱う。ほかの AC・不変条件・成立条件・判定定義は変えない。
   - 適用時点: C' 2 巡目の後（GO 候補 head `36b966c6`）。照合 script の (v) をこの読みに合わせて直し、凍結した F1〜F5 の期待出力との一致を確かめる。
   - C' 担当に渡す（C' 自身の指摘 CP3 への裁定。C' 用決定記録の版は DR2）。
+- **DR3（2026-11-03、発注者。進行役経由で受領）:** §7.6 の照合 script の修正（C' 3 巡目の後。(v) で stable key を末尾 2 欄を除いて取り出す）を、C' のやり直しで確かめない。
+  - 適用時点: 最終判定 C の後（GO head `36b966c6`）。製品コードと head は変わっていない。
+  - 影響: 最終判定 C の GO をそのまま Phase D に渡す。凍結した AC・不変条件・成立条件と判定定義の意味・合否は変えない。
+  - C' 担当には渡さない（C' 自身の指摘への裁定ではないため）。
 
 ## 8. Phase C'
 
@@ -389,4 +393,5 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 
 ## 9. Phase D
 
-未到達。
+- **PR 作成（2026-11-03）:** base `develop`。push と PR の作成は発注者の指示による。
+- **未実施:** 保存・引渡しの確認、harvest（§0 の harvest to）、HANDOFF の削除。
