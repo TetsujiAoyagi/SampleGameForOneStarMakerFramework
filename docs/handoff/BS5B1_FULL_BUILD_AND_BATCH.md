@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C' 2 巡目完了、判定 C の照合 script を DR2 に合わせて修正済み（3 巡目待ち）`（2026-11-02。A3 凍結は同日）
+- status: `最終判定 C 完了（HC1 を含む。GO。次は Phase D）`（2026-11-02。A3 凍結は同日）
 - branch: `claude/bs5b-operation-routes`
 - implementation base commit: `26f34046`（`develop`、PR #152 のマージ。§1.3 の現況は `6fe18810` で確認し、`26f34046` までの差分は workflow 文書だけ）
 - implementation head commit: `36b966c6`（差し戻し 1 巡目。初回の Phase B は `3ceb19ab`）
@@ -17,9 +17,9 @@
 - workflow task: `bs5b1-full-build-batch`（2026-11-02 start）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。A3 凍結 snapshot（合成 fixture F1〜F5 と期待出力、生成 script。§5）を task `bs5b1-full-build-batch` に `evidence stage` で固定した。取得案内は判定 C と C' の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）。Phase B は読まない
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）と、HC1 を加えた最終判定用の bundle（HC1 の原記録の複製・Unity log・Resolve の出力・照合結果・改訂した照合 script と F1〜F5 の結果を追加）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は Phase D の起動指示で渡す（同じ PC では task の `evidence inspect` で引き直せる）
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）の 3 巡目用 blind audit bundle（head `36b966c6` 固定、所見・DR1・DR2 を含まない。2 巡目から、改訂した照合 script・F1〜F5 の出力・script の改訂差分を加えた）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **C' 完了（3 巡目、阻害する指摘なし。2026-11-02。§8）。DR1 により、この C' を GO 判定に使う。次は判定 C の実行担当による HC1（§5）と、HC1 を加えた最終判定 C。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。作業: §5 の手順どおり、GO 候補 head から新しい detached worktree（ルート 109 文字以下、可能なら 97 文字以上、`Library/` 無し）で `-osmPurpose spring-full` の batch を起動し、原記録を取る。照合は改訂 3 の `check-hc1.ps1` を既定（`-ExtraSelected` を付けない。§7 の DR2）で原記録の複製に掛ける。複製先の絶対 path も 259 以下にする（(vi)）。HC1 を加えた判定 evidence bundle を作って stage し、最終判定 C を §7 に記録する。最終 C' は行わない（DR1）。head が変われば C' をやり直す。判定 C の結果は §7.3。push と PR は未実施（最終判定 C の後に Phase D で PR を作る。base は `develop`）。
+- 引継ぎ票: **最終判定 C 完了（HC1 を含む。GO。§7.6）。次は Phase D。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO head（implementation head）`36b966c6`、base `26f34046`。C' は DR1 により 3 巡目（阻害する指摘なし。§8）を GO 判定に使い、最終 C' は行っていない。**§7.6 のとおり、C' 3 巡目の後に照合 script の (v) を実データの形に合わせて 1 箇所直した。この変更は C' の目を通っていない。** Phase D は、保存・引渡しの確認、恒久知見の harvest、PR（base は `develop`）の作成を行う。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -326,6 +326,19 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 - **確認:** F1〜F5 は期待出力と全件一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。既定の `-ExtraSelected` で、2 件が揃った preflight の F1 変形は合格、1 件欠けた変形と大小文字が違う変形は (v) で不合格。変形は手元で作った記録で、生出力を C' 用 bundle に入れた。
 - **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。
 
+### 7.6 最終判定 C（2026-11-02。HC1 を含む。GO）
+
+- **対象:** implementation base `26f34046`、GO head `36b966c6`。引き継いだ commit `51bf2f57`（HEAD と一致、dirty は判定から外した `docs/reviews/` のみ）。実装・テスト・製品コードは判定 C（§7.3）から変えていない。
+- **HC1（clean checkout の batch build と publish）:** GO head の新しい detached worktree（ルート 100 文字、`Library/` 無し）で `-osmPurpose spring-full` の `SampleGameContentBatch.BuildAndPublish` を起動した。起動前に `artifacts/bs2b/work/StandaloneWindows64/spring-full/bs5b-sentinel.txt` を置いた。
+  - **所要時間:** 起動から batch の完了（`last-result.json` と Unity log の終了）まで約 23 分（2026-11-02 09:58 → 10:21）。
+  - **Unity process の終了:** log の終了後も process が終わらず（既知の native 終了 stall。`AGENTS.md` の停止規則に従い追加調査はしていない）、約 2 時間 28 分後に強制終了した。このため **process の終了コードは取れていない**。batch 自身の結果は `last-result.json` の `exitCode` 0、`buildMode` `Full`。原記録の `exit-code.txt` はこの `exitCode` を写したもので、process の終了コードではない。
+  - **batch の結果:** `last-result.json`: identity と publishPath を持ち、`declaration` は `spring-full`、`buildMode` は `Full`、`exitCode` は 0。publish 先の `transport.json` の `files` は 253 件、実 file は 254 件（`transport.json` を含む）。
+  - **選択の照合:** 同じ head の Editor で `SampleGameContentBuild.Resolve(SampleGameBuildPurposes.SpringFull)` を評価し 125 件の stable key を得た（`resolve-selected.json`）。preflight の `selected` は 127 件で、DR2 のとおり bootstrap の 2 件を加えた集合と一致した。
+- **照合（offline、改訂 3 の script を既定で。`-ExtraSelected` なし）:** 原記録を、絶対 path が 259 以下になる場所へ複製して掛け、(i)〜(vi) が全て合格。最長の published file の相対 path は 45 文字、publishPath は 178 文字で、final 224、staging 213（上限 259）。sentinel は work directory に残り、publish 先には無い（(iv)）。
+- **script の修正（C'' 3 巡目の後。C'' の目を通っていない）:** 実記録に掛けると (v) が不合格になった。実際の `selected` の要素は `StableKey|LogicalKey|PhysicalKey` で、stable key 自体が `|` を含む（`osm-build-candidate-v1|…`）ため、「先頭の欄」では全候補が 1 つの値に潰れる。凍結 fixture の要素は 1 欄だけで、この形は現れなかった。(v) の意図（stable key の集合の比較）は変えず、要素を `|` で分け、3 欄以上なら末尾の 2 欄を除いた残りを stable key とし、3 欄未満なら先頭の欄を使う。F1〜F5 の出力は変わらず全件期待と一致（F1 合格、F2 は (iii)、F3 は (iv)、F4・F5 は (i)）。この 1 箇所は C'' に見せておらず、Phase D か人間が必要と見るなら、HC1 の記録と script を確認する余地がある。
+- **範囲外の観測:** Unity の import が `.pdb.meta` 5 件を消すので `git checkout` で戻し commit していない。HC1 用 worktree は git の登録を外したが、終了済みの Unity process の handle が `unity/` を掴んだままディレクトリが削除できず残っている（後で消す）。2026-11-01 起動の Unity process 2 つ（PID 39552・31952）は触っていない。
+- **判定:** 阻害する指摘なし。HC1 を含む凍結済みの AC・不変条件・成立条件を満たす。**GO。**
+- **担当・モデル・ベンダー:** Claude Sonnet 5.5（Anthropic）、2026-11-02。Phase B（Claude Opus 5.5）とは別のモデル。
 ### 決定記録
 
 - **DR1（2026-11-02、発注者。進行役経由で受領）:** 人間（発注者）の判断で、HC1 の前に行う C'（いわゆる暫定 C'）を GO 判定に使う。
