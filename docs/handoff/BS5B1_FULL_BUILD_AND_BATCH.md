@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成（B の結果は §6 と implementation head の commit で渡す。evidence bundle は発見 C が implementation head から作る）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の判定 evidence bundle（implementation head `36b966c6` 固定。diff・機械検査・全 EditMode と VFX の XML・log・AC14 の生記録・照合 script と F1〜F5 の結果）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' の起動指示で渡す。HC1 の原記録は未取得
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）用の blind audit bundle（head `36b966c6` 固定、所見を含まない）を task `bs5b1-full-build-batch` に `evidence stage` で固定し、別 process の fetch で閲覧を確認した。取得案内は C' 担当へ渡す（worktree の外）
-- 引継ぎ票: **判定 C 完了（高コスト証拠 HC1 を除く。2026-11-02）。阻害する指摘なし。次は C'（DR1 により GO 判定に使う。HC1 の原記録は含まない）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046`。判定 evidence を取った head はローカルの軽量 tag `evidence/bs5b1-full-build-batch/1` で保つ。判定 C の結果は §7.3。流れは「C' → 判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C」（§7 の DR1。最終 C' は行わない。C' の後に head が変われば C' をやり直す）。発見 C・判定 C の所見と DR1 を C' へ渡さない。push と PR は未実施。
+- 引継ぎ票: **C' 1 巡目完了（2026-11-02）。阻害する指摘 2 件（CP1・CP2。どちらも判定 C の照合 script `check-hc1.ps1` の欠陥で、implementation head の製品コードには無い。§8）。次は判定 C（照合 script の修正）。** 引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。GO 候補 head（implementation head）`36b966c6`、base `26f34046` は変わらない。作業: CP1（HC1 (v) を `preflight.json` の selected の stable key 集合と `Resolve(SpringFull)` の比較にする）と CP2（HC1 (vi) を published directory の実 file と、そこから再構成した staging の path から導出する）を、§5 の導出規則のとおりに直す。凍結した F1〜F5 を通して期待出力との一致を確かめ、修正した script・F1〜F5 の出力・修正の差分を C' 用 bundle に入れ直して stage する。C' 用の取得案内は worktree の外に更新する。その後、C' 2 巡目（前巡の指摘の解消を中心に）→ 判定 C の実行担当が HC1（§5）→ HC1 を加えた最終判定 C と進む（§7 の DR1。最終 C' は行わない）。判定 C の結果は §7.3。発見 C・判定 C の所見と DR1 を C' へ渡さない。C' へ渡してよい裁定は、C' 自身の指摘への決定記録だけ。push と PR は未実施。
 
 ### PR 状態ブロック
 
@@ -320,7 +320,18 @@ Play・bridge・初回 Scene のコードに触らない（BS5b-2）。identity�
 
 ## 8. Phase C'
 
-未着手
+### C'（1 巡目。DR1 により GO 判定に使う。HC1 の原記録は含まない）
+
+- 種別: §7 の DR1 により GO 判定に使う C'（HC1 の前）。1 巡目は全体を初見で監査した。
+- 入力: C' blind audit bundle（head `36b966c6` に固定。凍結した Phase A の §1〜§5、所見を除いた Phase B の結果、base..head の完全 diff（`docs/handoff/` を除く）、contract-audit と docs-audit、全 EditMode と VFX（graphics あり）の XML・step・log、AC14 の生記録、`check-hc1.ps1` と F1〜F5 の出力、head の source tree（`docs/handoff/` と git 履歴を除く））。状態はローカル固定済み（未昇格）。進行役が別 process で fetch して packageSha256 の一致を確かめ、発見 C・判定 C の所見と DR1 が含まれないことを確認した。指示書と報告の原本は worktree の外にある（担当者の `OneStarMaker/cprime/` の下）。発見 C・判定 C の所見と人間の裁定は渡していない。
+- 担当・モデル: Grok 4.7（xAI、cursor-agent、`grok-4.7-high`）。2026-11-02。実行の進行役は Claude Opus 5.5。**独立性制約あり**: 予約していた OpenAI は利用上限で 2026-11-04 22:42 まで使えず、xAI は A2（R1）に関与している。B（Claude Opus 5.5）と C（Claude Sonnet 5.5）とは別のモデルなので、最低条件は満たす。
+- **阻害する指摘（2 件。どちらも判定 C の照合 script `check-hc1.ps1` の欠陥で、implementation head の製品コードとテストには無い）:**
+  - **CP1（§5 HC1 (v)）:** script は `outcome.json` と `preflight.json` の両方の `selected` を、`resolve-selected.json` と生の文字列で比べる。製品の `WriteOutcome` は `outcome.json` の `selected` を空のまま書き、`preflight.json` の要素は `StableKey|LogicalKey|PhysicalKey` である。このため、規則 (v)（`preflight.json` の selected の stable key 集合が `Resolve(SpringFull)` と一致する）を満たす正規の記録が不合格になる。進行役が script の (v) と `BuildContentReport.cs:108,142` を読んで確かめた。
+  - **CP2（§5 HC1 (vi)）:** script は `longest-paths.json` に並べた文字列の長さだけを見る。published directory の実 file や staging の path からは導出しないので、実 path が 259 を超えても、短い一覧を渡せば合格になる。進行役が script の (vi) を読んで確かめた。
+- **後続スライスの入力（C' の記述を要約）:** AC12 の合成 file 名が観測の分解より 1 文字短い（E6 の成否は変わらない。余裕は 20 文字以上）。AC10 の menu の `Incremental` は `MenuBuildMode` 定数の確認にとどまる。file lock・file の symbolic link・途中 segment だけの junction・結果確定の失敗後の削除失敗の経路にテストが無い。(iv) は事後の file だけを見るので、「置いてから消えた」と「最初から無い」を区別できない。`SampleGameContentBatch.cs` は 202 行（B 適応として記録済み）。
+- **残存リスク（C' の記述）:** HC1 は未実施。全 EditMode の step は inconclusive 25（VFX、graphics なし）で status が failed になり、graphics ありの再実行は 73/73。AC14 の transport の一覧は、生の一覧ではなく「directory が無い」という注記である。
+- **監査できなかった範囲（C' の記述）:** HC1 の生記録、F1〜F5 の fixture 本体（script は実行していない）、全 EditMode の log 全文。
+- 次: CP1・CP2 は判定 C の照合 script の修正で解消する（implementation head は変わらない）。修正後の script と F1〜F5 の出力で、C' の 2 巡目（前巡の指摘の解消を中心に）を行い、その後に HC1 へ進む。
 
 ## 9. Phase D
 
