@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A2 完了。A3 は [BS5b-1](BS5B1_FULL_BUILD_AND_BATCH.md) のマージ後）
+- status: `A`（A2 完了。A3 は BS5b-1 のマージ後。BS5b-1 は 2026-11-03 に PR #155 で完了）
 - branch: 未作成（BS5b-1 のマージ後の `develop` から切る）
 - implementation base commit: 未定（BS5b-1 のマージ commit）
 - implementation head commit: 未到達
@@ -30,7 +30,7 @@ PR を作る前は §0 を唯一の正本とする。
 ## 1. 目的と対象外
 
 - **目的:** BS5a が作った宣言（`BuildPurposeDeclaration`）を、日常 Play・成果物の検証 Play・published directory の受け取りの各参照者の操作に接続する。宣言 1 つを選べば、その操作に必要な mode・表現・runtime 既定値・成果物が手入力無しに揃い、揃わない時は黙って別の経路で動かずに拒否される。
-- **分割（2026-11-02）:** BS5b は、成果物を作る側（[BS5b-1](BS5B1_FULL_BUILD_AND_BATCH.md)：`Full` の build・publish、staging、batch）と、本スライスに分けた。本スライスは BS5b-1 の `Full` の build・publish と batch の結果 file（`last-result.json`）の上に乗る。A2 は分割前の BS5b 全体で行い、AC・I・E・D の番号は分割前のまま残す（A2 の記録と照合できるように）。
+- **分割（2026-11-02）:** BS5b は、成果物を作る側（BS5b-1（HANDOFF は PR #155 のマージで削除。最終版は commit `95e4a270` の `docs/handoff/BS5B1_FULL_BUILD_AND_BATCH.md`）：`Full` の build・publish、staging、batch）と、本スライスに分けた。本スライスは BS5b-1 の `Full` の build・publish と batch の結果 file（`last-result.json`）の上に乗る。A2 は分割前の BS5b 全体で行い、AC・I・E・D の番号は分割前のまま残す（A2 の記録と照合できるように）。
 - **対象外:**
   - BS5b-1 の範囲（build mode、publish の `Full` 必須、staging の path、batch 入口）。
   - **d5b（S-4d5b）の実証:** Planner profile で Environment を読まずに Content Directory の Whitebox 上で Event が動くこと。d5b は今日と同じ手順（環境変数と profile を手で置く source の Play）で進め、BS5b を待たない（[S-4 program §6.3](S-4_FULL_SPEC_WORLD_AUTHORING.md)）。本スライスの受け入れ条件は Planner 宣言の Event の動作を判定しない。
@@ -252,14 +252,14 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 - **判定 C の照合 script の方式:** 使わない見込み（HC2 の判定は Console ログと環境の記録の目視と、拒否の有無）。A3 で確かめる。
 - **機械検査:** `pwsh tools/contract-audit.ps1`（`#nullable enable`、Editor コードの配置、path 予算等）。
 - **A0/A1 主担当・モデル・ベンダー:** Claude Opus 5.5（Anthropic）、2026-11-01。
-- **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** [BS5b-1](BS5B1_FULL_BUILD_AND_BATCH.md) §5 と同じ（分割前の BS5b 全体を 1 回で見た）。入力版は A2 入力版 `bb671da6` の分割前の BS5b の HANDOFF（内容 sha256 `8ba57df617087d29229b4d059d94b605ad402e500481a83555a5ceffb0f315a6`）。(R1) アーキテクチャゲート: Grok 4.7 high（xAI）。(R2) A0 だけからの代替構成: Claude Opus（Anthropic）。外部レビュー（2026-11-02）。
+- **A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:** BS5b-1 の HANDOFF（最終版は commit `95e4a270`） §5 と同じ（分割前の BS5b 全体を 1 回で見た）。入力版は A2 入力版 `bb671da6` の分割前の BS5b の HANDOFF（内容 sha256 `8ba57df617087d29229b4d059d94b605ad402e500481a83555a5ceffb0f315a6`）。(R1) アーキテクチャゲート: Grok 4.7 high（xAI）。(R2) A0 だけからの代替構成: Claude Opus（Anthropic）。外部レビュー（2026-11-02）。
 - **A3 統合担当・モデル・採否:** 未実施（BS5b-1 のマージ後）。
 - **C' 用に予約した担当・モデル・ベンダー:** OpenAI（Codex）。A2 では実行していないので未関与（BS5b-1 の C' で使えば、本スライスの C' では関与済みになる。その時点で選び直す）。
 - **独立性の強化条件を満たせない場合の理由:** R2 は主担当と同じ系列（Anthropic）。A0 だけを読む制約で初稿へのアンカリングを断った。
 
 ### A2 の指摘と採否（A3 統合の入力）
 
-番号は分割前の BS5b の通し番号。本スライスに関わるものだけを置き、残りは [BS5b-1](BS5B1_FULL_BUILD_AND_BATCH.md) の同じ節にある。#1〜#21 は A2 の R1・R2、#22〜#33 は外部レビュー（`develop` の `04445d52` で照合）、#34〜#41 は A3 の自己点検、#47〜#50 は分割後の外部レビュー（S-、2026-11-02）で、BS5b-2 の A3 で決める。
+番号は分割前の BS5b の通し番号。本スライスに関わるものだけを置き、残りは BS5b-1 の HANDOFF（最終版は commit `95e4a270`） の同じ節にある。#1〜#21 は A2 の R1・R2、#22〜#33 は外部レビュー（`develop` の `04445d52` で照合）、#34〜#41 は A3 の自己点検、#47〜#50 は分割後の外部レビュー（S-、2026-11-02）で、BS5b-2 の A3 で決める。
 
 | # | 指摘（出所） | 採否 | 理由と反映先 |
 |---|---|---|---|
