@@ -8,16 +8,23 @@ Import-Module (Join-Path $PSScriptRoot 'UnityChecks.psm1') -Global
 # CreateNoWindowの子は新しい隠しconsoleを持ち、.NETのpwsh/dotnetはそのcode page（既定はOEM、en-USなら437）で書く。
 # 437では日本語が'?'に潰れ、採取側のdecodeでは戻せない。そこで同じ隠しconsoleを65001へ切り替える起動役を挟み、
 # 目的のプロセスはその設定を継承して、std handleを直接受け継いで書く。起動役のpipelineを通さないのでbyteは変わらない。
-# 起動役が目的のプロセスを起動できない場合は、例外の代わりに起動役のexit code 1とstderrで返る。
+# 起動役が目的のプロセスを起動できない場合は、例外の代わりに起動役のexit code 1とstderrの平文1行で返る。
+# 例外を文の途中で止めるとpwshはexit 0を返し、stderrもCLIXMLになるので、catchして自分で書いて終える。
 $script:Utf8ConsoleBootstrap = @'
-$spec = [Text.Json.JsonDocument]::Parse([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{0}'))).RootElement
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
-$info = [Diagnostics.ProcessStartInfo]::new($spec.GetProperty('file').GetString())
-$info.UseShellExecute = $false
-foreach ($argument in $spec.GetProperty('arguments').EnumerateArray()) { [void]$info.ArgumentList.Add($argument.GetString()) }
-$process = [Diagnostics.Process]::Start($info)
-$process.WaitForExit()
-exit $process.ExitCode
+try {
+    $spec = [Text.Json.JsonDocument]::Parse([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{0}'))).RootElement
+    $info = [Diagnostics.ProcessStartInfo]::new($spec.GetProperty('file').GetString())
+    $info.UseShellExecute = $false
+    foreach ($argument in $spec.GetProperty('arguments').EnumerateArray()) { [void]$info.ArgumentList.Add($argument.GetString()) }
+    $process = [Diagnostics.Process]::Start($info)
+    $process.WaitForExit()
+    $exitCode = $process.ExitCode
+} catch {
+    [Console]::Error.WriteLine("processを起動できません: $($_.Exception.Message)")
+    exit 1
+}
+exit $exitCode
 '@
 
 function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$WorkingDirectory, [int]$TimeoutSeconds = 900) {
@@ -46,6 +53,8 @@ function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$Workin
     $clock = [Diagnostics.Stopwatch]::StartNew()
     try {
         if (-not $process.Start()) { throw "processを起動できません: $FileName" }
+        # 起動役を挟む経路では、LaunchMsは起動役の起動時間であり、起動役が目的のプロセスを起動するまでを含まない。
+        # 起動役を導入する前のchildLaunchMsとは測る対象が違うので、数値を並べて比べない。
         $launchMs = $clock.ElapsedMilliseconds
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()

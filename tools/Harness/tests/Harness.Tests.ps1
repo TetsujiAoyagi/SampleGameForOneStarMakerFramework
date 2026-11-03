@@ -392,6 +392,9 @@ try {
         # 日本語Windowsでは子のOEM 932でも上の往復が通る。ロケールに依らない保証は子が65001で書くことで確かめる。
         $codePage = Invoke-Process 'pwsh' @('-NoProfile','-Command','[Console]::Write([Console]::OutputEncoding.CodePage)') $repo 15
         Assert ($codePage.ExitCode -eq 0 -and $codePage.Stdout -ceq '65001') "child console code page was not UTF-8: $($codePage.Stdout)"
+        # 起動役が目的のプロセスを起動できない失敗は、成功と同じexit 0やCLIXMLのstderrにしない。
+        $missingChild = Invoke-Process (Join-Path $repo 'missing/pwsh.exe') @('-NoProfile') $repo 15
+        Assert ($missingChild.ExitCode -eq 1 -and $missingChild.Stderr -cmatch '^processを起動できません: ' -and $missingChild.Stderr -cnotmatch 'CLIXML') "missing child was not reported as launch failure: $($missingChild.ExitCode) $($missingChild.Stderr)"
         $result = Invoke-Process 'pwsh' @('-NoProfile', '-Command', '[Console]::WriteLine("OK")') $repo 15
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1
