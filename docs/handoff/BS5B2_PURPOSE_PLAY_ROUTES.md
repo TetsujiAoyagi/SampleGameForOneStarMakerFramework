@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（Phase B 完了・動作確認完了、2026-11-03。次は発見 C）
+- status: `C`（発見 C 完了・差し戻しなし、2026-11-03。次は判定 C）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
 - implementation head commit: `eb3df5fa`
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **動作確認完了（2026-11-03）。次は発見 C。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（head は Phase B の `eb3df5fa`。この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。動作確認の結果: AC17 (a)(c)(d)(e) と §5「未知の操作経路」の 2 点を `eb3df5fa` で各 1 回行い、期待との差なし、未実施なし（§6「動作確認」）。実効 config と停止後の環境は `eval` で読めたので、B 適応の観測ログは足していない。次の作業: 発見 C（implementation base / head の差分を固定し、構造・契約・凍結済み失敗経路を先に見る。GO 判定と C' の起動はしない）。判定 C の実行担当への注意は §6「動作確認」の末尾（Play への移行中に送った `eval` の timeout が Console の Error として区間に入る）。snapshot・bundle は無い（実装と記録は引き継ぐ commit にある）。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
+- 引継ぎ票: **発見 C 完了（2026-11-03）。blocker なし、B への差し戻しなし。次は判定 C。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: 判定 C（GO 候補 head は implementation head。B の実装は 1 commit で、履歴の整理は不要）。§5 の判定必須テスト（最終の全 EditMode 回帰、空 filter、`pwsh tools/run-tests.ps1`）と `pwsh tools/contract-audit.ps1`、§5 の AC17 (a)〜(e) を記録の表の形で取る（(a)(c)(d)(e) は動作確認で経路が成立済み、(b) は content build を伴う）。§7「発見 C」の判定 C への申し送りを読む。高コスト証拠 HC2 はこの段では取らない（順序は判定 C → 暫定 C' → HC2 → 最終判定 C と最終 C'）。判定 C の判定証拠が揃ったら、判定 C と C' 用の evidence bundle と C' blind bundle を同じ commit から作り、取得案内の所在を上の欄に書く（C' 用には発見 C・判定 C の所見を入れない）。C' の起動は判定 C の担当ではなく進行役が行う。必要な権限: Unity Editor の起動と `eval` 操作、Unity テストの実行、content build。Play への移行中の `eval` timeout が Console の Error として区間に入る点は §6「動作確認」の末尾。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
 
 ### PR 状態ブロック
 
@@ -396,6 +396,29 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 - 作業ツリー: Editor を開いて消えた `MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout` で戻した。Scene・asset の変更は無い。
 
 ## 7. Phase C
+
+### 発見 C
+
+- 種別: 発見。対象: `cad03983..eb3df5fa` の固定差分（23 files、+2047 / −106）。入力は commit だけで、snapshot・bundle は使っていない（取得案内なし）。Unity テストは実行していない。
+- 担当・モデル・ベンダー: Claude Sonnet 5.5（Anthropic）、2026-11-03。B と別モデル。進行役が所見の 2 点（M2・M5）を該当行で確かめた。
+- 実行したコマンド: `git diff cad03983 eb3df5fa`（file ごと）、禁止構文の grep、`pwsh tools/contract-audit.ps1`（errors=0 warnings=0、検査 8 は not-applicable）。
+- 構造適合（architecture-gates）: 責務マップ（§3）と実際のメンバーは一致し、計画外の責務は無い。asmdef の参照の追加は `OneStarMaker.Foundation` の 1 本（#47）だけ。Framework 側に `Title`・季節・`SAMPLEGAME_` の参照は無い。Runtime は UnityEditor に依存しない。`#nullable enable`、record・`Task.Delay`・`Thread.Sleep`・`ZLogger*` の追加なし、`UnityEngine.Object` への `?.` / `??` なし。
+- 行数警報: `VerifyPlayLauncher.cs`（499 行、見積もり 240 行）は **非分割妥当**。§3 が段の列と Editor I/O を同じ file の別クラスに置くと決めており、`VerifyPlaySequence` は Unity に依存しないまま開始前検査の規則から独立している。増えたのは段の受け渡しの型と AC15・AC9 を単体で確かめるための pure な関数で、新しい責務ではない。`AbstractApplicationInitializer.cs` は既存で 500 行を超え、増分は D5 の分岐の分離（+26 行）だけで §3 の判断どおり（既存由来）。
+- 現在の問いを阻害する指摘: なし（凍結条件 I1〜I7、E1・E2・E5・E7、AC1〜AC9・AC15・AC19・AC20、常時契約への違反根拠なし）。Phase A 再開に当たる事実なし。
+- minor（阻害しない。B へ戻さない。修正先は B 適応）:
+  - M1: 対話経路で、直せない拒否（profile・外の環境変数・コマンドライン）より先に、Scene を閉じる dialog と Delivery 窓の ledger の Reset の dialog が出る（`VerifyPlayLauncher.cs:393-400`、`PlayAsLauncher.cs:85`）。条件違反ではない。
+  - M2: AC8 のテスト `PlayerContentSmoke_IsLimitedToRequiredPlayerMode`（`PlayerContentConfigurationTests.cs:104`）は、引数をそのまま返す `RunsPlayerContentSmoke` の恒等の確認で、分岐の反転を検出できない。AC8 の負例（Editor の初回 Scene のロード失敗で fallback しない）は単体テストも §5 の操作も扱わない。実装は読む限り満たす。
+  - M3: `PurposeLaunchSettingsTests.cs:106` が初回 Scene を `"Title"` と等値で比べる。D12 の値は契約ではないので、AC19 に要る「決まっている」までに弱めてよい。
+  - M4: `PurposeLaunchSettings`（`DirectoryPlay`）と `ContentDeliveryPlayBridge` が class の間で互いを参照する。asmdef・公開面は変わらない。
+  - M5: `PlayAsLauncher.cs:88` の app-config の下位の層の検査は、相対 path で読み、file が無ければ `null`（空）として通す。
+  - M6: `EmptyCacheRoot_InstallsUnderTheDefaultRoot`（`PublishedDirectoryReceiveTests.cs:154`）が開発者の実 cache root（`LocalApplicationData` の下）に書き、空の親 directory が残る。
+- 判定 C への申し送り:
+  - Play を止めた時の directory の close と、Play の間ロードしたままの Editor の初回 Scene の寿命による Error は、AC17 (b) と HC2 でしか確かめられない。区間の Error を読む時は §6「動作確認」末尾の `eval` timeout の行を区別する。
+  - M2 の AC8 の負例は凍結条件の検証経路に無い。判定 C で扱うかどうかは判定 C の判断とする（扱うなら HC2 の install 済み directory で初回 Scene を存在しない名前にした段による 1 回の Play）。
+- 後続へ移送: `ContentDeliveryPlayBridge.OnUpdate` は手で戻す ledger がある間も毎 update で JSON を parse し、コメントの「文字列の長さだけ」と食い違う（負荷は小さい）。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` の BS5b-2 行が「Phase B 待ち」のまま（HANDOFF 以外の file なので、implementation head の固定を保つため Phase D の harvest で直す）。
+- 未確認: `.meta` の GUID、`BuildResult`・`ContentInstaller`・`ContentTransportPublisher` の内部、Unity テストの実行結果（判定 C）。
+
+### 判定 C
 
 未着手
 
