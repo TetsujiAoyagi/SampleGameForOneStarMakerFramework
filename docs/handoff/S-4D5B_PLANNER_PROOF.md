@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 完了・現在の問いを阻害する指摘なし。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
+- status: `C`（発見 C 完了。判定 C 実行済みで結論は NO-GO（AC2 FAIL、§4.2 の製品の欠陥の疑い）。発注者の §4.2 (a) / (b) の裁定待ち。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
 - branch: `claude/s-4d5b-planner-proof`
 - implementation base commit: `fb97da0d`（`develop`、BS5b-2 のマージ後）
 - implementation head commit: `20fb7ae2`
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は判定 C（判断担当と、Unity を操作する実行担当）。発見 C は完了し、現在の問いを阻害する指摘は無い（§7）。GO 候補 head は implementation head（文書の差分だけで、発見 C は修正を求めていない）。判定 C は GO 候補 head で §5 の判定必須（`pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`、§5 の検証経路の AC1〜AC7、AC8 の grep と harvest 表の照合）を実行し、§4.2 に従う。全 EditMode 回帰は §5 で適用除外（代替証拠は `git diff --stat <base> <head>` が `docs/` と `unity/Assets/Docs/` の `.md` だけ、発見 C で確認済み）。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。判定 C は C' を、判定の証拠が GO 候補 head で揃うまで起動しない。必要な権限: 判定 C の実行担当は Unity Editor の起動・操作（`tools/unity-editor.cmd`）と、検証 Play の content build。資格情報・sandbox 外実行は不要（Unity バッチテストを走らせない）。snapshot・bundle は使わない（発注者の指示で Artifact Storage を使わない）。証拠の保存先は判定 C の担当が §7 に書く。停止規則は §2 と §4（§4.2 を含む）。引き渡さないもの: C' には §5.1 の A2 記録と §7 の発見 C・判定 C の所見を渡さない（渡す生の証拠は §5「C' への渡し方」）。
+- 引継ぎ票: 次は発注者の裁定（担当は発注者）。判定 C は GO 候補 head（implementation head `20fb7ae2`、判定時の HEAD `c2880c6d`）で実行済みで、**結論は NO-GO**: AC2 が FAIL（directory mode で rig が spawn に置かれず原点に留まり、`Player ready at Cell stream spawn` が出ない）。§4.2 により本スライスでは直さず停止する。発注者は (a) 修正を入れる Phase A の新しい revision、(b) 欠陥を後続スライスへ送り d5b を NO-GO で閉じる（§4.2 の引き渡し 4 点を Phase D で書いた後に限り program を削除）のどちらかを裁定する。判定 C の所見と生の証拠の保存先は §7.3。AC8 と機械検査は通っている。C' は起動しない（§4.2 の裁定前。判定の証拠が揃っていない）。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。必要な権限: なし（判定 C の Editor は終了済み）。引き渡さないもの: C' には §5.1 の A2 記録と §7 の発見 C・判定 C の所見を渡さない（渡す生の証拠は §5「C' への渡し方」）。
 
 ## 1. 目的と対象外
 
@@ -326,6 +326,34 @@
 ### 7.2 決定記録
 
 - **版 1（2026-11-03、発注者）。** §7.1 の発見 C は Phase B と同じモデル系列で行ったが、発注者はこれを発見 C として受け入れた。凍結条件の意味・合否は変えない。判定 C は B と異なるモデルで行う（§0 の引継ぎ票のまま）。C' には渡さない。
+
+### 7.3 判定 C
+
+- 種別: 判定 C（実行担当を兼ねる）。担当: Claude Code（Anthropic、`claude-sonnet-5-5`）、新規 session。**独立性の記録:** Phase B・発見 C と同じ Anthropic 系列。Phase B のモデル ID は本 HANDOFF に記録がなく、「B と異なるモデル」を満たすかは確認できていない（発注者の起動指示で実行）。
+- 入力: 引き継いだ commit `c2880c6d`（起動指示の SHA）。開始時の照合: HEAD が一致、追跡 file の変更なし（未追跡 `docs/reviews/` は本スライスと無関係で対象外）、implementation head `20fb7ae2` が HEAD の祖先で、`git diff --stat 20fb7ae2 HEAD` は本 HANDOFF だけ。
+- 機械検査（HEAD `c2880c6d`）: `pwsh tools/docs-audit.ps1` errors 0・warnings 0、`pwsh tools/contract-audit.ps1` errors 0・warnings 0。AC8 の grep は本 HANDOFF の 3 行だけ。`git diff --stat fb97da0d 20fb7ae2` は 8 file で全て `docs/` と `unity/Assets/Docs/` の `.md`。全 EditMode 回帰は §5 の適用除外。harvest 表の照合は発見 C（§7.1）の結果を受け入れ、本判定では再実施していない（AC8 の grep と audit だけを再実行した）。
+- 検証 Play の実行（1 回）: `tools/unity-editor.cmd` 経由で Editor を起動し（untitled の空 Scene 1 つ、Delivery 窓の ledger 無し）、`VerifyPlayLauncher.VerifyAsync(SampleGameBuildPurposes.SpringPlannerWhitebox, interactive: false)` を reflection で呼んだ。identity `20261103T091410930Z-d377543307574cafa829b30d94255025`、transport `artifacts/bs2b/transport/<identity>`、`transport.json` の SHA-256 `22d3e88d8ca11eb7906d987f8c36e33c05baa8c6254a3b1dce6d05d06d2b216f`、Editor.log の区間は `unity/Logs/Editor.log` の 1047 行〜終端。identity は transport・preflight・outcome・install のログ・起動ログの 5 か所で一致した。手順の誤りは無く、再実行もしていない。
+- 判定表（AC3〜AC7 は AC2 が FAIL のため**診断**。§4.2 のとおり GO の根拠にしない）:
+
+| AC | 結果 | 一次証拠 |
+|---|---|---|
+| AC1 | PASS | 新しい identity が出現し Play に入った。起動ログに封鎖の 1 行、`Title` が `stable=True`。環境変数 `SAMPLEGAME_CONTENT__REPRESENTATION=Whitebox`・`SAMPLEGAME_WORLD__CELLCOMPANIONSET=Planner`・`FIRST=Title`。`transport.json` の `declaration` は `spring-planner-whitebox`（Whitebox、`world:cellCompanionSet=Planner`）。 |
+| AC2 | **FAIL** | Start（`OnStartRequested`）の発火後、`InGameUI`・`PlayerScene`・`Spring_Lighting`・`Spring_AtmosphereVFX`・`Spring_Cell_0_4` は載ったが、`Spring_Cell_0_4` は loaded の直後に unload され、`Spring_Cell_0_0` が載った。rig の `Rigidbody.position` は `(0,0,0)` のまま、`SpawnPosition()`=`(125,28,1125)` から 1132.3 m（> 1 m）。`Player ready at Cell stream spawn` は 120 秒を超えても出ず、約 3 分後も同じ。Architecture §18 §4「検証の残り」の既知の観測と同じ現象。 |
+| AC3 | PASS（診断） | `preflight.json` の `requirements[]` に `Spring_Cell_4_2` は Whitebox の 1 件、`excluded` に `Spring_Cell_4_2 … RepresentationNotPreferred\|Representation\|Full`。rig を `(1125,80,625)` に置いて 5 秒以内に `Spring_Cell_4_2`・`Spring_Events_4_2` が loaded。 |
+| AC4 | PASS（診断） | baseline は Petals の 1 件（識別子 1099511666866）。`MovePosition` で local trigger（center `(1100,4,625)`）に入れて 2 秒以内に `Spring_Events_4_2_Burst`（1099511667027、有効）が 1 件新規に出現。rig を spawn へ戻すと次の標本（約 4 秒後）では識別子が `AllVfx()` に無い。 |
+| AC5 | PASS（診断） | start trigger（`(1150,3,660)`）で `Spring_Event_MultiCellProof` が loaded、`Spring_Event_MultiCellProof_Burst`（1099511667080、1099511667086、有効）が 2 件。completion trigger（`(1375,3,580)`）で Event の Scene が unload され、次の標本で 2 件とも `AllVfx()` に無い。 |
+| AC6 | PASS（診断の範囲で） | (a) `requirements[]`・`selected` に `Spring_Environment_`・`Spring_Lighting_{x}_{y}`・`Spring_VFX_{x}_{y}` は 0 件（`excluded` に 57 件あるが `Unreachable`）。(b) handler 登録から Play 停止まで `[d5b-scene] loaded` の禁止名は 0 件。監視が動いた証拠: 登録の完了行、`Spring_Cell_4_2`・`Spring_Events_4_2` の loaded、rig を戻した後の `Spring_Cell_4_2` の unloaded。負例（`Spring_Environment_4_2`）は同じ式で 1 件検出、許可の正例は 0 件（`ac6-ac7-check-output.txt`）。 |
+| AC7 | PASS（診断の範囲で） | 開始前の loaded は untitled 1 つ。封鎖の 1 行以降の区間で `ContentDeclarationMismatch` 0、封鎖による `InvalidOperationException` 0、付随 asset のロード失敗 0、App の Error 0。`LogError` の 2 件は `eval` の 5 秒 timeout（`Failed to handle /api/exec`）。`InvalidOperationException` の 2 行は build 中の Burst の pipe（Play の前、封鎖の行より前）。負例 4 種を同じ式で検出済み。 |
+| AC8 | PASS | 上の機械検査のとおり。Phase D の最終 head では再確認が要る。 |
+
+- **診断の続行について:** §4.2 は「`InGameSession` と Spring `(0,4)` が Stable で、rig を置き直せるなら AC3〜AC7 を診断として続ける」とする。本 Play では (0,4) は loaded の直後に unload され、Stable を確認できていない（`Player ready` も出ない）。ただし rig を `Rigidbody.position` と `transform` と速度 0 で spawn に置き直すと、(0,4) 周辺の 6 Cell が載って rig は動かず、その後の移動も目的地で保持された。発注者の意図（1 回の Play から Whitebox と Event の可否を取りこぼさない）を優先して続けたので、診断の前提を「loaded で足りる」と読んだ点は発注者が確認すること。
+- 分類（`phases-and-handoff.md`「新しい事実の分類」）: **製品の欠陥の疑い**。基盤不備ではない（Start の発火、Home → InGame の遷移、Cell の streaming は動いた）。観測不足でもない（rig の位置は毎標本で読んだ）。原因は調べていない（§2 のとおり本スライスで答えない問い）。focus が原点にあるため距離 streaming が `(0,4)` を `UnloadRadius` の外として unload した、という挙動は log の順序から読めるが、rig が原点に留まる理由は未調査。
+- **結論: NO-GO**（判定定義: AC1〜AC8 の全部が成り立つのが GO。AC2 が FAIL）。§4.2 により本スライスでは直さず停止する。発注者の裁定が要る: (a) 修正を入れる Phase A の新しい revision、(b) 欠陥を後続スライスへ送り d5b を NO-GO で閉じる（§4.2 の (b) の閉じ方）。(b) の場合、診断で得た事実（Whitebox の Cell と Events が Content Directory の上で動いたこと）は Phase D で引き渡し先の文書に書く。
+- 付随する観測（欠陥と分類していない）: rig を spawn へ戻した直後に `Spring_Cell_4_2` と `Spring_Events_4_2` が一度 unload → 再 load → 再 unload された（streaming の揺れ。最終的には unloaded で、AC4 の個体は消えている）。Console に `There are 2 audio listeners`（BS5b-2 で既知）。
+- Editor: 自分で起動し、判定後に `EditorApplication.Exit(0)` で正常終了した（PID の消滅を確認）。起動で `MobileDependencyResolver` の `.pdb.meta` 5 件が削除されたので `git checkout` で戻した。作業ツリーに残る未追跡は `artifacts/s-4d5b-phase-c-verdict/`（下記の証拠）と `docs/reviews/`（無関係）。
+- 証拠の保存先: `artifacts/s-4d5b-phase-c-verdict/`（git 管理外。Artifact Storage は使わない）。`raw-observations.txt`（時刻つきの観測。診断続行の注記を含む）、`editor-log-section.log`、`preflight.json`・`outcome.json`・`transport.json`、`ac6-ac7-check-output.txt`（照合の式の実出力と負例・正例）、`eval/`（実行した式）、`SHA256SUMS.txt`。
+- 判定必須のうち未実行: なし（AC1〜AC8 を実行。AC3〜AC7 は診断）。未確認: 原因（rig が原点に留まる理由）、`Player ready` が出ない理由、Play As ではない通常 Play での同症状の有無。
+- C': 起動していない。
 
 ## 8. Phase C'
 
