@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase B 完了。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
+- status: `C`（発見 C 完了・現在の問いを阻害する指摘なし。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
 - branch: `claude/s-4d5b-planner-proof`
 - implementation base commit: `fb97da0d`（`develop`、BS5b-2 のマージ後）
-- implementation head commit: この票を含む commit
+- implementation head commit: `20fb7ae2`
 - risk: `normal`（公開 API・asmdef・所有者・寿命・`SceneState`・Addressables の設定を変えない。製品コードの変更は見込まない）
 - owner: 発注者
 - created: 2026-11-03
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は発見 C（レビュー担当）。動作確認は `対象なし`（§5）。対象は implementation base から implementation head までの文書の差分で、§4 の harvest 表の各行と移り先（§6 の対応表）、program へのリンクの向け直し、対象外の維持（`git diff --stat <base> <head>` が `docs/` と `unity/Assets/Docs/` の `.md` だけ）を照合する。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。発見 C は GO 判定と C' の起動をしない。判定 C は §5 の検証経路（AC1〜AC7 の検証 Play）と AC8 を GO 候補 head で実行する。必要な権限: 発見 C は文書の読みと git だけ（Unity・資格情報・sandbox 外実行は不要）。判定 C の実行担当は Unity Editor の起動・操作（`tools/unity-editor.cmd`）。snapshot・bundle は使わない（発注者の指示で Artifact Storage を使わない）。停止規則は §2 と §4（§4.2 を含む）。引き渡さないもの: C' には §5.1 の A2 記録と C の所見を渡さない。
+- 引継ぎ票: 次は判定 C（判断担当と、Unity を操作する実行担当）。発見 C は完了し、現在の問いを阻害する指摘は無い（§7）。GO 候補 head は implementation head（文書の差分だけで、発見 C は修正を求めていない）。判定 C は GO 候補 head で §5 の判定必須（`pwsh tools/docs-audit.ps1`、`pwsh tools/contract-audit.ps1`、§5 の検証経路の AC1〜AC7、AC8 の grep と harvest 表の照合）を実行し、§4.2 に従う。全 EditMode 回帰は §5 で適用除外（代替証拠は `git diff --stat <base> <head>` が `docs/` と `unity/Assets/Docs/` の `.md` だけ、発見 C で確認済み）。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。判定 C は C' を、判定の証拠が GO 候補 head で揃うまで起動しない。必要な権限: 判定 C の実行担当は Unity Editor の起動・操作（`tools/unity-editor.cmd`）と、検証 Play の content build。資格情報・sandbox 外実行は不要（Unity バッチテストを走らせない）。snapshot・bundle は使わない（発注者の指示で Artifact Storage を使わない）。証拠の保存先は判定 C の担当が §7 に書く。停止規則は §2 と §4（§4.2 を含む）。引き渡さないもの: C' には §5.1 の A2 記録と §7 の発見 C・判定 C の所見を渡さない（渡す生の証拠は §5「C' への渡し方」）。
 
 ## 1. 目的と対象外
 
@@ -287,7 +287,41 @@
 
 ## 7. Phase C
 
-（未着手）
+### 7.1 発見 C
+
+- 種別: 発見 C（GO 判定はしない。C' は起動しない）。
+- 担当: Claude Code（Anthropic）、新規 session。**独立性制約あり:** Phase B の commit（`20fb7ae2`）と同じモデル系列で、「Phase C は Phase B と異なるモデル」を満たしていない。発注者の起動指示で行った。判定 C は B と異なるモデルで行う。
+- 入力: 引き継いだ commit `20fb7ae2`（起動指示の SHA）。開始時の照合: HEAD が一致、追跡 file の変更なし、HEAD の tree に票がある。implementation head 欄は「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があるので implementation head は `20fb7ae2` 自身（本記録 commit で欄を SHA にした）。作業ツリーには本スライスと無関係の未追跡 file が 1 つあった（`docs/reviews/` 配下、別の作業の目的レビュー、HEAD より前の日付）。レビュー入力にせず、commit にも含めていない。
+- evidence: Artifact Storage は使っていない（発注者の指示）。対象は implementation base `fb97da0d` から implementation head `20fb7ae2` までの git の差分。
+- 対象外の維持: `git diff --stat fb97da0d 20fb7ae2` は 8 file で、全て `docs/` と `unity/Assets/Docs/` の `.md`（本 HANDOFF を含む）。製品コード・テスト・Scene・asset・設定・asmdef の変更なし。§3 の責務マップの外の file は無く、§3 の `18-asset-description.md` は変更なし（§6 のとおり該当記述が無い）。
+- 構造: 増分は `05-scene.md` +35、`24-rendering-system.md` +4 / −3、`27-folder-structure.md` +26 / −4 で、§3 の予想増分と非分割の判断の範囲内。新しい責務は持ち込んでいない（各文書の既存の責務の内側に移している）。
+- harvest 表（§4）の照合: 各行を program の原文と移り先の本文で突き合わせた。
+
+| program の節 | 移り先で確かめたこと | 結果 |
+|---|---|---|
+| §1 確定事項 | 216 Cell・同じ AABB（§05 §5.13）、Environment は全 Cell・他の職種は必要な Cell だけ（§05 の木）、職種の子は距離の候補にしない（§05）、PC 必須・Mobile 安全停止（§24 §16.6）。他の項目の既存の所在（§24 §9.1 の代表 bake、Streaming 現状仕様の生成器の撤去） | 一致 |
+| §0 判断基準 | BuildSystem program §7 の冒頭に 3 文。主目的・残すコード・checkout のルート（数値は path 予算へ委ねた） | 一致。S-4 の着手手順は移していない |
+| §2.1・§2.2 | §05 §5.13 の木（Tunnel は S-5 と注記）と職種ごとの所有物、VFX Scene に進行の trigger を置かない、Scene を跨ぐ参照の禁止。Cell Lighting の「global の sun・sky・fog を書き換えない」は §24 §9.1 の既存の記述と一致 | 一致 |
+| §2.3 | 4 条件と「小イベントごとに Scene を増やさず、Season 単位にも集めない」 | 一致 |
+| §2.4 | §24 §16.6「VFX の粒度と寿命」 | 一致 |
+| §2.5 | §27 §3.3 の木と Full / Whitebox の同名。木の各 path を `Seasons/Spring/` の実 file で確かめた | 一致 |
+| §3.4 | §27 §6 の Role の表を `WorldWorkspaceSelection.BuildOpenPlan` と突き合わせた（Planner は Whitebox の Cell と optional の Events、Level の Whitebox 指定） | 一致 |
+| §3 の他・§3.1 | §18 に「Editor Play 向け publish 入口は未整備」が無く、移していない | 一致 |
+| §6.1 | §24 §16.6 の能力判定の項に PC 必須・Mobile 安全停止と ParticleSystem fallback の延期（後続の独立スライス、担当・時期未定） | 一致 |
+| §6.2 | Streaming 現状仕様の 1 行。`Seasons/` 配下の `.unity` は 658 件、6 件の名前が実在し、6 件の SceneResource は全て `_streamByDistance: 0` | 一致 |
+| §6.4 | §24 §16 の冒頭（CameraSystem との違い、Framework への移設は後で判断） | 一致 |
+| §10 | §24 §16.1・§16.5 に既収録 | 一致 |
+| §6.3・§11・§12・§4・§5 | 移していない | 表どおり |
+
+- program へのリンク: `docs/README.md` の行と `SEASON_WORLD_DESIGN.md` の 3 箇所が移り先へ向いている。AC8 の grep（`git grep S-4_FULL_SPEC_WORLD_AUTHORING -- docs unity tools AGENTS.md`）は本 HANDOFF の 3 行だけ（implementation head の時点。本記録の後も本 HANDOFF の中だけ）。§24 §16.7 の見出しの文言は「S-4d では答えず」。
+- 機械検査（`20fb7ae2` の tree、HANDOFF の記録前）: `pwsh tools/docs-audit.ps1` は errors 0・warnings 0、`pwsh tools/contract-audit.ps1` は errors 0・warnings 0（検査 1 の差分 0 file）。
+- テスト: 実行していない（§5 で Unity テストは無し。差し戻し中の起点 filter も無し）。
+- 現在の問いを阻害する指摘: なし。
+- 後続スライスへ移送する指摘（違反根拠なし。凍結条件を変えない）:
+  - §05 §5.13 の木の `Season_{Season}` の行の「active は高々 1」は program §2.1 に無い補足。`SessionSeasonController` が Season の枝を交換する既存の記述（§05 の同じ節）と矛盾しないので直さない。Phase D の harvest の見直しで、気になれば同節の記述への参照に替える。
+  - Phase B が §6 に記録した Architecture §20 と §21 の古い記述（Editor Play 向け publish 入口・652 件）は、本スライスの対象 file の外のまま。所有スライス未定。
+- 判定必須のうち未実行: AC1〜AC7 の検証 Play（判定 C の実行担当）。AC8 は Phase D の最終 head でも再確認が要る。
+- 未確認: 判定 C の検証経路の未知（§5 の 3 つ）は発見 C の範囲外で、触れていない。
 
 ## 8. Phase C'
 
