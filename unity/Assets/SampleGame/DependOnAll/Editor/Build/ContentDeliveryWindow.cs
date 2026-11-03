@@ -22,11 +22,13 @@ namespace SampleGame.DependOnAll.Editor.Build
         [MenuItem("Tools/OSM/Content/Delivery")]
         private static void Open() => GetWindow<ContentDeliveryWindow>("OSM Content Delivery");
 
-        private void OnEnable()
-        {
-            if (File.Exists(SettingsPath))
-                _settings = JsonUtility.FromJson<Settings>(File.ReadAllText(SettingsPath)) ?? new Settings();
-        }
+        private void OnEnable() => _settings = LoadSettings();
+
+        /// <summary>窓の設定（cache root・disk budget）。検証 Play と From published directory も同じ設定を読む。</summary>
+        internal static Settings LoadSettings() =>
+            File.Exists(SettingsPath)
+                ? JsonUtility.FromJson<Settings>(File.ReadAllText(SettingsPath)) ?? new Settings()
+                : new Settings();
 
         private void OnDisable()
         {
@@ -58,6 +60,18 @@ namespace SampleGame.DependOnAll.Editor.Build
                     catch (Exception ex) { _status = ex.Message; }
                 }
                 if (GUILayout.Button("Reset")) ContentDeliveryPlayBridge.Reset();
+                if (_settings.sourceMode == 0)
+                {
+                    // 標準の受け取り。宣言のある manifest と batch の結果 file から必要な値を全て決め、上の手入力欄は使わない。
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField("From published directory", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox("Select the batch result file (last-result.json). It must come by a different route than the published directory "
+                        + "(CI output or the sender), because it provides the expected manifest SHA-256.", MessageType.None);
+                    if (GUILayout.Button("Select batch result and Verify Play")) _ = ReceivePublished();
+                }
+                // 手入力の Prepare は空の cache root を拒否するまま。既定へ解決するのは標準の経路だけ。
+                EditorGUILayout.LabelField("Cache root used by Verify Play / From published directory",
+                    VerifyPlayLauncher.ResolveCacheRoot(_settings.cacheRoot), EditorStyles.wordWrappedMiniLabel);
             }
             if (_cts != null && GUILayout.Button("Cancel download")) _cts.Cancel();
             _scroll = EditorGUILayout.BeginScrollView(_scroll, GUILayout.MinHeight(120));
@@ -131,6 +145,36 @@ namespace SampleGame.DependOnAll.Editor.Build
             }
         }
 
+        private async Task ReceivePublished()
+        {
+            var resultFile = EditorUtility.OpenFilePanel("Batch result (last-result.json)", "", "json");
+            if (string.IsNullOrEmpty(resultFile)) return;
+            Save();
+            _cts?.Cancel();
+            var operation = new CancellationTokenSource();
+            _cts = operation;
+            try
+            {
+                // 窓が閉じたら（OnDisable）取り消し、Play を要求しない。publishPath が手元に無い時だけ folder を選ばせる。
+                var outcome = await VerifyPlayLauncher.ReceiveAsync(resultFile, () =>
+                {
+                    var folder = EditorUtility.OpenFolderPanel("Published directory", "", "");
+                    return string.IsNullOrEmpty(folder) ? null : folder;
+                }, interactive: true, operation.Token);
+                if (_cts == operation && this != null) _status = outcome.ToString();
+            }
+            catch (Exception ex)
+            {
+                if (_cts == operation && this != null) _status = ex.Message;
+            }
+            finally
+            {
+                if (_cts == operation) _cts = null;
+                operation.Dispose();
+                if (this != null) Repaint();
+            }
+        }
+
         private void UsePrepared()
         {
             if (_settings.preparedRoot != _settings.installedRoot || _settings.preparedDigest != _settings.digest
@@ -147,7 +191,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         [Serializable]
-        private sealed class Settings
+        internal sealed class Settings
         {
             public int sourceMode;
             public string sourceRoot = "";

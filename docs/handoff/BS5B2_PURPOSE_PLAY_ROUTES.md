@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（revision 3 の A3 凍結、2026-11-03）
+- status: `B`（Phase B 完了、2026-11-03。次は動作確認）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - risk: `high`（Runtime の起動（`AbstractApplicationInitializer`）の Editor directory 経路に初回 Scene を足す。Editor Play の process 環境変数を宣言から置き、既存の Delivery 窓の ledger を共有にする）
 - owner: 発注者 / BS5b-2 担当
 - created: 2026-11-01（BS5b を 2026-11-02 に BS5b-1 と BS5b-2 に分けた）
@@ -16,10 +16,10 @@
 - harvest to: Architecture §18 §4（「SampleGame の宣言と Editor build」「BuildSystem の後続」）、§04 §4.6 / §4.7 / §4.8（Editor directory Play の初回 Scene、Play As の config の置き方）、[BuildSystem program §7](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md#7-buildsystem-の他の系列の所在) の BS5b-2 行
 - workflow task: 未 start
 - Phase A snapshot の取得案内・状態: 生成しない（A3 凍結版に添える機械向けの期待値・照合 script が無い。§5）
-- Phase B result snapshot の取得案内・状態: 未到達
+- Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **revision 3 の A3 凍結（2026-11-03）。次は Phase B（実装）。** 引き継ぐ commit はこの票を含む A3 凍結版の commit（SHA は起動指示で渡す）。revision 2 の A3 凍結版 `7b931743` への Phase C / C' を先回りした外部レビューと主担当の自己点検を起点に、Phase A を revision 3 として再開した。A2 入力版 `15bfbe33` への独立レビューのうち、不変条件の違反と偽の主張になる 3 件だけを直して凍結した（採否は §5 の #66〜#87、発注者確認済み。これ以上の例外は計画に取り込まない方針）。§1.3 は BS5b-1 のマージ後の `cad03983` で取り直したもの。Phase B は §4.1 の順に実装し、§4.2 に当たれば止めて Phase A へ返す。必要な権限: Unity Editor の操作と compile 確認（Unity テスト・content build・batch・Play の判定はしない）。Phase A snapshot は無い。
+- 引継ぎ票: **Phase B 完了（2026-11-03）。次は動作確認（Phase B の後）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: §5 の検証経路のうち AC17 (a)(c)(d)(e) を、この head で各 1 回軽く実行し、生の観測と期待との差の有無を §6「動作確認」に残す（合否は書かない）。(b) と HC2（content build・batch）とテスト suite は対象外（Phase C）。あわせて §5「未知の操作経路」の 2 点（起動後の実効 config と Play 停止後の process 環境を `eval` で読めるか）を確かめ、読めなければ B へ戻す（B 適応の観測ログ）。`eval` の入口は §6「HANDOFF との差」にある dialog の無い 3 つ。差があれば発見 C を待たずに B へ戻す。必要な権限: Unity Editor の起動・`eval` 操作（`tools/unity-editor.cmd`）。Unity テスト・content build・batch・Play の判定はしない。snapshot・bundle は無い（実装と記録は引き継ぐ commit にある）。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
 
 ### PR 状態ブロック
 
@@ -357,7 +357,22 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 
 ## 6. Phase B 実装結果
 
-未到達。
+- 実装（§4.1 の順。各段の終わりに compile と差分の自己点検）:
+  - 段 1: `PurposeLaunchSettings`（宣言 → config key=value・環境変数名。Play As は `Full` の `assets:sceneVariant` を置かずに `Controlled` と `RequiresEmptyLowerLayer` に挙げる。directory の key 集合 `DirectoryPlay` は content の 5 key・初回 Scene・runtime 既定値）。`ContentDeliveryPlayBridge` を共通 ledger に広げた（`Apply`（窓、手で戻す、従来の 5 key と `ValidateInstalled`）、`ApplyForOnePlay`、`FindForeignValues`、`HasManualLedger` / `HasOnePlayLedger`、`HandlePlayModeStateChanged`（`EnteredEditMode`）、`HandleIdle(isPlaying, isPlayingOrWillChangePlaymode)`（update と `[InitializeOnLoad]` の初期化から）。ledger の key は v1 のまま `resetAfterOnePlay` の 1 欄を足し、欄の無い v1 は手で戻す）。`PlayAsLauncher`（menu 6 件、Play mode・compile の拒否、Delivery 窓の ledger の確認 dialog、profile・外の値・コマンドライン（`CommandLineConfigProvider`）の拒否、app-config の下位の層の検査（`JsonConfigFlattener`）、Addressables の Play Mode が `BuildScriptFastMode` でなければ拒否）。asmdef に `OneStarMaker.Foundation` を 1 本足した（#47）。
+  - 段 2: `AbstractApplicationInitializer` の Editor directory 分岐で `content:firstScene` を読み（`ReadEditorFirstScene`）、初回 Scene のロードを Editor（stage `load-editor-first-scene:<Scene 名>`、ロード後に `[AppInit] Editor content directory first scene: scene=… identity=… stable=…` の 1 行）と Player（従来の段と receipt）に分けた。失敗時の初回 Scene の unload は `RunsPlayerContentSmoke`（Player だけ）。新しい状態・所有者・寿命・公開 API は無い（internal static の判定 2 つ）。
+  - 段 3: `VerifyPlayLauncher.cs` に `VerifyPlaySequence`（段の列、bridge 以降の失敗の Reset、共有の 1 つずつの印、bridge の直前の取り消しの確認）と `VerifyPlayLauncher`（menu 6 件、開始前検査（Scene の再利用の判定 `FindReusableScenes`、確認 dialog で閉じて空 Scene で続ける）、`PurposeStages`（`BuildResult(Full)` → `ContentTransportPublisher.Publish` → manifest の宣言の照合）、cache root の解決 `ResolveCacheRoot`）。`SampleGameBuildPurposes.FirstSceneOf`（D12、6 宣言とも `Title`）を足し、BS4 coordinator の直書きを置き換えた。
+  - 段 4: `ReceivedStages`（結果 file を `SuccessFile` で読み、`ValidateResultFile` → `ResolvePublishedDirectory` → `ValidatePublished`（SHA-256 → identity → 宣言）→ 開始前検査）。Delivery 窓の Published directory モードに「Select batch result and Verify Play」と前提の 1 行、標準経路の実効 cache root の表示を足した。窓が閉じたら既存の `_cts` で取り消す。手入力経路（Prepare・Use For Next Play の値）は変えていない（Use For Next Play は残った「1 回の Play で戻す」ledger を先に戻すだけ）。
+  - テスト（Phase B では未実行）: `PurposeLaunchSettingsTests`（AC1・AC5・AC7・AC9・AC19・AC20 の解決、コマンドライン・下位の層）、`ContentDeliveryPlayBridgeTests`（AC2 の外の値・AC3・AC4 の v1）、`VerifyPlaySequenceTests`（AC6）、`PublishedDirectoryReceiveTests`（AC15・AC20 の install・AC4 の窓と 1 回の Play の ledger）、`PlayerContentConfigurationTests` に AC8 の 2 件。
+- HANDOFF との差:
+  - 規模: 製品コードは見積もり 400〜500 行に対し約 1,000 行（新規 3 file 776 行、既存 7 file +285 / −36）。`VerifyPlayLauncher.cs` は見積もり 240 行に対し 499 行。増えたのは段の受け渡しの型（`PublishedContent`・`InstalledContent`・`VerifyPlayOutcome`。`ContentInstallResult` の ctor は internal で偽の段から作れないため）、From published directory の照合関数（AC15 を単体で確かめるために pure に分けた）、2 経路が共有する段の基底 `DirectoryPlayStages`（初回 Scene の決定を差し替えて両経路の bridge を AC9 で確かめるため）と、理由のコメント。段の順序のクラスは開始前検査の規則から独立したまま（§3 の分け方）で、ファイルの分割はしていない。Runtime は D5 の分岐の分離（+26 行）に留まった。
+  - 段の interface は §2.4 D4 の「段を interface で受ける」を `IVerifyPlayStages` とした。開始前検査の共通部分（profile・ledger・外の値・コマンドライン）は §3 の配置どおり `PlayAsLauncher` の internal static に置き、`VerifyPlayLauncher` が呼ぶ。
+  - AC5 の確認 dialog・AC4 の Reset の dialog は menu・窓からの呼び出しだけ（`interactive`）。`eval` は `PlayAsLauncher.Launch(decl, false)`・`VerifyPlayLauncher.VerifyAsync(decl, false)`・`VerifyPlayLauncher.ReceiveAsync(path, chooseFolder, false, token)` を呼ぶ。
+  - B 適応の観測ログ（§5 の「必要な検証支援」）は足していない。実効 config と停止後の環境を `eval` で読めるかは動作確認で確かめる。
+- 未実行: Unity テスト（新規・既存とも）、content build、publish、batch、Play の実行と判定（Phase C）。AC17 の操作は動作確認と Phase C。
+- 実施した確認: Editor（6000.6.0f1、この worktree の `unity/`）で compile（`scriptCompilationFailed=False`、変更した file の warning 0）、menu `Tools/OSM/Play As/*` と `Tools/OSM/Content/Verify Play/*` が 6 件ずつ登録されること（`Unsupported.GetSubmenus`）、`pwsh tools/contract-audit.ps1`（errors=0 warnings=0）。
+- 作業ツリーの注意: Editor を開くと `unity/Assets/MobileDependencyResolver/Editor/**/*.pdb.meta` 5 件が消える（この worktree に `.pdb` が無いため）。実装の差分ではないので commit に含めず、`git checkout` で戻した。
+- implementation head commit: §0 の欄を正とする。
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）、2026-11-03。
 
 ### 動作確認
 

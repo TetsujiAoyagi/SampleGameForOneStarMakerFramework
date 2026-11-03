@@ -390,7 +390,20 @@ namespace OneStarMaker.Runtime
                 startupStage = "register-loaded-scenes";
                 await RegisterAlreadyLoadedScenes(ct);
 
-                if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
+                if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0
+                    && !RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration))
+                {
+                    // Editor directory Play の初回 Scene（App が config content:firstScene で渡す）。ロードしたまま Play を続け、
+                    // Player の smoke（検証・unload・close・receipt）は行わない。ロードの失敗は起動の失敗で、別の Scene へ逃がさない。
+                    var firstScene = _contentDirectoryConfiguration.FirstScene;
+                    // 失敗のログ（AfterSceneLoad failed at stage ...）に Scene 名を残す。
+                    startupStage = "load-editor-first-scene:" + firstScene;
+                    await _sceneDirector.AddScene(firstScene, null, ct);
+                    // 検証 Play の観測点。Unity の Scene のロードではなく SceneDirector の Stable を出す。
+                    Debug.Log($"[AppInit] Editor content directory first scene: scene={firstScene} " +
+                              $"identity={_contentDirectoryConfiguration.BuildIdentity} stable={_sceneDirector.IsSceneStable(firstScene)}");
+                }
+                else if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
                 {
                     startupStage = "load-player-first-scene";
                     await _sceneDirector.AddScene(_contentDirectoryConfiguration.FirstScene, null, ct);
@@ -422,7 +435,10 @@ namespace OneStarMaker.Runtime
             catch (Exception ex)
             {
                 Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
-                if (_sceneDirector != null && _contentDirectoryConfiguration != null
+                // 初回 Scene の unload は Player の smoke の失敗経路だけ（receipt の前に token を返す）。
+                // Editor は ReleaseAll と Play の終了に任せる。
+                if (RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration)
+                    && _sceneDirector != null && _contentDirectoryConfiguration != null
                     && _contentDirectoryConfiguration.FirstScene.Length != 0
                     && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
                 {
@@ -1102,6 +1118,8 @@ namespace OneStarMaker.Runtime
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);
             var representation = config.GetString("content:representation", string.Empty);
+            // Editor directory Play の初回 Scene。Framework は名前を App の config から受けるだけで、目的や値の意味を知らない。
+            var firstScene = ReadEditorFirstScene(config);
             if ((string.IsNullOrWhiteSpace(path)&&installedRoot.Length==0) || string.IsNullOrWhiteSpace(identity) || string.IsNullOrWhiteSpace(representation))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Directory mode requires absolute directoryPath, buildIdentity, and representation.");
             // 起動、登録、削除 gate が同じ canonical path を使う。文字列 alias が
@@ -1110,7 +1128,7 @@ namespace OneStarMaker.Runtime
             {
                 var set=OneStarMaker.Runtime.BuildContent.Distribution.ContentDeliveryFiles.ReadJson<OneStarMaker.Runtime.BuildContent.Distribution.ContentInstallReceipt>(Path.Combine(installedRoot,"receipt.json")).contentSet;
                 var verified=OneStarMaker.Runtime.BuildContent.Distribution.InstalledRevisionVerifier.Verify(installedRoot,installedDigest,set,identity,ContentDirectoryTarget);
-                return new ContentDirectoryConfiguration(verified.ContentPath,identity,representation,string.Empty,verified);
+                return new ContentDirectoryConfiguration(verified.ContentPath,identity,representation,firstScene,verified);
             }
             if (!ContentRevisionGate.TryNormalize(identity, ContentDirectoryTarget, path, out var fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
@@ -1118,7 +1136,7 @@ namespace OneStarMaker.Runtime
                     representation: representation);
             if (!Directory.Exists(fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured content directory does not exist.", identity, ContentDirectoryTarget, representation: representation);
-            return new ContentDirectoryConfiguration(fullPath, identity, representation, string.Empty,null);
+            return new ContentDirectoryConfiguration(fullPath, identity, representation, firstScene,null);
         }
 
         private sealed class ContentDirectoryConfiguration
@@ -1193,6 +1211,14 @@ namespace OneStarMaker.Runtime
 
         internal static bool ShouldNotifyPlayerContentFailure(bool useRequiredPlayerFileConfiguration) =>
             useRequiredPlayerFileConfiguration;
+
+        /// <summary>初回 Scene の後の smoke（検証・unload・close・receipt）と、失敗時の初回 Scene の unload は Player だけ。</summary>
+        internal static bool RunsPlayerContentSmoke(bool useRequiredPlayerFileConfiguration) =>
+            useRequiredPlayerFileConfiguration;
+
+        /// <summary>Editor directory Play の初回 Scene。config に無ければ空で、従来どおり初回 content Scene をロードしない。</summary>
+        internal static string ReadEditorFirstScene(AppConfig config) =>
+            config.GetString("content:firstScene", string.Empty).Trim();
 
         protected virtual UniTask<PlayerContentFixtureResult> OnPlayerContentReadyAsync(IAssetManagement assetManagement, CancellationToken ct)
             => UniTask.FromResult(new PlayerContentFixtureResult(Array.Empty<PlayerContentStage>(), null));

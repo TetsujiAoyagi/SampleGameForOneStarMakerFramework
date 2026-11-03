@@ -98,6 +98,28 @@ namespace OneStarMaker.Tests.BuildContent
         public bool FailureNotification_IsLimitedToRequiredPlayerMode(bool required) =>
             AbstractApplicationInitializer.ShouldNotifyPlayerContentFailure(required);
 
+        // Editor directory Play は初回 Scene をロードしたまま続け、Player の smoke と失敗時の unload は Player だけが行う。
+        [TestCase(true, ExpectedResult = true)]
+        [TestCase(false, ExpectedResult = false)]
+        public bool PlayerContentSmoke_IsLimitedToRequiredPlayerMode(bool required) =>
+            AbstractApplicationInitializer.RunsPlayerContentSmoke(required);
+
+        [Test]
+        public void EditorFirstScene_IsReadFromConfig_AndEmptyWhenAbsent()
+        {
+            Assert.That(AbstractApplicationInitializer.ReadEditorFirstScene(Config("content", "target")), Is.EqualTo("Title"));
+            var absent = new AppConfig(new IConfigProvider[]
+            {
+                new DictionaryProvider(new Dictionary<string, string> { ["content:runtimeMode"] = "directory" }),
+            });
+            Assert.That(AbstractApplicationInitializer.ReadEditorFirstScene(absent), Is.Empty);
+            var other = new AppConfig(new IConfigProvider[]
+            {
+                new DictionaryProvider(new Dictionary<string, string> { ["content:firstScene"] = " OutGameScene " }),
+            });
+            Assert.That(AbstractApplicationInitializer.ReadEditorFirstScene(other), Is.EqualTo("OutGameScene"));
+        }
+
         [Test]
         public void FixtureStages_OrderedSubsequence_AcceptsCleanupAfterFailure()
         {

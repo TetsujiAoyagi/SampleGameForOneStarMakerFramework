@@ -113,7 +113,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal static string RuntimeJson(string identity, OneStarMaker.Build.Selection.BuildPurposeDeclaration declaration, string token) => JsonUtility.ToJson(new RuntimeConfig
         {
             content = new ContentConfig { schemaVersion = 1, runtimeMode = "directory", buildIdentity = identity,
-                contentSet = declaration.Name, target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = "Title",
+                contentSet = declaration.Name, target = "StandaloneWindows64-Player", relativeDirectory = "content", firstScene = SampleGameBuildPurposes.FirstSceneOf(declaration.Name),
                 representation = declaration.Representation.Primary, probeToken = token },
             debugSocket = new DebugConfig { enabled = false },
             telemetry = new TelemetryConfig { profiler = new ProfilerConfig { enabled = true } },
