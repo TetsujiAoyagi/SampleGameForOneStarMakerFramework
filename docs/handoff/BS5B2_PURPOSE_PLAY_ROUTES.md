@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C'`（暫定 C' 完了・blocker なし、2026-11-03。次は HC2）
+- status: `C`（最終判定 C 完了・blocker なし・GO 候補、2026-11-03。次は最終 C'）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
 - implementation head commit: `eb3df5fa`
@@ -17,9 +17,9 @@
 - workflow task: 未 start
 - Phase A snapshot の取得案内・状態: 生成しない（A3 凍結版に添える機械向けの期待値・照合 script が無い。§5）
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
-- evidence bundle の取得案内・状態: 確認済み（`evidence stage` でローカル固定、`locality=local`、別 process の `fetch` で全 file を取得できた。判定 C の生の事実だけで、所見を含まない。取得案内は担当の手元の `handoff-guides`（git 管理外）。引渡し先は進行役）
-- C' blind bundle の取得案内・状態: 確認済み（同じく `stage` と別 process の `fetch` で確認、`locality=local`。判定 C の生の事実、凍結した A3 版 HANDOFF、所見を含まない Phase B の結果と動作確認の記述だけで、発見 C・判定 C の所見・結論は含まない。取得案内は同じ場所、引渡し先は進行役。HC2 は未取得なので暫定 C' 用）
-- 引継ぎ票: **暫定 C' 完了（2026-11-03）。blocker なし（§8）。次は HC2（高コスト証拠）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。判定 C は完了・GO 候補（§7「判定 C」）。全 EditMode の Unity の自然終了の確認なしは発注者が承認済み（§7）。次の作業: 判定 C の実行担当が §5「高コスト証拠」HC2 を GO 候補 head（implementation head）で取る（発行側の新しい detached worktree A で BS5b-1 の batch publish、受け取り側はこの worktree の Editor の From published directory。負例を先に 1 回、次に正例。記録の項目は AC17 (b) と同じ）。publish の完了は結果 file と `transport.json` で判定し、Unity process の終了を待たない。終了しない process は今回起動した PID だけを確かめて止め、事実を記録する（原因は調べない）。HC2 の後は最終判定 C（HC2 を加えた固定 bundle で判定。evidence bundle と C' blind bundle を同じ commit から作り直す）。最終 C' の起動は進行役が行い、判定 C の担当は起動しない。C' 用には発見 C・判定 C の所見と、C' 自身の指摘以外の裁定を入れない。必要な権限: Unity Editor の起動と `eval` 操作、batch の publish、worktree の作成と削除。Play への移行中の `eval` timeout が Console の Error として区間に入る点は §6「動作確認」の末尾。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
+- evidence bundle の取得案内・状態: 確認済み（最終判定 C 用。HC2 の生証拠を加え、同じ implementation head から `evidence stage` で作り直した。`locality=local`、別 process の `fetch` で全 45 file を取得できた。生の事実だけで、所見を含まない。取得案内は最終判定 C の担当の手元の `handoff-guides`（git 管理外）。引渡し先は進行役。判定 C 時の旧 bundle は使わない）
+- C' blind bundle の取得案内・状態: 確認済み（最終 C' 用。`stage` と別 process の `fetch`（全 47 file）で確認、`locality=local`。凍結した A3 版 HANDOFF、所見を含まない Phase B の結果と動作確認の記述、判定 C と HC2 の生の事実、完全 diff だけで、発見 C・判定 C・最終判定 C の所見と結論、§8 の C' の記述、人間の裁定は含まない。取得案内は同じ場所、引渡し先は進行役）
+- 引継ぎ票: **最終判定 C 完了（2026-11-03）。blocker なし（§7「最終判定 C」）。次は最終 C'（進行役が起動する。判定 C の担当は起動しない）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。最終 C' の入力は上の C' blind bundle の取得案内だけにする（PR・可変 HANDOFF 全文を読ませない。最終 C' は、新しい生証拠 HC2 の全体と、暫定 C' 以降の差分（実装の差分はなく HANDOFF の記録だけ）を見る）。C' 用には発見 C・判定 C・最終判定 C の所見と、C' 自身の指摘以外の裁定を入れない。必要な権限: 取得案内の `fetch`（ローカル。network・資格情報を使わない）。Delivery 窓の設定ファイルは元の内容に戻した。
 
 ### PR 状態ブロック
 
@@ -444,6 +444,27 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 - 判定 C で扱わなかったもの: 発見 C の M2 の AC8 の負例（初回 Scene のロード失敗で fallback しない）の 1 回の Play は、凍結した検証経路に無いので取っていない（扱うなら HC2 の install 済み directory で行う。判断は進行役）。
 - 未確認事項: (1) 全 EditMode の Unity process の自然終了（上記。発注者承認済み）。(2) inconclusive 25 件が過去にも同じだったか。(3) Burst の pipe 行の原因。(4) HC2（暫定 C' の後）。
 - 結論: 判定 C は完了（blocker なし）。GO 候補。ただし GO の最終判定は HC2 を加えた最終判定 C と最終 C' の後。
+
+### 最終判定 C
+
+- 種別: 判定（HC2 を加えた最終判定）。対象: implementation head `eb3df5fa`（実装の変更なし。HEAD は HANDOFF だけを変える記録 commit）。担当・モデル・ベンダー: Claude Sonnet 5.5（Anthropic）、2026-11-03。B と別モデル。全 EditMode の再実行はしていない（実装が変わっていないので、判定 C の結果 1643 件・failed 0・発注者の承認を使う）。
+- evidence bundle / C' blind bundle: 取得案内の所在は §0。HC2 の生証拠は bundle の `hc2/`（`observations.md`、負例・正例の Editor.log 区間、環境と ledger の前後、発行側の結果 file・transport.json・Unity log、`eval` の C#）。C' blind bundle の `observations.md` は比較の文を除いた版。
+- **HC2 の取得（§5 のとおり）:** 発行側は detached worktree A（root `D:\repositories\unity\osm-hc2a`、path 予算内）を `eb3df5fa` から作り、Editor を開かず BS5b-1 の batch（`-osmPurpose spring-full`）で publish した。1 回目（worktree A の初回 import の直後）は `exitCode=4`（Content build failed）で、Unity log は player script の compile の Roslyn（csc）の `GC heap initialization failed with error 0x8007000E`（メモリ確保失敗）で止まっており、同時期に Git Bash が `fork: Resource temporarily unavailable` を出し、空き物理メモリは約 2 GB だった。コードの変更なしに同じコマンドで 2 回目を行い、`exitCode=0`、identity `20261103T050301675Z-e17b8289245f4cf8bd18370a54e364b4`、`transport.json` の SHA-256 が結果 file の `manifestSha256` と一致した。受け取り側は本 worktree の Editor（untitled の空 Scene、ledger 無し、`SAMPLEGAME_*` 無し。Delivery 窓の cache root は既定にして run の間だけ空にし、終わりに元の file へ戻した）。
+
+| run | 操作 | 観測 | 期待との差 |
+|---|---|---|---|
+| 負例 | `last-result.json` の写しの `manifestSha256` の先頭 1 文字（a→b）を変えて From published directory | `Rejected at Start: transport.json does not match the manifestSha256 of the batch result.`（task は同期に完了）。cache root の `installed/spring-full` は前後とも 0 件。環境と ledger は前後とも空。区間: Error 1（この拒否のログ）、Warning 0 | なし |
+| 正例 | 元の `last-result.json` を From published directory | install 完了（`[VerifyPlay] installed ...\installed\spring-full\<identity>`、cache root は `LocalApplicationData` の既定）。identity は結果 file・`transport.json`・installed の directory 名・起動した Runtime の `content:buildIdentity`・`[AppInit] Editor content directory first scene: scene=Title identity=<同じ> stable=True` の全てで一致。封鎖の 1 行あり。実効 config: `content:runtimeMode='directory'`、`content:firstScene='Title'`、`content:representation='Full'`、`assets:sceneVariant=''`、`world:cellCompanionSet='Full'`。Play 中の環境 7 key（`SAMPLEGAME_CONTENT__*` 6 + `WORLD__CELLCOMPANIONSET`）、停止後は `SAMPLEGAME_*` が 1 つも無く ledger 空。宣言の不一致 Warning 無し。区間（9018 行）: `LogError` 5 件は全て `Failed to handle /api/exec request: Main thread operation timed out after 5000ms`（Play の停止の移行中に送った確認の `eval` の timeout。Play への移行中・Play 中は送っていない）、`LogWarning` 1 件（DebugSocket 接続失敗）。App の Error 0 | なし |
+
+- 判定: HC2 の期待（負例の拒否と installed 非出現、正例の install の成功・identity の一致・`IsSceneStable("Title")` が真（D5 のログ）・封鎖の 1 行・不一致 Warning 無し・App の Error 0・停止後の環境の復元）は全て観測で成立した。凍結条件・常時契約への違反根拠なし。
+- 新たに観測した事実（凍結条件の違反根拠は持たない。後続スライスの入力。原因は調べていない）:
+  - 正例の Play の間（数分）、エンジンの Warning `There are 2 audio listeners in the scene...` が 7954 回出た（Play 開始直後から終了まで）。判定 C の run-b の区間（同じ経路、stable の後すぐ停止）には 0 件。Title の初回 Scene と常駐 Scene の AudioListener の重複の可能性があるが未確認。
+  - 正例の Play の停止後、`installed/spring-full` は 0 件（install 済みの revision directory が残らない）。判定 C の run-b が install した directory も、今回の開始前には無かった。設計上の意図（Play の終了時の後始末）かどうかは未確認。
+  - 初回の publish が環境のメモリ不足（`0x8007000E`）で失敗した。再試行で成功した（HC2 の取得は 2 回目で成立。1 回目は証拠に含めず log を bundle に残した）。
+- プロセスの強制終了: **あり（発行側だけ）。** batch の Unity は結果 file の確定の後も終了せず（1 回目 PID 4072 と import worker 39412、2 回目 PID 17240 と import worker 45048）、今回起動した PID（command line が worktree A の project）だけを確かめて `Win32_Process.Terminate`（CIM）で止めた。原因は調べていない。受け取り側の Editor（PID 35816）は `isDirty` 偽を確かめて `EditorApplication.Exit(0)` で閉じ、強制終了せずに自然に終了した。
+- 後始末: worktree A を削除（`git worktree remove`）。Delivery 窓の `UserSettings/OSMContentDelivery.json` を原 bytes に復元。`MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout` で戻した。未追跡の `docs/reviews/` には触れていない。
+- 未確認事項: (1) 上の 3 件の原因。(2) 発見 C の M2（AC8 の負例の 1 回の Play）は凍結した検証経路に無いので今回も取っていない。(3) 全 EditMode の自然終了は判定 C のとおり（発注者承認済み）。
+- 結論: **最終判定 C は完了（blocker なし）。** GO の最終判定は最終 C' の後。
 
 ## 8. Phase C'
 
