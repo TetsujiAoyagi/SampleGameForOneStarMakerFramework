@@ -210,6 +210,7 @@ Editorでは開いているSceneを初期登録の入力にする。通常direct
 - `PerformUnitySceneLoad` が `SceneManager.GetSceneByName` でロード済みシーンを検出し、再ロードしない。
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
 - BS4 Playerは生成済みbootstrap Sceneと、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。
+- Editor の directory Play で `content:firstScene` があれば、directory の登録の後にその Scene をロードし、Play の間ロードしたままにする（stage `load-editor-first-scene:<Scene 名>`、ロード後に `[AppInit] Editor content directory first scene: scene=… identity=… stable=…` の 1 行）。空 Scene から始める検証 Play（[§18](18-asset-description.md)）がこれを使う。Player の smoke の段（初回 Scene の unload、directory close、receipt）と失敗時の初回 Scene の unload は Player だけが行い、Editor では失敗しても別の Scene へ逃がさない。値を決めるのは App で、Framework は Scene 名の意味を知らない。
 
 ## 4.7 設定の読み込み（AppConfig）
 
@@ -327,6 +328,7 @@ JSON `assets:sceneVariant`  <  環境変数  <  コマンドライン
 
 - key 欠落時は空文字。trim や大小文字変換はしない。
 - Player は AppConfig だけを読む。Editor resolver をコンパイルしない。
+- 宣言からの Play As（[§18](18-asset-description.md)）は、Variant を環境変数 `SAMPLEGAME_ASSETS__SCENEVARIANT` に置く（`Full` は置かず、app-config の下位の層が空であることを Play の前に確かめる）。profile が選ばれている時、同じ key が外の環境やコマンドラインにある時は Play の前に拒否する。置いた値は 1 回の Play の後に戻す。
 - Editor では active `BuildVariantProfile.SceneVariant` が config より優先する。`SceneVariantRuntimeBridge.EditorSceneVariantResolver` の戻り値 `null` は active profile なし（config へ戻る）、`""` は Production profile の明示選択。この二つを混ぜない。directory Play の representation は `content:representation` だけを使い、profile SceneVariant を暗黙入力しない。
 - Player の通常経路は BS4 coordinator。旧 `VariantPlayerBuild` メニューは案内のみで `app-config.json` を書き換えない。
 - 空でない `BuildVariantProfile.SceneVariant` は、同 profile の whitelist に ordinal 完全一致で含まれなければ settings / Editor startup を失敗させる。不整合を default へ隠さない。

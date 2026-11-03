@@ -40,6 +40,26 @@ namespace SampleGame.DependOnAll.Editor.Build
             All.FirstOrDefault(declaration => string.Equals(declaration.Name, name, StringComparison.Ordinal))
             ?? throw new ArgumentException("Unknown build purpose: " + name, nameof(name));
 
+        // 宣言ごとの起動地点（初回 Scene）。その目的で Build・Play する時に App が最初にロードする Scene で、
+        // Framework は名前を config から受けて SceneDirector へ渡すだけ。今の目的群ではどれも Title だが、全目的に共通の
+        // 契約ではない。宣言を足す担当はここにも足す（テストが欠けを見つける）。manifest は記録しないので、
+        // published directory を受け取る側はこの表（受け取る側の App の版）で引く。
+        private static readonly IReadOnlyDictionary<string, string> FirstScenes = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [AllFull.Name] = "Title",
+            [SpringFull.Name] = "Title",
+            [SpringWhitebox.Name] = "Title",
+            [SpringFullWhitebox.Name] = "Title",
+            [Bs4SpringFull.Name] = "Title",
+            [SpringPlannerWhitebox.Name] = "Title",
+        };
+
+        /// <summary>宣言名から、App がその目的に決めた初回 Scene を返す。未知の宣言は <see cref="ArgumentException"/>。</summary>
+        public static string FirstSceneOf(string declarationName) =>
+            declarationName != null && FirstScenes.TryGetValue(declarationName, out var scene)
+                ? scene
+                : throw new ArgumentException("No first scene is defined for build purpose: " + declarationName, nameof(declarationName));
+
         /// <summary>宣言の runtime 既定値から companion set を読む。宣言が持たなければ Runtime の既定（Full）と同じ。</summary>
         public static string CellCompanionSetOf(BuildPurposeDeclaration declaration) =>
             declaration.FindRuntimeDefault(CellCompanionSetKey) ?? "Full";
