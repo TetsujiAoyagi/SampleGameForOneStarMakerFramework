@@ -12,6 +12,10 @@ on:
       - develop
   pull_request:
 
+# どの job も checkout して読むだけなので、GITHUB_TOKEN は読み取りに絞る。
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: windows-latest
@@ -26,9 +30,9 @@ jobs:
           fetch-depth: 0
       # 検査9（path 予算）と docs-audit はリポジトリ全体を対象にする。
       - name: Contract audit
-        run: ./tools/contract-audit.ps1 -BaseRef origin/develop
+        run: pwsh -NoProfile -File ./tools/contract-audit.ps1 -BaseRef origin/develop
       - name: Docs audit
-        run: ./tools/docs-audit.ps1
+        run: pwsh -NoProfile -File ./tools/docs-audit.ps1
 
   harness-tests:
     runs-on: windows-latest
@@ -43,17 +47,20 @@ jobs:
         run: |
           git config --global user.name 'ci'
           git config --global user.email 'ci@example.invalid'
+      # GitHub の pwsh step は最後に $LASTEXITCODE で exit する。テストは子 process の
+      # 期待どおりの exit 1 を残したまま正常終了することがあるので、ローカルと同じく
+      # -File で起動して script 自身の終了コードだけを判定に使う。
       # unity-editor.tests.ps1 はローカルの Unity CLI を前提にするので含めない。
       - name: Contract audit tests
-        run: ./tools/contract-audit.tests.ps1
+        run: pwsh -NoProfile -File ./tools/contract-audit.tests.ps1
       - name: Harness tests
-        run: ./tools/Harness/tests/Harness.Tests.ps1
+        run: pwsh -NoProfile -File ./tools/Harness/tests/Harness.Tests.ps1
       - name: Unity gate offline tests
-        run: ./tools/Harness/tests/UnityGate.Tests.ps1
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityGate.Tests.ps1
       - name: Unity observation offline tests
-        run: ./tools/Harness/tests/UnityObservation.Tests.ps1
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityObservation.Tests.ps1
       - name: Unity runner offline tests
-        run: ./tools/Harness/tests/UnityTestRunner.Tests.ps1
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityTestRunner.Tests.ps1
 
   dotnet-offline-tests:
     runs-on: windows-latest
