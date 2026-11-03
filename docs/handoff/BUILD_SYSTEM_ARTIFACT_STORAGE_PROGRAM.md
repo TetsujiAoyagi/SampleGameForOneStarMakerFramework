@@ -238,5 +238,5 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 |---|---|---|
 | BS5a 目的からの最小選択（中核） | 完了（2026-11-01、PR #150） | 契約は Architecture §18 §4 へ harvest 済み |
 | BS5b-1 `Full` の build・publish と batch | 完了（2026-11-03、PR #155） | 契約は Architecture §18 §4 へ harvest 済み |
-| BS5b-2 宣言からの Play 経路 | Phase B 待ち（A3 凍結、2026-11-03） | [BS5B2_PURPOSE_PLAY_ROUTES.md](BS5B2_PURPOSE_PLAY_ROUTES.md) |
+| BS5b-2 宣言からの Play 経路 | 完了（2026-11-03、PR #156） | 契約は Architecture §18 §4（宣言からの Play 経路）と §04 §4.6・§4.8 へ harvest 済み。後続の入力は §18 §4「BuildSystem の後続」の BS5b-2 の行 |
 | identity 後続（入力 identity・設定 snapshot・`content/index`・build を skip する再利用） | 未着手。HANDOFF 無し | 問いは Architecture §18 §4「BuildSystem の後続」 |

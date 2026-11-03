@@ -279,11 +279,26 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 - 成否の正は process の終了コードで、呼ぶ側は終了コード 0 の時だけ結果 file を読む（Unity が method を呼ぶ前に終わる場合、たとえば project の lock や compile error では、前回の結果 file が残る）。結果 file の欄は BS5b-2 の From published directory が期待値として読む。pwsh の wrapper は持たない。
 - **既知の制限（2026-11-03）:** 成功した batch の後に Unity process が終了しないことがある（Unity 6000.6.0f1 の既知の native 終了 stall。[Harness README](../../../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）。clean checkout の batch（約 23〜29 分）では、結果 file の確定と publish の log の後、30 分待っても process handle が signal しなかった。CI が成功した batch を終了コードだけで判定できることは未実証である。失敗経路の実 process の終了コード（未知の宣言名で 2）は観測済み。
 
-この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。batch 入口と publish の `Full` 必須は BS5b-1 で上の経路に入った。Play As、宣言 1 つからの build → publish → install → 検証 Play は BS5b-2 の範囲で未実装である。
+この入口は Editor の content 生成用である。生成 directory の Runtime 登録・ロード・寿命管理と Editor Play 接続は BS3、固定 Windows x64 Player build と bootstrap は BS4 の上記経路が担う。batch 入口と publish の `Full` 必須は BS5b-1、宣言からの Play 経路は BS5b-2（下記）で上の経路に入った。
+
+### 宣言からの Play 経路（現況）
+
+同じ宣言を日常 Play・検証 Play・published directory の受け取りに接続する。宣言を 1 つ選ぶと mode・表現・runtime 既定値・成果物が手入力なしに揃い、揃わない時は別の経路で黙って動かずに拒否する。経路は全て `SampleGame/DependOnAll/Editor/Build/` にあり、Framework は宣言の意味を知らない。
+
+- **Play As**（`Tools/OSM/Play As/<宣言名>`、`PlayAsLauncher`）: `PurposeLaunchSettings.PlayAs` が宣言を config の key=value と環境変数名（`SAMPLEGAME_` + key の `:` を `__` にした大文字）へ写し、`content:runtimeMode=addressables`・表現（`Full` は `assets:sceneVariant` を置かない）・runtime 既定値を Editor process の環境に置いて Play する。Play の前に、Play mode・compile 中、Variant profile の選択（Production の `""` を含む）、制御する key の外の値、コマンドラインの同じ key、`Full` で app-config の下位の層が空でないこと、Addressables の Play Mode が `BuildScriptFastMode` でないことを拒否する（[§4.8](04-app-startup.md#48-起動時-scene-variant-と職種-companion-set)）。
+- **共通の ledger**（`ContentDeliveryPlayBridge`、EditorPrefs `OSM.ContentDelivery.PlayBridge.v1`）: Delivery 窓の「Use For Next Play」（手で戻す）と Play As・検証 Play（1 回の Play で戻す、欄 `resetAfterOnePlay`）が同じ ledger に元の値を残す。1 回の Play で戻す ledger は `EnteredEditMode`、または `isPlaying` と `isPlayingOrWillChangePlaymode` が両方偽の idle で戻す（`ExitingPlayMode` の間は `isPlaying` だけが真なので戻さない）。手で戻す ledger が残っている間は 1 回の Play の経路を拒否し、欄の無い旧 ledger は手で戻す ledger と読む。
+- **検証 Play**（`Tools/OSM/Content/Verify Play/<宣言名>`、`VerifyPlayLauncher`）: `VerifyPlaySequence`（Unity 非依存の段の列）が `Full` build → publish → manifest の宣言の照合 → install → bridge → `EnterPlaymode` の順に進み、bridge 以降の失敗では ledger を戻す。2 つの入口は 1 つずつしか走らない。開始前に、起動時に開いている Scene が content directory の代わりに再利用される場合（SceneResourceMap の Scene 名、`UICommon`）を拒否する（menu からは Scene を閉じて空 Scene で続けるかを確認する）。install の後と bridge の直前に取り消しを確かめる。
+- **From published directory**（Delivery 窓の Published directory モード）: batch の結果 file（`last-result.json`）を選び、`transport.json` の SHA-256 → identity → 宣言の順に照合してから install し、検証 Play と同じ段で Play する。照合に落ちた directory は install しない。窓は標準経路の実効 cache root を表示し、窓を閉じると進行中の受け取りを取り消す。
+- **初回 Scene:** 宣言ごとの起動 Scene は App が決める（`SampleGameBuildPurposes.FirstSceneOf`。今は 6 宣言とも `Title`）。検証 Play の bridge は `content:firstScene` を置き、Runtime の Editor directory 分岐がそれをロードする（[§4.6](04-app-startup.md#46-play-from-any-sceneeditor-対応)）。BS4 coordinator も同じ関数を使う。
+- **観測の注意:** `eval` で Editor を操作して検証する時、build 中や Play mode の移行中に送った `eval` は main thread が塞がれて 5 秒で timeout し、Pipeline が `Failed to handle /api/exec request: Main thread operation timed out after 5000ms` を Console の Error として出す。印で切った区間の Error を数える時はこの行を App の Error と区別して読む（BS5b-2 の判定で採った読み）。
+
 
 ### BuildSystem の後続（BS5a・BS5b-1 から送った事項）
 
-- **BS5b-2（宣言からの Play 経路）:** 同じ宣言を日常 Play・検証 Play に接続する（Play As、検証 Play の 1 操作、From published directory（BS5b-1 の `last-result.json` を期待値に読む）、開いている Scene の拒否、Delivery 窓の宣言対応、manifest の宣言を環境変数へ写す bridge）。Editor の空 Scene で Play すると first scene が読まれないので、検証 Play の手順化で扱う。
+- **BS5b-2 から（凍結条件の違反ではない、2026-11-03）:**
+  - テストの隙間: AC2 の 2 つの拒否（profile の選択、Addressables の Play Mode が `BuildScriptFastMode` でない）を呼ぶテストが無い。`RunsPlayerContentSmoke` のテストは恒等で分岐の反転を落とさず、Editor の初回 Scene のロード失敗（別 Scene へ逃がさない）は注入テストが無い。初回 Scene のテストが `"Title"` と等値で比べる（「決まっている」までに弱めてよい）。`EmptyCacheRoot_InstallsUnderTheDefaultRoot` が開発者の実 cache root に書く。窓の `OnDisable` の取り消しは EditMode が無い。
+  - 局所の整理: `ContentDeliveryPlayBridge.Reset` の Play 状態の検査が `isPlayingOrWillChangePlaymode` だけで、`Apply` と揃っていない（`ExitingPlayMode` の窓で明示の Reset が通る）。`SampleGameBuildPurposes.FirstSceneOf` が `public`（呼び手は同じ asmdef）。`PurposeLaunchSettings` と `ContentDeliveryPlayBridge` が class の間で互いを参照する。Play As の app-config の下位の層の検査は相対 path で読み、file が無ければ空として通す。宣言の照合（`CompareDeclaration`）は記録側の重複 key と手元の別 key の欠落の組を通す（今の宣言の形では起きない）。`OnUpdate` が手で戻す ledger の間も毎 update で JSON を parse する。menu の経路で、直せない拒否より先に Scene を閉じる・ledger を戻す dialog が出る。
+  - 未調査の観測: From published directory の検証 Play の後、既定 cache root の `installed/<contentSet>` が空になっていた（install は成功している。DIST の install の寿命として確かめる）。その Play の間に `There are 2 audio listeners in the scene` の Warning が多数出た（検証 Play `spring-full` の run では 0 件）。clean worktree の batch の 1 回目が CoreCLR のメモリ確保失敗（`0x8007000E`）で落ち、同じコマンドの 2 回目は通った。
 - **CI 組み込み（BS5b-1 から）:** 成功した batch の後に Unity process が終わらない場合の、呼ぶ側の終了監視・timeout・結果 file と manifest の照合。R2・HTTP への publish と別 PC での受け取り。`.staging` と `work/` の残置の清掃は Storage program §6「ローカルの残置の清掃」。
 - **入力 identity:** 宣言と選択候補の source 状態と設定 snapshot の hash、`content/index`、build を skip する再利用。revision の形式は変えていない。
 - **未着手の問い:** 経路の連鎖（source → local の object store → LAN / R2）、object 単位の格納と差分更新、再 build の決定性、Player の実行時差し替え、複数 directory と cross-directory 参照、設定の宣言化と Player の Debug の剥離、known-good の pin の呼び手、日常 Play で宣言に無い content を読んだ時の検出、`outcome.json` の選択・閉包の記録形式、directory に無い OnDemand content を要求した時の振る舞い。
