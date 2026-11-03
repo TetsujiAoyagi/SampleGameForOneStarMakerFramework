@@ -29,8 +29,12 @@ jobs:
           # contract-audit の検査1 は origin/develop からの差分を見るので履歴が要る。
           fetch-depth: 0
       # 検査9（path 予算）と docs-audit はリポジトリ全体を対象にする。
+      # 検査1 の基点は、pull_request では統合先、統合先への push では push 前の head。
+      # push で origin/develop を基点にすると HEAD 自身との差分になり、検査1 が 0 件になる。
       - name: Contract audit
-        run: pwsh -NoProfile -File ./tools/contract-audit.ps1 -BaseRef origin/develop
+        env:
+          BASE_REF: ${{ github.event_name == 'push' && github.event.before || 'origin/develop' }}
+        run: pwsh -NoProfile -File ./tools/contract-audit.ps1 -BaseRef $env:BASE_REF
       - name: Docs audit
         run: pwsh -NoProfile -File ./tools/docs-audit.ps1
 
@@ -51,10 +55,11 @@ jobs:
       # 期待どおりの exit 1 を残したまま正常終了することがあるので、ローカルと同じく
       # -File で起動して script 自身の終了コードだけを判定に使う。
       # unity-editor.tests.ps1 はローカルの Unity CLI を前提にするので含めない。
+      # Harness.Tests.ps1 も含めない。子 pwsh の出力を CultureInfo の OEM code page で
+      # 読むため、OEM 437 の hosted runner では Unicode 往復の case が必ず落ちる
+      # （LocalChecks.psm1 の Invoke-Process）。採取側を直すまでローカルで回す。
       - name: Contract audit tests
         run: pwsh -NoProfile -File ./tools/contract-audit.tests.ps1
-      - name: Harness tests
-        run: pwsh -NoProfile -File ./tools/Harness/tests/Harness.Tests.ps1
       - name: Unity gate offline tests
         run: pwsh -NoProfile -File ./tools/Harness/tests/UnityGate.Tests.ps1
       - name: Unity observation offline tests
