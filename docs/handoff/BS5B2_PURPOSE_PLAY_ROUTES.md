@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（Phase B 完了、2026-11-03。次は動作確認）
+- status: `B`（Phase B 完了・動作確認完了、2026-11-03。次は発見 C）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
-- implementation head commit: この票を含む commit
+- implementation head commit: `eb3df5fa`
 - risk: `high`（Runtime の起動（`AbstractApplicationInitializer`）の Editor directory 経路に初回 Scene を足す。Editor Play の process 環境変数を宣言から置き、既存の Delivery 窓の ledger を共有にする）
 - owner: 発注者 / BS5b-2 担当
 - created: 2026-11-01（BS5b を 2026-11-02 に BS5b-1 と BS5b-2 に分けた）
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
 - evidence bundle の取得案内・状態: 未到達
 - C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **Phase B 完了（2026-11-03）。次は動作確認（Phase B の後）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: §5 の検証経路のうち AC17 (a)(c)(d)(e) を、この head で各 1 回軽く実行し、生の観測と期待との差の有無を §6「動作確認」に残す（合否は書かない）。(b) と HC2（content build・batch）とテスト suite は対象外（Phase C）。あわせて §5「未知の操作経路」の 2 点（起動後の実効 config と Play 停止後の process 環境を `eval` で読めるか）を確かめ、読めなければ B へ戻す（B 適応の観測ログ）。`eval` の入口は §6「HANDOFF との差」にある dialog の無い 3 つ。差があれば発見 C を待たずに B へ戻す。必要な権限: Unity Editor の起動・`eval` 操作（`tools/unity-editor.cmd`）。Unity テスト・content build・batch・Play の判定はしない。snapshot・bundle は無い（実装と記録は引き継ぐ commit にある）。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
+- 引継ぎ票: **動作確認完了（2026-11-03）。次は発見 C。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（head は Phase B の `eb3df5fa`。この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。動作確認の結果: AC17 (a)(c)(d)(e) と §5「未知の操作経路」の 2 点を `eb3df5fa` で各 1 回行い、期待との差なし、未実施なし（§6「動作確認」）。実効 config と停止後の環境は `eval` で読めたので、B 適応の観測ログは足していない。次の作業: 発見 C（implementation base / head の差分を固定し、構造・契約・凍結済み失敗経路を先に見る。GO 判定と C' の起動はしない）。判定 C の実行担当への注意は §6「動作確認」の末尾（Play への移行中に送った `eval` の timeout が Console の Error として区間に入る）。snapshot・bundle は無い（実装と記録は引き継ぐ commit にある）。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
 
 ### PR 状態ブロック
 
@@ -376,7 +376,24 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 
 ### 動作確認
 
-未到達。
+- 対象 head: `eb3df5fa`（Phase B の完了 head。implementation head と同じ）。実行担当: 動作確認の session（B とは別の session。Claude Opus 5.5（Anthropic））、2026-11-03。
+- 経路: この worktree の `unity/` を Unity CLI の `open` で起動（6000.6.0f1）し、`tools/unity-editor.cmd eval` だけで操作した。入口は §6「HANDOFF との差」の dialog の無い 2 つ（`PlayAsLauncher.Launch(decl, false)`・`VerifyPlayLauncher.VerifyAsync(decl, false)`。internal なので reflection で呼んだ）。run ごとに Console へ `[BS5b2-evidence] begin/end <runId>` を出し、`unity/Logs/Editor.log` をこの印で切った。終了後に自分で起動した Editor を未保存変更が無いことを確かめて `EditorApplication.Exit(0)` で閉じた。
+- 初期状態（全 run 共通、run の直前に `eval` で読んだ）: Play mode でない、compile error 無し、Variant profile の resolver が `null`（未選択）、Addressables の Play Mode が `BuildScriptFastMode`、ledger（`OSM.ContentDelivery.PlayBridge.v1`）が空、process 環境に `SAMPLEGAME_*` の key が 1 つも無い、Editor のコマンドラインに `--` で始まる引数が無い。
+- **§5「未知の操作経路」の 2 点:** どちらも `eval` で読めた。B 適応の観測ログは要らない。
+  - 起動後の実効 config: Play 中に `SampleGame.DependOnAll.AppInitializer.s_instance`（static）の基底の `_config`（`AbstractApplicationInitializer` の private field、`AppConfig`）を reflection で取り、`ContainsKey` / `GetString` で読む。Play に入った直後の数回は Play への移行で `eval` が 5 秒の timeout になり、その後に読めた。
+  - 停止後の process 環境: `ExitPlaymode()` の後、`isPlaying=False` を確かめてから同じ Editor process の `Environment.GetEnvironmentVariable(key, Process)` を読む。`null` と空文字を区別して記録できる。
+
+| run | 操作 | 生の観測 | 期待との差 |
+|---|---|---|---|
+| smoke-a（AC17 (a)） | `OutGameScene` を開き Play As `spring-planner-whitebox` | 戻り値 `null`（拒否なし）。ログ `[PlayAs] spring-planner-whitebox content:runtimeMode=addressables assets:sceneVariant=Whitebox world:cellCompanionSet=Planner`。Play 中の ledger は 3 key（previous は全て `<null>`、`resetAfterOnePlay:true`）。Play 中の実効 config: `content:runtimeMode='addressables'`、`assets:sceneVariant='Whitebox'`、`world:cellCompanionSet='Planner'`（`content:firstScene` は無い）。停止後: 8 key（content の 5 key・`ASSETS__SCENEVARIANT`・`WORLD__CELLCOMPANIONSET`・`CONTENT__FIRSTSCENE`）とも `<null>`、`SAMPLEGAME_*` の key 無し、ledger 空。区間の Error は `eval` の timeout（Pipeline の `Failed to handle /api/exec request`）2 件だけ、Warning は DebugStudio への接続失敗（`[DebugSocket] Failed to connect`）と IPC の 1 行 | なし |
+| smoke-e（AC17 (e)） | 同じ初期状態で Play As `spring-full` | 戻り値 `null`。ログ `[PlayAs] spring-full content:runtimeMode=addressables world:cellCompanionSet=Full (empty from app-config: assets:sceneVariant)`。Play 中の環境に `SAMPLEGAME_ASSETS__SCENEVARIANT` は無く（`<null>`）、ledger は 2 key。Play 中の実効 config: `content:runtimeMode='addressables'`、`assets:sceneVariant` は key があり値 `''`、`world:cellCompanionSet='Full'`。停止後: 8 key とも `<null>`、`SAMPLEGAME_*` 無し、ledger 空 | なし |
+| smoke-c（AC17 (c)） | `Spring_Cell_0_4` を開き Verify Play `spring-full` | task は同期で完了し、outcome `Rejected at Start: Open scenes that startup would reuse instead of the content directory: Assets/SampleGame/InGame/InGameSession/Seasons/Spring/Cells/Spring_Cell_0_4/Spring_Cell_0_4.unity`。同じ文の `[VerifyPlay] verify spring-full: Rejected at Start: …` の LogError 1 件が区間の唯一の Error。run の前後で `artifacts/bs2b/` の `reports`・`content`・`transport`・`staging` の一覧（名前と更新時刻）に差なし。前後の環境は 8 key とも `<null>`、ledger 空 | なし |
+| smoke-d（AC17 (d)） | `Summer_Cell_0_0` を開き Verify Play `spring-full` | outcome `Rejected at Start: … Assets/SampleGame/InGame/InGameSession/Seasons/Summer/Cells/Summer_Cell_0_0/Summer_Cell_0_0.unity`。区間の Error は同じ拒否のログ 1 件だけ。`artifacts/bs2b/` の 4 つの一覧に差なし。前後の環境は 8 key とも `<null>`、ledger 空 | なし |
+
+- 未実施: なし（対象は AC17 (a)(c)(d)(e) と §5「未知の操作経路」の 2 点。(b) と HC2 とテスト suite は対象外で Phase C）。
+- 判定 C への注意（観測の事実。判定はしない）: Play への移行中・Play 直後に送った `eval` は 5 秒の timeout になり、Pipeline がそれを Console の Error（`Failed to handle /api/exec request: Main thread operation timed out after 5000ms`）として出す。この Error は印で切った区間に入るので、AC17 (b) と HC2 の「区間の Error 0」を読む時は、この行を App の Error と区別するか、Play への移行中に `eval` を送らない。
+- 保全: 各 run の印で切った Editor.log の区間、`artifacts/bs2b/` の前後の一覧、使った `eval` の C# は担当の手元（git 管理外）に保全した。照合 script と機械向けの期待値は無い。
+- 作業ツリー: Editor を開いて消えた `MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout` で戻した。Scene・asset の変更は無い。
 
 ## 7. Phase C
 
