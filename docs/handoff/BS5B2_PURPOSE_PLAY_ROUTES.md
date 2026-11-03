@@ -480,7 +480,7 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
   - C'-2: `SampleGameBuildPurposes.FirstSceneOf`（`:58`）が `public` で、§3 の公開面（internal）より広い。呼び出し元は同じ asmdef、テストは `InternalsVisibleTo` で届く。修正先の見込みは B 適応（internal にする）。
 - 残存リスク（C' の記述の要約）: AC17 (b) の区間の Error 1 件は build 中の `eval` timeout の行で、App の Error ではない（読み方は決定記録で固定できる）。AC8 の失敗経路（初回 Scene のロード失敗）は注入テストが無い。inconclusive 25 件は全て VFX の `-nographics` 由来で、runner の step は inconclusive を失敗にする。`CompareDeclaration`（`VerifyPlayLauncher.cs:302-306`）は記録側の重複 key と手元の別 key の欠落の組を通す（今の宣言の形では起きない）。`EnterPlaymode` がフラグを立てた後に例外を出すと、Reset が投げて idle の戻しを待つ。`unity/Assets/README.md` の依存図に `SampleGame.DependOnAll.Editor` の出力辺が無い（既存）。窓の `OnDisable` の取り消しは EditMode が無い。
 - 監査できなかった範囲: HC2、Unity の再実行・Play の再操作、menu の dialog の実クリック、Play 中の domain reload、`unity.log` の全文。
-- C' 自身の指摘への裁定（最終 C' に渡す決定記録）: 未定（発注者）。
+- C' 自身の指摘への裁定（最終 C' に渡す決定記録、版: この記録を含む commit）: 発注者が 2026-11-03 に裁定した。C'-1・C'-2 とも B へ戻さず、後続スライスへ移送する minor とする。理由: どちらも凍結条件・常時契約への違反根拠が無く（実装は AC2 の文と一致し、`public` は §3 の公開面とのずれで I7 に当たらない）、現在の問いを阻害しない。
 
 ### 最終 C'
 
