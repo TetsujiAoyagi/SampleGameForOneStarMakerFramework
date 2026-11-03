@@ -295,6 +295,11 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 
 ### BuildSystem の後続（BS5a・BS5b-1 から送った事項）
 
+- **S-4d5b から（Planner 実証未達、2026-11-03）:** Content Directory の上の Planner Play（検証 Play `spring-planner-whitebox`: `content:representation=Whitebox`・`world:cellCompanionSet=Planner`）の実証は NO-GO で閉じた。S-4 の目的を達成した完了ではない。
+  - 引き取る後続: BuildSystem program §7 の「directory mode の rig の spawn と Planner 実証」の行（未着手。HANDOFF 無し）。
+  - 未達の条件: Title の Start の後に `InGameSession` と Spring `(0,4)` が Stable になり、`Player ready at Cell stream spawn` が出て、rig の `Rigidbody.position` が `WorldCellCatalog.SpawnPosition()` から 1 m 以内にあること。
+  - 観測した欠陥: 1 回の検証 Play で、rig が `(0,0,0)` に留まり（spawn `(125,28,1125)` から 1132 m）、`Spring_Cell_0_4` が loaded の直後に unload されて `Spring_Cell_0_0` が載り、`Player ready` が約 3 分出なかった。下の「検証の残り」の原点に留まる観測と同じ現象。Start は reflection で `TitleView.OnStartRequested` を呼んで発火しており、通常の Play での再現と原因は未確認。rig を spawn に置き直した後の診断では、Whitebox の Cell (4,2) と Events の load、local trigger の VFX 1 件の出現と Cell の unload での回収、major Event `Spring_Event_MultiCellProof` の VFX 2 件の出現と完了での回収が動き、Environment / Cell 単位の Lighting・VFX は build の選択にもロードにも現れなかった（診断であって実証ではない）。一次証拠は判定を行った PC の `artifacts/s-4d5b-phase-c-verdict/`（git 管理外、`SHA256SUMS.txt` 付き。identity `20261103T091410930Z-d377543307574cafa829b30d94255025`、製品は `fb97da0d`）。経緯は commit `771bf66a` 時点の S-4d5b の HANDOFF の §4.2・§5・§7.3（Phase D で削除済み）。
+  - 再検証の条件: 後続の修正を含む head で、untitled の空 Scene から検証 Play `spring-planner-whitebox` を 1 回行い、上の未達の条件に加え、`preflight.json` で `Spring_Cell_4_2` が Whitebox の 1 件だけ、local trigger と major Event の VFX の出現と回収、Environment と Cell 単位の Lighting・VFX が選択にもロードにも 0 件、`ContentDeclarationMismatch` と App の Error が 0 件であることを、同じ 1 回の Play で確かめる。切り分けは directory mode と Addressables mode の通常 Play の比較から始める。
 - **BS5b-2 から（凍結条件の違反ではない、2026-11-03）:**
   - テストの隙間: AC2 の 2 つの拒否（profile の選択、Addressables の Play Mode が `BuildScriptFastMode` でない）を呼ぶテストが無い。`RunsPlayerContentSmoke` のテストは恒等で分岐の反転を落とさず、Editor の初回 Scene のロード失敗（別 Scene へ逃がさない）は注入テストが無い。初回 Scene のテストが `"Title"` と等値で比べる（「決まっている」までに弱めてよい）。`EmptyCacheRoot_InstallsUnderTheDefaultRoot` が開発者の実 cache root に書く。窓の `OnDisable` の取り消しは EditMode が無い。
   - 局所の整理: `ContentDeliveryPlayBridge.Reset` の Play 状態の検査が `isPlayingOrWillChangePlaymode` だけで、`Apply` と揃っていない（`ExitingPlayMode` の窓で明示の Reset が通る）。`SampleGameBuildPurposes.FirstSceneOf` が `public`（呼び手は同じ asmdef）。`PurposeLaunchSettings` と `ContentDeliveryPlayBridge` が class の間で互いを参照する。Play As の app-config の下位の層の検査は相対 path で読み、file が無ければ空として通す。宣言の照合（`CompareDeclaration`）は記録側の重複 key と手元の別 key の欠落の組を通す（今の宣言の形では起きない）。`OnUpdate` が手で戻す ledger の間も毎 update で JSON を parse する。menu の経路で、直せない拒否より先に Scene を閉じる・ledger を戻す dialog が出る。
@@ -302,7 +307,7 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 - **CI 組み込み（BS5b-1 から）:** 成功した batch の後に Unity process が終わらない場合の、呼ぶ側の終了監視・timeout・結果 file と manifest の照合。R2・HTTP への publish と別 PC での受け取り。`.staging` と `work/` の残置の清掃は Storage program §6「ローカルの残置の清掃」。
 - **入力 identity:** 宣言と選択候補の source 状態と設定 snapshot の hash、`content/index`、build を skip する再利用。revision の形式は変えていない。
 - **未着手の問い:** 経路の連鎖（source → local の object store → LAN / R2）、object 単位の格納と差分更新、再 build の決定性、Player の実行時差し替え、複数 directory と cross-directory 参照、設定の宣言化と Player の Debug の剥離、known-good の pin の呼び手、日常 Play で宣言に無い content を読んだ時の検出、`outcome.json` の選択・閉包の記録形式、directory に無い OnDemand content を要求した時の振る舞い。
-- **検証の残り:** directory mode の封鎖と宣言の不一致 Warning の配線には自動テストが無い（Editor Play と BS4 Player のログで観測済み）。directory mode の Editor Play で flight rig が spawn に置かれず原点に留まる観測があり、Addressables mode との比較による切り分けが要る（BS5a は該当箇所を変えていない）。Player の `content/` の manifest は `Object` entry を `ObjectIdHash` でしか持たないので、付随 asset を名前で同定する材料が無い。
+- **検証の残り:** directory mode の封鎖と宣言の不一致 Warning の配線には自動テストが無い（Editor Play と BS4 Player のログで観測済み）。directory mode の Editor Play で flight rig が spawn に置かれず原点に留まる観測があり、Addressables mode との比較による切り分けが要る（BS5a は該当箇所を変えていない。S-4d5b の検証 Play でも同じ現象を観測した。上の S-4d5b の行）。Player の `content/` の manifest は `Object` entry を `ObjectIdHash` でしか持たないので、付随 asset を名前で同定する材料が無い。
 
 ---
 

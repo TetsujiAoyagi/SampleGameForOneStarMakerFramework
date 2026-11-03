@@ -206,7 +206,7 @@ Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agent
 | # | 内容 | 補足 |
 |---|---|---|
 | 前提（完了） | M-1〜M-4: 体積の口、生成器 identity key、候補フラグによる R-3、セル型の SampleGame 移動 | 現況は [STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md)。完了済み HANDOFF は harvest 後に削除済み |
-| S-4 | 制作基盤（a〜d5a 完了、d5b の Planner 実証が残り） | 4 Season・9×6×4・旧16 Cell撤去・Spring初回Ensure・名前文法からの分離・最小RenderEnvironment / 代表bake・VFX Graph と Cell / Season の VFX・local / major Event は完了。候補フラグによるR-3を維持する。現況は [Architecture §05 §5.13](../../unity/Assets/Docs/Architecture/05-scene.md#513-cell-と職種-companion-の分類)・[§24 §16](../../unity/Assets/Docs/Architecture/24-rendering-system.md#16-vfx-抽象)・[§27](../../unity/Assets/Docs/Architecture/27-folder-structure.md)・[STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) |
+| S-4 | 制作基盤（a〜d5a 完了。d5b の Planner 実証は未達で BuildSystem の後続へ送った。[§18 §4](../../unity/Assets/Docs/Architecture/18-asset-description.md#buildsystem-の後続bs5abs5b-1-から送った事項)） | 4 Season・9×6×4・旧16 Cell撤去・Spring初回Ensure・名前文法からの分離・最小RenderEnvironment / 代表bake・VFX Graph と Cell / Season の VFX・local / major Event は完了。候補フラグによるR-3を維持する。現況は [Architecture §05 §5.13](../../unity/Assets/Docs/Architecture/05-scene.md#513-cell-と職種-companion-の分類)・[§24 §16](../../unity/Assets/Docs/Architecture/24-rendering-system.md#16-vfx-抽象)・[§27](../../unity/Assets/Docs/Architecture/27-folder-structure.md)・[STREAMING_CURRENT_SPEC.md](../streaming/STREAMING_CURRENT_SPEC.md) |
 | S-5 | トンネルと季節遷移 | §5 の契約。N-3 の内装はここで実測。1 Player で四季を持つか、`all-full` 起動か複数登録かは S-5 の A0 |
 | S-6 | 廃止（WCD） | 1 変奏 = 1 Addressables グループは現行契約にない。Content Directory の contentSet 選択が担う |
 | S-7 | 廃止（WCD） | 未チェックアウト経路は DIST。部分 Checkout 再燃は Architecture §20 どおり未所有 |
@@ -312,7 +312,7 @@ S-4b で Season_* 4ノードが `World` を置き換え、全セルに Environme
 
 | # | 論点 | 決定時期 |
 |---|---|---|
-| N-1 | **解決済み:** Sessionの初回Spring Ensureと`WorldCellCatalog.SpawnPosition`の`(0,4)`移行はS-4bで実装済み。Tunnel遷移演出はS-5に残る | S-4b。現況はS-4 program §4.3 / STREAMING_CURRENT_SPEC |
+| N-1 | **解決済み:** Sessionの初回Spring Ensureと`WorldCellCatalog.SpawnPosition`の`(0,4)`移行はS-4bで実装済み。Tunnel遷移演出はS-5に残る | S-4b。現況はSTREAMING_CURRENT_SPEC |
 | N-2 | **解決済み:** SeasonLightingSceneがLoad時にleaseを取得し、Unity sinkがLight / RenderSettingsへ適用する。Unload時に解放・baseline復元する | S-4c。Architecture §24 §9.1 |
 | N-3 | トンネルの内装・滞在時間（ロード隠蔽の実測。距離条件は §5 で固定済み） | S-5 |
 | N-4 | Environment を距離政策の候補にしないこと（CCS: 距離の単位は Cell）。子は親 Stable 後の明示 Add のまま | 現状仕様で確認済み。S-4 でも維持する |
