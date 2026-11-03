@@ -389,6 +389,9 @@ try {
     Run 'child process result' {
         $unicode = Invoke-Process 'pwsh' @('-NoProfile','-Command',"[Console]::Write('原観測')") $repo 15
         Assert ($unicode.ExitCode -eq 0 -and $unicode.Stdout -ceq '原観測') 'child Unicode raw was corrupted'
+        # 日本語Windowsでは子のOEM 932でも上の往復が通る。ロケールに依らない保証は子が65001で書くことで確かめる。
+        $codePage = Invoke-Process 'pwsh' @('-NoProfile','-Command','[Console]::Write([Console]::OutputEncoding.CodePage)') $repo 15
+        Assert ($codePage.ExitCode -eq 0 -and $codePage.Stdout -ceq '65001') "child console code page was not UTF-8: $($codePage.Stdout)"
         $result = Invoke-Process 'pwsh' @('-NoProfile', '-Command', '[Console]::WriteLine("OK")') $repo 15
         Assert ($result.ExitCode -eq 0 -and $result.Stdout.Trim() -ceq 'OK' -and $result.DurationMs -ge 0 -and $result.LaunchMs -ge 0) 'child output'
         $timed = Invoke-Process 'pwsh' @('-NoProfile', '-Command', 'while ($true) {}') $repo 1

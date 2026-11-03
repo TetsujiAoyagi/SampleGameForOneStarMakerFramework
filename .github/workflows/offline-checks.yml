@@ -55,9 +55,8 @@ jobs:
       # 期待どおりの exit 1 を残したまま正常終了することがあるので、ローカルと同じく
       # -File で起動して script 自身の終了コードだけを判定に使う。
       # unity-editor.tests.ps1 はローカルの Unity CLI を前提にするので含めない。
-      # Harness.Tests.ps1 も含めない。子 pwsh の出力を CultureInfo の OEM code page で
-      # 読むため、OEM 437 の hosted runner では Unicode 往復の case が必ず落ちる
-      # （LocalChecks.psm1 の Invoke-Process）。採取側を直すまでローカルで回す。
+      - name: Harness offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/Harness.Tests.ps1
       - name: Contract audit tests
         run: pwsh -NoProfile -File ./tools/contract-audit.tests.ps1
       - name: Unity gate offline tests

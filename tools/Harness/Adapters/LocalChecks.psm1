@@ -5,21 +5,42 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../GatePolicy.psm1') -Global
 Import-Module (Join-Path $PSScriptRoot 'UnityChecks.psm1') -Global
 
+# CreateNoWindowの子は新しい隠しconsoleを持ち、.NETのpwsh/dotnetはそのcode page（既定はOEM、en-USなら437）で書く。
+# 437では日本語が'?'に潰れ、採取側のdecodeでは戻せない。そこで同じ隠しconsoleを65001へ切り替える起動役を挟み、
+# 目的のプロセスはその設定を継承して、std handleを直接受け継いで書く。起動役のpipelineを通さないのでbyteは変わらない。
+# 起動役が目的のプロセスを起動できない場合は、例外の代わりに起動役のexit code 1とstderrで返る。
+$script:Utf8ConsoleBootstrap = @'
+$spec = [Text.Json.JsonDocument]::Parse([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{0}'))).RootElement
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+$info = [Diagnostics.ProcessStartInfo]::new($spec.GetProperty('file').GetString())
+$info.UseShellExecute = $false
+foreach ($argument in $spec.GetProperty('arguments').EnumerateArray()) { [void]$info.ArgumentList.Add($argument.GetString()) }
+$process = [Diagnostics.Process]::Start($info)
+$process.WaitForExit()
+exit $process.ExitCode
+'@
+
 function Invoke-Process([string]$FileName, [string[]]$Arguments, [string]$WorkingDirectory, [int]$TimeoutSeconds = 900) {
     # 標準出力は待ってから読むとパイプが埋まり、プロセスが戻らない。先に非同期で読む。
     # 期限超過はプロセスツリーを止める。Kill の失敗は、その直前に終了した競合として無視する。
     $info = [Diagnostics.ProcessStartInfo]::new()
-    $info.FileName = $FileName
     $info.WorkingDirectory = $WorkingDirectory
     $info.UseShellExecute = $false
     $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
-    # CreateNoWindowのpwsh/dotnetはWindowsユーザーのOEM codepage、gitはUTF-8を使う。親PTYのcodepageとは別に採取する。
-    $encoding = if ($IsWindows -and [IO.Path]::GetFileNameWithoutExtension($FileName) -in @('pwsh','powershell','dotnet')) { [Text.Encoding]::GetEncoding([CultureInfo]::CurrentCulture.TextInfo.OEMCodePage) } else { [Text.UTF8Encoding]::new($false) }
-    $info.StandardOutputEncoding = $encoding
-    $info.StandardErrorEncoding = $encoding
-    foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
+    # 出力はロケールに依らずUTF-8で採取する。gitは自分でUTF-8を書き、pwsh/powershell/dotnetは起動役で65001にそろえる。
+    $info.StandardOutputEncoding = [Text.UTF8Encoding]::new($false)
+    $info.StandardErrorEncoding = [Text.UTF8Encoding]::new($false)
+    if ($IsWindows -and [IO.Path]::GetFileNameWithoutExtension($FileName) -in @('pwsh','powershell','dotnet')) {
+        $spec = ConvertTo-Json -Compress -InputObject ([ordered]@{ file = $FileName; arguments = @($Arguments) })
+        $bootstrap = $script:Utf8ConsoleBootstrap.Replace('{0}', [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($spec)))
+        $info.FileName = [Environment]::ProcessPath
+        foreach ($argument in @('-NoProfile', '-NonInteractive', '-EncodedCommand', [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($bootstrap)))) { [void]$info.ArgumentList.Add($argument) }
+    } else {
+        $info.FileName = $FileName
+        foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
+    }
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $info
     $clock = [Diagnostics.Stopwatch]::StartNew()
