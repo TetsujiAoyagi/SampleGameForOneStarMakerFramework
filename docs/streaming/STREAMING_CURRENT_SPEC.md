@@ -42,6 +42,7 @@ R-3 は候補フラグで検出する。セル型は SampleGame にあり、FW �
 | セル実体 | 四季×54。各 Cell は Full と Whitebox payload、Environment 子を持つ | `SampleGame/.../InGameSession/Seasons/` |
 | Variant / representation | 全 Cell のソースは空文字と `Whitebox` payload。通常 Content buildでは Full / Whiteboxを選択し、directory起動中は表現を固定する | SceneResource payloads / `SampleGameBuildPurposes` の宣言 / `content:representation`（旧profileは互換用） |
 | S-4b の登録記録 | 生成時の652 Sceneは Scene/Resource/Graph/Map/Addressables の集合整合を検査した。現在の総Scene数や通常build backendを示す値ではない | S-4b生成・撤去記録 / `AddressableAssetsData/` |
+| S-4 の職種 Scene | S-4c〜S-4d で必要な Cell・季節だけに 6 件を足し、Scene 実体は 658 件: Cell Lighting `Spring_Lighting_4_2`・`Spring_Lighting_5_2`、VFX `Spring_AtmosphereVFX`・`Spring_VFX_4_2`、Events `Spring_Events_4_2`、major Event `Spring_Event_MultiCellProof`。どれも `StreamByDistance` でなく距離の候補に入らない（分類は Architecture §05 §5.13） | `Seasons/` 配下の `.unity` |
 | シーン木 | `InGameSession → Season_* → *_Lighting / *_Cell_{x}_{y} → *_Environment_{x}_{y}` | SeasonはOnDemand、LightingはNecessaryAlways |
 
 グリッド寸法の正本は `WorldCellCatalog` の const。旧 `WorldGridDefinition.asset` は生成器とともに撤去済みである。寸法変更は生成済みアセット全体に波及するため、新しい設計スライスで扱う。

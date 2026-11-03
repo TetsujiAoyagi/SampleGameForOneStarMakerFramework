@@ -234,6 +234,8 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 
 本 program の完了（§0）は Artifact Storage の範囲だけで、BuildSystem の選択・運用経路の系列はこの節に所在だけを置く。各系列の契約と未着手の問いの内容は [Architecture §18 §4](../../unity/Assets/Docs/Architecture/18-asset-description.md#4-buildsystem-との接続) を正とし、ここに写さない。
 
+**Phase A の判断基準（発注者、2026-10-27。S-4 に限らない方針）。** いまの主目的はきちんとした BuildSystem を作ることで、Phase A の各案では、成果物が content build・Player build の経路に乗るかと、Build 側の既知の課題（[Architecture §18 §4「BuildSystem の後続」](../../unity/Assets/Docs/Architecture/18-asset-description.md#buildsystem-の後続bs5abs5b-1-から送った事項)・[§24 §16.7](../../unity/Assets/Docs/Architecture/24-rendering-system.md#167-後続スライスへの送り)）を踏むかを書き、Build 側の課題を「やらない」で片付けず BuildSystem の作業の候補にする。残すコードは SampleGame に必要なもの（無いと SampleGame の検証が成り立たないもの）だけで、生成や authoring の道具は一時スクリプトで作り commit の前に消す案を既定にし、「他でも再利用できる」を残す理由にしない。Player を build するスライスは、ルートが path 予算に収まる checkout で作業する（transport staging の path の制約。[Harness README](../../tools/Harness/README.md#起動前の-path-予算検査)）。
+
 | 系列 | 状態 | 所在 |
 |---|---|---|
 | BS5a 目的からの最小選択（中核） | 完了（2026-11-01、PR #150） | 契約は Architecture §18 §4 へ harvest 済み |

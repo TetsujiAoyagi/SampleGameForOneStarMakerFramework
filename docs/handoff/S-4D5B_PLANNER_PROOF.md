@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（A3 凍結版。2026-11-03 に発注者が凍結を承認し、§4.2 の合意を含めて凍結した）
+- status: `B`（Phase B 完了。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
 - branch: `claude/s-4d5b-planner-proof`
 - implementation base commit: `fb97da0d`（`develop`、BS5b-2 のマージ後）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - risk: `normal`（公開 API・asmdef・所有者・寿命・`SceneState`・Addressables の設定を変えない。製品コードの変更は見込まない）
 - owner: 発注者
 - created: 2026-11-03
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は Phase B（実装担当）。作業は §4 の harvest 表どおりの文書の変更だけで、製品コード・テスト・Scene・asset・設定は変えない。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は削除しない（Phase D）。B の出口で `pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1` を通し、文書の変更を 1 commit にし、§6 の実装結果と implementation head 欄とこの票を書いて終える（票の書き方は `phases-and-handoff.md` の「引継ぎ票」）。引き継ぐ commit はこの票を含む commit（A3 凍結版。SHA は起動指示で渡す）。必要な権限: 文書の編集と git の commit・push（担当が別 host の場合）。Unity・資格情報・sandbox 外実行は不要。動作確認は `対象なし`（§5）なので、B の次は発見 C。停止規則は §2 と §4 の「Phase B から Phase A へ差し戻す条件」。引き渡さないもの: C' には §5.1 の A2 記録と C の所見を渡さない。
+- 引継ぎ票: 次は発見 C（レビュー担当）。動作確認は `対象なし`（§5）。対象は implementation base から implementation head までの文書の差分で、§4 の harvest 表の各行と移り先（§6 の対応表）、program へのリンクの向け直し、対象外の維持（`git diff --stat <base> <head>` が `docs/` と `unity/Assets/Docs/` の `.md` だけ）を照合する。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。発見 C は GO 判定と C' の起動をしない。判定 C は §5 の検証経路（AC1〜AC7 の検証 Play）と AC8 を GO 候補 head で実行する。必要な権限: 発見 C は文書の読みと git だけ（Unity・資格情報・sandbox 外実行は不要）。判定 C の実行担当は Unity Editor の起動・操作（`tools/unity-editor.cmd`）。snapshot・bundle は使わない（発注者の指示で Artifact Storage を使わない）。停止規則は §2 と §4（§4.2 を含む）。引き渡さないもの: C' には §5.1 の A2 記録と C の所見を渡さない。
 
 ## 1. 目的と対象外
 
@@ -254,11 +254,36 @@
 
 ## 6. Phase B 実装結果
 
-（未着手）
+- 担当: Claude Code（Anthropic）。
+- 変更は文書だけ（本 HANDOFF を除き 7 file、+72 / −11）。製品コード・テスト・Scene・asset・設定・asmdef は変えていない。`pwsh tools/docs-audit.ps1`（errors 0・warnings 0）と `pwsh tools/contract-audit.ps1`（errors 0・warnings 0）が成功。Editor のコンパイル確認は対象なし（C# の変更が無い）。
+- AC8 の grep（`git grep S-4_FULL_SPEC_WORLD_AUTHORING -- docs unity tools AGENTS.md`）は本 HANDOFF の 3 行だけ（program 自身は自分の名前を含まない）。
+- harvest の対応（§4 の表の行 → 移り先）:
+
+| program の節 | 移り先 | Phase B の扱い |
+|---|---|---|
+| §1 確定事項 | §05 §5.13 の「四季の SceneGraph（S-4）」、§24 §16.6 | 無かったもの（同じ AABB の共有、Environment は全 Cell・他の職種は必要な Cell だけ、職種の子は距離の候補にしない、PC 必須・Mobile の安全停止の製品判断）を足した。216 Cell・Spring 起動と spawn・Variant・Lighting の分割と代表 bake・生成器の撤去は §21・§24 §9.1・§04 §4.8・Streaming 現状仕様に既にあるので移していない |
+| §0 Phase A の判断基準 | BuildSystem program §7 の冒頭 | 主旨が無かったので 3 文で足した。checkout のルートの長さは数値を書かず path 予算（`tools/path-budget.json`、Harness README）を指した |
+| §2.1 SceneGraph、§2.2 職種の所有物 | §05 §5.13 | 四季の木（Tunnel は S-5 と書いた）と職種ごとの所有、VFX Scene に進行の trigger を置かない、Scene を跨ぐ参照の禁止を移した |
+| §2.3 Event Scene の粒度 | §05 §5.13 | 4 条件を移した |
+| §2.4 VFX の粒度と寿命 | §24 §16.6 | 「VFX の粒度と寿命」の項として移した |
+| §2.5 物理フォルダ | §27 §3.3・§3.4 | フォルダ例に `Spring_AtmosphereVFX/`・Cell (4,2) の職種 Scene・`Events/` の major Event を足し、§3.4 の対応に `Spring_Event_{slug}` を足した。Full / Whitebox の同名の規則も §3.3 へ移した |
+| §3.4 Role ごとに開く Scene の組 | §27 §6 | 表として移した（`WorldWorkspaceSelection` を読んで一致を確かめた） |
+| §3 の他、§3.1 の「Editor Play 向け publish 入口は未整備」 | 移さない | §18 にこの記述が無いことを確かめ、§18 は変えていない |
+| §6.1 VFX Graph | §24 §16.6 | 版と asmdef は既収録。PC 必須・Mobile の安全停止の製品判断と ParticleSystem fallback の延期を能力判定の項に足した |
+| §6.2 実証 Scene と 658 件 | Streaming 現状仕様の表 | 6 件の名前と 658 件を 1 行で足した（`Seasons/` 配下の `.unity` が 658 件であることを数えて確かめた） |
+| §6.4 VFX の責務配置 | §24 §16 の冒頭 | 既収録。無かった理由（CameraSystem との違い、Framework への移設は後で判断）を 1 文で足した |
+| §10 公開 API と依存 | §24 §16.1・§16.5 | 既収録を確かめただけ |
+| §6.3・§11・§12・§4・§5 | 移さない | 表どおり |
+
+- §24 §16.7 の「d1〜d5a では答えず」を「S-4d では答えず」に直した。
+- program へのリンク: `docs/README.md` の program の行をファイル名なしの「S-4 program」にして、残りは d5b、Phase D で削除、移り先を書いた。`SEASON_WORLD_DESIGN.md` の 3 箇所は Streaming 現状仕様と Architecture へ向け直し、S-4 の行の状態（d2〜d5 未着手）を現況に直した。
+- 新しい事実（分類: 後続スライス。凍結条件の違反ではなく、本スライスの対象 file の外なので変えていない）:
+  - Architecture §20 の冒頭・図・本文の 3 箇所が「Editor Play 向け publish 入口は未整備」のままで、BS5b-2 の検証 Play・From published directory と食い違う。
+  - Architecture §21 の「上図が現況」の段落が Scene payload を 652 と書き、S-4c〜d の 6 件（Streaming 現状仕様の 658 件）を含まない。
 
 ### 動作確認
 
-（未着手）
+`対象なし`（§5。全ての操作・実行時の条件が content build を含む検証 Play の上にあり、判定 C で実行する）。
 
 ## 7. Phase C
 

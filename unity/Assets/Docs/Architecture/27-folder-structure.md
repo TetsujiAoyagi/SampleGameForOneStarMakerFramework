@@ -152,10 +152,20 @@ SampleGame/
             ├── Materials/          ← 複数 Season / Cell が共有
             └── Spring/
                 ├── Spring_Lighting/
-                └── Cells/
-                    └── Spring_Cell_0_4/  ← この子だけが要るもの
-                          *.unity, Variants/, companion Scene…
+                ├── Spring_AtmosphereVFX/
+                ├── Cells/
+                │   └── Spring_Cell_4_2/  ← この子だけが要るもの
+                │       ├── Spring_Cell_4_2.unity
+                │       ├── Variants/Whitebox/Spring_Cell_4_2.unity
+                │       ├── Spring_Environment_4_2/Spring_Environment_4_2.unity
+                │       ├── Spring_Lighting_4_2/Spring_Lighting_4_2.unity
+                │       ├── Spring_VFX_4_2/Spring_VFX_4_2.unity
+                │       └── Spring_Events_4_2/Spring_Events_4_2.unity
+                └── Events/               ← Season 直下の major Event
+                    └── Spring_Event_MultiCellProof/Spring_Event_MultiCellProof.unity
 ```
+
+Full と Whitebox の payload は同じ Scene 名を使う（`Variants/Whitebox/` の下に同名の `.unity`）。Editor で Whitebox の Scene が既に開かれていても、`SceneManager.GetSceneByName(論理 identity)` が同じ論理 Scene として検出する。
 
 ### 3.4 SceneGraph との対応
 
@@ -167,7 +177,8 @@ SampleGame/
          ├─ Player                      ├─ PlayerScene/
          ├─ Season_Spring               ├─ Seasons/Spring/
          │    ├─ Spring_Lighting        │    ├─ Spring_Lighting/
-         │    └─ Spring_Cell_0_4        │    └─ Cells/Spring_Cell_0_4/
+         │    ├─ Spring_Cell_0_4        │    ├─ Cells/Spring_Cell_0_4/
+         │    └─ Spring_Event_{slug}    │    └─ Events/Spring_Event_{slug}/
          └─ InGameUI                    └─ InGameUI/
 ```
 
@@ -216,6 +227,16 @@ SampleGame/DependOnAll/Editor/WorldAuthoring/
 
 旧 bulk generator と `LegacyWorldAuthoringNames.cs` は S-4b の生成後に撤去済みであり、World Workspace の構成要素ではない。
 
+season・座標・Role を選んで開く Scene の組は次のとおり（正は `WorldWorkspaceSelection`）。Cell の payload は Planner と Level の Whitebox 指定で Whitebox、それ以外は Full。optional は存在するときだけ開く。
+
+| Role | 開く Scene |
+|---|---|
+| Level | Cell（Full または Whitebox） |
+| Environment | Cell + Environment |
+| Lighting | Cell + Environment + Season Lighting + optional の Cell Lighting |
+| VFX | Cell + Environment + Season Lighting + optional の Cell VFX |
+| Planner | Whitebox の Cell + optional の Cell Events |
+
 作成する companion の Scene / SceneResource は親 Cell フォルダへ同居させる（軸 B）。
 
 ```text
@@ -254,6 +275,7 @@ Editor open の途中で Unity API が失敗したときの完全復元は対象
 
 | 日付 | 内容 |
 |---|---|
+| 2026-11-03 | Season Atmosphere・Cell の職種 Scene・major Event のフォルダ例、Full / Whitebox の同名、World Workspace の Role ごとに開く Scene の組を追加（S-4 program の harvest） |
 | 2026-10-27 | World Workspace が Season Atmosphere VFX も作れる現況（S-4d3）と、無題の Scene からの作成の失敗を追加 |
 | 2026-09-23 | World Workspace は SceneGraph Editor / Layout を通らない現況を追加 |
 | 2026-09-09 | World Workspace の配置、Generate 投影、pending journal の調査手順を追加 |
