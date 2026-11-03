@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（最終判定 C 完了・blocker なし・GO 候補、2026-11-03。次は最終 C'）
+- status: `D`（最終 C' 完了・blocker なし、2026-11-03。次は Phase D）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
 - implementation head commit: `eb3df5fa`
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
 - evidence bundle の取得案内・状態: 確認済み（最終判定 C 用。HC2 の生証拠を加え、同じ implementation head から `evidence stage` で作り直した。`locality=local`、別 process の `fetch` で全 45 file を取得できた。生の事実だけで、所見を含まない。取得案内は最終判定 C の担当の手元の `handoff-guides`（git 管理外）。引渡し先は進行役。判定 C 時の旧 bundle は使わない）
 - C' blind bundle の取得案内・状態: 確認済み（最終 C' 用。`stage` と別 process の `fetch`（全 47 file）で確認、`locality=local`。凍結した A3 版 HANDOFF、所見を含まない Phase B の結果と動作確認の記述、判定 C と HC2 の生の事実、完全 diff だけで、発見 C・判定 C・最終判定 C の所見と結論、§8 の C' の記述、人間の裁定は含まない。取得案内は同じ場所、引渡し先は進行役）
-- 引継ぎ票: **最終判定 C 完了（2026-11-03）。blocker なし（§7「最終判定 C」）。次は最終 C'（進行役が起動する。判定 C の担当は起動しない）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。最終 C' の入力は上の C' blind bundle の取得案内だけにする（PR・可変 HANDOFF 全文を読ませない。最終 C' は、新しい生証拠 HC2 の全体と、暫定 C' 以降の差分（実装の差分はなく HANDOFF の記録だけ）を見る）。C' 用には発見 C・判定 C・最終判定 C の所見と、C' 自身の指摘以外の裁定を入れない。必要な権限: 取得案内の `fetch`（ローカル。network・資格情報を使わない）。Delivery 窓の設定ファイルは元の内容に戻した。
+- 引継ぎ票: **最終 C' 完了（2026-11-03）。blocker なし（§8「最終 C'」）。判定 C・最終判定 C・暫定 C'・最終 C' が揃った。次は Phase D。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: Phase D（判定 C と C' の突き合わせ、GO / NO-GO の判断、PR 作成（base `develop`）と状態ブロック、harvest（§0 の harvest 先。`BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md` の BS5b-2 行が「Phase B 待ち」のまま、§7 発見 C の後続移送）、Evidence の保存・取得確認と取得案内の引渡し（§0 の 2 つの bundle は `locality=local`）、HANDOFF の削除）。Phase D で決める事項: 区間の Error に入る `eval` timeout の行（AC17 (b) の 1 件、HC2 正例の 5 件）を App の Error と区別して読む決定記録（C' の残存リスク）。後続へ移送する指摘は §7 発見 C の M1〜M6 と後続移送、§8 の C'-1・C'-2・F1、最終判定 C の新しい事実（audio listener の Warning、停止後に install 先が空、publish 1 回目のメモリ不足）。必要な権限: push と PR 作成（公開点。発注者の確認の後）。
 
 ### PR 状態ブロック
 
@@ -484,7 +484,16 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 
 ### 最終 C'
 
-未着手
+- 種別: 最終（HC2 を含む）。2 巡目として、HC2 の生証拠の全体、前巡からの差分（implementation head は不変でコード差分なし）、前巡の指摘の解消を見た。
+- 入力: §0 の最終 C' blind bundle（進行役が固定 reference から別 process の `fetch` で取得し、package の hash 照合が通った）、暫定 C' と同じ implementation head のソースの写し、C' 自身の前巡の報告、決定記録（§8 暫定 C' の裁定、版 `0924499f`。C'-1・C'-2 の裁定だけ）。発見 C・判定 C の所見と結論は渡していない。
+- 担当・モデル・ベンダー: Grok 4.7 high（xAI、cursor-agent、新規セッション）、2026-11-03。独立性は暫定 C' と同じく**独立性制約あり**（理由は §8 暫定 C'）。
+- 現在の問いを阻害する指摘: なし。HC2 は §5 の観測の各項目で期待との差なし（負例は Start で拒否され install の行が無い。正例は identity が結果 file・`transport.json`・install 先・Play 中の環境・D5 の 1 行で一致、`Title` の `stable=True`、封鎖の 1 行、不一致 Warning なし、停止後の `SAMPLEGAME_*` と ledger は空）。
+- 前巡の指摘: 裁定（C'-1・C'-2 とも後続へ移送する minor）に異議なし。
+- 新しい指摘: blocker 0、minor 0、後続へ移送 1。
+  - F1: HC2 正例の Play 停止後に、既定 cache root の `installed/spring-full` が 0 件だという記録（`hc2/cache-after-positive.txt`）。凍結が要求する install の成功は停止前のログで満たし、I6 を破る削除経路は Editor の Play 経路に見当たらない。確認方法は install の直後と `EnteredEditMode` の直後の生の一覧。DIST の install の寿命を持つ後続の入力。
+- 残存リスク（C' の記述の要約）: 区間の Error 0 の読み（HC2 正例の 5 件と AC17 (b) の 1 件は、Play 停止の移行中や build 中に送った `eval` の Pipeline timeout で、決定記録で読みを固定すべき）。実効 config の生の戻り値と cache 一覧の生出力が bundle に無く、`observations.md` の転記である（identity・Stable・封鎖はログで足りる）。audio listener の Warning 7954 行と DebugSocket の接続 Warning は不一致 Warning ではない。前巡の残存リスクはコードが変わらないので残る。publish 1 回目のメモリ不足は環境の事実。
+- 監査できなかった範囲: Unity の再実行、`transport.json` の SHA-256 の再計算、`tools/path-budget.json` の数値（workspace に無い）、発行 process を止めた CIM の生出力、受け取り側の project path と SHA の生出力、`cfg.cs` の戻り値と開始前の環境の生 file、cache directory の生の一覧。
+- 判定 C との突き合わせ: Phase D で行う（C' 完了後に初めて行う規則）。
 
 ## 9. Phase D
 
