@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（発見 C 完了。判定 C 実行済みで結論は NO-GO（AC2 FAIL、§4.2 の製品の欠陥の疑い）。発注者の §4.2 (a) / (b) の裁定待ち。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
+- status: `D`（判定 C の結論は NO-GO（AC2 FAIL、原因未分類）。発注者が §4.2 の (b) を裁定した（§7.2 版 2）。C' は行わない。A3 凍結版は 2026-11-03 に発注者が §4.2 の合意を含めて凍結を承認した）
 - branch: `claude/s-4d5b-planner-proof`
 - implementation base commit: `fb97da0d`（`develop`、BS5b-2 のマージ後）
 - implementation head commit: `20fb7ae2`
@@ -16,7 +16,7 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 次は発注者の裁定（担当は発注者）。判定 C は GO 候補 head（implementation head `20fb7ae2`、判定時の HEAD `c2880c6d`）で実行済みで、**結論は NO-GO**: AC2 が FAIL（directory mode で rig が spawn に置かれず原点に留まり、`Player ready at Cell stream spawn` が出ない）。§4.2 により本スライスでは直さず停止する。発注者は (a) 修正を入れる Phase A の新しい revision、(b) 欠陥を後続スライスへ送り d5b を NO-GO で閉じる（§4.2 の引き渡し 4 点を Phase D で書いた後に限り program を削除）のどちらかを裁定する。判定 C の所見と生の証拠の保存先は §7.3。AC8 と機械検査は通っている。C' は起動しない（§4.2 の裁定前。判定の証拠が揃っていない）。program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF は Phase D まで削除しない。必要な権限: なし（判定 C の Editor は終了済み）。引き渡さないもの: C' には §5.1 の A2 記録と §7 の発見 C・判定 C の所見を渡さない（渡す生の証拠は §5「C' への渡し方」）。
+- 引継ぎ票: 次は Phase D（§4.2 の (b) の閉じ方）。判定 C は NO-GO（AC2 FAIL、§7.3）で、発注者が (b) を裁定した（§7.2 版 2）。C' は行わない（GO 候補が無い）。Phase D の担当は次を行う: (1) §4.2 の引き渡し 4 点（引き取る後続、未達の AC、観測した欠陥と一次証拠の所在、再検証の条件）を BuildSystem program の該当系列、または Architecture §18 §4「BuildSystem の後続」に書く。引き取る後続の文書名が決まっていなければ「未定」と書き、発注者の承認を得る。(2) §05 §5.13 に「Content Directory の Planner Play は未実証」と 1 文書く。(3) 判定 C の診断で得た事実（Whitebox の Cell と Events の load、local / major event の VFX の出現と回収。§7.3 の AC3〜AC7）を、実証ではなく診断として引き渡し先に書く。(4) `pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1` を通す。(5) (1)〜(3) を書いた後に限り、program（`docs/handoff/S-4_FULL_SPEC_WORLD_AUTHORING.md`）と本 HANDOFF を削除する。「S-4 の目的を達成した完了」とは書かない。一次証拠は `artifacts/s-4d5b-phase-c-verdict/`（git 管理外、`SHA256SUMS.txt` 付き）にあり、引き渡し先には所在と identity を書く。必要な権限: なし（Editor を使わない）。引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -87,7 +87,7 @@
 - 判定定義: GO は AC1〜AC8 が全て成り立つこと。NO-GO はいずれかが成り立たないこと。CONDITIONAL ACCEPT は使わない。NO-GO で閉じる場合の扱いは §4.2 の (b) に限る。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: §7.2（版 1、2026-11-03）
+- 決定記録: §7.2（版 1・版 2、2026-11-03）
 - 本文へ転記した実装制約:
   - **Phase A の判断基準（発注者、2026-10-27。program §0 から転記）。** 主目的は BuildSystem で、VFX（S-4d）はそのつなぎ込みの題材である。各案で、スライスの成果物が content build・Player build の経路に乗るかと、Build 側の既知の課題を踏むかを書く。Build 側の課題は「やらない」で片付けず、BuildSystem の作業の候補として扱う。残すコードは SampleGame に必要なものだけ。生成や authoring の道具は一時スクリプトで作り commit の前に消す案を既定にする。Player を build するスライスは checkout のルートを 96 文字以下にする（本スライスは Player を build しない）。
   - **program §6.2（転記）。** Planner Play は `content:representation=Whitebox` と `world:cellCompanionSet=Planner` を使い、実証対象の Events / VFX を含めた revision で、Environment をロードしない状態の local / major event 両方を実証する。
@@ -326,6 +326,7 @@
 ### 7.2 決定記録
 
 - **版 1（2026-11-03、発注者）。** §7.1 の発見 C は Phase B と同じモデル系列で行ったが、発注者はこれを発見 C として受け入れた。凍結条件の意味・合否は変えない。判定 C は B と異なるモデルで行う（§0 の引継ぎ票のまま）。C' には渡さない。
+- **版 2（2026-11-03、発注者）。** §7.3 の NO-GO に対し、§4.2 の (b) を裁定した。d5b は NO-GO（Planner 実証未達）で閉じ、directory mode で rig が spawn に置かれない問題は後続スライスへ送る。凍結条件は変えない（§1 の対象外 26 行目・81 行目、§4 の BuildSystem との関係 156 行目のとおりの扱い）。理由: (a) は対象外の製品コードの修正をこのスライスに入れ、原因が未分類のまま A2 から計画をやり直すことになり、最初の作業は後続スライスと同じ切り分けになる。後続スライスの最初の作業は directory mode と Addressables mode の通常 Play の比較とし、受け入れ条件に d5b の AC2〜AC7 を含めることを推奨とする（推奨であり、凍結条件ではない）。C' は行わない。
 
 ### 7.3 判定 C
 
@@ -357,7 +358,7 @@
 
 ## 8. Phase C'
 
-（未着手）
+行わない。判定 C が NO-GO で GO 候補が無く、発注者が §4.2 の (b) を裁定した（§7.2 版 2）。
 
 ## 9. Phase D
 
