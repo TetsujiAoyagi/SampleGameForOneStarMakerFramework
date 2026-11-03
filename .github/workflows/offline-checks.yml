@@ -1,0 +1,91 @@
+name: Offline checks
+
+# Unity を起動せずに閉じる検査だけを PR ごとに回す。
+# Unity の EditMode テストはライセンスと Editor が要るため、ここには含めない
+# （判定は従来どおり pwsh tools/run-tests.ps1 で行う）。
+on:
+  # PR ブランチへの push で push と pull_request が二重起動しないよう、
+  # push は統合先ブランチのみに限定する（検証は pull_request 側）。
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+# どの job も checkout して読むだけなので、GITHUB_TOKEN は読み取りに絞る。
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # contract-audit の検査1 は基点からの差分を見るので履歴が要る。
+          fetch-depth: 0
+      # 検査9（path 予算）と docs-audit はリポジトリ全体を対象にする。
+      # 検査1 の基点は、pull_request ではその PR の base、統合先への push では push 前の head。
+      # push で統合先を基点にすると HEAD 自身との差分になり、検査1 が 0 件になる。
+      # base が develop かどうかはここでは判定しない（contract-audit と同じく GitHub 側の属性として扱う）。
+      - name: Contract audit
+        env:
+          BASE_REF: ${{ github.event_name == 'push' && github.event.before || format('origin/{0}', github.base_ref) }}
+        run: pwsh -NoProfile -File ./tools/contract-audit.ps1 -BaseRef $env:BASE_REF
+      - name: Docs audit
+        run: pwsh -NoProfile -File ./tools/docs-audit.ps1
+
+  harness-tests:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      # fixture が一時 Git に commit するため、runner に identity を与える。
+      - name: Configure git identity
+        run: |
+          git config --global user.name 'ci'
+          git config --global user.email 'ci@example.invalid'
+      # GitHub の pwsh step は最後に $LASTEXITCODE で exit する。テストは子 process の
+      # 期待どおりの exit 1 を残したまま正常終了することがあるので、ローカルと同じく
+      # -File で起動して script 自身の終了コードだけを判定に使う。
+      # unity-editor.tests.ps1 はローカルの Unity CLI を前提にするので含めない。
+      # Harness.Tests.ps1 も含めない。子 pwsh の出力を CultureInfo の OEM code page で
+      # 読むため、OEM 437 の hosted runner では Unicode 往復の case が必ず落ちる
+      # （LocalChecks.psm1 の Invoke-Process）。採取側を直すまでローカルで回す。
+      - name: Contract audit tests
+        run: pwsh -NoProfile -File ./tools/contract-audit.tests.ps1
+      - name: Unity gate offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityGate.Tests.ps1
+      - name: Unity observation offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityObservation.Tests.ps1
+      - name: Unity runner offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/UnityTestRunner.Tests.ps1
+
+  dotnet-offline-tests:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - DebugCommandOfflineTests
+          - InputSystemOfflineTests
+          - ScriptCommandOfflineTests
+          - SoundSystemOfflineTests
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run ${{ matrix.project }}
+        run: dotnet run -c Release --project tools/${{ matrix.project }}/${{ matrix.project }}.csproj
