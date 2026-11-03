@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（発見 C 完了・差し戻しなし、2026-11-03。次は判定 C）
+- status: `C`（判定 C 完了・blocker なし・GO 候補、2026-11-03。次は進行役の暫定 C' 起動）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
 - implementation head commit: `eb3df5fa`
@@ -17,9 +17,9 @@
 - workflow task: 未 start
 - Phase A snapshot の取得案内・状態: 生成しない（A3 凍結版に添える機械向けの期待値・照合 script が無い。§5）
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
-- evidence bundle の取得案内・状態: 未到達
-- C' blind bundle の取得案内・状態: 未到達
-- 引継ぎ票: **発見 C 完了（2026-11-03）。blocker なし、B への差し戻しなし。次は判定 C。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: 判定 C（GO 候補 head は implementation head。B の実装は 1 commit で、履歴の整理は不要）。§5 の判定必須テスト（最終の全 EditMode 回帰、空 filter、`pwsh tools/run-tests.ps1`）と `pwsh tools/contract-audit.ps1`、§5 の AC17 (a)〜(e) を記録の表の形で取る（(a)(c)(d)(e) は動作確認で経路が成立済み、(b) は content build を伴う）。§7「発見 C」の判定 C への申し送りを読む。高コスト証拠 HC2 はこの段では取らない（順序は判定 C → 暫定 C' → HC2 → 最終判定 C と最終 C'）。判定 C の判定証拠が揃ったら、判定 C と C' 用の evidence bundle と C' blind bundle を同じ commit から作り、取得案内の所在を上の欄に書く（C' 用には発見 C・判定 C の所見を入れない）。C' の起動は判定 C の担当ではなく進行役が行う。必要な権限: Unity Editor の起動と `eval` 操作、Unity テストの実行、content build。Play への移行中の `eval` timeout が Console の Error として区間に入る点は §6「動作確認」の末尾。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
+- evidence bundle の取得案内・状態: 確認済み（`evidence stage` でローカル固定、`locality=local`、別 process の `fetch` で全 file を取得できた。判定 C の生の事実だけで、所見を含まない。取得案内は担当の手元の `handoff-guides`（git 管理外）。引渡し先は進行役）
+- C' blind bundle の取得案内・状態: 確認済み（同じく `stage` と別 process の `fetch` で確認、`locality=local`。判定 C の生の事実、凍結した A3 版 HANDOFF、所見を含まない Phase B の結果と動作確認の記述だけで、発見 C・判定 C の所見・結論は含まない。取得案内は同じ場所、引渡し先は進行役。HC2 は未取得なので暫定 C' 用）
+- 引継ぎ票: **判定 C 完了（2026-11-03）。blocker なし、GO 候補（高コスト証拠 HC2 は未取得）。自然終了の確認なしを発注者が承認済み（§7）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: 進行役が暫定 C' を起動する（C' には上の C' blind bundle の取得案内だけを渡す。発見 C・判定 C の所見、この票、HANDOFF 全文は渡さない）→ 暫定 C' の阻害指摘が無ければ HC2（§5）→ 最終判定 C と最終 C'（HC2 を加えた bundle を同じ規則で生成し直す）。必要な権限: HC2 は Unity Editor の起動と `eval`、batch の起動（別 worktree）、Unity テストの再実行は不要。
 
 ### PR 状態ブロック
 
@@ -420,7 +420,30 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 
 ### 判定 C
 
-未着手
+- 種別: 判定。対象: implementation head `eb3df5fa`（base `cad03983`、23 files、+2047 / −106）。HEAD は記録 commit で、HANDOFF だけが差分（確認済み）。担当・モデル・ベンダー: Claude Sonnet 5.5（Anthropic）、2026-11-03。B と別モデル。発見 C とも別 session。
+- evidence bundle: 取得案内の所在は §0。内容: 完全 diff・stat・name-status、AC17 の run ごとの Editor.log 区間と `observations.md`、`artifacts/bs2b/` の前後一覧、全 EditMode の `results.xml`・`step.json`・`unity.log`、Inconclusive の一覧、contract-audit の出力。C' blind bundle は同じ生の事実に A3 凍結版 HANDOFF と所見を含まない Phase B 結果を足したもの。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors=0 warnings=0（検査 1〜9、検査 8 は not-applicable）。
+- **判定必須テスト（最終の全 EditMode 回帰、空 filter）:** `pwsh tools/run-tests.ps1`（Unity 6000.6.0f1、`-nographics`、EditMode、1 回）。`results.xml`: total 1643、passed 1618、**failed 0**、skipped 0、**inconclusive 25**、2026-11-03 02:42:41Z〜02:58:26Z（duration 945 s）。BS3 / BS4 / BS5b-1 の既存テスト（`ContentDirectorySessionTests`、`BuildContentDirectoryIntegrationTests`、`PlayerContentConfigurationTests`、`ContentDeliveryFailureMatrixTests`）と本スライスの新規テストは failed に含まれない（XML の件数は上の total に収録）。
+  - inconclusive 25 件は全て `SampleGame.Tests.Rendering.Vfx.*`（VFX Graph の実 backend / 描画のテスト）で、理由は `-nographics` の環境で `No graphics device (GraphicsDeviceType.Null)`（VFX Graph を有効にできない）。名前の一覧は bundle の `tests/inconclusive-list.txt`。このスライスの差分（`cad03983..eb3df5fa`）は `unity/Assets/SampleGame/Tests/Rendering` を変えていない。過去の実行で同じ 25 件が inconclusive だったかの記録は確認していない（既知か新規かは、本スライスの変更に起因しないことまでを確認）。runner の `step.json` は `status=failed`・`failure=[Inconclusive のテストがあります]`（runner が inconclusive を失敗扱いにするため。failed は 0）。
+  - **自然終了の確認なし:** Unity（PID 42440、11:40 起動）は `results.xml` と `unity.log` の書き込み（11:58）の後も終了せず、`tasklist` の CPU 時間が 20 秒で約 20 秒増える（0:47:47 → 0:48:07）状態が 12:40 過ぎまで続いた。既知の native 終了 stall と同じ症状で、規則（`tools/Harness/README.md`）どおり原因調査と再実行はしていない。進行役の `taskkill` は「実行中のインスタンスがありません」で止められなかった。その後、担当が `Win32_Process.Terminate`（CIM）をこの PID（`run-tests.ps1` の子、このスライスの worktree の project）にだけ 1 回送り、`run-tests.ps1` が終了した。つまり終了は強制で、`step.json` の `process.exitCode=0`・`endedAt` は強制終了後の値（自然終了の証拠ではない）。強制終了した取得を成功証拠にはしない。結果の根拠は完成した `results.xml`（件数と時刻）だけである。**発注者は、この全 EditMode の結果（1643 件、failed 0、自然終了の確認なし）を判定 C の証拠として認めた（2026-11-03、「認めます」）。**
+- **AC17（記録の表の形。run の詳細は bundle の `ac17/observations.md` と区間のログ）:** 初期状態は全 run 共通で、Play でなく、compile error 無し、`SAMPLEGAME_*` の process 環境無し、ledger 空、コマンドラインに `--` 引数無し、Variant profile 未選択、Addressables の Play Mode は `BuildScriptFastMode`。Delivery 窓の設定 `cacheRoot` は元の値（別の evidence の directory）で、既定の cache root を使うため run の間だけ空にし、終わりに元の file へ戻した（git 管理外の `UserSettings`）。
+
+| run | 操作（開始 Scene） | 観測 | 期待との差 |
+|---|---|---|---|
+| run-a（(a)） | Play As `spring-planner-whitebox`（`OutGameScene`） | 起動後の実効 config: `content:runtimeMode='addressables'`、`assets:sceneVariant='Whitebox'`、`world:cellCompanionSet='Planner'`。停止後の 8 key（content の 5 key・`ASSETS__SCENEVARIANT`・`WORLD__CELLCOMPANIONSET`・`CONTENT__FIRSTSCENE`）は全て `null`、ledger 空。区間: Error 1（`eval` timeout）、Warning 1（DebugSocket 接続） | なし |
+| run-e（(e)） | Play As `spring-full`（`OutGameScene`） | 実効 config: `assets:sceneVariant` は key があり値 `''`、`world:cellCompanionSet='Full'`、mode `addressables`。Play 中の環境に `SAMPLEGAME_ASSETS__SCENEVARIANT` 無し。停止後の 8 key は全て `null`、ledger 空。区間: Error 2（`eval` timeout 2 件）、Warning 1 | なし |
+| run-c（(c)） | Verify Play `spring-full`（`Spring_Cell_0_4`） | `Rejected at Start: Open scenes that startup would reuse …Spring_Cell_0_4.unity`。`artifacts/bs2b/` の `reports`・`content`・`transport`・`staging` の前後の一覧に差なし（新しい identity 無し）。前後の環境は 8 key とも `null`。区間: Error 1（この拒否のログ）、Warning 0 | なし |
+| run-d（(d)） | Verify Play `spring-full`（`Summer_Cell_0_0`） | `Rejected at Start: … Summer_Cell_0_0.unity`。`artifacts/bs2b/` の前後の一覧に差なし。環境は前後とも `null`。区間: Error 1（拒否のログ）、Warning 0 | なし |
+| run-b（(b)） | Verify Play `spring-full`（untitled の空 Scene） | build・publish・install 完了、identity `20261103T023205631Z-6acc727b55b141e79305887de9146c0a`、published `artifacts/bs2b/transport/<identity>`（`transport.json` あり）、installed `<LocalApplicationData>\OSM\ContentCache\installed\spring-full\<identity>`（cache root は既定）。ログ `[AppInit] Content directory mode: Addressables backend sealed …`（封鎖の 1 行）と `[AppInit] Editor content directory first scene: scene=Title identity=<identity> stable=True`。実効 config: `content:runtimeMode='directory'`、`content:firstScene='Title'`、`content:representation='Full'`、`assets:sceneVariant=''`、`world:cellCompanionSet='Full'`、`content:buildIdentity` が上の identity。宣言の不一致 Warning 無し。停止後の 8 key は全て `null`、ledger 空。区間: Error 1（build 中に送った `eval` の timeout。App の Error ではない）、Warning 2（DebugSocket 接続、Pipeline の RuntimePipelineConfig 無し） | なし |
+
+  - 区間の Error は、`eval` の timeout（Pipeline の `Failed to handle /api/exec request`）と、拒否の run の拒否ログ（意図した LogError）だけで、App の起動・Scene のロードの Error は無い。区間の `Debug.Log*` 以外の plain な行として、Burst の `Unexpected error in Burst compilation … unity-burst-… pipe`（Burst compiler server の pipe）が run-b の区間と、どの run より前の Editor 起動時の両方にある。このスライスの変更とは無関係の環境の事象と読んだが、未調査。
+  - 自分で起動した Editor は、未保存の変更（`isDirty` 偽）を確かめて `EditorApplication.Exit(0)` で閉じ、プロセスの消滅を確認した。`MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout` で戻した（2 回: Editor 起動後と、テストの Unity 起動後）。
+- 構造・契約: 発見 C の結論を変える事実なし（判定 C で実装の変更なし）。
+- 現在の問いを阻害する指摘: なし。凍結条件 I1〜I3・I5〜I7、E1・E2・E5・E7 のうち、AC1〜AC9・AC15・AC19・AC20（全 EditMode 回帰）、AC17 (a)〜(e)（上の表）に不成立なし。HC2（AC15 の実機受け取り）は高コスト証拠で未取得（§5 の順序）。
+- 後続へ移送する指摘: 発見 C の minor M1〜M6 と後続の入力はそのまま。判定 C で新規には出していない。
+- 判定 C で扱わなかったもの: 発見 C の M2 の AC8 の負例（初回 Scene のロード失敗で fallback しない）の 1 回の Play は、凍結した検証経路に無いので取っていない（扱うなら HC2 の install 済み directory で行う。判断は進行役）。
+- 未確認事項: (1) 全 EditMode の Unity process の自然終了（上記。発注者承認済み）。(2) inconclusive 25 件が過去にも同じだったか。(3) Burst の pipe 行の原因。(4) HC2（暫定 C' の後）。
+- 結論: 判定 C は完了（blocker なし）。GO 候補。ただし GO の最終判定は HC2 を加えた最終判定 C と最終 C' の後。
 
 ## 8. Phase C'
 
