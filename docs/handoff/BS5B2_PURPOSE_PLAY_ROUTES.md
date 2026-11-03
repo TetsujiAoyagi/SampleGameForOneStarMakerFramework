@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（判定 C 完了・blocker なし・GO 候補、2026-11-03。次は進行役の暫定 C' 起動）
+- status: `C'`（暫定 C' 完了・blocker なし、2026-11-03。次は HC2）
 - branch: `claude/bs5b2-purpose-play-routes`
 - implementation base commit: `cad03983`
 - implementation head commit: `eb3df5fa`
@@ -19,7 +19,7 @@
 - Phase B result snapshot の取得案内・状態: 生成しない（実装と §6 は引き継ぐ commit にあり、添える機械向けの期待値・照合 script が無い）
 - evidence bundle の取得案内・状態: 確認済み（`evidence stage` でローカル固定、`locality=local`、別 process の `fetch` で全 file を取得できた。判定 C の生の事実だけで、所見を含まない。取得案内は担当の手元の `handoff-guides`（git 管理外）。引渡し先は進行役）
 - C' blind bundle の取得案内・状態: 確認済み（同じく `stage` と別 process の `fetch` で確認、`locality=local`。判定 C の生の事実、凍結した A3 版 HANDOFF、所見を含まない Phase B の結果と動作確認の記述だけで、発見 C・判定 C の所見・結論は含まない。取得案内は同じ場所、引渡し先は進行役。HC2 は未取得なので暫定 C' 用）
-- 引継ぎ票: **判定 C 完了（2026-11-03）。blocker なし、GO 候補（高コスト証拠 HC2 は未取得）。自然終了の確認なしを発注者が承認済み（§7）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。次の作業: 進行役が暫定 C' を起動する（C' には上の C' blind bundle の取得案内だけを渡す。発見 C・判定 C の所見、この票、HANDOFF 全文は渡さない）→ 暫定 C' の阻害指摘が無ければ HC2（§5）→ 最終判定 C と最終 C'（HC2 を加えた bundle を同じ規則で生成し直す）。必要な権限: HC2 は Unity Editor の起動と `eval`、batch の起動（別 worktree）、Unity テストの再実行は不要。
+- 引継ぎ票: **暫定 C' 完了（2026-11-03）。blocker なし（§8）。次は HC2（高コスト証拠）。** 凍結した Phase A は revision 3（A3 凍結版 `c6dc8546`）。implementation base / head は上の欄を正とする（この記録 commit は HANDOFF だけを変え、head を動かさない）。引き継ぐ commit はこの票を含む commit（SHA は起動指示で渡す）。判定 C は完了・GO 候補（§7「判定 C」）。全 EditMode の Unity の自然終了の確認なしは発注者が承認済み（§7）。次の作業: 判定 C の実行担当が §5「高コスト証拠」HC2 を GO 候補 head（implementation head）で取る（発行側の新しい detached worktree A で BS5b-1 の batch publish、受け取り側はこの worktree の Editor の From published directory。負例を先に 1 回、次に正例。記録の項目は AC17 (b) と同じ）。publish の完了は結果 file と `transport.json` で判定し、Unity process の終了を待たない。終了しない process は今回起動した PID だけを確かめて止め、事実を記録する（原因は調べない）。HC2 の後は最終判定 C（HC2 を加えた固定 bundle で判定。evidence bundle と C' blind bundle を同じ commit から作り直す）。最終 C' の起動は進行役が行い、判定 C の担当は起動しない。C' 用には発見 C・判定 C の所見と、C' 自身の指摘以外の裁定を入れない。必要な権限: Unity Editor の起動と `eval` 操作、batch の publish、worktree の作成と削除。Play への移行中の `eval` timeout が Console の Error として区間に入る点は §6「動作確認」の末尾。Editor を開くと消える `MobileDependencyResolver` の `.pdb.meta` 5 件は実装の差分ではない（§6）。
 
 ### PR 状態ブロック
 
@@ -446,6 +446,22 @@ Planner 宣言の Event・Environment の観測を AC に入れない（AC17 (a)
 - 結論: 判定 C は完了（blocker なし）。GO 候補。ただし GO の最終判定は HC2 を加えた最終判定 C と最終 C' の後。
 
 ## 8. Phase C'
+
+### 暫定 C'（1 巡目）
+
+- 種別: 暫定（高コスト証拠 HC2 を含まない）。HC2 の後に最終 C' を行う。
+- 入力: §0 の C' blind bundle（進行役が固定 reference から別 process の `fetch` で取得し、package の hash 照合が通った）と、implementation head の製品コード・テスト・asmdef と AGENTS.md・依存図・architecture-gates・phases-and-handoff の写し（`.cs` / `.asmdef` / `.md` だけ。可変な HANDOFF と所見は含まない）。可変な作業ツリーと PR は入力にしていない。
+- 担当・モデル・ベンダー: Grok 4.7 high（xAI、cursor-agent、新規セッション）、2026-11-03。
+- 独立性: 最低条件（B・C と異なるモデル、新規セッション、blind bundle）は満たす。**独立性制約あり**: xAI（Grok）は Phase A の A2（revision 1 の R1、revision 2 の差分レビュー）に関与している。予約していた OpenAI（Codex）は利用上限で 2026-11-04 22:42 まで使えず、発注者が待たずに別モデルにすると判断した（2026-11-03）。Google 系の経路は無い。残存リスク: A2 で見た計画の読みに監査がアンカリングされうる。
+- 現在の問いを阻害する指摘: なし（I1〜I3・I5〜I7、E1・E2・E5・E7、AC1〜AC9・AC15・AC17・AC19・AC20 に違反の一次証拠なし）。
+- minor:
+  - C'-1: AC2 の 2 つの拒否の枝（profile が `""` を含めて選ばれている、Addressables の Play Mode が `BuildScriptFastMode` でない）を呼ぶテストが無く、枝を消しても EditMode と AC17 が通る（`PlayAsLauncher.cs:127-128`、`:167-173`）。実装は AC2 の文と一致する。修正先の見込みは B 適応（テストの追加）。
+  - C'-2: `SampleGameBuildPurposes.FirstSceneOf`（`:58`）が `public` で、§3 の公開面（internal）より広い。呼び出し元は同じ asmdef、テストは `InternalsVisibleTo` で届く。修正先の見込みは B 適応（internal にする）。
+- 残存リスク（C' の記述の要約）: AC17 (b) の区間の Error 1 件は build 中の `eval` timeout の行で、App の Error ではない（読み方は決定記録で固定できる）。AC8 の失敗経路（初回 Scene のロード失敗）は注入テストが無い。inconclusive 25 件は全て VFX の `-nographics` 由来で、runner の step は inconclusive を失敗にする。`CompareDeclaration`（`VerifyPlayLauncher.cs:302-306`）は記録側の重複 key と手元の別 key の欠落の組を通す（今の宣言の形では起きない）。`EnterPlaymode` がフラグを立てた後に例外を出すと、Reset が投げて idle の戻しを待つ。`unity/Assets/README.md` の依存図に `SampleGame.DependOnAll.Editor` の出力辺が無い（既存）。窓の `OnDisable` の取り消しは EditMode が無い。
+- 監査できなかった範囲: HC2、Unity の再実行・Play の再操作、menu の dialog の実クリック、Play 中の domain reload、`unity.log` の全文。
+- C' 自身の指摘への裁定（最終 C' に渡す決定記録）: 未定（発注者）。
+
+### 最終 C'
 
 未着手
 
