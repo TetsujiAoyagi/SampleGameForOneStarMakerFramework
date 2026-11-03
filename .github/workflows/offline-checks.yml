@@ -1,0 +1,78 @@
+name: Offline checks
+
+# Unity を起動せずに閉じる検査だけを PR ごとに回す。
+# Unity の EditMode テストはライセンスと Editor が要るため、ここには含めない
+# （判定は従来どおり pwsh tools/run-tests.ps1 で行う）。
+on:
+  # PR ブランチへの push で push と pull_request が二重起動しないよう、
+  # push は統合先ブランチのみに限定する（検証は pull_request 側）。
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # contract-audit の検査1 は origin/develop からの差分を見るので履歴が要る。
+          fetch-depth: 0
+      # 検査9（path 予算）と docs-audit はリポジトリ全体を対象にする。
+      - name: Contract audit
+        run: ./tools/contract-audit.ps1 -BaseRef origin/develop
+      - name: Docs audit
+        run: ./tools/docs-audit.ps1
+
+  harness-tests:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      # fixture が一時 Git に commit するため、runner に identity を与える。
+      - name: Configure git identity
+        run: |
+          git config --global user.name 'ci'
+          git config --global user.email 'ci@example.invalid'
+      # unity-editor.tests.ps1 はローカルの Unity CLI を前提にするので含めない。
+      - name: Contract audit tests
+        run: ./tools/contract-audit.tests.ps1
+      - name: Harness tests
+        run: ./tools/Harness/tests/Harness.Tests.ps1
+      - name: Unity gate offline tests
+        run: ./tools/Harness/tests/UnityGate.Tests.ps1
+      - name: Unity observation offline tests
+        run: ./tools/Harness/tests/UnityObservation.Tests.ps1
+      - name: Unity runner offline tests
+        run: ./tools/Harness/tests/UnityTestRunner.Tests.ps1
+
+  dotnet-offline-tests:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - DebugCommandOfflineTests
+          - InputSystemOfflineTests
+          - ScriptCommandOfflineTests
+          - SoundSystemOfflineTests
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run ${{ matrix.project }}
+        run: dotnet run -c Release --project tools/${{ matrix.project }}/${{ matrix.project }}.csproj
