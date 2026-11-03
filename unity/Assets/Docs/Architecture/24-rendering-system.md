@@ -370,7 +370,7 @@ D-1（ホット/コールド分離）・D-5（Handle API）・D-6（2 経路）�
 
 ## 16. VFX 抽象
 
-VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a、Cell Events の trigger から起動する VFX の実例は S-4d4b、Season 直下の major Event の `Scene(id)` 所有の VFX の実例は S-4d5a）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
+VFX の寿命、非対応環境での停止、例外の隔離、時間の領域への追従を、VFX 実装の型に依存しない Framework の契約として保証する（S-4d1、時間の領域と配置済み VFX の登録は S-4d4a、Cell Events の trigger から起動する VFX の実例は S-4d4b、Season 直下の major Event の `Scene(id)` 所有の VFX の実例は S-4d5a）。実装は `unity/Assets/OneStarMaker/Scripts/Runtime/Rendering/Vfx/`（namespace `OneStarMaker.Runtime.Rendering.Vfx`、asmdef `OneStarMaker.Runtime`）。VFX Graph に依存する backend は SampleGame に置き（S-4d2）、Framework に VFX Graph の型と asmdef 参照を持ち込まない。CameraSystem は Cinemachine の backend を Framework 内に置くが、VFX Graph は URP と Mobile の制約が残るので Framework に依存を持たせない。Framework へ移すかは backend が育った後に別に判断する。同時数の上限・優先度・間引き・pool / prewarm・DebugStudio 観測は、必要になったスライスで決める。
 
 ### 16.1 公開型と配置
 
@@ -463,7 +463,7 @@ handle の状態は `Created` → `Playing` → `Stopping`（消え切り待ち�
 
 VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `unity/Assets/SampleGame/Common/Scripts/Rendering/Vfx/`（namespace `SampleGame.Common.Rendering.Vfx`）に置く。asmdef は engine module の `UnityEngine.VFX` だけで足り、参照を増やしていない。
 
-- **能力判定（`VfxGraphCapabilityPolicy`）。** platform の事実だけを読む純粋な規則で、compute 対応・頂点 shader の SSBO 対応・Linear color space・graphics device が拒否リスト（OpenGL ES 等）に無い、の全てで対応とする。platform 名は見ない。VFX Graph の実行要件をそのまま規則にしたもので、個々の端末での動作保証ではない。
+- **能力判定（`VfxGraphCapabilityPolicy`）。** platform の事実だけを読む純粋な規則で、compute 対応・頂点 shader の SSBO 対応・Linear color space・graphics device が拒否リスト（OpenGL ES 等）に無い、の全てで対応とする。platform 名は見ない。VFX Graph の実行要件をそのまま規則にしたもので、個々の端末での動作保証ではない。製品の判断として、PC の Quality では描画を必須の受け入れとし、Mobile では非対応のときに安全に止める（`VisualEffect` を有効にせず、代替の描画もしない）。非対応環境の ParticleSystem fallback は作っていない。要否・契約・実装は後続の独立スライスで決める（担当・時期は未定）。
 - **配置済み VFX（`PlacedVfxActivator`）。** Scene・Prefab に置く `VisualEffect` は無効で保存し、同じ GameObject に marker の `PlacedVfxActivator` を置く。marker は有効化しない（`Awake` は何もしない）。公開面は `Component Effect`（同じ go の `VisualEffect`）と時間の宣言（既定 gameplay、serialized の unscaled 指定）で、InGame は `VisualEffect` 型を使わずに `Adopt(marker.Effect, …)` を呼ぶ。有効化（= 初期イベントによる自動再生）は `VfxSystem` が最初の止まっていない反映点で backend `Play` として届ける。非対応環境では `Adopt` が backend を呼ばないので 1 つも有効化しない。
 - **再生状態の換算（`SetPlayback`）。** `pause` はそのまま、`playRate = rate × u ÷ min(u, VFXManager.maxDeltaTime)`（u = `Time.unscaledDeltaTime`）。u か上限が 0・負・NaN・∞ のフレームは playRate を前回の値のままにする（pause は書く）。`Adopt` は component の `pause = false`・`playRate = 1` を書き、契約の初期状態（止まっていない、倍率 1）に揃える（前の登録で書いた pause が残っていると、同じ component を登録し直したときに `SetPlayback` が呼ばれず止まったまま有効化される）。
 - **VFX Graph の 1 フレームの上限を揃える（`VfxGraphMaxDeltaTimeAlignment`）。** VFX Graph の 1 フレームの進みは `min(u, VFXManager.maxDeltaTime) × playRate`、Unity の `Time.deltaTime` は `min(u, Time.maximumDeltaTime) × Time.timeScale`（頭打ちは timeScale を掛ける前）。上限が食い違うと、その間のフレームで Framework の rate が変わらず換算が書き直されない。そこで backend は、対応と判定した最初の `QueryCapability` で 1 回だけ `VFXManager.maxDeltaTime` に実行時の `Time.maximumDeltaTime` を写す。書き換えはプロセス全体で参照を数え（最初の backend が元の値を保存し、最後の Dispose が戻す）、`Application.quitting` では数に関係なく戻す。project 設定（`VFXManager.asset`）は変えず、ProjectSettings に残さない。`VFXManager.maxDeltaTime` はプロセス内の全ての `VisualEffect`（`VfxSystem` の外のものも含む）に効く。**時間の一致は `Time.maximumDeltaTime` を backend の生成より前に決め、実行中に変えないことを前提にする**（変えると VFX の上限は古い値のまま）。
@@ -472,6 +472,7 @@ VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `uni
 - **`Destroy` は同期に止める。** id を対応表から先に外し、GameObject が残っていれば `VisualEffect.enabled = false`・`visualEffectAsset = null`・非 active 化を同期に行ってから `Object.Destroy` する。`DestroyImmediate` は `Bind` 所有者の破棄中に失敗しうるので使わない。
 - **粒子の有無。** Play の後は `HasAnySystemAwake() || aliveParticleCount > 0`。`aliveParticleCount` は GPU からの非同期の読み戻しで遅れるので単独では使わず、誤判定は回収を遅らせる側に倒して timeout が上限を保証する。id は backend の生涯で単調増加し、再利用しない。
 - **描画の確かめ方（テスト）。** batch の Editor では Game view が無いので、明示の `camera.Render()` と `ReadPixels` で画素を数える。起動したばかりの Editor の process では、通常の描画ループが一度も VFX を描いていないと明示の描画にも粒子が入らないため、計測の前に別のカメラと instance で一度描かせ、両方を壊してから計測する。graphics なし（`-nographics`）では Play 中のテストが Inconclusive になるので、VFX の判定には `run-tests.ps1 -WithGraphics` を使う。
+- **VFX の粒度と寿命。** Cell の常駐中ずっと要る複数のエフェクトは 1 Cell 1 VFX Scene（`{Season}_VFX_{x}_{y}`）に束ね、季節全域のエフェクトは Season Atmosphere VFX に置く。ヒット・破裂・短い演出などの一時的な VFX は Scene にせず `.vfx`（または prefab）にし、`IAssetManagement` でロードして、`AssetOwner.Scene(Event の identity)` か `AssetOwner.Bind(go)` で寿命を宣言する（実例は §16.9・§16.10）。
 - **Scene に置く VFX（Season Atmosphere・Cell VFX）。** 季節全域の常時エフェクトは Season 直下の `{Season}_AtmosphereVFX`、Cell の常駐中ずっと続くエフェクトは Cell の職種 child `{Season}_VFX_{x}_{y}` の別 Scene に置く（分類と LoadType は [§5.13](05-scene.md#513-cell-と職種-companion-の分類)）。配置済みの `VisualEffect` は、その Scene の class（`CellCompanionScene` / `SeasonAtmosphereVfxScene`）が `OnInitialize` で root から marker を集め（InGame の internal `PlacedVfxAdopter`。role は見ない）、配置した Scene の `Scene(id)` 所有で `Adopt` する。回収は `PreUnloading` で、`VisualEffect` がまだ破棄されていない時点に無効化だけを行う。`.vfx` は Scene と同じフォルダに置く。各 System の bounds は Manual・Local 空間で、Cell VFX の描画 bounds は親 Cell の `_volume` の内側に収める。Scene に Collider、ゲーム進行の trigger、カメラ追従の script を置かない。
 - **culling。** Scene に常駐する環境エフェクトの `.vfx` は culling を `CullNone`（常に simulate）にする。template の既定（`CullDefault`）はカメラから見えている間しか simulate しないので、カメラが向いていない間は粒子が空のままで、向いたときに出直す。カメラの無い Play のテストでは粒子が出ない。画面外でも simulate するコストは §16.7 の S-9 の項目。
 - **authoring の検査（`PlacedVfxAuthoringTests`）。** `Seasons/` 配下で `.vfx` に依存する Scene と、Season Atmosphere・Cell VFX の必須 Scene の全ての `VisualEffect`（非 active の GameObject のものを含む）が、無効で保存され、同じ GameObject に `PlacedVfxActivator` を持ち、`visualEffectAsset` が null でないこと、全ての `.vfx` が上の Update Mode であることを EditMode で確かめる。保存フックではない。
@@ -480,7 +481,7 @@ VFX Graph（`com.unity.visualeffectgraph` 17.6.0）に依存する実装は `uni
 
 ### 16.7 後続スライスへの送り
 
-d1〜d5a では答えず、後続スライスの Phase A で決める事項。
+S-4d では答えず、後続スライスの Phase A で決める事項。
 
 - **d1〜d2 から残る確認（所有スライス未定）:** S-4d4b は、同じ identity の Scene の再ロードを実 `SceneDirector` で 1 往復確かめた（§16.9）。次の事項は、Cell の unload を `End()` の `Stop` で回収する設計にしたので通らない経路になり、未確認のまま残る。
   - notifier（`VfxOwnerDestroyNotifier`）の `OnDestroy` だけで、実 Scene の unload と go の Destroy の回収が起きることの Play Mode 確認。

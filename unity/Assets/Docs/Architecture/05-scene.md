@@ -714,4 +714,39 @@ Season major Event（実例は `Spring_Event_MultiCellProof`）は Cell の comp
 - **入口と開始。** 要求の入口は `InGameSession` の internal `RequestMajorEvent(string)` だけで、public interface も `IInGameSessionServices` も持たない。開始は Cell Events に置いた `MajorEventStartTrigger` で、`CellCompanionScene` が作る `MajorEventStartBinder` が Events → Cell → Season → `InGameSession` の固定の段数で親をたどって要求する（汎用の祖先歩行は無い）。Cell Events に置くので `Planner` の companion set でも動く。Scene を跨ぐ参照は event の identity 文字列だけ。
 - **Event Scene 側。** `SeasonMajorEventScene` は完了の受付を `OnStabledImpl` から始め、その後の最初の進入（`MajorEventCompletionTrigger`）で delegate を 1 回呼ぶ。完了の通知は Loading・Live のどちらで届いても Ending にする。Event Scene から driver への逆向きの口は無い。VFX の寿命は [§24 §16.10](24-rendering-system.md#1610-season-直下の-major-event-の-vfx)。
 - **起点の Cell からの独立。** 起点の Cell とその Events が unload されても Event は残る（親は Season）。
-- **確かめていること。** `MajorEventDriverTests`（受理の優先順位の組み合わせ、`AlreadyActive`・終端の後の再発行、Loading 中の完了、捕捉なしの発行）、`SessionSeasonControllerTests`（Live・Add 中の各位相での枝の切替が Event の終端を待つ）、`GameSceneLoggingTests` の分類、実 Scene の `SeasonMajorEventPlayTests`（起動と Cell unload からの独立、完了と枝の切替での回収、非対応の `VfxSystem`、Event のロード中の Session unload、`Planner` での開始 trigger からの起動）。
+- **確かめていること。** `MajorEventDriverTests`（受理の優先順位の組み合わせ、`AlreadyActive`・終端の後の再発行、Loading 中の完了、捕捉なしの発行）、`SessionSeasonControllerTests`（Live・Add 中の各位相での枝の切替が Event の終端を待つ）、`GameSceneLoggingTests` の分類、実 Scene の `SeasonMajorEventPlayTests`（起動と Cell unload からの独立、完了と枝の切替での回収、非対応の `VfxSystem`、Event のロード中の Session unload、`Planner` での開始 trigger からの起動）。Content Directory の Planner Play は未実証（[§18 §4「BuildSystem の後続」](18-asset-description.md#buildsystem-の後続bs5abs5b-1-から送った事項) の S-4d5b の行）。
+
+**四季の SceneGraph（S-4）。** 四季は同じ 9×6 の座標と AABB を共有し、論理 Resource の木は次のとおり（季節の間の Tunnel は S-5 で決める）。各職種を別 Scene に分けるのは、レベルデザイン・環境・ライティング・VFX・プランナーが同じ Cell を並行して制作できるようにするためである。
+
+```text
+InGameSession
+└─ Season_{Season}                      論理ノード（Scene payload なし）/ OnDemand。active は高々 1
+   ├─ {Season}_Lighting                 NecessaryAlways
+   ├─ {Season}_AtmosphereVFX            NecessaryAlways（必要な季節だけ）
+   ├─ {Season}_Cell_{x}_{y}             OnDemand / StreamByDistance（Full と Whitebox の payload）
+   │  ├─ {Season}_Environment_{x}_{y}   OnDemand / companion（全 Cell）
+   │  ├─ {Season}_Lighting_{x}_{y}      OnDemand / companion（必要な Cell だけ）
+   │  ├─ {Season}_VFX_{x}_{y}           OnDemand / companion（必要な Cell だけ）
+   │  └─ {Season}_Events_{x}_{y}        OnDemand / companion（必要な Cell だけ）
+   └─ {Season}_Event_{slug}             OnDemand / major Event
+```
+
+Cell は距離ストリーミングの唯一の単位で、職種の子は `StreamByDistance = false` なので距離の候補にならない。職種ごとの所有物は次のとおり。
+
+- **Cell:** 地形、衝突、移動可能面、ストリーミングの体積。
+- **Environment:** 建物、植生、岩、装飾物などの set dressing。
+- **Cell Lighting:** local の point / spot light、Reflection Probe、local Volume、局所 bake の調整。global の sun・sky・fog を書き換えない（[§24 §9.1](24-rendering-system.md#91-s-4c-で実証した最小実装)）。
+- **Cell VFX:** 霧、煙、流水など、その Cell の常駐中ずっと続く環境エフェクト。
+- **Cell Events:** trigger、spawn、encounter anchor、局所の進行制御。
+- **Season Lighting:** Directional Light、sky、ambient、fog、全 View 共通の Volume、LightingSettings。
+- **Season Atmosphere VFX:** 季節全域の常時エフェクト。
+- **major Event:** 次の粒度の条件に当たるイベント。
+
+VFX Scene にゲーム進行の trigger を置かず、Events Scene が VFX の開始・停止を要求する。Scene を跨ぐ `GameObject` の直接参照は禁止し、event の identity、world 座標、service の問い合わせ、`IAssetManagement` で寿命を宣言してロードする asset で接続する（VFX の粒度と寿命は [§24 §16.6](24-rendering-system.md#166-samplegame-の-vfx-graph-backend)）。
+
+**Event Scene の粒度。** 次のいずれにも当たらないイベントは Cell の `{Season}_Events_{x}_{y}` に束ね、いずれかに当たるときだけ `{Season}_Event_{slug}` の major Event にする。小イベント 1 件ごとに Scene を増やさず、Season 単位の巨大な Events Scene にも集めない。
+
+- 複数の Cell に効果が及ぶ。
+- 起点の Cell の unload の後も続く必要がある。
+- 専用の Timeline / Cinemachine の staging を独立した file として所有したい。
+- 別の担当が Cell の bundle と独立に変更する規模である。
