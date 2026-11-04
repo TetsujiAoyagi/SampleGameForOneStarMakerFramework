@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（Phase A は A3 で凍結済み。Phase B は未着手）
+- status: `動作確認`（Phase B は完了。動作確認は未着手）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
-- implementation head commit: `未固定`
+- implementation head commit: `a79530b4302fdb3728220551cee5642de4662414`
 - risk: `normal`（SampleGame の `FlyController`・`PlayerScene` のログの 1 行・EditMode テスト 1 件だけを変える。Framework・公開 API・asmdef・所有者・寿命・`SceneState`・Addressables の設定を変えない）
 - owner: 発注者
 - created: 2026-11-04
@@ -17,11 +17,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次: Phase B（実装担当）。§4 の順序で、(1) AC1 のテストだけの commit（Editor のコンパイル確認まで。SHA を §6 に書く）、(2) `Teleport`、(3) `PlayerScene` のログの行、(4) `EmptyCacheRoot_InstallsUnderTheDefaultRoot`、(5) 文書（AC6）、(6) `contract-audit`・`docs-audit`。あわせて §1・I2・§5 が B に割り当てた調査（`ZLog` の Unity の値型の grep、既定 root の書き手の grep、Cell 単位の名前の正規表現、封鎖の拒否の文言）を §6 に残す。
-  - 開始の照合: 起動指示で渡された SHA（A3 凍結版の commit）と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄は `未固定`。
-  - 権限: Unity Editor の対象を限定した操作とコンパイル確認まで。Unity テストと Build は走らせない（H2 未適用）。資格情報・実 R2 は使わない。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止め、Phase A へ戻す。凍結した受け入れ条件を B の判断で増減しない。
-  - 引き渡さないもの: A2 の各レビューの所見の写しを C' へ渡さない（§5.1 は HANDOFF の一部として読まれる）。`artifacts/` を commit に混ぜない（U6）。
+  - 次: 動作確認（実行担当は Phase B 以外の担当。§5「操作・実行時・目視条件の検証経路」の「動作確認」の手順だけを、implementation head で各 1 回行う）。疎通させるもの: E1 の `IsSceneStable("InGameSession")` の eval、`[d5b-scene] handler-registered` が `[d5b-scene] loaded Title` より前に出ること（届かなければ Phase A に戻す）。観測と期待との差を §6「動作確認」に書き、差があれば B へ戻す。無ければ票を発見 C へ更新する。発見 C は §5 のとおり、AC1 のテストだけの commit（§6 の SHA）を detached worktree で `-Filter` 1 回走らせて RED を確かめる。
+  - 開始の照合: 起動指示で渡された SHA（この票を含む記録 commit）と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が `docs/handoff/BS_RIG_SPAWN_PLANNER_PROOF.md` だけ。
+  - 権限: ローカルの Unity Editor の起動と eval による操作（`tools/unity-editor.cmd`）。Unity テストと Build は走らせない（動作確認の対象外）。資格情報・実 R2 は使わない。
+  - 停止規則: 想定外の観測は原因調査や再実行で埋めず、そのまま記録して B へ戻す（ledger の拒否の 1 回のやり直しは §5 のとおり）。凍結した受け入れ条件を増減しない。
+  - 引き渡さないもの: A2 の各レビューの所見の写しを C' へ渡さない（§5.1 は HANDOFF の一部として読まれる）。`artifacts/` を commit に混ぜない（U6）。動作確認の観測に GO / NO-GO と合否を書かない。
 
 ## 1. 目的と対象外
 
@@ -257,6 +257,40 @@ A3 の採否（2026-11-04 凍結）:
 | F4-4 | 外部監査 4 | C' の同じ script の再実行は再現性だけで、正しさを示さない | 採用 | C' が原ログで窓の境界と正の証拠を独立に照合し、正規表現と Error の判定式をレビューし、不一致は NO-GO と書いた |
 | F4-5 | 外部監査 4 | 「0.5 s 後」は Tick の 2 回を実測した証拠ではない | 採用 | 「設定上の Tick の周期より十分長い時間の代わりの指標で、Tick の回数は数えない」と書いた。あわせて §7 の「認めてよい制限」に沿い、AC5 と E3 (b) の主張の範囲を限った |
 
-## 6〜9
+## 6. Phase B 実装結果
 
-Phase B 以降で書く。
+- AC1 のテストだけの commit（修正前。発見 C が RED を確かめる対象）: `40fcdb34dd6840dfe0457d4a2930db63c6f4a897`。`unity/Assets/SampleGame/Tests/Streaming/FlyControllerTeleportTests.cs`（と `.meta`）だけを足した。Editor のコンパイル確認済み（`EditorUtility.scriptCompilationFailed=False`、型 `SampleGame.Tests.Streaming.FlyControllerTeleportTests` が `SampleGame.Tests` に在る）。
+  - テストの完全名: `SampleGame.Tests.Streaming.FlyControllerTeleportTests.Teleport_InterpolatedBody_KeepsTargetPositionEveryFrame`。namespace は asmdef の `rootNamespace` と §5 の起点 filter に揃えて `SampleGame.Tests.Streaming` にした。
+  - RED の判定に使う文言: (ii) の失敗は `Teleport の <n> フレーム後（frameCount=<f>）に位置が目標 (…) から外れた: transform=(…) rigidbody=(…)`。(i) の失敗は `Teleport の直後の Position … が目標 … から外れている`。setup の前提の失敗は `起動の失敗` または `前提:` で始まり、RED に数えない。
+- 実装（implementation head `a79530b4302fdb3728220551cee5642de4662414`）:
+  - `FlyController.Teleport`: `_body.position` を目標に書き、速度と角速度を 0 にしてから `transform.position` を書く（§4 の方針どおり。`MovePosition` は使わない）。signature は変えていない。回転は既存の `ApplyLook` のまま。
+  - `PlayerScene`: `Player ready at Cell stream spawn ({spawn.x:F1}, {spawn.y:F1}, {spawn.z:F1})`。値は 3 つの `float`。文言は変えていない。
+  - `PublishedDirectoryReceiveTests`: `EmptyCacheRoot_InstallsUnderTheDefaultRoot` を `EmptyCacheRoot_ResolvesToTheDefaultRoot` に改名し、install をやめて `stages.CacheRoot == ResolveCacheRoot("")` だけを確かめる（`ReceivedStages` の構築は `ResolveCacheRoot` で path を決めるだけで書き込まないことを `VerifyPlayLauncher.cs` 379〜387 行で確認）。teardown の既定 root の後始末（`_defaultCacheRevisions`）は不要になったので消した。判定必須テストの「`PublishedDirectoryReceiveTests` の改名後のテスト」はこの名前。
+  - 文書（AC6）: Architecture §18 §4 の S-4d5b の行（原因、`Player ready` の欠落、再検証は未実施）・BS5b-2 の「テストの隙間」と「未調査の観測」（cache root の観測を E3 (a) の事実・最有力の仮説・不明の形で書き、寿命は §13 を参照、W-6 と条件つきで矛盾しない、AC5 の保証の縮み）・「検証の残り」（原点に留まる観測の文を消した）、program §7 の行（進行中）、§05 §5.13（再検証は未実施）、§12 §3.2 のギャップ G5（U7）。検証 Play の結果はまだ無いので、どの文書も再検証と E3 (b) を「未実施」と書いた。判定 C の後の Phase D で結果に合わせて書き直す。
+  - 機械検査: `pwsh tools/contract-audit.ps1` は `AUDIT_RESULT kind=contract files=719 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8,9 applicable8=False`。`pwsh tools/docs-audit.ps1` は `AUDIT_RESULT kind=docs files=110 errors=0 warnings=0 checks=1,2,3`。どちらも実装 commit の作業ツリーで実行した。Editor のコンパイル確認済み（`scriptCompilationFailed=False`、改名後のメソッドと `FlyController` の型が読み込まれている）。
+- B に割り当てた調査:
+  - **`ZLog` に Unity の値型を渡す箇所（§1・S8）:** 非テストの `.cs` の `.ZLog*(` の呼び出しを括弧の対応で切り出し、補間の穴を列挙した（行をまたぐ呼び出しも含む）。コマンド: `python zlog_holes.py unity/Assets/SampleGame unity/Assets/OneStarMaker`（script は `/Tests/` を含む path を除き、`\.ZLog\w*\(` から対応する `)` までを取り、`\{([^{}]+)\}` を穴とする。session の scratchpad に置いた使い捨てで、commit しない）。結果: 呼び出しは SampleGame の 57 件で、`OneStarMaker` の非テストには無い（`Foundation/Logging`・`Telemetry` の hit は設定と formatter で、呼び出しではない）。Unity の値型を渡すのは implementation base の `PlayerScene.cs` 172 行の `WorldCellCatalog.SpawnPosition()`（`Vector3`）の 1 箇所だけ（今回直した）。他の穴は `string`（Identity・`_label`・`eventIdentity`・`string.Join` 等）、`int`（`Candidates.Count`）、`float` の定数（`LoadRadius`・`UnloadRadius`）、enum（`MajorEventRejectReason`・`CellCompanionRole`）だけ。U7 へ渡す追加の箇所は無い。
+  - **既定 cache root の書き手（I2・G12）:** コマンド: `grep -rnE "ResolveCacheRoot|LocalApplicationData|LoadSettings|AcquireTransaction|ContentCacheStore\(" --include=*.cs unity/Assets/SampleGame/Tests unity/Assets/OneStarMaker/Tests tools`（`bin/`・`obj/` を除く）。結果: `ResolveCacheRoot` は `PublishedDirectoryReceiveTests`（改名後は値の比較だけ）と `PurposeLaunchSettingsTests` 218・221 行（値の比較だけ）。`LoadSettings` はテストに無い。`AcquireTransaction` と `ContentCacheStore(` は `ContentDeliveryFailureMatrixTests`・`ContentHttpArtifactSourceTests`・`ContentInstallerTests`（Framework）と `BuildContentDirectoryIntegrationTests`・`ContentInstallTestOperationTests`（SampleGame）で、root はどれも `CreateTemporaryDirectory()`・`Temp()`・`Path.GetTempPath()` の下（各 file の root の代入を grep で確認）。`PurposeLaunchSettingsTests` 91 行の `new ContentDeliveryWindow.Settings()`（`cacheRoot` 既定）は `BridgeValues` の値を比べるだけで install しない。`LocalApplicationData` の hit は `tools/DebugStudio` の .NET の path policy と `ShellLayoutPersistenceTests` だけで、OSM の cache root（`OSM\ContentCache`）には触れない。既定 root に install するか transaction を取るテストは、改名前の 1 件の他に見つからなかった。
+  - **Cell 単位の名前の正規表現（AC4 の詳細）:** `SceneResourceMap.asset`（`unity/Assets/OneStarMakerCommon/SceneMap/`）の `_sceneResources` の guid を `.asset.meta` で引き、各 SceneResource の identity を列挙した（`python map_identities.py <unity/Assets> <SceneResourceMap.asset>`、scratchpad の使い捨て）。457 件。Spring の Cell 単位の companion は `Spring_Environment_{x}_{y}`（54）、`Spring_Lighting_4_2`・`Spring_Lighting_5_2`、`Spring_VFX_4_2`、`Spring_Events_4_2`。Season 単位は `Spring_Lighting`・`Spring_AtmosphereVFX`。Scene の file 名は identity と同じ（例 `Spring_Cell_4_2/Spring_VFX_4_2/Spring_VFX_4_2.unity`）。Whitebox は別 identity ではなく `Spring_Cell_{x}_{y}` の representation。
+    - 正規表現（Cell 単位の Environment・Lighting・VFX）: `^Spring_(Environment|Lighting|VFX)_[0-9]+_[0-9]+(:.+)?$`。`(:.+)?` は付随 asset の identity（S-4d5b の `preflight.json` に `Spring_Events_4_2:Burst` の形が在る）を同じ Scene の物として数えるため。`Spring_Lighting`・`Spring_AtmosphereVFX` と `Spring_Events_*` には当たらない。
+    - 当てる値: `preflight.json` の `requirements[].logicalKey` と、`selected[]` の `|` 区切りの 3 番目の欄（例 `osm-build-candidate-v1|15:Spring_Cell_4_28:Whitebox32:…|Spring_Cell_4_2|…` の `Spring_Cell_4_2`）。Editor.log の `[d5b-scene] loaded <name>` の `<name>`。`excluded[]` は `…|<理由>|<種別>|<値>` の形（`Spring_Cell_4_2` の Full は `…|15:Spring_Cell_4_24:Full32:…|RepresentationNotPreferred|Representation|Full`）。
+  - **封鎖の拒否の文言（AC4・§5）:** コマンド: `grep -rn --include=*.cs -i "sealed\b.*\"\|\"[^\"]*seal" unity/Assets/OneStarMaker/Scripts unity/Assets/SampleGame`（`/Tests/` と `sealed class` 等を除く）。拒否は 3 箇所で、どれも `Addressables backend is sealed:` で始まる（`AssetManagement.cs` 112 行の key のロード、186 行の description からの Scene のロード、`SealedAssetBackend.cs` 46 行の address のロード）。照合はこの部分文字列で数える。封鎖の正の行は `AbstractApplicationInitializer.cs` 247 行の `[AppInit] Content directory mode: Addressables backend sealed after reading the configuration.` で、`is sealed` を含まないので拒否の計数に当たらない。`AssetManagement.cs` 85 行の `Cannot seal the Addressables backend while …` は封鎖そのものの失敗（拒否ではない）で、出れば封鎖の正の行が出ない。
+- HANDOFF との差:
+  - `FlyControllerTeleportTests` は 182 行（§3 の予想は約 110）。§5 の SetUp・TearDown の各項目（環境変数 2 つ・Cursor・Scene 構成の保存と復旧、Play から出られなかった時の失敗）と、失敗の文言を区別するための前提の assertion（補間の設定、開始位置が目標から離れている）を書いた分。責務は増えていない。
+  - §12 §3.2 のギャップの行は U7 では「Phase D で足す」だが、§0 の票と AC6 が B の文書の作業に含めていたので B で足した（G5）。
+  - Editor の起動で、`unity/Assets/MobileDependencyResolver/Editor/` の tracked な `.pdb.meta` 5 件が消えた（Editor が自動で消した。本スライスの範囲外）。commit に入れず、Editor を閉じた後に `git checkout -- unity/Assets/MobileDependencyResolver` で戻した。
+- 未実行: Unity テスト（AC1 の RED を含む）、Build、検証 Play、動作確認。どれも Phase B の担当外（§5）。
+- implementation head commit: §0 の欄のとおり。
+- Phase B 担当・ベンダー: Anthropic（Claude Code）。Phase C は Phase B と異なるモデルにする（§5）。
+
+### 動作確認
+
+- 対象 head:
+- 条件ごとの実行担当・環境・実行したコマンド:
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態:
+- 検証経路の期待と違う観測と、B への差し戻し:
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）:
+
+## 7〜9
+
+Phase C 以降で書く。
