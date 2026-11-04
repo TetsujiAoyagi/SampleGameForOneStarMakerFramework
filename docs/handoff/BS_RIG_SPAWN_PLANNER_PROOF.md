@@ -17,6 +17,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
+  - **更新（発見 C の RED 確認、起動 SHA `03d7cd59…`。2026-11-04）:** AC1 の修正前の失敗を確かめた（§6「発見 C」。(ii) の assertion で Failed、setup の失敗ではない）。Phase A に戻す理由は無い。次: 発見 C の残り（構造・契約のレビュー）の要否を発注者が決め、問題が無ければ判定 C 用の GO 候補 head の固定（履歴の整理があれば先に）へ進む。以下は更新前の記述。
   - **更新（動作確認の再実行、起動 SHA `b04f6471836e7c5a6c359041c6981fc7c7b9b9c5`。2026-11-04）:** 決定記録 D1 の手順で動作確認を 1 回やり直した（§6「再実行」）。差は無い（`handler-registered` が `loaded Title` より前、`(initial)` に Title なし、`IsSceneStable("InGameSession")` の eval の疎通、位置の 2 点を取得）。次: 発見 C（§5 のとおり、AC1 のテストだけの commit `40fcdb34` を detached worktree で `-Filter` 1 回走らせて RED を確かめる）。以下は更新前の記述。
   - **更新（差の扱いの検討、起動 SHA `07193672eab7e404e234f1835571cd447feea7ef`。2026-11-04）:** 差 1 は「新しい事実の分類」の A 再開にも B 適応にも当たらず、検証経路の基盤不備（hook を掛ける時点の手順）として扱う（osm-workflow の phases-and-handoff の「検証経路の成立」の「権限内で解消できる基盤不備」。根拠は §2 の決定記録 D1）。製品コードは変えず、implementation head も変わらないので B へは戻さない。差 2 は同じ再実行で取り直す。次: 動作確認の実行担当が、§5 の直した手順（D1）で implementation head の動作確認を 1 回やり直し、§6「動作確認」の「再実行」に書く。直した手順でも `handler-registered` が `loaded Title` より後なら、その時点で Phase A に戻す。差が無ければ票を発見 C へ更新する。開始の照合・権限・停止規則・引き渡さないものは下の票のまま（「implementation head から HEAD までの差分が HANDOFF だけ」も同じ）。以下は更新前の記述。
   - **更新（動作確認の実行担当、起動 SHA `20753a501691eae13d1ae5764d9d8ce43f0bd1b3`）:** 動作確認を 1 回実施した（§6「動作確認」）。差が 2 件あり、発見 C へは進めない。次: 差 1（`handler-registered` が Title の load より後）の扱いを Phase A（判定 C の `W_all` の起点と hook を掛ける手順）で決める。差 2 は動作確認の手順（`Player ready` の直後の位置の取得）の実行上の取りこぼしで、観測の仕組みは疎通している。以下の「次」は更新前の記述。
@@ -332,6 +333,14 @@ A3 の採否（2026-11-04 凍結）:
 - 期待との差: **なし**。1 回目の差 1（`handler-registered` が `loaded Title` より後）は、`Title` の load の前に登録が入り `(initial)` に Title が無い形で解消した。差 2（位置の 1 点目が `Player ready` の直後で取れていない）も、App のログの poll で取れた。観測は期待と同じ向きだが、合否は判定 C が決める。
 - `未実施` の条件と理由・担当: `なし`。
 - 後始末: Play は停止し（`st` で `play=False`）、handler は `stop.cs` で外した。Editor が消した `unity/Assets/MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout --` で戻した。Editor は `EditorApplication.Exit(0)` を依頼したが、依頼の約 2 分後も PID 44860 が残っていた（既知の native 終了 stall の可能性。調査は反復しない。AGENTS.md の規則）。終了の確認は取れていない。この Editor は本 session が起動したもの。
+
+### 発見 C: AC1 の修正前の失敗（RED）
+
+- 対象: テストだけの commit `40fcdb34dd6840dfe0457d4a2930db63c6f4a897`（修正前）。detached worktree（`D:\repositories\unity\osm-red`。`unity/Library` は作業 checkout から robocopy で写した。確認後に削除）で、Editor が閉じた状態から 1 回だけ実行した（sandbox 外の承認経路）。
+- コマンド: `pwsh tools/run-tests.ps1 -Filter 'SampleGame.Tests.Streaming.FlyControllerTeleportTests.Teleport_InterpolatedBody_KeepsTargetPositionEveryFrame'`。
+- 観測: 結果 XML の当該 test-case が `result="Failed"`（total 1・passed 0・failed 1・inconclusive 0）。失敗は (ii) の assertion で、`Teleport の 1 フレーム後（frameCount=5）に位置が目標 (125.000, 28.000, 1125.000) から外れた: transform=(0.000, 0.000, 0.000) rigidbody=(0.000, 0.000, 0.000)`（`FlyControllerTeleportTests.cs` 173 行）。setup の失敗・Inconclusive ではない。runner の exit は 1（Unity は終了コード 2）。
+- 保存先: `artifacts/bs-rig-spawn-a1/red-check/`（`results.xml`・`step.json`・`unity.log`・`SHA256SUMS.txt`。git 管理外）。
+- この確認の範囲: 修正前の AC1 が (ii) で落ちることだけ。構造レビューなど発見 C の残りは行っていない。GO / NO-GO は判定 C が決める。
 
 ## 7〜9
 
