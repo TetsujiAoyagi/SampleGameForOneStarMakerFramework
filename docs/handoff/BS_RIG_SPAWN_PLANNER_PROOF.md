@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `動作確認`（Phase B は完了。動作確認は未着手）
+- status: `動作確認`（Phase B は完了。動作確認は実施済みで差が 2 件、差し戻し待ち）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `a79530b4302fdb3728220551cee5642de4662414`
@@ -17,6 +17,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
+  - **更新（動作確認の実行担当、起動 SHA `20753a501691eae13d1ae5764d9d8ce43f0bd1b3`）:** 動作確認を 1 回実施した（§6「動作確認」）。差が 2 件あり、発見 C へは進めない。次: 差 1（`handler-registered` が Title の load より後）の扱いを Phase A（判定 C の `W_all` の起点と hook を掛ける手順）で決める。差 2 は動作確認の手順（`Player ready` の直後の位置の取得）の実行上の取りこぼしで、観測の仕組みは疎通している。以下の「次」は更新前の記述。
   - 次: 動作確認（実行担当は Phase B 以外の担当。§5「操作・実行時・目視条件の検証経路」の「動作確認」の手順だけを、implementation head で各 1 回行う）。疎通させるもの: E1 の `IsSceneStable("InGameSession")` の eval、`[d5b-scene] handler-registered` が `[d5b-scene] loaded Title` より前に出ること（届かなければ Phase A に戻す）。観測と期待との差を §6「動作確認」に書き、差があれば B へ戻す。無ければ票を発見 C へ更新する。発見 C は §5 のとおり、AC1 のテストだけの commit（§6 の SHA）を detached worktree で `-Filter` 1 回走らせて RED を確かめる。
   - 開始の照合: 起動指示で渡された SHA（この票を含む記録 commit）と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が `docs/handoff/BS_RIG_SPAWN_PLANNER_PROOF.md` だけ。
   - 権限: ローカルの Unity Editor の起動と eval による操作（`tools/unity-editor.cmd`）。Unity テストと Build は走らせない（動作確認の対象外）。資格情報・実 R2 は使わない。
@@ -285,11 +286,23 @@ A3 の採否（2026-11-04 凍結）:
 
 ### 動作確認
 
-- 対象 head:
-- 条件ごとの実行担当・環境・実行したコマンド:
-- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態:
+- 対象 head: `a79530b4302fdb3728220551cee5642de4662414`（作業ツリーの HEAD は引き継ぐ commit `20753a501691eae13d1ae5764d9d8ce43f0bd1b3`。差分は HANDOFF だけ）。
+- 条件ごとの実行担当・環境・実行したコマンド: 動作確認の実行担当（Phase B 以外の session）。ローカルの Unity Editor 6000.6.0f1（`unity open D:\repositories\unity\osm-s4d5\unity` で起動、PID 15392。`tools/unity-editor.cmd eval` で操作）。1 回だけ実行: `newscene` → `ledger` → `dirplay`（directory mode、revision `20261103T091410930Z-d377543307574cafa829b30d94255025`）→ Play に入ったのを poll で確認して `ac6reg`（hook）→ `obs` → `click`（`start-button` への submit）→ App のログで `Player ready` を確認 → `stable`（`IsSceneStable`）→ `obs` 2 回 → `stop`。ledger の拒否は出ず、`Reset()` のやり直しは 0 回。使った eval は `artifacts/bs-rig-spawn-a1/eval-b-check/`（git 管理外。`ac6reg`・`click`・`stop` は `utc=`・`ft=` の marker つきに足した版。`stable.cs` は `AbstractApplicationInitializer.ActiveVfxRuntimeHost` から reflection で `SceneDirector` へ辿り、`IsSceneStable` を呼ぶ）。Unity テスト・Build・資格情報・実 R2 は使っていない。
+- 生の観測（合否は書かない）と保存先・状態: 保存先は `unity/Logs/Editor.log` と `unity/OneStarMakerLocal/Log/2026-11-04_001.log`（どちらも git 管理外。Editor 終了後に別の run で上書きされうる。実行時刻 UTC 2026-11-04 13:2x〜13:35）。
+  - Editor.log: `Content directory mode: Addressables backend sealed` と `Editor content directory first scene: scene=Title … stable=True` が各 1 件（1234・1702 行）。
+  - **hook の順序:** 1785〜1863 行に `[d5b-scene] loaded  (initial)`・`UIScene`・`OutGameScene`・`Title (initial)`、1889 行に `[d5b-scene] handler-registered utc=2026-11-04T13:28:02.0777363Z ft=24`。つまり `handler-registered` は Title の load より後で、Title は `(initial)` の一覧に在った。`dirplay` の返りから hook を送るまで約 14 秒（Play に入ったか 300 ms 間隔で poll した結果）。
+  - submit の marker: `[bs-rig-marker] submit utc=2026-11-04T13:28:29.7128073Z ft=2143`。
+  - hook 後の load / unload（Editor.log）: `unloaded Title`・`unloaded OutGameScene`、`loaded InGameUI`・`PlayerScene`・`Spring_Lighting`・`Spring_AtmosphereVFX`・`Spring_Cell_0_4`・`0_3`・`0_5`・`1_4`・`1_3`・`1_5`。`Spring_Cell_0_4` の unload と `Spring_Cell_0_0` の load は 0 件。Play 停止の marker: `[bs-rig-marker] play-stop utc=2026-11-04T13:35:54.1647111Z ft=30981`。
+  - App のログ（001 の 312〜313 行）: `Flight registered`、`Player ready at Cell stream spawn (125.0, 28.0, 1125.0)`（Timestamp `2026-11-04T13:28:31.5658753+00:00`、`spawn.x/y/z` の 3 成分あり）。submit の約 1.9 秒後。
+  - `stable.cs` の戻り: `IsSceneStable(InGameSession)=True Spring_Cell_0_4=True`（reflection 経由で `SceneDirector` に到達できた。eval の時刻は 22:35:42 JST ＝ UTC 13:35:42）。
+  - `obs.cs` の 2 回（UTC 13:35:4x、`Player ready` の約 7 分後。1 s 間隔）: `transform=(125.00, 28.00, 1125.00) rigidbody=(125.00, 28.00, 1125.00) input=True`、scenes は上の load の一覧と同じ（`Spring_Cell_0_0` なし）。「`Player ready` の直後」の 1 点は取れていない（Start の後の待ちに 180 s の poll を使い、`Player ready` の行は Editor.log ではなく App のログにあるので poll の条件が当たらなかったため）。
+  - 補助: 改名後の `PublishedDirectoryReceiveTests` や既定 cache root の一覧は取っていない（対象外）。
 - 検証経路の期待と違う観測と、B への差し戻し:
-- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）:
+  - **差 1（疎通の条件）:** 期待は「`[d5b-scene] handler-registered` が `[d5b-scene] loaded Title` より前に出ること、かつ `(initial)` の一覧に Title が無いこと」。観測は Title の `(initial)` の後に `handler-registered`（上記）。Play に入ってから eval で hook を掛ける今の手順では、Title の load より前に入らなかった（1 回。§0 の停止規則に従い、原因調査・再実行はしていない）。§5 の取り決めでは「届かなければ Phase A に戻す」ので、判定 C の `W_all` の起点の取り方（登録前の区間の扱い）は Phase A の判断を要する。製品コード（Phase B の実装）に起因する差ではない。
+  - **差 2（観測の時点）:** 期待は位置の 2 点を「`Player ready` の直後」と「その 0.5 s 以上後」で取ること。観測は 2 点とも `Player ready` の約 7 分後（上記）。前の点は取れていない。
+  - 上記以外（`IsSceneStable("InGameSession")` の eval の疎通、封鎖の行・初回 Scene の行、`Player ready` の文言と 3 成分、spawn から 1 m 以内の位置、`Spring_Cell_0_0` の load が 0 件）は期待と同じ向きの観測だが、合否は判定 C が決める。
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: `Player ready` の直後の位置の 1 点（差 2。再実行しない）。他は `なし`。
+- 後始末: Editor は `EditorApplication.Exit(0)` を依頼した（終了は未確認。既知の native 終了 stall の可能性があり、調査は反復しない）。Editor が書き換えた `unity/Assets/MobileDependencyResolver` の `.pdb.meta` 5 件の削除は `git checkout --` で戻した。
 
 ## 7〜9
 
