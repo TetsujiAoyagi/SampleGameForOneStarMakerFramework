@@ -169,7 +169,11 @@ namespace SampleGame.InGame
                     _flyer,
                     WorldCellCatalog.SpawnPosition());
 
-                _logger.ZLogInformation($"Player ready at Cell stream spawn {WorldCellCatalog.SpawnPosition()}");
+                // Vector3 をログの値に渡さない。App のログの JSON formatter は値を System.Text.Json で書き、Vector3 の
+                // normalized の循環で例外になって行ごと黙って落ちる（formatter 側の欠落は Foundation の Logging の後続）。
+                // 3 成分を float の値として渡す。文言 "Player ready at Cell stream spawn" は判定の照合が探すので変えない。
+                var spawn = WorldCellCatalog.SpawnPosition();
+                _logger.ZLogInformation($"Player ready at Cell stream spawn ({spawn.x:F1}, {spawn.y:F1}, {spawn.z:F1})");
             }
             catch (OperationCanceledException)
             {

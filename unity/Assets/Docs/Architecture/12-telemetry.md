@@ -116,6 +116,7 @@ Unity runtime へ Elastic 固有責務を持ち込まない。
 | G2 | sender 実装 | realtime stream は formatter 主導で、processor hook への置き換えは未着手 | Foundation |
 | G3 | receiver app | companion app の schema/version handling は文書化と最小実装が残る | External / DebugStudio |
 | G4 | Runtime module layout | `Runtime\\Telemetry\\` への物理分割は Unity project 再生成待ち | Runtime |
+| G5 | Logging | `AppLoggerFactory` の JSON formatter（`IncludeProperties.All`）が Unity の値型（`Vector3` 等）を値に持つ行を黙って落とす（`System.Text.Json` が `Vector3.normalized` の循環で例外になる）。`InternalErrorLogger` が未設定なので、落ちたことが外から見えない。S-4d5b の検証 Play で `Player ready at Cell stream spawn` が出なかった原因で、その行は値を `float` に直した。担当のスライスは未定 | Foundation |
 
 ---
 

@@ -29,7 +29,6 @@ namespace SampleGame.Tests.Editor.Build
         private string _digest = "";
         private string _savedLedger = "";
         private readonly Dictionary<string, string?> _savedEnvironment = new();
-        private readonly List<string> _defaultCacheRevisions = new();
 
         [SetUp]
         public void SetUp()
@@ -51,8 +50,6 @@ namespace SampleGame.Tests.Editor.Build
             if (_savedLedger.Length == 0) SessionState.EraseString(LedgerKey);
             else SessionState.SetString(LedgerKey, _savedLedger);
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
-            foreach (var revisionRoot in _defaultCacheRevisions)
-                if (Directory.Exists(revisionRoot)) Directory.Delete(revisionRoot, true);
         }
 
         private SampleGameContentBatch.SuccessFile Success(string? digest = null, string? identity = null, string declaration = "spring-full",
@@ -143,19 +140,17 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(chosen, Is.EqualTo(1), "publishPath が手元に有れば folder を選ばせない");
         }
 
-        // ═══ AC20: cacheRoot="" から install できる ═══
+        // ═══ AC20: cacheRoot="" は既定の cache root に解決される ═══
+        // 既定 root（開発者の実 cache root）へは install しない。install すると開発者の root に跡を残し、容量確保で
+        // 開発者の revision を消しうる。任意の root への install は下の WindowUseForNextPlay… と Framework の
+        // ContentInstallerTests 等が一時 root で確かめるので、既定 root への実 install はどのテストも確かめない。
 
         [Test]
-        public async Task EmptyCacheRoot_InstallsUnderTheDefaultRoot()
+        public void EmptyCacheRoot_ResolvesToTheDefaultRoot()
         {
             var stages = new VerifyPlayLauncher.ReceivedStages("unused", () => null, false, SampleGameBuildPurposes.FirstSceneOf,
                 new ContentDeliveryWindow.Settings { cacheRoot = "" });
             Assert.That(stages.CacheRoot, Is.EqualTo(VerifyPlayLauncher.ResolveCacheRoot("")));
-            _defaultCacheRevisions.Add(Path.Combine(stages.CacheRoot, "installed", "spring-full", _revision));
-            var published = VerifyPlayLauncher.ToPublished(_published, _digest, ReadManifest(_published));
-            var installed = await stages.InstallAsync(published, CancellationToken.None);
-            Assert.That(Path.GetFullPath(installed.RevisionRoot), Is.EqualTo(Path.GetFullPath(_defaultCacheRevisions[0])));
-            Assert.That(installed.Revision, Is.EqualTo(_revision));
         }
 
         // ═══ AC4: 窓の Use For Next Play と 1 回の Play で戻す ledger ═══
