@@ -242,4 +242,4 @@ ownerは2026-10-17に、Artifact Storageの開発はここで完了と決めた�
 | BS5b-1 `Full` の build・publish と batch | 完了（2026-11-03、PR #155） | 契約は Architecture §18 §4 へ harvest 済み |
 | BS5b-2 宣言からの Play 経路 | 完了（2026-11-03、PR #156） | 契約は Architecture §18 §4（宣言からの Play 経路）と §04 §4.6・§4.8 へ harvest 済み。後続の入力は §18 §4「BuildSystem の後続」の BS5b-2 の行 |
 | identity 後続（入力 identity・設定 snapshot・`content/index`・build を skip する再利用） | 未着手。HANDOFF 無し | 問いは Architecture §18 §4「BuildSystem の後続」 |
-| directory mode の rig の spawn と Planner 実証（S-4d5b から） | 未着手。HANDOFF 無し | 未達の条件・一次証拠の所在・再検証の条件は Architecture §18 §4「BuildSystem の後続」の S-4d5b の行 |
+| directory mode の rig の spawn と Planner 実証（S-4d5b から） | 完了（2026-11-07、PR #160）。rig が原点へ戻る原因と `Player ready` の行の欠落を直し、既定 cache root に install するテストを解決の値の比較に直した。再検証の検証 Play（2026-11-06）で再検証の条件の各項目と、install した revision root の停止後の残存を観測した | 未達だった条件・原因・再検証の結果・cache root の観測の扱いは Architecture §18 §4「BuildSystem の後続」の S-4d5b と BS5b-2 の行 |

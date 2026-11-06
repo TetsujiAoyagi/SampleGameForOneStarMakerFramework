@@ -59,17 +59,29 @@ namespace SampleGame.InGame.Player
             ApplyLook();
         }
 
+        /// <summary>
+        /// rig を指定の位置へ瞬間移動する。
+        /// <para>
+        /// 補間つき（<see cref="RigidbodyInterpolation.Interpolate"/>）の Rigidbody では Transform を physics が制御するので、
+        /// <c>transform.position</c> だけを書くと次のフレームで Rigidbody の古い位置へ戻される（Start の後に rig が原点へ戻り、
+        /// 原点の側の Cell が載った原因）。位置の正本として <c>Rigidbody.position</c> を書く。<c>MovePosition</c> は補間つきの
+        /// 移動なので使わない。<c>transform.position</c> も書くのは、同じフレームのうちに Focus が
+        /// <see cref="Position"/>（transform）を読むため（<c>PlayerWorldReadySequence</c> は Teleport の直後に Focus を登録する）。
+        /// </para>
+        /// </summary>
         public void Teleport(Vector3 worldPosition, Vector3 lookForward)
         {
+            if (_body != null)
+            {
+                _body.position = worldPosition;
+                _body.linearVelocity = Vector3.zero;
+                _body.angularVelocity = Vector3.zero;
+            }
+
             transform.position = worldPosition;
             _yaw = Mathf.Atan2(lookForward.x, lookForward.z) * Mathf.Rad2Deg;
             _pitch = 0f;
             ApplyLook();
-            if (_body != null)
-            {
-                _body.linearVelocity = Vector3.zero;
-                _body.angularVelocity = Vector3.zero;
-            }
         }
 
         private void Awake()
