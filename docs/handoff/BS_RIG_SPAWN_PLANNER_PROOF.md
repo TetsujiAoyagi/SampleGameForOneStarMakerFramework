@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `Phase B（AC6 の文書）`（C' 1 巡目の指摘 A 4 件を発注者が裁定した（§2 決定記録 D2）。判定 C の GO は取り消し、AC6 の文書を結果へ書き換えた新 head で判定 C と C' をやり直す）
+- status: `判定 C（新 head でやり直し）`（C' 1 巡目の指摘 A 4 件を発注者が裁定した（§2 決定記録 D2）。判定 C の GO は取り消し、B が AC6 の文書を結果へ書き換えた新 head で判定 C と C' をやり直す）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
-- implementation head commit: `a79530b4302fdb3728220551cee5642de4662414`
+- implementation head commit: `9b99a83ef6215071ca99a2768559cad4b86eb82b`（AC6 の文書の commit。旧 head `a79530b4302fdb3728220551cee5642de4662414` との差分は文書と HANDOFF だけで、製品コード・テストは同じ）
 - risk: `normal`（SampleGame の `FlyController`・`PlayerScene` のログの 1 行・EditMode テスト 1 件だけを変える。Framework・公開 API・asmdef・所有者・寿命・`SceneState`・Addressables の設定を変えない）
 - owner: 発注者
 - created: 2026-11-04
@@ -17,6 +17,9 @@
 - evidence bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/1`（候補 head `a79530b4…`。push しない））
 - C' blind bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。git 管理外。A3 凍結計画・実装 diff・ソース写し・判定 C と同じ evidence bundle・指示書。所見を含まない）
 - 引継ぎ票:
+  - **更新（Phase B（AC6 の文書）、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** AC6 の文書を §6「判定 C」の観測に合わせて書き換え、新しい implementation head `9b99a83e…`（§0 の欄）を固定した（§6「AC6 の文書の書き換え（D2）」）。docs-audit・contract-audit は errors 0。次: 判定 C（新 head でやり直す。実行担当は Phase B と異なるモデル）。§5 の判定 C の手順（判定必須テスト＝EditMode 全件回帰、AC5 の直前・直後の一覧、検証 Play 1 回、照合 script、機械検査）を新 head で全て行い、§2 D2 の要件（指摘 1: 直後の一覧は回帰の終了から間を置かずに取り、失敗したら回帰からやり直す。指摘 2: bundle の外の絶対 path の存在確認を合否に使わず、時刻は記録した UTC か記録した時差で変換し、bundle を別の PC に置いて同じ結果になることを確かめる。指摘 3: Editor.log の Error・Exception の補助計数と分類、major Event の load / unload の 30 秒の上限、位置 2 点が `Player ready` の後であることの合否、LF 区切りで `rg -n` と一致する行番号。指摘 4 前半: bundle に発見 C の RED の原記録（`artifacts/bs-rig-spawn-a1/red-check/`）と新 head の 2 つの audit の出力）を満たす。旧 head の判定の証拠は新 head の合格証拠に流用しない。判定 C の後、C' 2 巡目（予約は OpenAI（Codex）。渡す決定記録は D2 だけ）。
+    - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が本 HANDOFF だけ。
+    - 権限・停止規則・引き渡さないもの: §5 の判定 C と §2 の停止規則のとおり。C' の 1 巡目の報告の本文は判定 C の入力にしない。`artifacts/` を commit に混ぜない（U6）。
   - **更新（C' 1 巡目の裁定 D2、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** 次: Phase B（AC6 の文書だけ）。B が AC6 で書いた文書（Architecture §18 §4 の S-4d5b の行・BS5b-2 の 2 項目・「検証の残り」、program §7 の行、§05 §5.13、§12 §3.2 の G5）のうち、「再検証は未実施」「E3 (b) は未実施」等の記述を、§6「判定 C」の観測（候補 head `a79530b4`。製品コードは新 head と同じ）に合わせて書き換える。書き方は §2 AC6 と E3 (a)(c) のとおり（寿命は §13 を参照し新しい契約を書かない、ログの欠落は機構と事実を分ける、AC5 の保証の縮みを書く）。主張は §6 の観測の範囲を超えない。`pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1` を実行して結果を §6 に書く。文書の commit の SHA を implementation head 欄に書き（`a79530b4` を置き換える）、票を判定 C へ更新する（判定 C は §2 D2 の要件を含めて §5 のとおり新 head でやり直す。実行担当は Phase B と異なるモデル）。
     - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。
     - 権限: 文書の編集、commit（push しない）、上の 2 つの audit の実行。Unity Editor・Unity テスト・Build は使わない。
@@ -393,6 +396,19 @@ A3 の採否（2026-11-04 凍結）:
 - 担当が原ログで独立に確かめたもの: `W_all`（Editor.log の handler 〜 stop）・`W_spawn`（submit 〜 最初の移動の直前）の境界と UTC、`Spring_Cell_0_4` の unload が `W_spawn` の外、Title load・封鎖・初回 Scene の行、App の正の証拠、位置 2 点、Stable の eval。script の保存出力の行番号は Editor.log の `rg -n` より 1 大きい。
 - 残余リスク・監査できなかった範囲（担当の記載）: `pwsh` 不在で script の再実行不能。SceneResourceMap の実名全体と封鎖拒否文字列の製品定義は packet で確認できず、regex と文字列の完全性は未確定。Full の除外判定の script に一般には誤 PASS の余地。HANDOFF・B の grep 調査・test-only commit の内容と RED・動作確認・docs/contract audit・差分外の呼び出し全体は独立検証できない。物理の全位相、入力 ON 中の全フレーム、全 Tick、全 revision の寿命、Player Build、実 R2 は対象外。AC6 の文書は候補 head では検証 Play 未実施の記述で、判定後の結果反映は未実施。
 - この記録は C' の報告の転記で、判定 C との突き合わせ・指摘への裁定・修正は行っていない（次は人間または Phase D 担当）。
+
+### AC6 の文書の書き換え（D2）
+
+- 担当: Phase B（Anthropic、Claude Code）。起動 SHA `7675992b79324e0c46664be944fa3ae8d0f51444`（HEAD と一致、作業ツリーは `artifacts/`・`docs/reviews/` の untracked だけ）。
+- 新しい implementation head: `9b99a83ef6215071ca99a2768559cad4b86eb82b`。`git diff --name-only a79530b4 9b99a83e` は `docs/handoff/BS_RIG_SPAWN_PLANNER_PROOF.md`・`docs/handoff/BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md`・`unity/Assets/Docs/Architecture/{05-scene,12-telemetry,18-asset-description}.md` だけ（製品コード・テストは旧 head と同じ）。
+- 書き換えた箇所（主張は上の「判定 C」の観測の範囲に留めた）:
+  - §18 §4 の S-4d5b の行: 「この再検証は … まだ行っていない」を消し、「再検証の観測」の項を足した（同じ 1 回の Play の `IsSceneStable`・`0_4` の Stable と `W_spawn` の unload 0・`0_0` の load 0・`Player ready` と位置 2 点・preflight・VFX 2 種の出現と回収・Cell 単位の 0 件・Mismatch・封鎖の拒否・観測できた App の Error 0）。hook の登録前の区間と全 Tick は観測していないと書いた。`Player ready` の原因の項に、直した後の Play で行が出たことを足した。
+  - §18 §4 の BS5b-2 の cache root の項（E3 (a)(c) の形は B の版のまま）: 「まだ確かめていない」を、検証 Play が install と報告した revision root が停止後も `receipt.json` とともに残っていた観測（E3 (b)。その 1 件に限り、全 revision の寿命・既定 root は主張しない）に替えた。AC5 の保証の縮みの文はそのまま。AC5 の前後一覧の結果は D2 で新 head の判定を待つので書いていない。
+  - §05 §5.13: 「再検証の検証 Play はまだ行っていない」を、再検証の Play の観測の要約と §18 §4 への参照に替えた。
+  - §12 §3.2 の G5: 機構（formatter が値の書けない行を落とし `InternalErrorLogger` が未設定）と、実例（S-4d5b の `Player ready` の欠落と 1 行の修正。§18 §4 を参照）を分けた。formatter 自体は直していないと書いた。
+  - program §7 の行: 「検証 Play による再検証は未実施」を、再検証の Play の観測と「判定は文書を結果へ書き換えた head でやり直す」に替えた（状態は進行中のまま）。
+- 機械検査（9b99a83e の作業ツリー）: `pwsh tools/docs-audit.ps1` は `AUDIT_RESULT kind=docs files=110 errors=0 warnings=0 checks=1,2,3`。`pwsh tools/contract-audit.ps1` は `AUDIT_RESULT kind=contract files=719 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8,9 applicable8=False`。
+- 未実行: Unity Editor・Unity テスト・Build（権限外）。判定 C と C' 2 巡目。
 
 ## 7〜9
 
