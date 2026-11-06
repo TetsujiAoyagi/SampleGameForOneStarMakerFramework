@@ -152,6 +152,8 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
 
     private bool CanDisconnect()
     {
+        // AutoListen は retry/backoff 中も停止可能にする。
+        // transport state だけを見ると Disconnected に見える故障待機中に Stop が隠れてしまう。
         if (_autoListen != null) return _autoListen.CanStop;
         return _sessionService.State is DebugSocketConnectionState.Connected or
             DebugSocketConnectionState.Connecting or
@@ -196,6 +198,8 @@ public sealed class SessionWindowViewModel : ObservableObject, IAsyncDisposable
         {
             if (_autoListen != null)
             {
+                // UI の Stop は transport を直接切らず、継続意図を閉じる service に委譲する。
+                // これで retry の次周が GUI の明示停止後に再接続する競合を避ける。
                 await _autoListen.StopAsync();
                 return;
             }

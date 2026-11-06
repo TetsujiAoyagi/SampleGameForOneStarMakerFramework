@@ -16,6 +16,7 @@ internal static class ReadCommand
         Func<Uri, ControlReadRequestEnvelopeV1, Task<ControlReadResponseEnvelopeV1>>? read = null)
     {
         read ??= (uri, request) => new CliReadControlPlaneClient().ReadAsync(uri, request);
+        // timeout は wire 上の整数 ms に切り上げる。小数 ms を切り捨てて指定より早く期限切れにしない。
         var result = await read(options.ControlUri, new ControlReadRequestEnvelopeV1
         {
             RequestId = Guid.NewGuid().ToString("N"), Operation = options.Operation, NodeId = options.NodeId,
@@ -28,6 +29,7 @@ internal static class ReadCommand
     internal static string Serialize(ControlReadResponseEnvelopeV1 result)
     {
         object? data = null;
+        // NodeId/TargetId は wire 上 int64。JavaScript 等の JSON consumer でも桁を失わないよう文字列で出力する。
         if (result.Hierarchy is { } h)
             data = new { h.HasSnapshot, h.Revision, h.CapturedAtUnixTimeMilliseconds, h.ConnectionState, h.HandshakeState,
                 Nodes = h.Nodes.Select(n => new { NodeId = n.NodeId.ToString(CultureInfo.InvariantCulture),

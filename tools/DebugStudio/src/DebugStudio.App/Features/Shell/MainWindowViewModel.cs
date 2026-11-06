@@ -73,7 +73,8 @@ public sealed class MainWindowViewModel : IAsyncDisposable
             Trace.TraceError($"Shell view model cleanup failed: {ex}");
             (errors ??= new List<Exception>()).Add(ex);
         }
-        // One panel's cleanup must not retain session subscriptions or prevent transport shutdown.
+        // 各 panel の購読解除は次の Session/transport 停止より先に試す。
+        // 一つの panel が失敗しても残りを解放し、aggregate は全所有物を試した後だけ通知する。
         foreach (var cleanup in new Action[] { Commands.Dispose, Telemetry.Dispose, LogViewer.Dispose, Hierarchy.Dispose, Inspector.Dispose })
         {
             try { cleanup(); }

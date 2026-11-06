@@ -63,6 +63,7 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
 
         if (_started)
         {
+            // 起動済み listener を重複作成しない。開始後は App lifetime が停止責任を持つ。
             return Task.CompletedTask;
         }
 
@@ -83,6 +84,8 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
         }
 
         _disposed = true;
+        // shutdown token を先に伝えて accept/receive の待ちを解除してから listener を閉じる。
+        // accept task を待つことで、socket 処理が残った状態で CTS や server を解放しない。
         _shutdownCts.Cancel();
 
         if (_server != null)
@@ -157,7 +160,8 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
 
                 if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadRequest)
                 {
-                    // read の不正 payload は read 応答で返し、command と混同させない。
+                    // read の不正 payload も read response 型で返す。
+                    // command response に混ぜると旧 host との互換判定や CLI の終了コードが崩れる。
                     if (!DebugSocketProtocol.TryDeserializePayload<ControlReadRequestEnvelopeV1>(envelope, out var readRequest) || readRequest == null)
                     {
                         var invalidRead = new ControlReadResponseEnvelopeV1 { RequestId = envelope.RequestId ?? string.Empty, Reason = "invalid-request" };
@@ -253,6 +257,8 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
 
         try
         {
+            // control-plane の要求 ID を既存 Unity command に引き継ぐ。
+            // 独自の pending map を作らず、既存 CommandResult の相関と期限掃除を再利用する。
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linkedCts.CancelAfter(timeout);
 
@@ -304,7 +310,8 @@ public sealed class DebugStudioCliControlService : IAsyncDisposable
 
     private async Task<DebugSocketEnvelopeV1?> ReceiveEnvelopeAsync(WebSocket socket, CancellationToken cancellationToken)
     {
-        // One deadline covers the entire frame; fragments must not renew an idle peer's lease.
+        // 一つの frame 全体に受信期限を適用する。fragment ごとに期限を更新すると、
+        // 少しずつ送る peer が一つの CLI 接続を無期限に占有できてしまう。
         using var deadline = _createDeadline(TimeSpan.FromSeconds(15), cancellationToken);
         var buffer = new byte[8192];
         await using var memoryStream = new MemoryStream();

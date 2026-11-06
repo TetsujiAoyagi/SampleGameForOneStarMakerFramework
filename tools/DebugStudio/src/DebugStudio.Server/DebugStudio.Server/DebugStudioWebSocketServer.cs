@@ -108,8 +108,8 @@ public sealed class DebugStudioWebSocketServer : IDisposable
             listener = _listener ?? throw new InvalidOperationException("Server is not listening. Call StartListening() first.");
         }
 
-        // The default Connect attempt owns one deadline, including ignored HTTP requests.
-        // Opt-in listening uses renewable idle waits below and a separate handshake deadline.
+        // 通常起動では accept 全体に一つの期限を適用し、無関係な HTTP request も期限を延長しない。
+        // opt-in 待受けだけは下の idle 待ちを更新するが、WebSocket handshake は別の有限期限にする。
         using var timeoutCts = _timeoutFactory(TimeSpan.FromSeconds(_options.AcceptTimeoutSeconds));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
         while (true)
@@ -118,8 +118,8 @@ public sealed class DebugStudioWebSocketServer : IDisposable
             HttpListenerContext httpContext;
             try
             {
-                // Keep the same GetContext task after an idle deadline. A fresh task would leave
-                // the old accept pending and could silently consume the next Unity connection.
+                // idle 期限のたびに同じ GetContextAsync を待ち直す。新しい accept task を作ると、
+                // 古い待機が残って次の Unity 接続を先に消費する可能性がある。
                 var pendingContext = listener.GetContextAsync();
                 if (continueOnIdleTimeout)
                 {
@@ -158,8 +158,8 @@ public sealed class DebugStudioWebSocketServer : IDisposable
             using var handshakeLinked = handshakeTimeout == null ? null : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, handshakeTimeout.Token);
             try
             {
-                // Idle waiting can span many deadlines. The handshake receives its own finite
-                // deadline and its timeout continues to be a fault in both startup modes.
+                // idle 待ちは何度も更新できる一方、接続要求を受けてからの handshake は一回だけの有限期限とする。
+                // handshake timeout は待受け継続ではなく故障として扱い、fault/retry の経路へ返す。
                 webSocketContext = await httpContext.AcceptWebSocketAsync(subProtocol: null)
                     .WaitAsync(handshakeLinked?.Token ?? linkedCts.Token)
                     .ConfigureAwait(false);

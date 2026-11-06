@@ -20,6 +20,8 @@ public sealed class CliReadControlPlaneClient
         if (request.TimeoutMilliseconds is <= 0 or > 60000) return Error("invalid-request");
         using var socket = new ClientWebSocket();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // connect / send / receive を一つの期限で束ねる。各段で期限を更新すると
+        // 応答しない local peer が段数分だけ CLI を占有できてしまう。
         deadline.CancelAfter(TimeSpan.FromMilliseconds(request.TimeoutMilliseconds));
         try
         {
@@ -45,10 +47,13 @@ public sealed class CliReadControlPlaneClient
                 if ((DebugSocketMessageType)envelope.MessageType == DebugSocketMessageType.ControlReadResponse &&
                     DebugSocketProtocol.TryDeserializePayload<ControlReadResponseEnvelopeV1>(envelope, out var response) &&
                     response != null && string.Equals(response.RequestId, request.RequestId, StringComparison.Ordinal)) return response;
+                // listener の応答でない frame は読み捨てる。別 request の応答をこの CLI 呼出しへ流用しない。
             }
         }
         catch (OperationCanceledException) { return Error(cancellationToken.IsCancellationRequested ? "cancelled" : "timeout"); }
         catch (Exception) { return Error("control-failed"); }
+        // close は結果を返すための処理ではなく後始末。peer が close を返さなくても、
+        // すでに得た timeout / response を上書きしない。
         finally { await ControlClientClose.TryCloseAsync(socket).ConfigureAwait(false); }
     }
 }

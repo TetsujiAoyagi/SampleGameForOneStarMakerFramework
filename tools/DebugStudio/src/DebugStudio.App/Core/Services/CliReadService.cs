@@ -32,14 +32,17 @@ public sealed class CliReadService
     {
         ArgumentNullException.ThrowIfNull(request);
         ControlReadResponseEnvelopeV1 Error(string reason) => new() { RequestId = request.RequestId, Reason = reason };
+        // 外部 control 接続から長時間の待ちや曖昧な操作を持ち込ませない。
+        // 範囲検査は listener 側で応答を作る前に行い、要求単位の期限を有限に保つ。
         if (request.TimeoutMilliseconds is <= 0 or > 60000 ||
             request.Operation is not ("hierarchy" or "inspect") ||
             (request.Operation == "inspect" && request.NodeId <= 0)) return Error("invalid-request");
         if (cancellationToken.IsCancellationRequested) return Error("cancelled");
         if (request.Operation == "hierarchy")
         {
+            // GUI 選択や表示中の Inspector を動かさず、受信済みの retained state をそのまま返す。
+            // Clear 後の空 snapshot と、まだ一度も受信していない初期状態は revision で区別する。
             var retained = _hierarchy.GetRetainedSnapshot();
-            // 空の受信済み階層と初期状態・Clear 後を revision で区別する。
             var data = new ControlHierarchySnapshotV1
             {
                 HasSnapshot = retained.State.Revision > 0,
@@ -68,7 +71,8 @@ public sealed class CliReadService
         void OnDetail(InspectorDetailEnvelopeV1 detail)
         {
             if (detail.TargetId != request.NodeId) return;
-            // 応答元を識別できないため、同じ対象への GUI 応答も受け入れる。
+            // wire に要求 ID がないため、厳密な応答相関はできない。
+            // 同じ TargetId の最初の応答を best-effort で返し、GUI が同時に取得した値も許容する。
             completion.TrySetResult(new() { RequestId = request.RequestId, Inspector = detail,
                 Status = detail.State == InspectorDetailState.Ready ? "ok" : "error",
                 Reason = detail.State switch { InspectorDetailState.Ready => "ready",
@@ -76,7 +80,8 @@ public sealed class CliReadService
         }
         void OnConnection(DebugSocketConnectionSnapshot snapshot)
         {
-            // イベントは購読解除後にも呼ばれ得るため、破棄対象の CTS には触れない。
+            // すでに開始済みの callback は購読解除と競合し得るため、ここでは thread-safe な
+            // completion だけを更新する。operation CTS や要求ごとの resource を参照しない。
             if (snapshot.State != DebugSocketConnectionState.Connected)
             {
                 completion.TrySetResult(Error("disconnected"));
@@ -85,6 +90,7 @@ public sealed class CliReadService
         }
         _session.InspectorDetailReceived += OnDetail;
         _session.ConnectionStateChanged += OnConnection;
+        // 購読を送信より先に行い、Inspector の即時応答を取りこぼさない。
         using var cancellation = operation.Token.Register(() => completion.TrySetCanceled(operation.Token));
         try
         {
@@ -103,6 +109,8 @@ public sealed class CliReadService
         catch (Exception) { return Error("faulted"); }
         finally
         {
+            // 共有 SessionService の event 購読を要求寿命で閉じてから、送信待ちを取り消す。
+            // すでに実行中の callback は completion.TrySetResult のみを行い、破棄済み CTS を参照しない。
             _session.InspectorDetailReceived -= OnDetail;
             _session.ConnectionStateChanged -= OnConnection;
             operation.Cancel();

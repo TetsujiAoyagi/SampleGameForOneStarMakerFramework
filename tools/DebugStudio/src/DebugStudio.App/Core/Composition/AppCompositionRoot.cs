@@ -43,6 +43,8 @@ public sealed class AppCompositionRoot
             readService: composition.CliReadService);
         try
         {
+            // 外部 CLI の受付口を先に開く。--listen による Unity の着信待受けを開始する時点で、
+            // CLI control listener の起動が完了している順序を保つ。
             cliControlService.StartAsync().GetAwaiter().GetResult();
             appLifetime = CreateAppLifetime(
                 composition.AutoListenService,
@@ -264,6 +266,8 @@ public sealed class AppCompositionRoot
         MainWindowViewModel viewModel)
     {
         var disposables = new List<IAsyncDisposable>(4);
+        // 解放順も所有関係の一部として固定する。AutoListen を先に止めて Unity transport を閉じ、
+        // CLI listener と保存系を止めた後、最後に ViewModel が共有 SessionService を破棄する。
         if (autoListenService != null) disposables.Add(autoListenService);
         if (cliControlService != null)
         {

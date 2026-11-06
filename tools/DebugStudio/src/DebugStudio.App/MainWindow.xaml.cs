@@ -45,8 +45,9 @@ public partial class MainWindow : Window
     {
         if (_asynchronousShutdown && !_cleanupComplete)
         {
-            // Keep the Dispatcher pumping while cancellation and background event handlers finish.
-            // Additional Close calls share this one cleanup task and cannot dispose twice.
+            // loop 停止やイベント購読解除の完了中も Dispatcher を動かし続ける。
+            // 同期 Close 待ちにすると UI dispatcher を必要とする終了処理と相互待ちになる。
+            // 連続する Close は同じ cleanup task に合流し、所有物を二度解放しない。
             e.Cancel = true;
             _shutdownTask ??= ShutdownAndCloseAsync();
             base.OnClosing(e);
@@ -61,7 +62,8 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        // OnClosed を sync 化し、async void 由来の unhandled exception を避ける。
+        // 旧経路では OnClosed を同期的な最終境界にして、async void の例外を Dispatcher へ漏らさない。
+        // --listen 経路では先に OnClosing で async cleanup を終えており、ここでの再解放はしない。
         if (!_asynchronousShutdown)
         {
             try { _lifetime.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
@@ -71,10 +73,12 @@ public partial class MainWindow : Window
 
     private async Task ShutdownAndCloseAsync()
     {
-        // Publish _shutdownTask before any synchronous disposal can re-enter Close.
+        // 次の await まで同期実行して shutdown task を公開する。保存や解放から Close が再入しても、
+        // 呼出元へ戻る前に _shutdownTask が設定済みとなり、cleanup を重ねて開始しない。
         await Task.Yield();
         try
         {
+            // window 状態の保存と lifetime 解放は一度だけ行い、保存失敗で transport 停止を飛ばさない。
             try { _shellLayoutCoordinator.SaveLayout(); }
             catch (Exception ex) { Trace.TraceError($"Saving window layout failed: {ex}"); }
             try { await _lifetime.DisposeAsync(); }

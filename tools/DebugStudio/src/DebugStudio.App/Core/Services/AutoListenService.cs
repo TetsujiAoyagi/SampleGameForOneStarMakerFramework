@@ -5,7 +5,11 @@ using DebugStudio.Client;
 
 namespace DebugStudio.App.Core.Services;
 
-/// <summary>Owns the opt-in listener loop; SessionService remains owned by the window VM.</summary>
+/// <summary>
+/// 明示的に有効化された場合だけ、Unity の切断後も同じ設定で待受けを再開する。
+/// 再接続loopは所有するが、SessionService 自体の所有・破棄は行わない。
+/// UI からの Start/Stop と App lifetime からの最終停止を同じloopへ集約する。
+/// </summary>
 public sealed class AutoListenService : IAsyncDisposable
 {
     private readonly object _gate = new();
@@ -62,8 +66,11 @@ public sealed class AutoListenService : IAsyncDisposable
         {
             if (_cts == null) return Task.CompletedTask;
             if (_stop != null) return _stop;
+            // 先に loop へ停止意図を伝える。Disconnect は loop の終了後に行い、
+            // retry 中の Connect と GUI の Stop が別々の接続操作を競合させない。
             _cts.Cancel();
-            // Queue the stop so synchronous completion cannot race publication of _stop.
+            // _stop を設定してから停止処理を走らせる。Connect が既に同期完了していても、
+            // StopAsync の再入呼出しが未設定の _stop を見て二つ目の停止処理を作らない。
             stop = _stop = Task.Run(StopCoreAsync);
         }
         Changed?.Invoke();
@@ -80,6 +87,8 @@ public sealed class AutoListenService : IAsyncDisposable
     {
         try
         {
+            // ConnectAsync が token を無視していても、loop の完了後に必ず transport を閉じる。
+            // Dispose は SessionService の所有者ではないため、ここでは session 自体を破棄しない。
             try { await _loop.ConfigureAwait(false); }
             finally { await _disconnect().ConfigureAwait(false); }
         }
@@ -107,12 +116,15 @@ public sealed class AutoListenService : IAsyncDisposable
                     terminal.TrySetResult(snapshot.State);
             }
             var retry = false;
+            // Connect より先に購読する。接続直後に Unity が切断しても終端通知を取りこぼさない。
             _subscribe(OnState);
             try
             {
                 token.ThrowIfCancellationRequested();
                 await _connect(options, token).ConfigureAwait(false);
                 failures = 0;
+                // Disconnected は通常の Unity 再起動を意味し、直ちに次の accept を始める。
+                // Faulted だけを故障扱いにして backoff し、失敗時の接続連打を避ける。
                 retry = await terminal.Task.WaitAsync(token).ConfigureAwait(false) == DebugSocketConnectionState.Faulted;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
