@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C' 実施中`（判定 C 完了。観測で確かめられる I1〜I3・E1・E2・E3 の (b)(d) は充足。E3 の (a)(c) と AC6 の文書は Phase D の完了条件。C' の報告は本票へ未記録。§6「判定 C」）
+- status: `C' 1 巡目完了（blocking findings exist）`（判定 C 完了。観測で確かめられる I1〜I3・E1・E2・E3 の (b)(d) は充足。E3 の (a)(c) と AC6 の文書は Phase D の完了条件。C' の指摘 A 4 件は裁定待ち。§6「判定 C」「Phase C'」）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `a79530b4302fdb3728220551cee5642de4662414`
@@ -367,6 +367,19 @@ A3 の採否（2026-11-04 凍結）:
 - 保存先: bundle は Artifact Storage に `staged`（§0 の取得案内）。中身: eval の C# 一式、照合 script と出力、Editor.log・App のログ・`run-log.txt`・`preflight.json` 等の原記録、AC5 の前後一覧、回帰の XML と検査出力、`SHA256SUMS.txt`、`README.txt`（候補 head・content revision・絶対 path・実行担当・未実行の項目）。
 - 未実行: C' の blind 監査、Phase D の文書更新、`docs-audit`、Player Build、実 R2。
 - 後始末: Play は停止し handler は `stop.cs` で外した（`stop.cs` の最初の送信は path の誤りで実行されず、2 回目で実行）。Editor に `EditorApplication.Exit(0)` を依頼した。終了の確認は取れていない（既知の native 終了 stall の可能性。調査は反復しない。AGENTS.md の規則）。osm-jc の `.pdb.meta` 5 件は Editor の終了後に `git checkout --` で戻す。
+
+### Phase C'（1 巡目）
+
+- 担当・入力: OpenAI（Codex CLI 0.164.0。報告の自己申告は「OpenAI GPT-6（Codex）」）。B（Opus 5.5）・C（Sonnet 5.5）と別系列で、新規セッション、読み取り専用 sandbox、blind bundle（§0）だけを入力にした。Unity・network は使っていない。実行は 1 回（トークン約 6.7 万）。
+- 報告の原本: `D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-report-round1.md`（sha256 `adc8a93d722174fbfa4da353b6193071bd2df9454c492718fb6d69a72deefeb3`。git 管理外）。
+- 監査結論（担当の記載）: **blocking findings exist**。A（凍結条件・常時契約への違反で現在の問いを阻害）4 件、B（後続の入力）0 件。
+  1. A: AC5 の「直後」の一覧が全件回帰の直後でない（前 2026-11-04 15:02Z、回帰 15:10〜15:33Z、後 2026-11-06 20:14Z）。一覧が同一でも直後の不変性と間の操作の不在は証明されず、AC5/I2 と E3(d) は判定不能。実際の直後の一覧と取得手順の原記録が要る。
+  2. A: bundle だけで照合を再実行できない。E3(b) の照合が実行元 PC の絶対 path の `Test-Path` に依存し、VFX の時刻変換が再実行側のローカル時差を使う。担当の環境では `pwsh` が無く、script の再実行は未実施。
+  3. A: 凍結された検証の一部が script の PASS に含まれない（Editor.log の Error/Exception の補助計数、major scene の load・unload の 30 秒の上限、位置点が `Player ready` の後であることの合否化、行番号の記録）。個別の観測自体は不合格とは見ていない。
+  4. A: AC1 の RED（修正前の XML と assertion）、`docs-audit`・`contract-audit` の結果が bundle に無く、独立に確認できない。AC6 の文書は検証 Play 未実施の記述のままで、判定後の更新と区別が要る。
+- 担当が原ログで独立に確かめたもの: `W_all`（Editor.log の handler 〜 stop）・`W_spawn`（submit 〜 最初の移動の直前）の境界と UTC、`Spring_Cell_0_4` の unload が `W_spawn` の外、Title load・封鎖・初回 Scene の行、App の正の証拠、位置 2 点、Stable の eval。script の保存出力の行番号は Editor.log の `rg -n` より 1 大きい。
+- 残余リスク・監査できなかった範囲（担当の記載）: `pwsh` 不在で script の再実行不能。SceneResourceMap の実名全体と封鎖拒否文字列の製品定義は packet で確認できず、regex と文字列の完全性は未確定。Full の除外判定の script に一般には誤 PASS の余地。HANDOFF・B の grep 調査・test-only commit の内容と RED・動作確認・docs/contract audit・差分外の呼び出し全体は独立検証できない。物理の全位相、入力 ON 中の全フレーム、全 Tick、全 revision の寿命、Player Build、実 R2 は対象外。AC6 の文書は候補 head では検証 Play 未実施の記述で、判定後の結果反映は未実施。
+- この記録は C' の報告の転記で、判定 C との突き合わせ・指摘への裁定・修正は行っていない（次は人間または Phase D 担当）。
 
 ## 7〜9
 
