@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `判定 C（新 head でやり直し）`（C' 1 巡目の指摘 A 4 件を発注者が裁定した（§2 決定記録 D2）。判定 C の GO は取り消し、B が AC6 の文書を結果へ書き換えた新 head で判定 C と C' をやり直す）
+- status: `判定 C 完了（新 head 9b99a83e、GO。C' 2 巡目待ち）`（C' 1 巡目の指摘 A 4 件の裁定 D2 に従い、新 head で判定 C をやり直した。§6「判定 C（新 head）」。旧 head の判定・bundle は新 head の証拠に流用していない）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `9b99a83ef6215071ca99a2768559cad4b86eb82b`（AC6 の文書の commit。旧 head `a79530b4302fdb3728220551cee5642de4662414` との差分は文書と HANDOFF だけで、製品コード・テストは同じ）
@@ -14,9 +14,13 @@
 - harvest to: Architecture §18 §4「BuildSystem の後続」（S-4d5b の行・BS5b-2 の「未調査の観測」と「テストの隙間」・「検証の残り」）、BuildSystem Artifact Storage Program §7 の該当行、Architecture §05 §5.13（Planner Play の実証の記述）、Architecture §12 §3.2「ギャップ」（ログの formatter の欠落の行。U7）
 - Phase A snapshot の取得案内・状態: 使わない（発注者の裁定 U4。Phase A の版は内容 sha256 で固定し、Phase A の commit は A3 凍結版だけにする）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/1`（候補 head `a79530b4…`。push しない））
-- C' blind bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。git 管理外。A3 凍結計画・実装 diff・ソース写し・判定 C と同じ evidence bundle・指示書。所見を含まない）
+- evidence bundle の取得案内・状態: 新 head 版を生成済み（`staged`、`locality: local`。取得 → 展開 → hash → 照合 script の再実行まで同一 PC の別の取得 copy で確認済み。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c2\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/2`（implementation head `9b99a83e…`。push しない））。旧 head の bundle（`…\bs-rig-judge-c\…`、tag `…/1`）は新 head では無効で、入力にしない
+- C' blind bundle の取得案内・状態: **旧 head 版は新 head では無効**（`D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。旧 head `a79530b4` の diff・旧 evidence bundle を含む）。新 head 版は未生成（判定 C の担当は作っていない。C' 2 巡目の起動前に、新 head の実装 diff・A3 凍結計画・上の新 evidence bundle・指示書（決定記録は D2 だけ）から作り直す）
 - 引継ぎ票:
+  - **更新（判定 C 完了、新 implementation head `9b99a83ef6215071ca99a2768559cad4b86eb82b`、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** 新 head で判定 C をやり直し、D2 の要件を満たして GO（§6「判定 C（新 head）」）。全件回帰 1644 件・failed 0・inconclusive 25（旧 head と同じ件数）、必須 2 件 Passed、AC5 の前後の一覧は同一、検証 Play 1 回と新照合 script は `RESULT: ALL PASS`（別ディレクトリ・3 つのロケールで出力が一致、取得 copy でも ALL PASS）、audit 2 件は errors 0。**逸脱 2 件は §6 に記録済み**（回帰の Unity が終了で止まり AC5 の「直後」の一覧が XML 終了の 16.4 分後、diag の空振り 2 回）。次: C' 2 巡目（予約は OpenAI（Codex）、渡す決定記録は D2 だけ）。その前に C' blind bundle を新 head から作り直す（上の欄）。
+    - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が本 HANDOFF だけ。
+    - 引き渡さないもの: 判定 C の結論・本記録（§6）の本文を C' に渡さない（blind bundle は evidence bundle の原記録だけ）。`artifacts/` を commit に混ぜない（U6）。
+  - 以下は更新前の記述（旧 head の判定・D2 前の票）。
   - **更新（Phase B（AC6 の文書）、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** AC6 の文書を §6「判定 C」の観測に合わせて書き換え、新しい implementation head `9b99a83e…`（§0 の欄）を固定した（§6「AC6 の文書の書き換え（D2）」）。docs-audit・contract-audit は errors 0。次: 判定 C（新 head でやり直す。実行担当は Phase B と異なるモデル）。§5 の判定 C の手順（判定必須テスト＝EditMode 全件回帰、AC5 の直前・直後の一覧、検証 Play 1 回、照合 script、機械検査）を新 head で全て行い、§2 D2 の要件（指摘 1: 直後の一覧は回帰の終了から間を置かずに取り、失敗したら回帰からやり直す。指摘 2: bundle の外の絶対 path の存在確認を合否に使わず、時刻は記録した UTC か記録した時差で変換し、bundle を別の PC に置いて同じ結果になることを確かめる。指摘 3: Editor.log の Error・Exception の補助計数と分類、major Event の load / unload の 30 秒の上限、位置 2 点が `Player ready` の後であることの合否、LF 区切りで `rg -n` と一致する行番号。指摘 4 前半: bundle に発見 C の RED の原記録（`artifacts/bs-rig-spawn-a1/red-check/`）と新 head の 2 つの audit の出力）を満たす。旧 head の判定の証拠は新 head の合格証拠に流用しない。判定 C の後、C' 2 巡目（予約は OpenAI（Codex）。渡す決定記録は D2 だけ）。
     - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が本 HANDOFF だけ。
     - 権限・停止規則・引き渡さないもの: §5 の判定 C と §2 の停止規則のとおり。C' の 1 巡目の報告の本文は判定 C の入力にしない。`artifacts/` を commit に混ぜない（U6）。
@@ -409,6 +413,31 @@ A3 の採否（2026-11-04 凍結）:
   - program §7 の行: 「検証 Play による再検証は未実施」を、再検証の Play の観測と「判定は文書を結果へ書き換えた head でやり直す」に替えた（状態は進行中のまま）。
 - 機械検査（9b99a83e の作業ツリー）: `pwsh tools/docs-audit.ps1` は `AUDIT_RESULT kind=docs files=110 errors=0 warnings=0 checks=1,2,3`。`pwsh tools/contract-audit.ps1` は `AUDIT_RESULT kind=contract files=719 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8,9 applicable8=False`。
 - 未実行: Unity Editor・Unity テスト・Build（権限外）。判定 C と C' 2 巡目。
+
+### 判定 C（新 head）
+
+- 対象 head: `9b99a83ef6215071ca99a2768559cad4b86eb82b`（実行担当は Phase C の別 session。判定 checkout は detached worktree `osm-jc`（旧 head から `git checkout --detach` で移した）。起動前の記録は bundle の `preflight-git.txt`（HEAD 一致・`porcelain=[]`・Unity process 0）と `preflight-git-editorstart.txt`）。旧 head `a79530b4` の判定・bundle は流用していない。
+- 保存先: bundle は §0 の取得案内（`staged`、local）。中身は `README.txt`・eval の C#・`lib.ps1`/`diag.ps1`（駆動）・照合 script `verify-judge-c.ps1` と `check-sums.ps1`・出力 `verify-output.txt`・原記録（Editor.log・App のログ `app.log`（rolling の 001〜007 を連結。部品と sha256 は `app-log-parts*`）・`run-log.txt`・`preflight.json` 等）・AC5 の前後の一覧・回帰の XML と検査出力・`regression-timing.txt`・`red-check/`（発見 C の RED の原記録）・`audit-contract-output.txt`/`audit-docs-output.txt`・`rg-n-crosscheck.txt`・`SHA256SUMS.txt`。
+- **全件回帰（空 filter、EditMode）:** `pwsh tools/run-tests.ps1`（sandbox 外）。XML は total 1644・passed 1619・failed 0・inconclusive 25・skipped 0・run `Passed`（start 21:34:17Z、end 21:49:26Z）。`FlyControllerTeleportTests` と `PublishedDirectoryReceiveTests.EmptyCacheRoot_ResolvesToTheDefaultRoot` は test-case ごとに `Passed`、旧名 0 件（`check-regression.ps1` の `REQUIRED-CHECK: PASS`）。Inconclusive 25 は全て `Rendering.Vfx` の Play テスト（旧 head と同じ件数）。
+- **AC5（既定 cache root、I2）:** 回帰の直前（2026-11-06 21:31:06Z。回帰の開始 21:31:17Z より前）と直後の一覧（各 6 行、root 自身を含む）は同一（差分 0）。**逸脱（D2 指摘 1 の「直後」の解釈）:** 回帰の Unity process は結果 XML の完成（21:49:26Z）の後、終了で止まった（既知の native 終了 stall。AGENTS.md の規則に従い調査を繰り返していない。`taskkill` も「実行中の task が無い」と返す状態）。直後の一覧は process が生きている間の 22:05:52Z（XML 終了の 16.4 分後）に取り、その後に runner の pwsh を 22:07:11Z に止めた（`regression-timing.txt`）。この間に既定 root を使う別の操作は無い（Unity は停止中、他の作業は行っていない。ただし他の session の書き込みを機械では排除していない）。この逸脱は「回帰の終了から間を置かず」の文言を厳密には満たさないが、「失敗したら回帰からやり直す」の失敗（一覧の取得失敗）ではなく process 終了の停止なので、やり直しはしていない。判断は C' と発注者に委ねる。検証 Play の cache root は非既定の `…\OSM-evidence\bs-rig-judge-c2\cache`（eval で `nonEmpty=True`、`enterPlayModeOptions=DisableDomainReload` を記録）。
+- **検証 Play（1 回。Editor は起動し直し、untitled の空 Scene から）:** `VerifyAsync(spring-planner-whitebox, interactive:false)`（content を build・install。revision `20261106T221135763Z-b60acf591c3246f98b303105796f8d9a`）。D1 の hook を `ExitingEditMode` で掛け、`start-button` へ submit（marker 1 件）。診断は同じ Play で local と major の VFX。**逸脱（診断の空振り）:** `diag.ps1` の最初の 2 回は、駆動の `lib.ps1` の正規表現の記述誤り（私の誤り）で結果を読めず、各 action の eval を 3 回ずつ実行しただけで観測が記録されなかった（`run-log.txt` の NOTE）。`lib.ps1` を直し、同じ Play で診断を再実行した（3 回目）。Editor.log には余分な marker が残る（照合 script は、観測の直前の最後の marker と対にする）。Title は submit まで約 6 分待った（content の build と、私の確認の間）。
+- **照合 script（offline。bundle の `verify-judge-c.ps1`）:** `RESULT: ALL PASS`（`verify-output.txt`）。D2 の要件への対応:
+  - 指摘 2: bundle の外の path を合否に使わない（E3 (b) は Play 停止後の pwsh の列挙の記録 `after-stop-listing.txt` と Editor.log の `[VerifyPlay] installed` の行の一致で判定）。時刻は全て記録した UTC（App のログの `+00:00` つきの値は UTC に直す。eval の戻りも `utc=`）。ロケールは Invariant に固定。bundle を別ディレクトリ（`%TEMP%\other-pc-replay\…`）へ写し、`de-DE`・`ja-JP`・`en-US` で実行して出力が元と一致（差分 0）、`check-sums.ps1` も 3 回とも `checked=58 bad=0`。さらに `evidence fetch` で取得した copy でも `ALL PASS`。**別の PC では実行していない**（同一 PC の別ディレクトリと別ロケールまで。時差は script が使わないことを grep で確かめた）。
+  - 指摘 3: (a) `W_all` の Editor.log の `Error`・`Exception` の補助計数は 1 行（行 26998。`DebugSocketTransportHost.ConnectLoopAsync` の `LogWarning` の stack の `TrySetException`。Error ではなく Warning の stack 行。合否にしない）。(b) major Event の scene の load（行 41271）は `mp_start`（41219）と次の `obs`（41281）の UTC で挟んで上限 1.0 s、unload（行 41359）は `mp_done`（41307）と `obs`（41401）で上限 1.0 s。ともに 30 秒以内（PASS）。(c) 位置 2 点は `Player ready`（22:19:59.890Z）の +0.937 s と +2.738 s で、後であることと 0.5 s 以上の間隔（1.80 s）が PASS。(d) 行は LF だけで分け、行番号は `rg -n` と一致（`rg-n-crosscheck.txt`）。
+  - 窓: `W_all` = Editor.log 26301〜41453 行（`handler-registered` 22:13:59Z〜`play-stop` 22:41:30Z）、`W_spawn` = 27041〜27187 行（submit〜最初の `mv_above42`）。App のログは `W_all` を覆う（script の判定の補正 1 件: 先頭の file が回帰の時刻から始まるので、「開始が handler より後」ではなく「W_all を覆う」を判定にした）。
+  - 負の証拠（`W_all`）: Cell 単位の Environment・Lighting・VFX の load 0、`Spring_Cell_0_0` の load 0（Editor.log）・`OnStabledImpl Spring_Cell_0_0` 0（App）、封鎖の拒否 0、`ContentDeclarationMismatch` 0、App の Error 以上 0。`W_spawn` の `Spring_Cell_0_4` の unload 0。
+  - 正の証拠: `handler-registered` 1（26301 行）が `loaded Title`（26893 行）より前、`(initial)` に Title なし。`single-run`（`Play requested` 1・`installed` 1）、`OnStabledImpl Spring_Cell_0_4`、`Flight registered`、`Player ready at Cell stream spawn (125.0, 28.0, 1125.0)`（3 成分）、封鎖の行 1（26468）、初回 Scene `stable=True` 1（26903）、`IsSceneStable(InGameSession)=True`、位置 2 点（rigidbody・transform とも spawn から 0.000 m）。
+  - AC4: `preflight.json` の requirements で `Spring_Cell_4_2` が Whitebox 1 件、excluded に Full の `RepresentationNotPreferred`、Cell 単位の Environment・Lighting・VFX は requirements・selected とも 0、issues 0。local は `mp_local` から 0.9 s で `Spring_Events_4_2_Burst` が出現（前は 0）、`mv_spawn` から 0.9 s で消滅。major は `mp_start` から 1.0 s で `Spring_Event_MultiCellProof_Burst` ×2 が出現、`mp_done` から 1.0 s で消滅。
+- **E3 (b):** `[VerifyPlay] installed D:\repositories\unity\OSM-evidence\bs-rig-judge-c2\cache\installed\spring-planner-whitebox\20261106T221135763Z-b60acf591c3246f98b303105796f8d9a (cache root …)` が 1 件（26170 行）。Play 停止後の列挙（`after-stop-listing.txt`、22:41:40Z）に `content`・`receipt.json`・`staging-owner.json`・`transport.json` が在る。主張は「検証 Play が install と報告した revision root が停止後も在った」に限る。
+- **機械検査（9b99a83e）:** `pwsh tools/contract-audit.ps1` は `AUDIT_RESULT kind=contract files=719 errors=0 warnings=0 checks=1,2,3,4,5,6,7,8,9 applicable8=False`（exit 0）、`pwsh tools/docs-audit.ps1` は `AUDIT_RESULT kind=docs files=110 errors=0 warnings=0 checks=1,2,3`（exit 0）。出力は bundle。
+- **AC6・E3 (a)(c) の確認:** 新 head の `unity/Assets/Docs/Architecture/18-asset-description.md` の BS5b-2 の cache root の項は、事実・最有力の仮説・不明の形で、寿命は §13 を参照し、W-6 と条件つきで矛盾しないと書き、AC5 の保証の縮みを書いている（Phase B の書き換えの結果。本判定は文面を読んだだけで、他の 4 文書の全文の再レビューは C' に委ねる）。
+- **判定:**
+  - I1: 充足（AC1 の GREEN、AC3、`W_spawn` の `0_4` の unload 0・`0_0` の load 0）。RED は発見 C（`red-check/` の原記録を bundle に収録）。
+  - I2: 充足（AC5 の前後一覧が同一）。上の「直後」の逸脱は記録した。§2 の「未確認」のうち `tools/` の .NET テストと `OneStarMaker/Tests` の全体の grep は B の記録に依る（本判定は再探索していない）。
+  - I3: 充足。E1・E2: 充足（同じ 1 回の Play）。E3: (a)(c) と AC6 は新 head の文書で充足、(b)(d) は充足。
+  - 結論: 進める最低条件 I1〜I3・E1〜E3 が揃い、致命的な反証は無い。**判定 C は GO（C' 2 巡目を待つ）。** 逸脱 2 件（AC5 の直後の一覧が XML 終了の 16.4 分後、diag の空振り 2 回）は上に記録した。
+- 未実行: C' 2 巡目、C' blind bundle の再生成、Phase D、Player Build、実 R2、別の PC での照合 script の実行。
+- 後始末: Play は停止し handler は `stop.cs` で外した。Editor に `EditorApplication.Exit(0)` を依頼し、この Editor（PID 3808）は終了した。回帰の Unity process（PID 13204）は終了で止まったまま残っている（既知の native 終了 stall。調査は反復しない）。Editor が消した `MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout --` で戻した（`postrun-git-status.txt`）。
 
 ## 7〜9
 
