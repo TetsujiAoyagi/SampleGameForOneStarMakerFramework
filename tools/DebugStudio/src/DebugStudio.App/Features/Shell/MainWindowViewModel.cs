@@ -2,6 +2,8 @@
 
 using System;
 using System.Threading;
+using System.Diagnostics;
+using System.Collections.Generic;
 using DebugStudio.App.Features.Session;
 using DebugStudio.App.Features.LogViewer;
 using DebugStudio.App.Features.Hierarchy;
@@ -65,23 +67,34 @@ public sealed class MainWindowViewModel : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        Commands.Dispose();
-        Telemetry.Dispose();
-        LogViewer.Dispose();
-        Hierarchy.Dispose();
-        Inspector.Dispose();
+        List<Exception>? errors = null;
+        void Record(Exception ex)
+        {
+            Trace.TraceError($"Shell view model cleanup failed: {ex}");
+            (errors ??= new List<Exception>()).Add(ex);
+        }
+        // 各 panel の購読解除は次の Session/transport 停止より先に試す。
+        // 一つの panel が失敗しても残りを解放し、aggregate は全所有物を試した後だけ通知する。
+        foreach (var cleanup in new Action[] { Commands.Dispose, Telemetry.Dispose, LogViewer.Dispose, Hierarchy.Dispose, Inspector.Dispose })
+        {
+            try { cleanup(); }
+            catch (Exception ex) { Record(ex); }
+        }
         try
         {
             await Session.DisposeAsync().ConfigureAwait(false);
         }
+        catch (Exception ex) { Record(ex); }
         finally
         {
             // Session 停止が失敗しても composition 所有 HttpClient を残さない。
             var ownedLifetime = Interlocked.Exchange(ref _ownedLifetime, null);
             if (ownedLifetime != null)
             {
-                await ownedLifetime.DisposeAsync().ConfigureAwait(false);
+                try { await ownedLifetime.DisposeAsync().ConfigureAwait(false); }
+                catch (Exception ex) { Record(ex); }
             }
         }
+        if (errors != null) throw new AggregateException(errors);
     }
 }

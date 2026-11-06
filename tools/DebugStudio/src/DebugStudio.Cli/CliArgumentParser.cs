@@ -28,6 +28,10 @@ public static class CliArgumentParser
             return CliParseResult.Usage(exitCode: 0);
         }
 
+        if (string.Equals(args[0], "hierarchy", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(args[0], "inspect", StringComparison.OrdinalIgnoreCase))
+            return ParseRead(args);
+
         if (!string.Equals(args[0], "send", StringComparison.OrdinalIgnoreCase))
         {
             return CliParseResult.Usage($"Unsupported subcommand '{args[0]}'.", exitCode: 2);
@@ -106,12 +110,54 @@ public static class CliArgumentParser
         return CliParseResult.Ok(new SendCommandCliOptions(controlUri, commandType, payloadJson, timeout));
     }
 
+    private static CliParseResult ParseRead(string[] args)
+    {
+        var operation = args[0].ToLowerInvariant();
+        long nodeId = 0;
+        var index = 1;
+        if (operation == "inspect")
+        {
+            if (index < args.Length && IsHelpToken(args[index])) return CliParseResult.Usage(exitCode: 0);
+            if (index >= args.Length || !long.TryParse(args[index++], NumberStyles.None, CultureInfo.InvariantCulture, out nodeId) || nodeId <= 0)
+                return CliParseResult.Usage("inspect requires a positive Int64 NodeId.", 2);
+        }
+        var uri = DefaultControlUri;
+        var timeout = DefaultTimeout;
+        for (; index < args.Length; index++)
+        {
+            var token = args[index];
+            if (IsHelpToken(token)) return CliParseResult.Usage(exitCode: 0);
+            if (index + 1 >= args.Length) return CliParseResult.Usage($"Missing value for option '{token}'.", 2);
+            var value = args[++index];
+            switch (token)
+            {
+                case "--control-uri":
+                    if (!Uri.TryCreate(value, UriKind.Absolute, out var parsed) || parsed.Scheme is not ("ws" or "wss"))
+                        return CliParseResult.Usage("The --control-uri value must be an absolute ws:// or wss:// URI.", 2);
+                    uri = parsed;
+                    break;
+                case "--timeout-seconds":
+                    if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) ||
+                        !double.IsFinite(seconds) || seconds <= 0 || seconds > 60)
+                        return CliParseResult.Usage("Read timeout must be greater than zero and at most 60 seconds.", 2);
+                    timeout = TimeSpan.FromSeconds(seconds);
+                    if (timeout <= TimeSpan.Zero) return CliParseResult.Usage("Read timeout is too small.", 2);
+                    break;
+                default: return CliParseResult.Usage($"Unsupported option '{token}'.", 2);
+            }
+        }
+        return CliParseResult.Read(new ReadCommandCliOptions(uri, operation, nodeId, timeout));
+    }
     public static string GetUsageText()
     {
         return """
 Usage:
   debugstudio-cli send --command <name> [--control-uri <ws-uri>] [--payload <json>] [--timeout-seconds <seconds>]
+  debugstudio-cli hierarchy [--control-uri <ws-uri>] [--timeout-seconds <seconds>]
+  debugstudio-cli inspect <NodeId> [--control-uri <ws-uri>] [--timeout-seconds <seconds>]
   debugstudio-cli compare --input <file.ndjson> [--input <other.ndjson> ...] --baseline-session <id> --candidate-session <id> [--format text|json]
+
+Read commands use retained hierarchy and best-effort TargetId matching. Read NodeIds again from hierarchy after each Play restart; an old ID can identify another object. Inspector reads may use a same-target GUI response and update that GUI target. Read timeout defaults to 15 seconds, maximum 60.
 
 Example:
   debugstudio-cli send --control-uri ws://127.0.0.1:5012/cli-control/ --command debugsocket.ping --payload "{}"
@@ -152,6 +198,11 @@ public sealed class CliParseResult
     public string? ErrorMessage { get; }
 
     public SendCommandCliOptions? Options { get; }
+
+    public ReadCommandCliOptions? ReadOptions { get; private init; }
+
+    public static CliParseResult Read(ReadCommandCliOptions options) =>
+        new CliParseResult(true, false, 0, null, null) { ReadOptions = options };
 
     public static CliParseResult Ok(SendCommandCliOptions options)
     {

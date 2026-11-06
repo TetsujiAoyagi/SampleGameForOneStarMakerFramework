@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
 using DebugStudio.App.Core.Mvvm;
 using DebugStudio.App.Features.Shell;
@@ -11,16 +13,21 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel _viewModel;
     private readonly ShellLayoutCoordinator _shellLayoutCoordinator;
     private readonly IAsyncDisposable _lifetime;
+    private readonly bool _asynchronousShutdown;
+    private Task? _shutdownTask;
+    private bool _cleanupComplete;
 
     public MainWindow(
         MainWindowViewModel viewModel,
         ShellLayoutPersistenceService shellLayoutPersistenceService,
         ShellLayoutSerializerService shellLayoutSerializerService,
-        IAsyncDisposable? lifetime = null)
+        IAsyncDisposable? lifetime = null,
+        bool asynchronousShutdown = false)
     {
         InitializeComponent();
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _lifetime = lifetime ?? _viewModel;
+        _asynchronousShutdown = asynchronousShutdown;
         DataContext = _viewModel;
 
         // DockingManager 実体は view 側にしか存在しないため、
@@ -36,16 +43,51 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
+        if (_asynchronousShutdown && !_cleanupComplete)
+        {
+            // loop 停止やイベント購読解除の完了中も Dispatcher を動かし続ける。
+            // 同期 Close 待ちにすると UI dispatcher を必要とする終了処理と相互待ちになる。
+            // 連続する Close は同じ cleanup task に合流し、所有物を二度解放しない。
+            e.Cancel = true;
+            _shutdownTask ??= ShutdownAndCloseAsync();
+            base.OnClosing(e);
+            return;
+        }
         // 終了直前の pane 位置・サイズ・選択タブを保存する。
         // 保存失敗は coordinator/persistence 側で degrade し、close 自体は止めない。
-        _shellLayoutCoordinator.SaveLayout();
+        if (!_cleanupComplete) _shellLayoutCoordinator.SaveLayout();
         base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        // OnClosed を sync 化し、async void 由来の unhandled exception を避ける。
-        _lifetime.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        // 旧経路では OnClosed を同期的な最終境界にして、async void の例外を Dispatcher へ漏らさない。
+        // --listen 経路では先に OnClosing で async cleanup を終えており、ここでの再解放はしない。
+        if (!_asynchronousShutdown)
+        {
+            try { _lifetime.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            catch (Exception ex) { Trace.TraceError($"Window cleanup failed: {ex}"); }
+        }
+    }
+
+    private async Task ShutdownAndCloseAsync()
+    {
+        // 次の await まで同期実行して shutdown task を公開する。保存や解放から Close が再入しても、
+        // 呼出元へ戻る前に _shutdownTask が設定済みとなり、cleanup を重ねて開始しない。
+        await Task.Yield();
+        try
+        {
+            // window 状態の保存と lifetime 解放は一度だけ行い、保存失敗で transport 停止を飛ばさない。
+            try { _shellLayoutCoordinator.SaveLayout(); }
+            catch (Exception ex) { Trace.TraceError($"Saving window layout failed: {ex}"); }
+            try { await _lifetime.DisposeAsync(); }
+            catch (Exception ex) { Trace.TraceError($"Window cleanup failed: {ex}"); }
+        }
+        finally
+        {
+            _cleanupComplete = true;
+            _ = Dispatcher.BeginInvoke(new Action(Close));
+        }
     }
 }

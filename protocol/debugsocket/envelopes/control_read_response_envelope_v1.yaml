@@ -1,0 +1,12 @@
+name: ControlReadResponseEnvelopeV1
+kind: message
+surfaces: [debugstudio]
+fields:
+  - { id: 0, name: RequestId, type: string, default: "" }
+  - { id: 1, name: Status, type: string, default: "error" }
+  - { id: 2, name: Reason, type: string, default: "" }
+  - { id: 3, name: Hierarchy, type: ControlHierarchySnapshotV1, optional: true }
+  - { id: 4, name: Inspector, type: InspectorDetailEnvelopeV1, optional: true }
+encodings:
+  messagepack:
+    key_field: id

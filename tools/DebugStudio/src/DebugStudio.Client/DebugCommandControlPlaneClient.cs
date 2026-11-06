@@ -116,7 +116,7 @@ public sealed class DebugCommandControlPlaneClient
         }
         finally
         {
-            await TryCloseAsync(socket).ConfigureAwait(false);
+            await ControlClientClose.TryCloseAsync(socket).ConfigureAwait(false);
         }
     }
 
@@ -145,17 +145,4 @@ public sealed class DebugCommandControlPlaneClient
         }
     }
 
-    private static async Task TryCloseAsync(ClientWebSocket socket)
-    {
-        try
-        {
-            if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
-            {
-                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch
-        {
-        }
-    }
 }
