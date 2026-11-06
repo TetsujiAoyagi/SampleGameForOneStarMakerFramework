@@ -2,13 +2,13 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: PRレビュー指摘でPhase B差戻し、修正済み。新headの動作確認・発見C・判定C・C′は未実施。旧headのGOは新headに適用しない。
+- type: slice / status: implementation head `6e1f82c3` の判定Cと独立blind C′を完了。両判定GO、凍結条件上のblockerなし。Phase D・merge・task終了は未実施。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
-- created: 2026-10-21 / expires: 2026-11-05または置換revision。
-- updated: 2026-10-28。候補r3を承認済み。Bの未公開実装履歴を整理してGO候補headを固定した。過去の候補時点の記述は経緯であり、現在の許可範囲は本節を正とする。
-- branch: codex/debugstudio-s2-final（検証用checkout）。元checkoutはcodex/debugstudio-s2-verification。
-- implementation base: 2734a6ea7bc844861feb5acdfd8df213eb3ec3ef / head: e7ea37ab841e2c328fcbab17db6e718e5888ff38。
+- created: 2026-10-21 / expires: Phase D完了または置換revision。
+- updated: 2026-11-06。C/C′の結果とEvidence別session取得確認を記録。過去の候補時点の記述は経緯であり、現在の状態は本節を正とする。
+- branch: codex/pr146-review-fixes（ローカル状態記録）。公開PR branch: codex/debugstudio-s2-verification。
+- implementation base: `2734a6ea7bc844861feb5acdfd8df213eb3ec3ef` / current implementation head: `6e1f82c3a00430b46e0e50f885b6681e52425a15`。
 - 入力: ClaudeのDEBUGSTUDIO_S2_CUT_PLAN.mdと、依頼者の「Debug用途のToolで厳密なトランザクションを要求していない」という今回の指示。
 - CUTが参照するDECISION_PACKは指定worktreeでは見つからなかった。D番号を独立した承認根拠にせず、CUTの具体的な用途と今回の指示から候補を作る。
 - 承認: 依頼者「凍結してよい、PhaseC/C’までサブエージェント使いながら君の裁量で完遂して」。r3の採否案、保証緩和、受入境界、Unity製品変更を行わない場合の全EditMode回帰除外を承認として記録。実装・必要なcommit・Editor操作・.NET検証・証拠保存を含む。Phase Dのmerge/task終了は今回の出口に含めない。
@@ -18,16 +18,16 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: 別sessionで新headの判定C。対象headに対応する動作確認と実Editor条件、判定必須検証を実施し、証拠が揃ってからC′へ渡す。
-- 凍結revision: A3 r3、凍結commit e4910a392be1a1cb8cd1f617c127d93bf511aa18。修正実装head 6e1f82c3a00430b46e0e50f885b6681e52425a15。旧実装head e7ea37ab841e2c328fcbab17db6e718e5888ff38。本節の状態記録commitはimplementation headに含めない。次担当は引継ぎcommitとclean状態を照合する。
+- 次のPhase/役割: C/C′完了。依頼者がPhase Dを指示するまで保存引渡しの最終確認、harvest、HANDOFF削除、task終了、mergeへ進まない。
+- 凍結revision: A3 r3、凍結commit `e4910a392be1a1cb8cd1f617c127d93bf511aa18`。現implementation head `6e1f82c3a00430b46e0e50f885b6681e52425a15`。C/C′記録commitはimplementation headに含めない。旧head `e7ea37ab841e2c328fcbab17db6e718e5888ff38` のC/C′記録は後段に分けて保持する。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - 旧headのPhase B resultと発見C入力: Artifact Storageでローカル固定済み、別sessionによるfetchと必須内容の閲覧を確認済み。旧headの判定C evidence / C′ blind入力は同じbase/head・生証拠から237fileの同一snapshotとして判定前に生成し、ローカル固定済み。private取得案内FINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.jsonにより、それぞれ別sessionで全file集合/hash・必須74pathの閲覧を確認済み。追加実機は行わず、この固定証拠と決定記録に基づきC/C′を判定した。
 - 新headのPhase B result: ローカル固定済み。private取得案内 PR146_B_FETCH_GUIDE.json により別sessionでfetch・全2 fileの内容hashと原記録の閲覧を確認済み。同一PC・同一ユーザーでの確認。
-- 動作確認: 既存Release WPFの既定起動と --listen でWindow表示後の正常終了を観測したが、binaryと新headの厳密な対応は未確認のため対象headの観測としては未実施。Unity接続・Play・進行中inspectの終了はC担当に引き渡す。
-- 新headの発見C: GPT-6-astraが構造・契約・失敗経路を確認し、阻害指摘0、後続指摘0。限定App 19件・CLI 14件成功、TRX実行名を確認しcontract-auditはerrors/warnings 0。52 fileの非blind入力・結果をローカル固定し、別sessionで全hashと必須12 pathの閲覧を確認済み。private取得案内 PR146_DISCOVERY_FETCH_GUIDE.json。判定C/C′のGOではない。
+- 動作確認: 下記の新head判定Cに含めて実施済み。
+- 新headの発見C: GPT-6-astraが構造・契約・失敗経路を確認し、阻害指摘0、後続指摘0。限定App 19件・CLI 14件成功、TRX実行名を確認しcontract-auditはerrors/warnings 0。52 fileの非blind入力・結果をローカル固定し、別sessionで全hashと必須12 pathの閲覧を確認済み。取得案内 `PR146_DISCOVERY_FETCH_GUIDE.json`。
 - 必要な権限: ローカル.NET実行、対象を限定したEditor操作、WPF起動/終了、Artifact Storage stage/fetch。実行環境の拒否は迂回しない。
 - 停止規則: 凍結済みI1〜I4/E1〜E3を満たすまでBと発見Cを最大4往復、C′差戻しを最大3往復。新しい契約/所有者/寿命が必要ならAへ戻して分類する。現在の問いを阻害しない追加保証はS3以後へ送る。
-- 決定記録: AC5のHierarchy再読取りについて、依頼者は読取りが成功していればGOでよいと裁定した。§6の15秒は再読取りの総時間と読み、fixture終了時点を計時起点に追加しない。判断経緯と生時刻はprivateのOWNER_15S_DECISION.mdに記録する。
+- 決定記録: AC5のHierarchy再読取りについて、依頼者は読取りが成功していればGOでよいと裁定した。§6の15秒は再読取りの総時間と読み、fixture終了時点を計時起点に追加しない。判断経緯と生時刻は非blind判定記録に保存する。
 - 実行環境: 実機証拠取得時は対象project・Unity version・検証用checkoutのclean状態と固定headを確認した。2026-10-28はClaudeも同時作業中で、依頼者はUnity Editor起動前の事前連絡を指定している。今回の判定に追加実機は不要で、他者のEditorや接続先は操作していない。
 
 ## 1. 今回閉じる問い
@@ -240,7 +240,7 @@ B出口の軽いWPF観測: 引数なしと--listenの両方でWindow handle取�
 
 構造補足: MainWindowはWindow終了という単一責務のまま非同期化した。OrderedAsyncDisposableの一回の例外継続cleanupとMainWindowViewModelの残り解放は、凍結済み所有解除契約を実現する局所変更である。control期限は既存control service内、読取りの中核はCliReadService、App loopはAutoListenServiceへ分離した。
 
-## Phase C / C′ の結果
+## 旧implementation head `e7ea37ab` のPhase C / C′記録
 
 発見C（GPT-6-astra）の初回差戻し1件は、既定accept期限が無視するHTTP要求で更新される問題だった。Bが凍結条件内で修正し、C（GPT-6-sol）が確認した。未公開実装履歴を整理してimplementation headをe7ea37abに固定した。
 
@@ -254,4 +254,17 @@ C′（GPT-6-luna）はCの所見を含まない同じ固定入力237fileを別s
 
 残る範囲: InspectorはTargetId一致のbest-effortであり、古い応答や同対象GUI応答を採り得る。NodeIdはPlayごとに取り直す。実機の終了競合はdebuggerで受付位置を停止した制御観測で、全競合順序の網羅ではない。Release .NETの回帰は実行済みだが、実機WPFはDebug構成。Cの引数なしWPFは正常Closeとプロセス消滅を確認したが終了codeは未取得であり、0と推定しない。Unity製品・wire差分がないため全EditMode回帰はA3で承認された除外を適用した。
 
-CとC′の入力は判定前に同一snapshotで生成した237fileをローカル固定し、両担当によるfetch・全file集合/hash・必須74pathの閲覧を確認済み。private取得案内はFINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.json。中間判定の14fileもローカル固定し別session受領を確認した。最終レビュー結果と決定記録は別の非blind bundleとして15fileをローカル固定し、別sessionが全file集合・bytes/hashと必須9pathの閲覧を確認済み。取得案内はCORRECTED_REVIEW_RESULTS_FETCH_GUIDE.json、確認記録はCORRECTED_REVIEW_RESULTS_FETCH_CONFIRMATION.md。Phase D、PR、push、merge、task終了は今回の出口に含めない。
+
+## 修正後implementation head `6e1f82c3` のPhase C / C′結果
+
+判定C: GPT-6-astra。GO、凍結条件または常時契約に反する未解決blocker 0。Release .NET App 87/87、CLI 113/113、Contracts 38/38、failed/skipped 0。codegen 56生成物一致、contract/docs audit errors/warnings 0。Editor 6000.6.0f1で同じWPF PIDによる2回のPlayを確認し、Hierarchy由来NodeIdでInspectorのActiveSelf Boolean RawValueが独立に読んだEditor値true/falseと一致した。未知の正Int64 IDはNotFound/exit 1。要求受理後にPlay停止とWPF終了を重ね、CLIは切断でexit 1、WPFはexit 0。通常のWPF終了もexit 0。
+
+終了時の限定事項: --listen WPFは通常終了を要求したが、UI captureがtimeoutしプロセスが残ったため、対象PID・project・開始時刻を照合してから限定終了した。`WaitForExit=true`、exit -1をraw記録し、正常終了とは扱わない。既知のUnity native終了stall停止規則に従い追調査していない。GUI選択状態は新しい画面証拠を取得せず、fixture/source regressionに依拠する。Unity Editorの無関係なURP Global Settingsと5件のvendor `.pdb.meta`変化は開始状態との一致を確認して復元し、作業treeはclean、設定hash不変を確認した。
+
+独立blind C′: GPT-6.1-terra。Cの所見・HANDOFFを含まないblind guideから同一固定入力を別sessionで取得。archive 201 entries、共通payload 200 filesのfile集合・bytes/hashを確認し、必須33 pathとsource 37 filesを閲覧した。凍結A3、コード、失敗経路、各テスト結果を監査し、GOを妨げる指摘0。追加の同一実機試験や変更は行っていない。
+
+監査できなかった範囲と残存リスク: WPFの正常終了競合を全順序で網羅せず、今回の終了競合は要求受付位置での制御観測。別host、Player、すべての失敗組合せ、GUI選択の新規目視証拠、全source行の独立照合は対象外。Inspectorは凍結どおりTargetId一致のbest-effortで、古い応答または同対象GUI応答を採り得る。実Editorの--listen異常終了は環境リスクとして残すが、C/C′は受入条件・常時契約のblockerとはしなかった。
+
+Evidence取得確認: 判定C/C′のblind共通入力案内 `PR146_FINAL_SHARED_FETCH_GUIDE.json`、C判定結果案内 `PR146_FINAL_C_RESULT_FETCH_GUIDE.json`、C′結果案内 `PR146_CPRIME_RESULT_FETCH_GUIDE.json` をそれぞれ別sessionで照合した。共通入力は全archive/hashと必須内容を確認、C結果はarchiveと13 file、C′結果はarchiveと1 fileのhash・内容を確認済み。対応する確認記録は `PR146_FINAL_SHARED_FETCH_CONFIRMATION.json`、`PR146_FINAL_C_RESULT_FETCH_CONFIRMATION.json`、`PR146_CPRIME_RESULT_FETCH_CONFIRMATION.json`。これらの案内は主担当のprivate artifactsにあり、公開文書・PR本文にはreference、hash、ローカルpathを記載しない。
+
+Phase C/C′まで完了。Phase D、PRへのコードpush、merge、task終了、HARVEST/HANDOFF削除は依頼範囲外であり、別指示を待つ。
