@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C' 2 巡目完了（blocking findings exist）`（新 head 9b99a83e の判定 C は完了。C' 2 巡目の指摘 A 1 件（AC5 の直後の一覧）は裁定待ち。§6「判定 C（新 head）」「Phase C'（2 巡目）」）
+- status: `C' 2 巡目の裁定済み（Phase D は発注者の指示待ち）`（新 head 9b99a83e の判定 C は GO。C' 2 巡目の指摘 A 1 件・B 1 件は発注者が裁定した（§2 決定記録 D3。A は逸脱として受け入れ、B は D2 の文言の訂正）。§6「判定 C（新 head）」「Phase C'（2 巡目）」）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `9b99a83ef6215071ca99a2768559cad4b86eb82b`（AC6 の文書の commit。旧 head `a79530b4302fdb3728220551cee5642de4662414` との差分は文書と HANDOFF だけで、製品コード・テストは同じ）
@@ -17,6 +17,7 @@
 - evidence bundle の取得案内・状態: 新 head 版を生成済み（`staged`、`locality: local`。取得 → 展開 → hash → 照合 script の再実行まで同一 PC の別の取得 copy で確認済み。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c2\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/2`（implementation head `9b99a83e…`。push しない））。旧 head の bundle（`…\bs-rig-judge-c\…`、tag `…/1`）は新 head では無効で、入力にしない
 - C' blind bundle の取得案内・状態: 新 head 版（2 巡目）は生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime2\cprime2-blind-guide.txt`。git 管理外。A3 凍結計画・決定記録 D2・新 head の実装 diff・旧 head からの差分・ソース写し・新 head の判定 C と同じ evidence bundle・指示書。所見を含まない）。旧 head 版（`bs-rig-cprime\cprime-blind-guide.txt`）は新 head では無効
 - 引継ぎ票:
+  - **更新（C' 2 巡目の裁定 D3、2026-11-07）:** C' 2 巡目の指摘を発注者が裁定した（§2 D3）。PR（base `develop`）を作った。次: Phase D（発注者の指示で始める。それまで HANDOFF の harvest・削除、Evidence の Phase D の確認、マージをしない）。
   - **更新（判定 C 完了、新 implementation head `9b99a83ef6215071ca99a2768559cad4b86eb82b`、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** 新 head で判定 C をやり直し、D2 の要件を満たして GO（§6「判定 C（新 head）」）。全件回帰 1644 件・failed 0・inconclusive 25（旧 head と同じ件数）、必須 2 件 Passed、AC5 の前後の一覧は同一、検証 Play 1 回と新照合 script は `RESULT: ALL PASS`（別ディレクトリ・3 つのロケールで出力が一致、取得 copy でも ALL PASS）、audit 2 件は errors 0。**逸脱 2 件は §6 に記録済み**（回帰の Unity が終了で止まり AC5 の「直後」の一覧が XML 終了の 16.4 分後、diag の空振り 2 回）。次: C' 2 巡目（予約は OpenAI（Codex）、渡す決定記録は D2 だけ）。その前に C' blind bundle を新 head から作り直す（上の欄）。
     - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が本 HANDOFF だけ。
     - 引き渡さないもの: 判定 C の結論・本記録（§6）の本文を C' に渡さない（blind bundle は evidence bundle の原記録だけ）。`artifacts/` を commit に混ぜない（U6）。
@@ -136,6 +137,9 @@
     - 指摘 3（採用）: 新しい照合 script は次を出力に含める。(a) `W_all` の Editor.log の `Error`・`Exception` の行の補助計数と、その分類（合否にしない。AC4 の「記録する」）。(b) major Event の load が `mp_start` の marker から 30 秒以内、unload が `mp_done` の marker から 30 秒以内であることを、前後の marker の UTC で挟んで合否にする。(c) 位置の 2 点が `Player ready` の後であることを合否にする。(d) 行は LF だけで分け、行番号が `rg -n` と一致する。
     - 指摘 4 の前半（採用。凍結条件に反するのではなく blind 監査の範囲の不足）: 新しい evidence bundle に、発見 C の RED の原記録（`results.xml`・`step.json`・`unity.log`・`SHA256SUMS.txt`）と、新 head での `pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1` の出力を入れる。
     - C' 2 巡目には、この D2 だけを決定記録として渡す。
+  - **D3（2026-11-07、発注者が裁定。C' 2 巡目の指摘 A 1 件と B 1 件。凍結条件の意味・合否は変えない）:**
+    - 指摘 A（AC5 の直後の一覧、受け入れ）: AC5 の合否は「全件回帰の前後で既定 root の一覧（path・作成時刻・更新時刻）が変わらない」のまま。新 head の前後の一覧は root 自身を含む 6 行が更新時刻まで同一で、前後の一覧の区間は全件回帰の全体を含む。回帰が書けば、時刻ごと元に戻す経路（製品に無い）を除いて差分に残るので、合格とする。「一覧の間に全件回帰だけを置く」は差分が出たときに原因を回帰に帰すための条件で、差分 0 の今回は判定に影響しない。直後の一覧が XML の完成の 16.4 分後で、回帰の Unity process が既知の native 終了 stall で生存していたことは、逸脱として §6「判定 C（新 head）」の記録のまま残す。回帰のやり直しはしない（同じ stall で状況が変わらず、保証が増えないため）。
+    - 指摘 B（別の PC での再現、D2 の文言の訂正）: D2 指摘 2 の「bundle を別の PC に置いて」は「bundle を別のディレクトリに置き、実行する環境の時差・ロケールに依らず」の意味に訂正する。判定 C の、同一 PC の別ディレクトリと 3 つのロケールでの一致と、`evidence fetch` で取得した copy での `ALL PASS` で満たす。
 - 本文へ転記した実装制約:
   - 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` を使わない（`_body` の判定は `!= null`）。
   - 新規・編集する `.cs` の先頭に `#nullable enable`。`record` を使わない。
