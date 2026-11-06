@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C' 1 巡目完了（blocking findings exist）`（判定 C 完了。観測で確かめられる I1〜I3・E1・E2・E3 の (b)(d) は充足。E3 の (a)(c) と AC6 の文書は Phase D の完了条件。C' の指摘 A 4 件は裁定待ち。§6「判定 C」「Phase C'」）
+- status: `Phase B（AC6 の文書）`（C' 1 巡目の指摘 A 4 件を発注者が裁定した（§2 決定記録 D2）。判定 C の GO は取り消し、AC6 の文書を結果へ書き換えた新 head で判定 C と C' をやり直す）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `a79530b4302fdb3728220551cee5642de4662414`
@@ -17,6 +17,11 @@
 - evidence bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/1`（候補 head `a79530b4…`。push しない））
 - C' blind bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。git 管理外。A3 凍結計画・実装 diff・ソース写し・判定 C と同じ evidence bundle・指示書。所見を含まない）
 - 引継ぎ票:
+  - **更新（C' 1 巡目の裁定 D2、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** 次: Phase B（AC6 の文書だけ）。B が AC6 で書いた文書（Architecture §18 §4 の S-4d5b の行・BS5b-2 の 2 項目・「検証の残り」、program §7 の行、§05 §5.13、§12 §3.2 の G5）のうち、「再検証は未実施」「E3 (b) は未実施」等の記述を、§6「判定 C」の観測（候補 head `a79530b4`。製品コードは新 head と同じ）に合わせて書き換える。書き方は §2 AC6 と E3 (a)(c) のとおり（寿命は §13 を参照し新しい契約を書かない、ログの欠落は機構と事実を分ける、AC5 の保証の縮みを書く）。主張は §6 の観測の範囲を超えない。`pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1` を実行して結果を §6 に書く。文書の commit の SHA を implementation head 欄に書き（`a79530b4` を置き換える）、票を判定 C へ更新する（判定 C は §2 D2 の要件を含めて §5 のとおり新 head でやり直す。実行担当は Phase B と異なるモデル）。
+    - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。
+    - 権限: 文書の編集、commit（push しない）、上の 2 つの audit の実行。Unity Editor・Unity テスト・Build は使わない。
+    - 停止規則: `unity/Assets/Docs/` と program の文書と本 HANDOFF 以外を変える必要が出たら、変えずに止めて発注者へ戻す。新 head と `a79530b4` の差分が文書と HANDOFF だけであることを commit 前に確かめる。
+    - 引き渡さないもの: C' の報告の本文（C' 2 巡目に渡すのは D2 だけ）。`artifacts/` を commit に混ぜない（U6）。
   - **更新（判定 C、候補 head `a79530b4302fdb3728220551cee5642de4662414`。2026-11-07）:** 判定 C を完了した（§6「判定 C」）。全件回帰・検証 Play・照合 script は全て合格。観測で確かめられる条件（I1〜I3、E1、E2、E3 の (b)(d)）を充足。E3 の (a)(c) と AC6 の文書は Phase D で結果へ書き換える。C' は起動指示の SHA（この票を含む commit）と、bundle の取得案内（§0）で blind に独立監査する。C' の起動・所見はこの票の更新では行っていない。以下は更新前の記述。
   - **更新（発見 C の RED 確認、起動 SHA `03d7cd59…`。2026-11-04）:** AC1 の修正前の失敗を確かめた（§6「発見 C」。(ii) の assertion で Failed、setup の失敗ではない）。Phase A に戻す理由は無い。次: 発見 C の残り（構造・契約のレビュー）の要否を発注者が決め、問題が無ければ判定 C 用の GO 候補 head の固定（履歴の整理があれば先に）へ進む。以下は更新前の記述。
   - **更新（動作確認の再実行、起動 SHA `b04f6471836e7c5a6c359041c6981fc7c7b9b9c5`。2026-11-04）:** 決定記録 D1 の手順で動作確認を 1 回やり直した（§6「再実行」）。差は無い（`handler-registered` が `loaded Title` より前、`(initial)` に Title なし、`IsSceneStable("InGameSession")` の eval の疎通、位置の 2 点を取得）。次: 発見 C（§5 のとおり、AC1 のテストだけの commit `40fcdb34` を detached worktree で `-Filter` 1 回走らせて RED を確かめる）。以下は更新前の記述。
@@ -117,6 +122,13 @@
     - 変わらないもの: AC4 の詳細の主張（`handler-registered` の後の load が 0 件、登録が `loaded Title` より前かつ `(initial)` に Title が無い、崩れれば NO-GO）、`W_all`・`W_spawn` の定義、正の証拠の列挙。`handler-registered` の `utc=` は Play の開始より前になり、App のログの全区間が `W_all` に入る。`ft=` は Edit mode の `Time.frameCount` になる。
     - 失敗の見え方: domain reload が起きて handler が消えると、`handler-registered` の後に `loaded Title` が出ないので、正の証拠の欠落として計数不能になる（黙って通らない）。手順で `handler-registered` の後の `loaded Title` の存在を確かめ、実行時の `EditorSettings.enterPlayModeOptions` の値を eval で読んで記録する。
     - 採らなかった案: Editor.log の既存の行（`Editor content directory first scene: … stable=True`）や App のログの `OnStabledImpl`、`(initial)` の列挙で登録前の区間を補う案は、凍結済みの「登録前の区間は未観測として NO-GO」の意味を変えるので、決定記録ではなく Phase A の revision になる。
+  - **D2（2026-11-07、発注者が裁定。C' 1 巡目の指摘 A 4 件。凍結条件の意味・合否は変えない。判定の手順と証拠の範囲だけを決める）:**
+    - 指摘 4 の後半（採用）: 候補 head `a79530b4` の AC6 の文書は「再検証は未実施」のままで、AC6 と E3 (a)(c) は満たされていない。判定定義（I1〜I3・E1〜E3 が全て揃って GO）に例外は無い（A3 後の例外承認なし）ので、判定 C の結論を GO から「観測で確かめられる条件は充足、AC6・E3 (a)(c) は未達で GO にしない」に改める（§6「判定 C」）。AC6 の文書を結果へ書き換えた commit を新しい implementation head とし、osm-workflow の「判定後の head 変更」に従って判定 C（判定必須テスト・AC5 の一覧・検証 Play・照合・機械検査）と C' をやり直す。
+    - 指摘 1（やり直しで解消）: 新しい判定 C は AC5 のとおり、全件回帰の直前と直後に一覧を取り、間に全件回帰だけを置く。直後の一覧は回帰の終了から間を置かずに取り、取得に失敗したら回帰からやり直す。
+    - 指摘 2（採用）: 新しい照合 script は、bundle の外の絶対 path の存在確認を合否に使わない（E3 (b) は Play 停止後の pwsh の列挙の記録で判定する）。時刻の変換は、記録した UTC か記録した時差で行い、実行する PC の時差を使わない。bundle を別の PC に置いて script を実行し、同じ結果になることを判定 C が確かめる。
+    - 指摘 3（採用）: 新しい照合 script は次を出力に含める。(a) `W_all` の Editor.log の `Error`・`Exception` の行の補助計数と、その分類（合否にしない。AC4 の「記録する」）。(b) major Event の load が `mp_start` の marker から 30 秒以内、unload が `mp_done` の marker から 30 秒以内であることを、前後の marker の UTC で挟んで合否にする。(c) 位置の 2 点が `Player ready` の後であることを合否にする。(d) 行は LF だけで分け、行番号が `rg -n` と一致する。
+    - 指摘 4 の前半（採用。凍結条件に反するのではなく blind 監査の範囲の不足）: 新しい evidence bundle に、発見 C の RED の原記録（`results.xml`・`step.json`・`unity.log`・`SHA256SUMS.txt`）と、新 head での `pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1` の出力を入れる。
+    - C' 2 巡目には、この D2 だけを決定記録として渡す。
 - 本文へ転記した実装制約:
   - 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` を使わない（`_body` の判定は `!= null`）。
   - 新規・編集する `.cs` の先頭に `#nullable enable`。`record` を使わない。
@@ -364,6 +376,7 @@ A3 の採否（2026-11-04 凍結）:
   - E1: 充足。E2: 充足（同じ 1 回の Play）。
   - E3: (b)(d) は充足。(a)(c) と AC6 の文書は Phase D で結果へ書き換える完了条件で、本判定の観測の対象ではない（`pwsh tools/docs-audit.ps1` は本判定では未実行）。
   - 結論: 観測で確かめられる条件は全て充足し、致命的な反証は無い。判定 C は GO（E3 (a)(c)・AC6 は Phase D の完了条件として残す）。C' の独立監査はこの記録の後。
+  - **D2 による訂正（2026-11-07）:** 上の GO は取り消す。AC6 と E3 (a)(c) が候補 head で未達なので、判定定義により GO にしない。観測で確かめられる条件の充足はそのまま記録として残すが、新しい implementation head の合格証拠には流用しない。AC5 の直後の一覧が回帰の約 53 時間後だった逸脱（C' 指摘 1）もここに記録する。
 - 保存先: bundle は Artifact Storage に `staged`（§0 の取得案内）。中身: eval の C# 一式、照合 script と出力、Editor.log・App のログ・`run-log.txt`・`preflight.json` 等の原記録、AC5 の前後一覧、回帰の XML と検査出力、`SHA256SUMS.txt`、`README.txt`（候補 head・content revision・絶対 path・実行担当・未実行の項目）。
 - 未実行: C' の blind 監査、Phase D の文書更新、`docs-audit`、Player Build、実 R2。
 - 後始末: Play は停止し handler は `stop.cs` で外した（`stop.cs` の最初の送信は path の誤りで実行されず、2 回目で実行）。Editor に `EditorApplication.Exit(0)` を依頼した。終了の確認は取れていない（既知の native 終了 stall の可能性。調査は反復しない。AGENTS.md の規則）。osm-jc の `.pdb.meta` 5 件は Editor の終了後に `git checkout --` で戻す。
