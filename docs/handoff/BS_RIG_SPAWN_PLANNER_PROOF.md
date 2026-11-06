@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: 使わない（発注者の裁定 U4。Phase A の版は内容 sha256 で固定し、Phase A の commit は A3 凍結版だけにする）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/1`（候補 head `a79530b4…`。push しない））
-- C' blind bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:epositoriesNityOSM-evidencebs-rig-cprimerime-blind-guide.txt`。git 管理外。A3 凍結計画・実装 diff・ソース写し・判定 C と同じ evidence bundle・指示書。所見を含まない）
+- C' blind bundle の取得案内・状態: 生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。git 管理外。A3 凍結計画・実装 diff・ソース写し・判定 C と同じ evidence bundle・指示書。所見を含まない）
 - 引継ぎ票:
   - **更新（判定 C、候補 head `a79530b4302fdb3728220551cee5642de4662414`。2026-11-07）:** 判定 C を完了した（§6「判定 C」）。全件回帰・検証 Play・照合 script は全て合格。観測で確かめられる条件（I1〜I3、E1、E2、E3 の (b)(d)）を充足。E3 の (a)(c) と AC6 の文書は Phase D で結果へ書き換える。C' は起動指示の SHA（この票を含む commit）と、bundle の取得案内（§0）で blind に独立監査する。C' の起動・所見はこの票の更新では行っていない。以下は更新前の記述。
   - **更新（発見 C の RED 確認、起動 SHA `03d7cd59…`。2026-11-04）:** AC1 の修正前の失敗を確かめた（§6「発見 C」。(ii) の assertion で Failed、setup の失敗ではない）。Phase A に戻す理由は無い。次: 発見 C の残り（構造・契約のレビュー）の要否を発注者が決め、問題が無ければ判定 C 用の GO 候補 head の固定（履歴の整理があれば先に）へ進む。以下は更新前の記述。
