@@ -2,13 +2,13 @@
 
 ## 0. 状態と入力
 
-- type: slice / status: implementation head `6e1f82c3` の判定Cと独立blind C′を完了。両判定GO、凍結条件上のblockerなし。Phase D・merge・task終了は未実施。
+- type: slice / status: 最新develop `cea28ee4` を取り込み済み。implementation head `33ec902f` の再判定Cは未完了。C′は独立監査済み。旧headの判定結果を流用しない。
 - risk: high（App寿命の待受け・終了経路を変更するため）。A0独立代替検討とA2構造レビューを実施。
 - owner: 主担当。最終判断は依頼者。
 - created: 2026-10-21 / expires: Phase D完了または置換revision。
-- updated: 2026-11-06。C/C′の結果とEvidence別session取得確認を記録。過去の候補時点の記述は経緯であり、現在の状態は本節を正とする。
+- updated: 2026-11-06。developをrebaseで取り込み、旧headの判定を無効として新headの再検証へ移行。過去の候補時点の記述は経緯であり、現在の状態は本節を正とする。
 - branch: codex/pr146-review-fixes（ローカル状態記録）。公開PR branch: codex/debugstudio-s2-verification。
-- implementation base: `2734a6ea7bc844861feb5acdfd8df213eb3ec3ef` / current implementation head: `6e1f82c3a00430b46e0e50f885b6681e52425a15`。
+- implementation base: `cea28ee42070026fa2d9bbec3c154c7b9d24283b` / current implementation head: `33ec902fd6b9f129e9a6643380058159178f2ac3`（develop取り込み後、判定C/C′未完了）。
 - 入力: ClaudeのDEBUGSTUDIO_S2_CUT_PLAN.mdと、依頼者の「Debug用途のToolで厳密なトランザクションを要求していない」という今回の指示。
 - CUTが参照するDECISION_PACKは指定worktreeでは見つからなかった。D番号を独立した承認根拠にせず、CUTの具体的な用途と今回の指示から候補を作る。
 - 承認: 依頼者「凍結してよい、PhaseC/C’までサブエージェント使いながら君の裁量で完遂して」。r3の採否案、保証緩和、受入境界、Unity製品変更を行わない場合の全EditMode回帰除外を承認として記録。実装・必要なcommit・Editor操作・.NET検証・証拠保存を含む。Phase Dのmerge/task終了は今回の出口に含めない。
@@ -18,8 +18,8 @@
 
 ### 引継ぎ票
 
-- 次のPhase/役割: C/C′完了。依頼者がPhase Dを指示するまで保存引渡しの最終確認、harvest、HANDOFF削除、task終了、mergeへ進まない。
-- 凍結revision: A3 r3、凍結commit `e4910a392be1a1cb8cd1f617c127d93bf511aa18`。現implementation head `6e1f82c3a00430b46e0e50f885b6681e52425a15`。C/C′記録commitはimplementation headに含めない。旧head `e7ea37ab841e2c328fcbab17db6e718e5888ff38` のC/C′記録は後段に分けて保持する。
+- 次のPhase/役割: AC5のRelease実Editor記録とA3期限の扱いを解決して判定Cを完了し、更新したblind bundleで別担当がC′を再監査する。両結果の別session Evidence取得確認後、Phase Dの突合・最終判断へ渡す。
+- 凍結revision: A3 r3、凍結commit `e4910a392be1a1cb8cd1f617c127d93bf511aa18`。現implementation base `cea28ee42070026fa2d9bbec3c154c7b9d24283b` / head `33ec902fd6b9f129e9a6643380058159178f2ac3`。記録commitはimplementation headに含めない。旧head `e7ea37ab` と `6e1f82c3` のC/C′記録は後段に分けて保持し、新headの判定へ流用しない。
 - Phase A snapshot: ローカル固定済み。取得案内は主担当のprivate artifacts内。B別sessionが独立した期待hashでfetchし、manifestと必須2文書の内容hash・閲覧を確認済み。
 - 旧headのPhase B resultと発見C入力: Artifact Storageでローカル固定済み、別sessionによるfetchと必須内容の閲覧を確認済み。旧headの判定C evidence / C′ blind入力は同じbase/head・生証拠から237fileの同一snapshotとして判定前に生成し、ローカル固定済み。private取得案内FINAL_C_FETCH_GUIDE.jsonとBLIND_CPRIME_FETCH_GUIDE.jsonにより、それぞれ別sessionで全file集合/hash・必須74pathの閲覧を確認済み。追加実機は行わず、この固定証拠と決定記録に基づきC/C′を判定した。
 - 新headのPhase B result: ローカル固定済み。private取得案内 PR146_B_FETCH_GUIDE.json により別sessionでfetch・全2 fileの内容hashと原記録の閲覧を確認済み。同一PC・同一ユーザーでの確認。
@@ -268,3 +268,17 @@ C′（GPT-6-luna）はCの所見を含まない同じ固定入力237fileを別s
 Evidence取得確認: 判定C/C′のblind共通入力案内 `PR146_FINAL_SHARED_FETCH_GUIDE.json`、C判定結果案内 `PR146_FINAL_C_RESULT_FETCH_GUIDE.json`、C′結果案内 `PR146_CPRIME_RESULT_FETCH_GUIDE.json` をそれぞれ別sessionで照合した。共通入力は全archive/hashと必須内容を確認、C結果はarchiveと13 file、C′結果はarchiveと1 fileのhash・内容を確認済み。対応する確認記録は `PR146_FINAL_SHARED_FETCH_CONFIRMATION.json`、`PR146_FINAL_C_RESULT_FETCH_CONFIRMATION.json`、`PR146_CPRIME_RESULT_FETCH_CONFIRMATION.json`。これらの案内は主担当のprivate artifactsにあり、公開文書・PR本文にはreference、hash、ローカルpathを記載しない。
 
 Phase C/C′まで完了。Phase D、PRへのコードpush、merge、task終了、HARVEST/HANDOFF削除は依頼範囲外であり、別指示を待つ。
+
+## develop更新後の再判定
+
+2026-11-06に `origin/develop` (`cea28ee42070026fa2d9bbec3c154c7b9d24283b`) を `codex/pr146-review-fixes` へrebaseで取り込んだ。競合なし。GitHub PR branchへは未push。新implementation headは `33ec902fd6b9f129e9a6643380058159178f2ac3`。凍結baseとimplementation headが変わったため、上記の旧C/C′所見はこのheadの判定として流用しない。
+
+統合差分の確認: 新headと旧判定head `6e1f82c3a00430b46e0e50f885b6681e52425a15` の間で `tools/DebugStudio/` と `protocol/debugsocket/` のfile内容差分は0。Unity側のFoundation DebugSocket、Runtime DebugSocketServices、Foundation DebugSocket testsにも差分0。新developのDebugStudio関連で必要な追加検証を判定Cで照合する。
+
+新baseでの再検証: Release App test project全262、CLI全113、Contracts全38がすべて成功、failed/skipped 0。今回はApp test project全件を実行したため、旧判定の関連App集合87件とは範囲が異なる。AppのTelemetryStoreCloneTestsでCS8602、ContractsのCorrelationProtocolRoundtripTestsでMsgPack015のbuild warningが出た。`pwsh tools/protocol-codegen/generate.ps1 --check` は56生成物一致。`pwsh tools/contract-audit.ps1` errors/warnings 0（Unity C#差分0）、`pwsh tools/docs-audit.ps1` errors/warnings 0。raw console logとTRXは別Evidence bundleへ収録する。
+
+AC5の実Editor観測は旧headで得た同一DebugStudio/DebugSocket source内容のraw記録を再利用し、最新source archiveとのblob一致を新bundleで検証する。別host、Player、Unity Editor全体の終了成功、GUI選択の新規画面記録は主張しない。Editor終了の異常は前節のとおり残存リスクとして扱う。
+
+新base/headのC′は別sessionがblind bundleを監査し、凍結条件または常時契約に結び付く実装blockerなしとした。判定Cは未完了。A3凍結snapshotはexpiresを2026-11-05または置換revisionと定めており、現headで置換revisionはない。またAC5の実Editor記録はA3指定のRelease構成ではなくDebug構成で、Releaseの引数なし起動記録はAC5の代替にならない。コード差分に重大な指摘がない場合は現headを維持するという依頼者判断を受け、develop取り込み済みheadを維持してPRへ公開する。これは凍結期限の延長、AC5充足、GOまたはPhase D判断を意味しない。判定Cは未完了のまま後続確認へ渡す。
+
+Phase D、PR merge、task終了は未実施。
