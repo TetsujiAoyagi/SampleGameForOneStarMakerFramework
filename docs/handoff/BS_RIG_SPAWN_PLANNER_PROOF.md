@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `判定 C 完了（新 head 9b99a83e、GO。C' 2 巡目待ち）`（C' 1 巡目の指摘 A 4 件の裁定 D2 に従い、新 head で判定 C をやり直した。§6「判定 C（新 head）」。旧 head の判定・bundle は新 head の証拠に流用していない）
+- status: `C' 2 巡目完了（blocking findings exist）`（新 head 9b99a83e の判定 C は完了。C' 2 巡目の指摘 A 1 件（AC5 の直後の一覧）は裁定待ち。§6「判定 C（新 head）」「Phase C'（2 巡目）」）
 - branch: `claude/bs-rig-spawn-planner-proof`
 - implementation base commit: `cea28ee4`（`develop`）
 - implementation head commit: `9b99a83ef6215071ca99a2768559cad4b86eb82b`（AC6 の文書の commit。旧 head `a79530b4302fdb3728220551cee5642de4662414` との差分は文書と HANDOFF だけで、製品コード・テストは同じ）
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: 使わない（発注者の裁定 U4。Phase A の版は内容 sha256 で固定し、Phase A の commit は A3 凍結版だけにする）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 新 head 版を生成済み（`staged`、`locality: local`。取得 → 展開 → hash → 照合 script の再実行まで同一 PC の別の取得 copy で確認済み。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-judge-c2\judgment-c-evidence-guide.txt`。git 管理外。local light tag `evidence/bs-rig-spawn-planner-proof/2`（implementation head `9b99a83e…`。push しない））。旧 head の bundle（`…\bs-rig-judge-c\…`、tag `…/1`）は新 head では無効で、入力にしない
-- C' blind bundle の取得案内・状態: **旧 head 版は新 head では無効**（`D:\repositories\unity\OSM-evidence\bs-rig-cprime\cprime-blind-guide.txt`。旧 head `a79530b4` の diff・旧 evidence bundle を含む）。新 head 版は未生成（判定 C の担当は作っていない。C' 2 巡目の起動前に、新 head の実装 diff・A3 凍結計画・上の新 evidence bundle・指示書（決定記録は D2 だけ）から作り直す）
+- C' blind bundle の取得案内・状態: 新 head 版（2 巡目）は生成済み（`staged`、`locality: local`。取得案内は `D:\repositories\unity\OSM-evidence\bs-rig-cprime2\cprime2-blind-guide.txt`。git 管理外。A3 凍結計画・決定記録 D2・新 head の実装 diff・旧 head からの差分・ソース写し・新 head の判定 C と同じ evidence bundle・指示書。所見を含まない）。旧 head 版（`bs-rig-cprime\cprime-blind-guide.txt`）は新 head では無効
 - 引継ぎ票:
   - **更新（判定 C 完了、新 implementation head `9b99a83ef6215071ca99a2768559cad4b86eb82b`、引き継ぐ commit はこの票を含む commit（SHA は起動指示）。2026-11-07）:** 新 head で判定 C をやり直し、D2 の要件を満たして GO（§6「判定 C（新 head）」）。全件回帰 1644 件・failed 0・inconclusive 25（旧 head と同じ件数）、必須 2 件 Passed、AC5 の前後の一覧は同一、検証 Play 1 回と新照合 script は `RESULT: ALL PASS`（別ディレクトリ・3 つのロケールで出力が一致、取得 copy でも ALL PASS）、audit 2 件は errors 0。**逸脱 2 件は §6 に記録済み**（回帰の Unity が終了で止まり AC5 の「直後」の一覧が XML 終了の 16.4 分後、diag の空振り 2 回）。次: C' 2 巡目（予約は OpenAI（Codex）、渡す決定記録は D2 だけ）。その前に C' blind bundle を新 head から作り直す（上の欄）。
     - 開始の照合: 起動指示の SHA と HEAD が一致し、作業ツリーに `artifacts/`・`docs/reviews/` 以外の差分が無い。implementation head 欄の SHA が HEAD の祖先で、implementation head から HEAD までの差分が本 HANDOFF だけ。
@@ -438,6 +438,17 @@ A3 の採否（2026-11-04 凍結）:
   - 結論: 進める最低条件 I1〜I3・E1〜E3 が揃い、致命的な反証は無い。**判定 C は GO（C' 2 巡目を待つ）。** 逸脱 2 件（AC5 の直後の一覧が XML 終了の 16.4 分後、diag の空振り 2 回）は上に記録した。
 - 未実行: C' 2 巡目、C' blind bundle の再生成、Phase D、Player Build、実 R2、別の PC での照合 script の実行。
 - 後始末: Play は停止し handler は `stop.cs` で外した。Editor に `EditorApplication.Exit(0)` を依頼し、この Editor（PID 3808）は終了した。回帰の Unity process（PID 13204）は終了で止まったまま残っている（既知の native 終了 stall。調査は反復しない）。Editor が消した `MobileDependencyResolver` の `.pdb.meta` 5 件は `git checkout --` で戻した（`postrun-git-status.txt`）。
+
+### Phase C'（2 巡目）
+
+- 担当・入力: OpenAI（Codex CLI 0.164.0、model 表示 `gpt-6.1-terra`。報告の自己申告は「OpenAI Codex（GPT-6）」）。B（Opus 5.5）・C（Sonnet 5.5）と別系列。新規セッション、sandbox は packet の中だけ書ける `workspace-write`（network なし。1 巡目の read-only では pwsh を起動できなかったので変えた。進行役の運用上の選択）、入力は 2 巡目の blind bundle（§0）だけ。決定記録は D2 だけを渡した。実行は 1 回（トークン約 5.8 万）。担当の環境では pwsh が PATH に無く、照合 script は再実行していない（担当の記載）。
+- 報告の原本: `D:\repositories\unity\OSM-evidence\bs-rig-cprime2\cprime-report-round2.md`（sha256 `16a1b349cb6f7dbc8cf335ff23313436933cf18e27f861f11cb10d58a828e731`。git 管理外）。
+- 監査結論（担当の記載）: **blocking findings exist**。A 1 件、B 1 件。
+  1. A: AC5 の回帰直後の一覧が証明されていない。XML の終了 21:49:26Z に対し後の一覧は 22:05:52Z（約 16.4 分後、Unity process は生存）。runner は後で強制終了され正常終了の記録が無い。照合 script は「XML 終了後かつ process 終了前」なら PASS にしており、ALL PASS は AC5 と D2 指摘 1（間を置かずに取る）の充足を示さない。凍結手順を満たす回帰と前後一覧が要る。
+  2. B: D2 の「bundle を別の PC に置いて同じ結果」の実行記録が packet に無い（判定 C は同一 PC の別ディレクトリと 3 つのロケールで確かめた）。手続き上の未確認で、凍結条件違反とは扱わない。
+- 担当が確かめたもの: D2 指摘 2（bundle 外の path を合否に使わない、UTC か記録した offset）、指摘 3（補助計数・30 秒の上限・`Player ready` の後・LF の行番号）、指摘 4（RED の原記録・audit 2 件・文書の更新）は充足。round2 の文書差分は AC6・E3 (a)(c) と照合して阻害なし。原ログで `W_all`・`W_spawn` の境界、正の証拠、major Event の marker の挟み込みを独立に照合し、script の出力と一致。
+- 残余リスク・監査できなかった範囲（担当の記載）: hook 登録前の load、全 Tick の Focus、全 revision の寿命、既定 root への実 install は証明外。formatter の欠落により App の Error 0 件は実際に Error が無いことを意味しない。回帰の runner は正常終了していない。pwsh 不在で script・checksum の再実行なし。別 PC・別時差での再現なし。
+- この記録は C' の報告の転記で、判定 C との突き合わせ・指摘への裁定・修正は行っていない（次は発注者の裁定）。
 
 ## 7〜9
 
