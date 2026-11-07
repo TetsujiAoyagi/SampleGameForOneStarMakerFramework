@@ -77,6 +77,8 @@ Assets/
 - 同階層横断（例: `InGame` → `OutGame`）。共有は `Common` へ
 - Assembly 循環依存
 
+`OneStarMaker.Runtime` の中では、AssetManagement（`Runtime/AssetManagement`、`Runtime/AssetDescriptions`）と BuildSystem 本体（`Runtime/BuildContent` の中核と `Editor/Build` の Selection・Materialization・Content）は互いの型を参照しない。両者が共有する型（`AssetType`、`ContentDirectoryException`、`ContentDirectoryFailureCode`）は共通契約 `Runtime/AssetBuildContracts/` だけに置く。両方を知るのは連携部分（`ContentDirectorySession`、`UnityContentDirectoryBackend`）である。共通契約の型は namespace を移動前のまま据え置いているので、`using` の有無ではこの境界を判定できない。
+
 アプリの EditMode テストは `SampleGame.Tests` と `SampleGame.Tests.Editor` に置く。フレームワークのテストヘルパーが要るときは `SampleGame.Tests` → `OneStarMaker.Tests` の向きだけを使う。
 
 詳細な asmdef ルールは [ARCHITECTURE.md §2](../../ARCHITECTURE.md#2-レイヤー構造と-assembly-依存ルール) を正とする。
