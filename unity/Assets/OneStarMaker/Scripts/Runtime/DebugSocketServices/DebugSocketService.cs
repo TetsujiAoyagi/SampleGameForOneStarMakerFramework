@@ -170,6 +170,13 @@ namespace OneStarMaker.Runtime.DebugSocketServices
         /// </summary>
         public Stream RealtimeStream => _realtimeStream;
 
+        /// <summary>
+        /// AppTelemetry のレコードをこの service の送信キューへ橋渡しする sink を作る。
+        /// sink の型は service の実装詳細なので、起動側（Bootstrap）は型を知らずにこの入口から得る。
+        /// 登録を一度だけにする判断は呼び出し側が持つ（呼ぶたびに新しい sink を返す）。
+        /// </summary>
+        internal ITelemetrySink CreateTelemetrySink() => new DebugSocketTelemetrySink(this);
+
         /// <summary>現在選択されている transport の管理ループが起動中か。</summary>
         public bool IsRunning => _cts != null && !_cts.IsCancellationRequested;
 

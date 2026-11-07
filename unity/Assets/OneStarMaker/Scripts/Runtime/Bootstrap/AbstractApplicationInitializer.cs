@@ -72,11 +72,12 @@ namespace OneStarMaker.Runtime
         private SceneDirector? _sceneDirector;
         private SceneResourceMap? _sceneResourceMap;
         private CancellationTokenSource? _cts;
-        private AppLoggerFactory? _loggerFactory;
-        private DebugSocketService? _debugSocketService;
-        private UpdateSystemHost? _updateSystemHost;
-        private VfxRuntimeHost? _vfxRuntimeHost;
-        private bool _debugSocketTelemetrySinkRegistered;
+
+        /// <summary>
+        /// Framework の常駐サービス（logger / DebugSocket / UpdateSystemHost / VFX）。BeforeSceneLoad の最初の Create* より前に
+        /// 空で作り、hook の戻り値を 1 つずつ入れる。ReleaseAll で Dispose して null に戻す。
+        /// </summary>
+        private FrameworkServiceSet? _services;
 
         /// <summary>
         /// Addressables Load / Release の一元管理。
@@ -115,16 +116,16 @@ namespace OneStarMaker.Runtime
         /// 環境でも何もしない handle を返す（Game に対応可否の分岐を書かせない）。
         /// Scene class へは factory の ctor 注入で渡す（service locator にしない）。
         /// </summary>
-        protected IVfxSystem? Vfx => _vfxRuntimeHost?.System;
+        protected IVfxSystem? Vfx => _services?.Vfx?.System;
 
         /// <summary>
         /// Framework 標準のロガーファクトリ。
         /// DebugSocketService が有効な場合は、その realtime stream もここへ配線される。
         /// </summary>
-        protected AppLoggerFactory? LoggerFactory => _loggerFactory;
+        protected AppLoggerFactory? LoggerFactory => _services?.LoggerFactory;
 
         /// <summary>Framework 標準の更新 coordinator。BeforeSceneLoad 完了後に有効。</summary>
-        protected UpdateCoordinator? UpdateCoordinator => _updateSystemHost?.Coordinator;
+        protected UpdateCoordinator? UpdateCoordinator => _services?.UpdateSystemHost?.Coordinator;
 
         /// <summary>
         /// テスト用: 起動中の initializer が所有する VFX の composition。Play 中のテストが、生成・Tick 要素の登録・
@@ -248,7 +249,11 @@ namespace OneStarMaker.Runtime
 
                 // Updater は scene object の Awake register を受ける必要があるため、
                 // BeforeSceneLoad の時点で install しておく。
-                _updateSystemHost = CreateUpdateSystemHost();
+                // 常駐サービスの入れ物を最初の Create* より前に作る。以後の hook は作り済みのサービスを accessor で読め、
+                // 途中の hook が投げても作り済みのものは ReleaseAll で破棄される。
+                var services = new FrameworkServiceSet();
+                _services = services;
+                services.UpdateSystemHost = CreateUpdateSystemHost();
 
                 // テレメトリ閾値を Config から読み込み
                 AppTelemetry.Thresholds = new TelemetryThresholds(_config);
@@ -256,14 +261,14 @@ namespace OneStarMaker.Runtime
                 // DebugSocket は Config 解決後でないと起動条件を決められない。
                 // ここでは service と logger factory を組み立てるだけに留め、
                 // 実際の socket 待受開始は AfterSceneLoad 側へ寄せる。
-                _debugSocketService = CreateDebugSocketService(_config);
+                services.DebugSocket = CreateDebugSocketService(_config);
                 LogDebugSocketBootstrapStatus(_config);
-                _loggerFactory = CreateLoggerFactory(_debugSocketService?.RealtimeStream);
+                services.LoggerFactory = CreateLoggerFactory(services.DebugSocket?.RealtimeStream);
                 // VfxSystem の ctor が能力判定を 1 回だけ行う。BeforeSceneLoad の後に Awake する Scene
                 // （Editor の Play で開いていた Scene）からも判定結果を読めるよう、ここで作る。
                 // 失敗は他の Create* hook と同じく BeforeSceneLoad の失敗にする（VFX を黙って無効にしない）。
-                _vfxRuntimeHost = VfxRuntimeHost.Create(CreateVfxBackend(), _loggerFactory, _updateSystemHost.Coordinator);
-                ActiveVfxRuntimeHost = _vfxRuntimeHost;
+                services.Vfx = VfxRuntimeHost.Create(CreateVfxBackend(), services.LoggerFactory, services.UpdateSystemHost!.Coordinator);
+                ActiveVfxRuntimeHost = services.Vfx;
                 // ── テレメトリ Sink 登録 ──
                 RegisterDefaultTelemetrySink();
 
@@ -344,7 +349,8 @@ namespace OneStarMaker.Runtime
                 // 派生クラスが OnServicesInitializing を override しても、
                 // base 呼び出し忘れで DebugSocket が起動しない事故を避けるため。
                 startupStage = "start-framework-services";
-                await StartFrameworkServicesAsync(ct);
+                // BeforeSceneLoad が成功していれば _services は在る（上の早期 return と同じく ReleaseAll が _cts と一緒に null にする）。
+                await _services!.StartAsync(ct);
 
                 // Phase 2 拡張ポイント: HostedService 等の追加初期化
                 startupStage = "initialize-app-services";
@@ -377,9 +383,9 @@ namespace OneStarMaker.Runtime
                     _assetManagement,
                     sceneVariant,
                     useContentDirectory);
-                _updateSystemHost?.BindSceneDirector(_sceneDirector);
+                _services?.UpdateSystemHost?.BindSceneDirector(_sceneDirector);
                 // 最初の Scene の登録・ロードより前に接続する（VfxSystem は途中接続の状態同期を約束しない）。
-                _vfxRuntimeHost?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
+                _services?.Vfx?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
 
                 if (_sceneDirector == null)
                 {
@@ -642,50 +648,6 @@ namespace OneStarMaker.Runtime
             public void Load(Dictionary<string,string> store){foreach(var value in _values)store[value.Key]=value.Value;}
         }
 
-        /// <summary>
-        /// Framework が標準で持つサービス群を起動する。
-        /// 今回は DebugSocketService だけだが、将来の長寿命サービスもここへ集約できる。
-        /// </summary>
-        private async UniTask StartFrameworkServicesAsync(CancellationToken ct)
-        {
-            if (_debugSocketService == null)
-            {
-                Debug.LogWarning("[AppInit] DebugSocket は無効です。DebugStudio 接続を受けるには debugSocket:enabled=true が必要です。");
-                return;
-            }
-
-            Debug.Log(
-                $"[AppInit] Starting DebugSocket transport. mode={_debugSocketService.Options.TransportMode}, endpoint={_debugSocketService.Options.EndpointDisplayName}, autoStart={_debugSocketService.Options.AutoStart}.");
-            await _debugSocketService.StartAsync(ct);
-            Debug.Log(
-                $"[AppInit] DebugSocket transport start sequence finished. mode={_debugSocketService.Options.TransportMode}, isRunning={_debugSocketService.IsRunning}.");
-
-            // Telemetry は AppTelemetry から流れてくるため、
-            // socket service へ橋渡しする sink を一度だけ登録する。
-            if (_debugSocketService.Options.SendTelemetry && !_debugSocketTelemetrySinkRegistered)
-            {
-                AppTelemetry.AddSink(new DebugSocketTelemetrySink(_debugSocketService));
-                _debugSocketTelemetrySinkRegistered = true;
-            }
-        }
-
-        private void DisposeVfx()
-        {
-            var host = _vfxRuntimeHost;
-            _vfxRuntimeHost = null;
-            if (host == null)
-            {
-                return;
-            }
-
-            if (ReferenceEquals(ActiveVfxRuntimeHost, host))
-            {
-                ActiveVfxRuntimeHost = null;
-            }
-
-            host.Dispose();
-        }
-
         private void OnApplicationQuitting()
         {
             ReleaseAll();
@@ -712,17 +674,16 @@ namespace OneStarMaker.Runtime
             // VFX は logger・UpdateSystemHost・SceneDirector・AssetManagement より前に回収する。
             // 回収時の診断ログを出せ、生きている coordinator から登録解除でき、
             // source asset は instance の破棄要求より後に解放される。
-            DisposeVfx();
+            // テスト用の static は、自分の host を指しているときだけ、host の Dispose より前に外す。
+            var services = _services;
+            if (services?.Vfx != null && ReferenceEquals(ActiveVfxRuntimeHost, services.Vfx))
+            {
+                ActiveVfxRuntimeHost = null;
+            }
 
-            _debugSocketService?.Dispose();
-            _debugSocketService = null;
-            _debugSocketTelemetrySinkRegistered = false;
-
-            _updateSystemHost?.Dispose();
-            _updateSystemHost = null;
-
-            _loggerFactory?.Dispose();
-            _loggerFactory = null;
+            // VFX → DebugSocket → UpdateSystemHost → LoggerFactory の順（順序の理由は FrameworkServiceSet.Dispose）。
+            services?.Dispose();
+            _services = null;
 
             _cts?.Dispose();
             _cts = null;
@@ -1028,12 +989,13 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected virtual void RegisterDefaultTelemetrySink()
         {
-            if(_loggerFactory == null)
+            var loggerFactory = _services?.LoggerFactory;
+            if(loggerFactory == null)
             {
                 Debug.LogWarning("[AppInit] LoggerFactory が未構築のため、デフォルトのテレメトリ Sink を登録できません。");
                 return;
             }
-            AppTelemetry.AddSink(new JsonFileTelemetrySink(_loggerFactory));
+            AppTelemetry.AddSink(new JsonFileTelemetrySink(loggerFactory));
         }
 
         private static void LogDebugSocketBootstrapStatus(AppConfig config)
