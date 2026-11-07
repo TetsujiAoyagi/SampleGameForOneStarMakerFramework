@@ -1,11 +1,11 @@
-# 要求時の Content 解決と Editor Play の入口（Phase A0 planning packet、revision 3）
+# 要求時の Content 解決と Editor Play の入口（Phase A0 planning packet、revision 3.1）
 
 ## 0. メタデータ
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `program`（A0 の planning packet。実装スライスではない。§8 のスライス列の各 A0 への入力）
-- status: `A`（A0 revision 3。revision 2 は外部の計画レビュー R1 で問いを上位へ戻した版。その後 owner 側で作られた提案 Rev3（要求時解決、Editor で開いている Scene の最優先）と Rev4（SampleGame への依存を API と合格条件から外す）を受け、owner の回答 A1〜A10（§11）で確定した方針を本 revision に反映した。A1 は未着手。**実装キューではない**）
+- status: `A`（A0 revision 3.1。revision 3 への独立計画レビュー R2（2026-11-08、§11）の高優先 F-01〜F-04 と、owner が任せた M-07 を反映した。R2 は A0 の問題設定と構成を支持し、S0-a / S0-b / S0-c の A1 着手を支持している。revision 2 は外部の計画レビュー R1 で問いを上位へ戻した版。その後 owner 側で作られた提案 Rev3（要求時解決、Editor で開いている Scene の最優先）と Rev4（SampleGame への依存を API と合格条件から外す）を受け、owner の回答 A1〜A10（§11）で確定した方針を本 revision に反映した。A1 は未着手。**実装キューではない**）
 - branch: `claude/osm-content-playas-issue-51y1cj`（計画ブランチ。PR の base は `develop`）
 - implementation base commit: `e022934`（`develop` の head、2026-11-07。本書の実測は全てこの base。各スライスの着手時に head を取り直す）
 - implementation head commit: 該当なし（program）
@@ -100,8 +100,8 @@ Rev4 の最小の汎用モデルを採る。**既存の `IAssetManagement`、`IC
 - **ContentRequest（要求）:** `LogicalKey`（Scene なら Scene identity）、`Kind`（最初は Scene。他種別へ拡張できる形）、`Representation`（要求元が与える data。resolver の enum にしない）、互換の制約、cancellation、診断の相関。SceneDirector の状態、親子、Season、SceneResourceMap、VCS の知識を入れない。
 - **Provider / Availability（供給候補）:** 「この要求と policy に使用可能な候補があるか」を、検証される候補の identity / immutable digest / manifest reference / metadata として返す。任意の path をそのまま信用しない。探す段と Unity のロードを分ける。候補の取得・install は供給形態の adapter が担う。
 - **ResolutionPolicy（規則。Play 前に固定）:** provider の順序、採用条件、互換基準、timeout / cancellation、明示 override、Editor snapshot の採用規則、bootstrap の基準。**将来どの Scene が要求されるかを列挙しない。** immutable。
-- **ResolutionResult / LoadRecord（1 要求の決定と実績）:** 得た候補、実効表現、所有、理由。実際にどの version / digest / provider で成功し解放されたか。**予定（policy）と実績（record）を別の型にする。** 未保存 Editor 状態の完全再現は保証せず、record にそう残す。
-- **Editor snapshot tier（owner 決定 A1）:** Editor で開いている Scene は、**Play 前に退避した複製**を Play 中の実体とし、開いている Scene 自体には影響を与えない。複製は要求時に「既にある Scene」の特殊な候補として最優先で採用する。`Assets/` に source file があるだけでは候補にしない。Dirty は採用し、未保存である事実を record に残す。複製の機構は S0-b で比較する（§5.2）。
+- **ResolutionResult / LoadRecord（1 要求の決定と実績）:** 得た候補、実効表現、所有、理由。実際にどの version / digest / provider で成功し解放されたか。**予定（policy）と実績（record）を別の型にする。** record の到達度は 2 段で区別する（R2 F-02）。**Traceable:** どの入力を選んだかを説明できる（identity、採用時点、dirty、hash、供給元）。**Reproducible:** 必要な入力 bytes と依存と toolchain を再取得でき、再構成が成立する。本 program の必須要求は Traceable までで、Reproducible は保証しない。
+- **Editor snapshot tier（owner 決定 A1）:** Editor で開いている Scene は、**Play 前に退避した複製**を Play 中の実体とし、開いている Scene 自体には影響を与えない。複製は要求時に「既にある Scene」の特殊な候補として最優先で採用する。`Assets/` に source file があるだけでは候補にしない。Dirty は採用し、未保存である事実を record に残す。複製の機構は S0-b で比較する（§5.2）。**「複製を作る」と「元の Scene を壊さない」は別の契約**で（R2 F-01）、後者は I11 として S0-b が実機で証明する。
 - **供給元の連鎖（Editor Play の標準 policy）:** Editor snapshot → Local（検証済み installed cache → local の publish 済み成果物を verify / install）→ LAN（verify / install）。Cloud は tier として実装せず、adapter の差込口だけ確認する（A5）。tier を設定していない利用者は、その tier を持たない policy で動く。
 
 ### 3.1 混ぜてはいけないもの（Rev3 §11 から。A1 の用語の検査に使う）
@@ -124,7 +124,7 @@ Rev4 の最小の汎用モデルを採る。**既存の `IAssetManagement`、`IC
 - 供給元の選択は**ロード要求時**に行う。Play 前は RunPurpose 相当の互換基準と policy と、bootstrap が必須とする graph / config / UICommon の取得可能性だけを確定する。
 - `not found`・未接続・timeout は次 tier を試す。hash 不正・version 不整合・権限拒否は記録し、**同じ expected digest の正規コピーで修復できる時だけ**下位 tier へ進む。別 revision・別表現へ黙って切り替えない。
 - 必須 Scene の失敗は fail-closed。任意 Scene（距離 streaming 等）の失敗の扱いは呼び出し側の policy が決め、resolver は欠損を成功にしない。
-- 複数供給元の**同じ revision**から必要な物を取るのが標準。異なる revision の寄せ集めは、versioned composition の契約を別に実証するまで拒否する。
+- 複数供給元の**同じ revision**から必要な物を取るのが標準。異なる revision の寄せ集めは、versioned composition の契約を別に実証するまで拒否する。**revision 名の一致は必要条件の一部に過ぎない**（R2 F-04）。独立に build した package は同じ名前でも依存 graph や shared asset の構成が違い得るので、package の合成可否は S1 が定める互換 envelope（共同の immutable build plan / dependency graph の出所、target / engine / schema、表現、shared asset の所有と重複の方針、同一 logical identity の衝突規則、package 索引の hash 関係）で判定し、名前と個々の digest だけで採用しない。
 - resolver は暗黙に Build を始めない。Build は「互換な候補が全供給元に無い」時の**明示された回復操作**で、Scene ロードの裏で Unity の build を走らせない。
 - Editor API を Runtime asmdef に持ち込まない。Editor snapshot tier は Editor 専用 adapter で、Player には無い。
 
@@ -143,9 +143,10 @@ Rev3 の「Stage I: 最初の miss で revision 全体を取得」は暫定と�
 
 ### 4.3 Editor Play の入口（UX。owner 決定 A6・A10）
 
-Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として残す。受け入れ条件にするかは S0-c の A1 が決める。
+Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として残す。次の 3 つは program の必須条件とし（R2 M-07。owner は A10 で判断を任せた）、表示部品の配置と通知の細則だけを S0-c の裁量にする: **(1) Play ボタンから起動できる。(2) 利用者の明示設定を壊さない。(3) 失敗と由来を診断できる。**
 
-- Play ボタンが入口。`ExitingEditMode` で `content:runtimeMode` がどの層にも無い時だけ介入し、どこかの層に値があれば意図した設定として通す。介入は取り消し → 準備 → 再 Play の transaction として設計し、二重 Play・再入・crash 後の ledger 残留を防ぐ。
+- Play ボタンが入口。`ExitingEditMode` で `content:runtimeMode` がどの層にも無い時だけ**設定に**介入し、どこかの層に値があれば意図した設定として書き換えない。介入は取り消し → 準備 → 再 Play の transaction として設計し、二重 Play・再入・crash 後の ledger 残留を防ぐ。
+- **設定を書き換えないことと、起動内容を検査しないことは別**（R2 F-03）。明示設定がある場合も、起動する Scene 群と Editor で開いている Scene の由来を検査し、明示の directory-only Play に Editor の既ロード Scene が混入するなら理由を知らせ、厳密モードなら停止する。「Editor snapshot を優先する policy」と「厳密な directory-only」は明示的に区別する。現行 `VerifyPlayLauncher.CheckBeforeStart` が持つこの保護は入口の統合で消さない（G18）。
 - RunPurpose は永続の選択（週に数回）。初期値は前回の値、初回は host の既定。Play のたびには選ばない。
 - 通知は 3 段。無言（計画が一意で Play に入れる。Console に要約 1 行と観測 UI）、非ブロック（複数候補から known-good で選んだ、供給元の縮退、snapshot の件数）、ブロック（互換な候補が無い、宣言 mismatch、graph の違い、必要な bootstrap の欠損、直せない前提条件、取得の失敗）。
 - 黙って直してよい前提条件は Framework が所有する物（Addressables の Play Mode Script）に限る。Variant profile、手動 Delivery の ledger、明示 `content:runtimeMode`、環境変数は利用者の明示操作なので止める。
@@ -181,7 +182,7 @@ Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として�
 
 - **(i) Scene の複製を一時 asset として置き、AssetDatabase / `EditorSceneManager` から読む。** 軽い。ただし directory 封じの下で Editor の load 経路を通すので、Rev2 の B-03 と同じ所有・封じ・台帳の問題が残る。
 - **(ii) 複製から小さな一時 Content Directory を build し、通常の directory として登録して読む。** Runtime は directory しか見ないので hybrid の問題が消える。代償は Play 前の build 時間（Scene 数件）と、**複数 directory の登録**が必要になること（§2.4 の未実証）。publisher が `Full` 限定なのも触る。
-- どちらでも、複製は Dirty の bytes を含み、その hash を record に残すので「未保存で再現不能」が「snapshot の hash で再現可能」に変わる。Unity の Play mode が終了時に開いていた Scene を復元する既存挙動との関係は S0-b で確認する。
+- どちらでも、複製は Dirty の bytes を含み、その hash を record に残す。**hash は出所追跡（Traceable）の手掛かりであり、依存を含む厳密な再現（Reproducible）を保証しない**（R2 F-02）。参照先 prefab / material / ScriptableObject、compile 済み C#、GUID / meta、serialized component の schema が違えば再現できず、temp asset を Play 後に消すなら bytes 自体が残らない。Play 後に snapshot の bytes を保存したかは record に分けて残す。Unity の Play mode が終了時に開いていた Scene を復元する既存挙動は S0-b の比較対象にする。
 
 ### 5.3 配布粒度（Rev3 §7・Rev4 §6）
 
@@ -225,11 +226,11 @@ Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として�
 
 | 順 | スライス（HANDOFF 名の候補） | 答える問い | 上位の問い | risk | gate（次へ進む最低条件） |
 |---|---|---|---|---|---|
-| S0-a | `GENERIC_CONTENT_REQUEST_CONTRACT` | SceneDirector や BuildPurpose が無くても、要求・候補・所有の契約を定義できるか。既存の `IAssetManagement` / `IContentDirectoryBackend` / DIST で何を再利用でき、新しい interface は本当に要るか | Q1、Q2、Q6 | normal | 純粋な契約 + fake provider の Unity 非依存テスト。SampleGame 固有型なし。単独利用の P 検査が閉じる |
-| S0-b | `CONTENT_DEMAND_ROUTING_SPIKE` | Scene A（Editor で開いている Scene の snapshot）と Scene B（built directory）を同一 session で読み、所有・unload・cancel・再試行・Play 停止・domain reload 無効を保てるか。§5.2 の (i) / (ii) のどちらが成立するか。旧 Hybrid Play の廃止理由の回顧 | Q3、Q4、D4 | high | **SampleGame を使わない独立した 2 Scene fixture** での実機の証拠。LAN は模擬で可。Dirty、依存 prefab だけの変更、別表現、同名 entry の衝突を投入。実験 code は製品に残さない。不成立なら D4 の修正を owner に返す |
-| S0-c | `EDITOR_PLAY_ENTRY_PROOF` | Runtime を変えずに、Play ボタンから RunPurpose の選択 → 候補の検査 → 明示の source-only / directory-only Play を迷わず起動できるか。明示設定を壊さず、初見が説明可能に始められるか。§4.2 の use case と予防の一覧 | Q5、§4.3 | normal | 編集者・検証者・初見の 3 利用者が迷わず起動でき、policy と結果が Console と観測 UI から追える。候補なし・別 revision・明示 override・手動 ledger の各場合を実機で確認。Rev2 の S0-a を流用 |
+| S0-a | `GENERIC_CONTENT_REQUEST_CONTRACT` | SceneDirector や BuildPurpose が無くても、要求・候補・所有の契約を定義できるか。既存の `IAssetManagement` / `IContentDirectoryBackend` / DIST で何を再利用でき、新しい interface は本当に要るか | Q1、Q2、Q6 | normal | 純粋な契約 + fake provider の Unity 非依存テスト。SampleGame 固有型なし。単独利用の P 検査が閉じる。**resolver 無しの既存 AssetManagement の非退行**と、**SceneDirector 無しの resolver + AssetManagement の利用**を別々に示す（R2 §1 補正）。Object / Prefab を模した小さな例を 1 つ含め、Scene の都合で Asset 全体の API を先に固定しない（R2 M-03） |
+| S0-b | `CONTENT_DEMAND_ROUTING_SPIKE` | Scene A（Editor で開いている Scene の snapshot）と Scene B（built directory）を同一 session で読み、所有・unload・cancel・再試行・Play 停止・domain reload 無効を保てるか。§5.2 の (i) / (ii) のどちらが成立するか。旧 Hybrid Play の廃止理由の回顧 | Q3、Q4、D4 | high | **SampleGame を使わない独立した 2 Scene fixture** での実機の証拠。LAN は模擬で可。実験項目（R2 F-01）: (1) Unity 標準 Play の Scene 隔離と `RegisterAlreadyLoadedScenes` の再利用を比較対象として実測（owner の複製要求は撤回しない）。(2) `EditorSceneManager.SaveScene(saveAsCopy)` 等の実複製で、Dirty、新規未保存、additive に複数、prefab override、参照先 asset の変更を再現。(3) 複製は別 path / GUID になり得るので、論理 Scene identity と物理 asset の写像を維持し、同名・同 GUID の衝突と二重ロードを避ける証明。(4) 複製の GameObject の寿命、SceneDirector の既登録、owner 台帳、Play 終了時の復元の整合。Play 停止後に元の Scene の Dirty と内容が無傷。(5) Reload Domain / Reload Scene の各設定で比較し、必要なら対応する設定を限定。(6) 失敗した複製と temp asset の cleanup、複数 Editor instance の衝突。**凍結条件:** これらが成功するまで (i) / (ii) と既ロード Scene の取り込み方を確定せず、製品 code への統合を始めない。実験 code は製品に残さない。不成立なら D4 の修正を owner に返す |
+| S0-c | `EDITOR_PLAY_ENTRY_PROOF` | Runtime を変えずに、Play ボタンから RunPurpose の選択 → 候補の検査 → 明示の source-only / directory-only Play を迷わず起動できるか。明示設定を壊さず、初見が説明可能に始められるか。§4.2 の use case と予防の一覧 | Q5、§4.3 | normal | 編集者・検証者・初見の 3 利用者が迷わず起動でき、policy と結果が Console と観測 UI から追える。§4.3 の必須 3 条件（Play ボタン、明示設定の非破壊、由来の診断）を gate にし、UI の細部は裁量。候補なし・別 revision・明示 override・手動 ledger・Editor に開いている Scene の混入の各場合を実機で確認。Rev2 の S0-a を流用 |
 | S1 | `CONTENT_COMPATIBILITY_SELECTION` | 特定の host 宣言無しで expected identity / digest / target / schema / `declaration` の内容の汎用判定ができるか。host の policy を追加できるか | Q3 | normal | 同名異内容、壊れた manifest、異なる version、別表現、旧 manifest を誤採用しない |
-| S2 | `CONTENT_PACKAGE_DISCOVERY` | 要求した logical key がどの正規 package に入るかを、tier ごとの索引と manifest で解決できるか。Stage I から Stage II への形 | Q2、§5.3 | high | 1 package / 複数 package / 欠損と共有依存の証拠。Unity の後勝ち探索・依存重複・native 登録を実測。不成立なら縮退判断を owner へ |
+| S2 | `CONTENT_PACKAGE_DISCOVERY` | 要求した logical key がどの正規 package に入るかを、tier ごとの索引と manifest で解決できるか。Stage I から Stage II への形 | Q2、§5.3 | high | gate は「複数 root を Unity に登録できた」ではなく、**1 つの合成単位として作った 2 package** の交互ロード・共有依存・unload・失敗時の復元（R2 F-04）。欠損と共有依存の証拠。Unity の後勝ち探索・依存重複・native 登録を実測。異なる build 同士の合成は後続の別課題。不成立なら縮退判断を owner へ |
 | S3 | `RUNTIME_PROVIDER_INTEGRATION` | provider route → install → Unity load → 所有 / unload の接続が、SceneDirector 経由と直接の `IAssetManagement` 経由の両方で成立するか | Q4、Q6 | high | 両経路を別々に確認。Player の非退行。`ContentDirectoryStartup` の Phase D 後はその API に合わせる |
 | S4 | `LOCAL_LAN_PROVIDER` | local の installed cache / publish 済み / LAN の取得・検証・利用を段階化できるか。checkout hook と Play 入口の prefetch | Q2、§4.2 | normal | Local hit / miss、LAN timeout、tamper、cancel、immutable revision、cache lease。publish 成功だけで Play 可能と宣言しない |
 | S5 | `EDITOR_WORKFLOW_AND_OBSERVABILITY` | 任意の Workset checkout、policy と record の観測 UI、Build の明示回復、menu の整理、README で、Workset の無い利用者も Play できるか | Q5、§4.3 | low | GameView からも観測可。手動 checkout と自動 checkout が同じ policy。SampleGame の streaming case を最後に接続し、共通 core を書き換えずに済む |
@@ -244,7 +245,7 @@ Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として�
 |---|---|---|
 | G01 | 2 Scene fixture（`Entry` と `Next`）。親子・季節・距離なし | Entry は Editor の snapshot、Next は local の built directory から。ゲーム固有の policy 不要 |
 | G02 | 多段 Scene fixture（`Menu` → `Level` → `Result`） | 要求順を resolver が決めず、要求時に解決。未要求 Scene を先にロード・download しない |
-| G03 | AssetManagement 単独利用 | SceneDirector / BuildSystem / Workset 無しで Scene / Object API が動く。resolver は optional |
+| G03 | AssetManagement 単独利用 | 2 件に分ける。(a) resolver 無しの既存 AssetManagement が退行しない。(b) SceneDirector 無しの resolver + AssetManagement で Scene / Object を要求し owner を解放できる。(a) だけで resolver の汎用性を証明したとしない |
 | G04 | BuildSystem 単独利用 | Bootstrap / SceneDirector / Editor Play UI 無しで publish 成果物を作れる |
 | G05 | 開いていない `.unity` が local にある | 未 build の source を local tier として採用しない |
 | G06 | 開いている Scene（Dirty・additive を含む）を要求 | snapshot を利用し、取得・ロードの二重計上なし。開いている Scene に影響が無い（I11） |
@@ -259,9 +260,15 @@ Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として�
 | G15 | native load 中の取消と Scene unload | 遅れて完了した token を回収。unregister / delete を早めない |
 | G16 | domain reload 無効 / Play 停止 / Play 再入 | 残留 provider / loaded scene / ledger が無く、同じ目的で再起動できる |
 | G17 | SceneSystem を使うが streaming policy 無し | 必要 Scene と親子寿命だけで成立。Cell 概念ゼロ |
-| G18 | 手動 Delivery、明示 `runtimeMode`、外部環境変数、Variant profile | 人間の明示選択を黙って壊さない |
+| G18 | 手動 Delivery、明示 `runtimeMode`、外部環境変数、Variant profile | 人間の明示選択を黙って壊さない。明示の directory-only Play で Editor に Scene が開いていても、設定を変えず、source の混入を無言で許さない（現行 Verify Play の保護を保つ） |
 | G19 | cache warm / local cold / LAN cold | 検出・転送・hash・install・register・native load を分けて計測 |
 | G20 | SampleGame の streaming case（**最後**） | 既存の Cell 分割・world policy を adapter で接続でき、共通 core を書き換えずに済む |
+| G21 | Editor に Scene A が開いていて、同 identity の directory Scene A がある | snapshot 優先で **1 個だけ**実行される。Play 停止後に元 Scene が無傷 |
+| G22 | Scene A は Dirty、参照 prefab は別途変更済み | snapshot の hash が一致しても実行内容が異なり得ることを検出または明示できる |
+| G23 | Scene A / B を additive で開き、Runtime は片方だけ要求 | 未要求 Scene が勝手に scene owner を取らない。既登録が必要ならそれを例外として記録 |
+| G24 | 同 revision を名乗る 2 package が異なる shared prefab bytes を持つ | 個別 hash が通っても合成を拒否するか、検証済みの共有依存の戦略で解決する |
+| G25 | 初回要求で full revision の download 中に別 Scene を要求 | 単一の install に合流し、取り消しても半端な install を公開しない |
+| G26 | Enter Play Mode Settings の Scene Reload / Domain Reload の有無 | 同じ由来契約が維持されるか、対応外の設定を診断できる |
 
 G01 / G02 は SampleGame の Scene graph の名前を変えた物であってはならない。独立した小さな検証入力とする。G03 / G04 は型と動作の両方で検証する。
 
@@ -277,13 +284,15 @@ G01 / G02 は SampleGame の Scene graph の名前を変えた物であっては
 - **Q8（S5）:** `OneStarMaker/` と `Tools/OSM/` の二重 root を 1 つにするか。観測 UI の最小の置き場。
 - **Q9（program）:** CI publish の供給の所有と順序。供給が無い間の経路（source-only Play と明示回復）を受け入れるか。
 - **Q10（後続、対象外）:** Cloud tier の実装、Player での要求時解決、先読みの最適化。
+- **R2 の中優先 M-01〜M-08 の行き先:** M-01（並行は A1 まで。製品統合は S0-a の契約凍結後）→ 各 S0 の HANDOFF の停止規則。M-02（Stage I の in-flight 合流・cancel・進捗・timeout）→ S4。M-03 → S0-a（上に反映）。M-04（source-only Play は成立条件を満たす利用者への選択肢で、必ず救済できる手段ではない）→ S0-c と S5。M-05（snapshot tier は Scene 限定か、Asset も overlay するか）→ S0-b の scope と非目標。M-06（SceneResourceMap / UICommon の起動時特例は host の policy として登録し、generic の `ContentRequest` に入れない）→ S0-a。M-07 → §4.3 に反映。M-08（use case の例示を `Menu → Game` 等から始め、Spring / SVN は host の例とする）→ S0-c の A1 の文言。
 
 ## 11. 計画レビュー記録
 
 - **R1（2026-11-08、外部、owner 経由）:** 対象 revision 1。Blocker 4 件（RunPurpose と Workset の分離、sha 差分は編集意図ではない、hybrid の成立性を先に実証、一致と互換の未定義）と Major 8 件。全て採用し revision 2 に反映。
 - **Rev3（2026-11-08、owner 側の提案）:** revision 2 の「Play 前に全 Scene の供給元を確定」を撤回し、要求時解決、Editor で開いている Scene の最優先、Workset は checkout 支援のみ、Stage I / II の分離、「混ぜてはいけないもの」10 件、検証 T01〜T22 を提示。本 revision は §3.1・§4.1・§5.3・§9 に取り込んだ。Rev3 の「Cloud を第 4 tier として完成条件に含める」は A5 で採らない。
 - **Rev4（2026-11-08、owner 側の提案）:** Rev3 の SampleGame 依存（Cell / Season / 距離 streaming / RunPurpose 必須 / SceneDirector 唯一の呼び手）を API と合格条件から外し、汎用の要求モデル、任意の resolver、不変条件 I1〜I10、SampleGame を使わない fixture、スライス列を提示。本 revision の §1・§3・§4.4・§5.1・§6・§8・§9 の骨格。
-- **owner の回答（2026-11-08、本 revision の質問 Q1〜Q10 に対して）:** A1 開いている Scene は Play 前に退避し Play は複製を使う（D4、I11）。A2 待ち時間は契約を変えずに use case ごとの安い予防で防ぎ、checkout hook で Content も落とす（D8、D9、§4.2）。A3 S0-c は並行（D11）。A5 Cloud は後続、差込口だけ（D5）。A6 ASSET_BUILDSYSTEM_INDEPENDENCE との関係は境界の正本をあちらとする 1 行で足りる（§0 関連）。A7 汎用化の是非は問わない（D10）。A8 供給の無い現場は source-only Play と明示回復で、より安い解決は S4 で比較（D7）。A9 Rev3 を共有。A10 UX 要求は明記するが受け入れ条件にするかは任せる（D6、§4.3）。
+- **R2（2026-11-08、独立計画レビュー、owner 経由）:** 対象 revision 3（commit `a632dd8`）。判定は「A0 の問題設定と構成を支持。S0-a / S0-b / S0-c の A1 着手を支持。S0-b の方式選択、Editor 入口の安全契約、Stage II の合成互換性を実装既定に凍結するのは尚早」。高優先 F-01（複製と非破壊は別契約。S0-b の実験項目 6 件）、F-02（snapshot の hash と再現可能性の同一視）、F-03（明示 `runtimeMode` で設定を書き換えないことと由来を検査しないことは別）、F-04（同 revision は合成可能の証拠ではない）を全て採用し、§3・§4.1・§4.3・§5.2・§8・§9 に反映。中優先 M-01〜M-08 は §10 の行き先に従って各 A1 へ。全体の再計画は不要との判断に同意。
+- **owner の回答（2026-11-08、revision 3 の質問 Q1〜Q10 に対して）:** A1 開いている Scene は Play 前に退避し Play は複製を使う（D4、I11）。A2 待ち時間は契約を変えずに use case ごとの安い予防で防ぎ、checkout hook で Content も落とす（D8、D9、§4.2）。A3 S0-c は並行（D11）。A5 Cloud は後続、差込口だけ（D5）。A6 ASSET_BUILDSYSTEM_INDEPENDENCE との関係は境界の正本をあちらとする 1 行で足りる（§0 関連）。A7 汎用化の是非は問わない（D10）。A8 供給の無い現場は source-only Play と明示回復で、より安い解決は S4 で比較（D7）。A9 Rev3 を共有。A10 UX 要求は明記するが受け入れ条件にするかは任せる（D6、§4.3）。
 
 ## 12. この文書の終了
 
