@@ -63,9 +63,11 @@ tools/Artifacts/Probe/artifacts/
 !**/Packages/packages-lock.json
 !unity/Assets/Packages/**
 
+# Local generated output and evidence (stored in Artifact Storage, not Git).
+# Files committed here before this rule stay tracked; add new ones with -f.
+/artifacts/
+
 # Build artifacts
-artifacts/bs2b/
-artifacts/bs4/
 *.dll.mdb
 *.pdb
 *.mdb
