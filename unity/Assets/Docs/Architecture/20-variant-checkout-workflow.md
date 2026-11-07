@@ -4,6 +4,7 @@
 > 通常経路から切断した（2026-09-20）。メニューと CLI は置換案内のみ。
 > 通常のEditor Playには、Content Directory buildの後にtransport publishを行い、DIST Deliveryでinstallする。
 > Editor Play向けpublish入口は未整備である。BS4 PlayerはPlayer build内でpublishする別経路を使う。
+> **追記（2026-11-07）:** 上の「未整備」は本文を書いた時点の状態である。現在は `Tools/OSM/Content/Verify Play/<宣言名>` が build → publish → install → Play を一続きで行い、`Tools/OSM/Play As/<宣言名>` が source から Play に入る。現況は [18. AssetDescription §4](18-asset-description.md#4-buildsystem-との接続) を正とし、本文の「未整備」の記述の書き換えは後続とする。
 > 前提資料: [18. AssetDescription](18-asset-description.md)
 
 Content Directory build と、SampleGame の本番 SceneResource graph からの季節・表現選択は Editor 側の入口である。

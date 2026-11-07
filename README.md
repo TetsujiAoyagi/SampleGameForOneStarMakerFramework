@@ -1,10 +1,10 @@
 # OneStarMaker (OSM)
 
-**Unity で準オープンワールド規模のゲームを作るための土台**と、それを実際に載せて確かめるサンプルゲームのリポジトリです。
+Unity のゲームで、**ゲーム以外の部分（Scene の寿命・依存・ロード・観測）がゲームと一緒に複雑化しない**ための契約を、実装とドキュメントで公開するフレームワークです。いま実証に使っている適用先は**準オープンワールド**で、同じ repo の SampleGame が 4 季のセル世界を載せて確かめています。
 
-> OneStarMaker is a Unity 6 framework for semi-open-world games: scene lifetime as a tree, distance-based cell streaming, purpose-scoped content builds, and out-of-process observability. The sample game in this repo exercises all of it. Docs are in Japanese.
+> OneStarMaker is a Unity 6 framework that keeps scene lifetime, dependencies, loading and observability from growing more complex as the game does. The sample game in this repo proves it on a semi-open-world: distance-streamed seasonal cells, purpose-scoped content builds, out-of-process debugging. Docs are in Japanese.
 
-まだ試作段階で、コードには AI を活用しています。
+大絶賛工事中です。試作段階で、コードには AI を活用しています。
 
 ## 目的
 
@@ -15,7 +15,9 @@ Unity で世界が広いゲームを作ると、ゲームそのものとは別�
 - 同じ場所を 2 人で触るとファイルが衝突する
 - Player の中で何が起きているかが外から見えない
 
-OSM は、この「ゲーム以外の部分」をフレームワーク側が引き受けることを目的にしています。Scene の寿命を木として宣言し、距離でセルを stream し、目的ごとに必要な分だけ build して Play し、ログと telemetry を外のツールで見る。ゲームが複雑になっても、寿命・UI・Service・ロードまで一緒に複雑化しないための境界と契約を、実装とドキュメントの両方で公開します。
+OSM は、この「ゲーム以外の部分」をフレームワーク側が引き受けることを目的にしています。Scene の寿命を木として宣言し、目的ごとに必要な分だけ build して Play し、ログと telemetry を外のツールで見る。ゲームが複雑になっても、寿命・UI・Service・ロードまで一緒に複雑化しないための境界と契約を、実装とドキュメントの両方で公開します。
+
+契約そのものは世界の広さに依りません。準オープンワールドは、その契約に一番負荷がかかる適用先として選んだもので、SampleGame が距離で stream するセル世界を載せて確かめています。
 
 ゲームルールを簡単にする道具ではありません。何を主張し、何をまだ主張しないかは [`docs/GOALS_AND_STRENGTHS.md`](docs/GOALS_AND_STRENGTHS.md) に線を引いてあります。
 
@@ -25,11 +27,11 @@ OSM は、この「ゲーム以外の部分」をフレームワーク側が引�
 
 - **Scene の寿命を木で持つ。** 親子と LoadType（NecessaryAlways / OnDemand / IncrementalAlways）で「いつ居るか」を宣言し、14 状態の lifecycle を単一の owner が進める。Scene Graph Editor が木を検証して `SceneResource` を生成する。
 - **世界を距離で stream する。** サンプルは 4 季 × 9 × 6 セル（1 セル 250 m）で、床の Scene と置き物の Scene を職種ごとに分けて持つ。飛行 rig の位置から LoadRadius 375 m / UnloadRadius 550 m でセルを load / unload する。
-- **目的ごとに必要な分だけ build する。** `spring-full`、`spring-whitebox`、`spring-planner-whitebox`、`all-full` などの宣言を選ぶと、その季節・職種・表現（Full / Whitebox）に必要な Scene だけを Content Directory として build する。同じ revision の上書きは拒否する。
+- **目的ごとに必要な分だけ build する。** `spring-full`、`spring-whitebox`、`spring-planner-whitebox`、`all-full` などの宣言を選ぶと、その季節・職種・表現（Full / Whitebox）に必要な Scene だけを Content Directory として build する。成功した revision の directory は上書きせず、再 build は新しい revision になる。
 - **build せずに source から Play する。** `Play As` で宣言を選ぶと、Asset Database のまま同じ表現・同じ companion 集合で Play に入る。
-- **build から Play まで menu 一発で通す。** `Verify Play` は build → publish → install → Play を一続きで行い、途中で失敗したら環境を変えずに止まる。
+- **build から Play まで menu 一発で通す。** `Verify Play` は build → publish → install → Play を一続きで行い、途中で失敗したら後続の段へ進まず、Play 用に置いた設定を戻して止まる（build の出力と、開始前に閉じた Scene は戻さない）。
 - **published directory を受け取って Play する。** `Delivery` 窓でローカル / LAN の directory か HTTP から revision を取得し、SHA-256 で照合して install する。
-- **MonoBehaviour に依らない Update。** `UpdateSystemRuntime` に登録した system を決まった順序で回し、1 つの例外で他を止めない。
+- **MonoBehaviour に依らない Update。** `UpdateSystemRuntime` に登録した system を決まった順序（Update → LateUpdate → main thread への反映 → 構造変更の適用）で回す。例外の捕捉は各 system が自分で行う。
 - **ゲームの外から観測する。** ZLogger ベースの構造化ログと telemetry を DebugSocket で外に出し、.NET 8 の DebugStudio で読む。
 - **依存の向きを機械で守る。** Game → Framework の一方向を asmdef で強制し、全体配線は `DependOnAll` の 1 箇所に集める。
 
@@ -37,23 +39,24 @@ OSM は、この「ゲーム以外の部分」をフレームワーク側が引�
 
 Unity **6000.6.0f1** で `unity/` を開きます（正確な版は `unity/ProjectSettings/ProjectVersion.txt`）。
 
-1. **まず飛ぶ。** `Tools/OSM/Play As/spring-full` を選ぶと source から Play に入ります。Title で Start すると Spring の `(0,4)` セルに spawn し、飛行 rig で移動するとセルが距離で load / unload されます。
-2. **必要な分だけ build する。** `Tools/OSM/Content/Build spring-full` で Spring の Full 表現だけを Content Directory として build します。`spring-whitebox` にすると同じ世界が Whitebox 表現で出ます。
+1. **まず飛ぶ。** 先に Addressables の Play Mode Script を `Use Asset Database` にしておきます（`Window > Asset Management > Addressables > Groups` の `Play Mode Script`）。`Tools/OSM/Play As/spring-full` を選ぶと source から Play に入ります。Title で Start すると Spring の `(0,4)` セルに spawn し、飛行 rig で移動するとセルが距離で load / unload されます。Play Mode Script や Variant profile が条件と違うときは、Play As が理由を出して入る前に止まります。
+2. **必要な分だけ build する。** `Tools/OSM/Content/Build spring-full` で Spring の Full 表現だけを Content Directory として build します。`spring-whitebox` にすると、Whitebox 変種を持つ床の Scene だけが Whitebox になり、置き物の Scene は Full のまま入ります。
 3. **build した物で Play する。** `Tools/OSM/Content/Verify Play/spring-full` で build → publish → install → Play を一続きで行います。cache root などは `Tools/OSM/Content/Delivery` の窓で設定します。
 4. **外から見る。** DebugStudio を起動して Play 中のログと telemetry を読みます（下の DebugStudio の節）。
 
-テストは Unity を開かずに次で回ります。
+テストは Unity を batchmode で起動して回します。対象 project を開いている Editor は先に閉じます。既定では `D:\UnityEditor\<版>\Editor\Unity.exe` を探すので、Unity Hub の標準の場所に入れている場合は `-UnityExe` で指定します。
 
 ```powershell
-pwsh tools/run-tests.ps1
+pwsh tools/run-tests.ps1 -UnityExe "C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Unity.exe"
 ```
 
 ## まだできないこと
 
 - **季節の遷移。** 4 季の Scene と `all-full` の build はあるが、Play 中に季節を跨ぐ遷移はまだ無い（Spring 固定で起動する）。
+- **構造編集の衝突。** 床と置き物の Scene を分けたので中身の編集は衝突しないが、`SceneResourceMap` と `Season_*` の子リストは構造変更のたびに全員が触る 1 file のままで、並行する構造編集の衝突は解けていない。
 - **編集保護。** 手を入れたセルを生成物から守る判定は未着手。
 - **性能の数字。** Streaming の計測は設計だけで、公開できる数値はまだ無い。
-- **Windows 以外。** Content Directory の target は `StandaloneWindows64` だけ。
+- **Windows 以外。** Content Directory の target は `StandaloneWindows64-Player` だけ。
 - **配信の作り込み。** 署名・差分配信・CDN・latest channel は無い。
 - **複雑なゲームルール。** InGame に載っているのは飛行とセル streaming で、ゲームルールの複雑さはまだ投入していない。
 
@@ -77,7 +80,8 @@ pwsh tools/run-tests.ps1
 - 何を主張し、何を主張しないか: [`docs/GOALS_AND_STRENGTHS.md`](docs/GOALS_AND_STRENGTHS.md)
 - Unity 内の設計の入口: [`unity/Assets/ARCHITECTURE.md`](unity/Assets/ARCHITECTURE.md)
 - 設計の各章: [`unity/Assets/Docs/Architecture/`](unity/Assets/Docs/Architecture/)
-- Content Directory と Delivery の手順: [`20-variant-checkout-workflow.md`](unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)
+- Play As / Verify Play / Delivery の現況: [`18-asset-description.md` §4](unity/Assets/Docs/Architecture/18-asset-description.md#4-buildsystem-との接続)
+- Content Directory と DIST の背景: [`20-variant-checkout-workflow.md`](unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md)（Editor Play の入口は §18 §4 の方が新しい）
 - UpdateSystem の正本仕様: [`docs/updater/UPDATER_CURRENT_SPEC.md`](docs/updater/UPDATER_CURRENT_SPEC.md)
 - Streaming の現状仕様: [`docs/streaming/STREAMING_CURRENT_SPEC.md`](docs/streaming/STREAMING_CURRENT_SPEC.md)（到着契約は [§34](unity/Assets/Docs/Architecture/34-ondemand-spatial-policy.md)）
 - 文書の置き方の方針: [`docs/README.md`](docs/README.md)
@@ -115,6 +119,8 @@ dotnet run --project src/DebugStudio.App/DebugStudio.App.csproj
 ```bash
 gh pr create --base develop
 ```
+
+GitHub の既定も `develop` だが、作業環境の既定値に依存せず `--base develop` を明示する。`main` を base にした PR は統合後の全履歴を含み得るため作らない。
 
 ## 環境
 
