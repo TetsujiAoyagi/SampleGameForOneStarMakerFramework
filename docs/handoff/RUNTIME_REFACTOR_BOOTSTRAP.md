@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（PR #166 のレビュー 1 巡目の阻害指摘（I4 / I4a、hook の中の `ReleaseAll` で戻り値が set から外れる）を B 適応で直し、implementation head が変わった（§6「PR レビュー 1 巡目の修正」）。旧 head `33e0f27f` の判定 C と C' 1 巡目は無効で、新 head で判定 C からやり直す。判定 C 待ち。以下は旧 head の経緯: `C' 待ち`（判定 C は完了、阻害する指摘なし。AC4 の `BuildContentDirectoryIntegrationTests`（360 秒の Timeout、head に起因せず `develop` でも再現）は owner の例外承認で本スライスの合否から外した（§7「判定 C の完了と owner の例外」）。C' 1 巡目の blind bundle はローカル固定済み。directory Play は GO 候補 head で取得済み。発見 C 1 回目は阻害する指摘なし。B と同じモデルで行ったので「C は B と異なるモデル」を満たさず、owner が `独立性制約あり` として受け入れた（§7「独立性」）。Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
+- status: `C`（PR #166 のレビュー 1 巡目の阻害指摘（I4 / I4a、hook の中の `ReleaseAll` で戻り値が set から外れる）を B 適応で直し、implementation head が変わった（§6「PR レビュー 1 巡目の修正」）。旧 head `33e0f27f` の判定 C と C' 1 巡目は無効で、新 head で判定 C からやり直す。判定 C（2 回目、owner の例外で縮めた形）は完了、阻害する指摘なし（§7「判定 C（2 回目）」）。次は PR の再レビュー。以下は旧 head の経緯: `C' 待ち`（判定 C は完了、阻害する指摘なし。AC4 の `BuildContentDirectoryIntegrationTests`（360 秒の Timeout、head に起因せず `develop` でも再現）は owner の例外承認で本スライスの合否から外した（§7「判定 C の完了と owner の例外」）。C' 1 巡目の blind bundle はローカル固定済み。directory Play は GO 候補 head で取得済み。発見 C 1 回目は阻害する指摘なし。B と同じモデルで行ったので「C は B と異なるモデル」を満たさず、owner が `独立性制約あり` として受け入れた（§7「独立性」）。Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
 - **A1 改訂の記録（2026-11-07）:** program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の BOOTSTRAP 向けの表を当てた。§6 D4（owner 判断）に従い、S2（Content Directory 起動の facade）と、それだけに属する AC9 / AC10・U1 / U2・責務マップの行・実装手順 1 を独立スライス `CONTENT_DIRECTORY_STARTUP` へ移し、素材は A0 §4.2 の §3.2 / §2.1 S2 / §2.3 の行を当てた形で [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に置いた（正本は同書だけ）。本書は S3〜S5 と、それに伴う `InitializeAfterSceneLoad` の分割だけを扱う。番号は A0 や他文書からの参照を保つため振り直さず、移した S2・S6・AC9・AC10・U1・U2 は欠番にした。分割の判断は §2.6
 - branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は `claude/runtime-refactor-bootstrap`（A3 凍結版 `6844bf35` から切った。下の「Phase B 開始の記録」）
 - implementation base commit: `9abd2ee6`
@@ -24,15 +24,16 @@
 - evidence bundle の取得案内・状態: 新 head の判定 bundle は未生成。以下は旧 head `33e0f27f` のもの: 発見 C 1 回目の bundle はローカル固定済み（未昇格。判定 C が使い終えた。発見 C の所見を含むので C' には渡さない）。判定 C 用に別の bundle は作らず、判定 C の生証拠（全件回帰・単独 2 回の XML と log、directory Play の Console 記録、機械検査の生出力）は C' 用 blind bundle と同じ payload にある（判定 C の所見は含まれない）
 - C' blind bundle の取得案内・状態: 新 head 用は未生成。旧 head `33e0f27f` 用は C' 1 巡目で使用済み: ローカル固定済み（未昇格、`evidence stage`、task `runtime-refactor-bootstrap`、base / head は上の欄、収録は 18 file）。取得案内は主担当の作業領域（git 管理外の evidence-guides）にあり、C' の起動指示で渡す。同じ PC で `fetch` の往復と README の閲覧を確認済み。所見・発見 C の bundle は含まない
 - 引継ぎ票:
+  - **判定 C（2 回目）完了（2026-11-08、新 head `e8eca726`）:** 阻害する指摘なし。全 EditMode 回帰は 1,655 件が全て Passed（`BuildContentDirectoryIntegrationTests` も Passed のため AC4 の例外は使わなかった）。結果と owner の AC4 例外の適用決定は §7「判定 C（2 回目）」。**次の Phase・役割: 次の作業は PR #166 の再レビュー（owner と cursor[bot]）。** 阻害指摘が無ければ Phase D。C' はやり直さない（下の owner の例外）。引き継ぐ commit: この判定 C 完了の記録 commit（SHA は起動指示で渡す）。implementation head は上の欄の `e8eca726` のまま。未解消の `未実施`: 新 head の directory Play は owner の例外で取り直さない（旧 head の観測を使う）。
   - **owner の例外（2026-11-08、この修正の後）:** skill の「判定後の head 変更」は新 head で判定 C と C' をやり直すとするが、owner は修正差分の小ささ（`unity/` の 2 file、コードは BeforeSceneLoad の代入 4 か所の後の呼び出しと private メソッド 1 つ）を理由に、次の形に縮めることを承認した。Phase A は再開しない。
     - **判定 C（2 回目）は縮めて行う:** (1) 全 EditMode 回帰（空 filter、`-WithGraphics`、StandaloneWindows64）を新 head で 1 回。XML で新規 11 件（`BeforeSceneLoadServiceStagingTests` 5、`FrameworkServiceSetTests` 2、`LegacyRemoteCatalogProbeTests` 4）が Passed、旧 head の Passed 1,652 件が新 head でも Passed であることを確かめる。(2) 修正差分（`git diff 33e0f27f <新 head> -- unity/`）を I4 / I4a と §6「PR レビュー 1 巡目の修正」の主張に照らして読む。AC1 などの機械検査の取り直し、AC1 の本文照合、directory Play、判定 bundle と C' 用 blind bundle の作成は行わない（公開面と通常の起動経路の値を変えない差分なので、旧 head の記録を使う）。
     - **C' はやり直さない。** 代わりに PR のレビュー（owner と cursor[bot]）が修正差分をもう一度見る。
     - **directory Play は取り直さない。** 修正は hook の中で `ReleaseAll` が走ったときだけ効き、通常の起動経路の値を変えないので、旧 head `33e0f27f` の観測（§7「判定 C（1 回目）」）を使う。
     - 下の新票の「次の作業」のうち、上と食い違う部分（機械検査・AC1・directory Play・bundle・C' 2 巡目）はこの例外で置き換える。判定 C の後は、PR の再レビューに阻害指摘が無ければ Phase D。
-    - AC4 の例外（`33e0f27f` 限定）を新 head に適用するかは、この時点でも未決（下の「AC4 の例外」）。
+    - AC4 の例外を新 head に適用するか: 決定済み（2026-11-08、owner）。適用する。ただし判定 C（2 回目）で Passed になったので実際には使っていない（§7）。
   - **更新（PR レビュー 1 巡目の修正、2026-11-08）:** PR #166 のレビューの阻害指摘（I4 / I4a）を B 適応で直した（§6「PR レビュー 1 巡目の修正」）。implementation head が変わったので、旧 head `33e0f27f` の判定 C・C' 1 巡目・directory Play は新 head の合格証拠にしない（skill の「判定後の head 変更」）。**次の Phase・役割: 判定 C（2 回目）。** 新しい session で、Claude Opus 5.5（B と、この修正）以外のモデルで始める。
   - 次の作業: GO 候補 head を implementation head（上の欄）とし、ローカルの軽量 tag `evidence/runtime-refactor-bootstrap/2` で固定する（`/1` は旧 head のまま残す）。base は `9abd2ee6`。先に修正差分（`33e0f27f` → 新 head の `unity/`）の構造・I4 / I4a を見る。§5 の判定必須を新 head で実行する: 全 EditMode 回帰（空 filter、`-WithGraphics`、StandaloneWindows64 の Editor）。XML で新規 11 件（`BeforeSceneLoadServiceStagingTests` 5、`FrameworkServiceSetTests` 2、`LegacyRemoteCatalogProbeTests` 4）と §5 の既存テストの Passed を確かめる。AC1 の本文照合、機械検査（AC1 / 2 / 5 / 6 / 7 / 8 / 17、contract-audit）を base `9abd2ee6` と新 head で取り直す。directory Play を新 head で取得する（手順と観測項目は §7「判定 C（1 回目）」の動作確認と §5）。判定 bundle と C' 用 blind bundle を同じ head から作る。結果を §7 に書き、本票を次の担当（C' 2 巡目、差し戻しなら B）へ書き換えて commit する。
-  - AC4 の例外: owner の例外承認（§7「判定 C の完了と owner の例外」）は head `33e0f27f` に限る。新 head に適用するかは owner が決める（本票の commit の時点で未決）。決まっていなければ、判定 C は `BuildContentDirectoryIntegrationTests` の Failed を未解消として owner に返し、判定 C を完了と記録しない。
+  - AC4 の例外: owner の例外承認（§7「判定 C の完了と owner の例外」）は元は head `33e0f27f` に限った。owner は 2026-11-08 に新 head `e8eca726` にも適用すると決めた（範囲・理由・移送先は同節と同じ。`BuildContentDirectoryIntegrationTests` の Timeout による Failed を AC4 の合否に使わない）。判定 C（2 回目）では同テストが Passed だったので、結果として未使用。
   - 次の C'（判定 C の後）: 2 巡目。前巡の C' の指摘（B-1、AC4）への owner の裁定（§9 の「例外承認を維持する」）を C' 用決定記録として渡し、前巡の head から新 head への修正差分とその影響経路を中心に監査させる。B・C と異なるモデルで、強化条件のため可能なら Anthropic 以外（Grok、cursor-agent）を使う。
   - 引き継ぐ commit（新票）: この票を含む commit（owner の例外の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の `e8eca726` で、この記録 commit とは別。
   - 未解消の `未実施`（新票）: 新 head の directory Play（判定 C が取得する）。
@@ -48,14 +49,14 @@
 ### PR 状態ブロック
 
 ```text
-状態: PR レビュー 1 巡目の阻害指摘（I4 / I4a）を B 適応で修正。判定 C（2 回目）待ち。旧 head 33e0f27f の判定 C・C' は無効
+状態: 判定 C（2 回目、縮めた形）完了、阻害する指摘なし。全 EditMode 1,655 件 Passed。PR の再レビュー待ち（C' はやり直さない）
 Phase A: revision 0、A2 入力版 commit 7b2cf205、A3 凍結版 commit 6844bf35
 implementation base / head: 9abd2ee6 / <修正 commit。PR 本文の状態ブロックに SHA を書く>
 引き継ぐ commit: <修正 commit。implementation head と同じ>
-次の担当: 判定 C（2 回目）。次の作業: 判定必須（全 EditMode、-WithGraphics）、AC1 の本文照合、機械検査、directory Play を新 head で取り直し、§7 へ記録
+次の担当: PR の再レビュー（owner、cursor[bot]）。阻害指摘が無ければ Phase D
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_BOOTSTRAP.md
 Evidence 取得案内: 新 head の判定 bundle・C' 用 blind bundle は未生成（取得はローカル担当）
-未決事項: AC4 の例外承認（33e0f27f 限定）を新 head に適用するか（owner）
+未決事項: なし（AC4 の例外は新 head にも適用と owner が決定。今回は Passed で未使用）
 ```
 
 ## 1. 目的と対象外
@@ -630,6 +631,19 @@ Evidence 取得案内: 新 head の判定 bundle・C' 用 blind bundle は未生
 - **扱いの明記:** この裁定は AC4 の合否の読みを変える（Failed を不合格にしない）。skill の決定記録の規則は、凍結条件の合否を変える読みを決定記録で行わず Phase A の新しい revision とするので、本件は決定記録ではなく **owner が明示した例外承認** として扱い、Phase A は再開しない。適用範囲はこの 1 テスト・この head `33e0f27f` に限る。AC4 のもう一方（`PlayerContentConfigurationTests`、XML 上 Passed、件数は base と同じ 13）と、判定必須の他の全て（全 EditMode の他 1,652 件の Passed）の要求は変えない。C'' は、この例外が不変条件を破ること、または凍結条件の意味を許容できない形で変えることを示せる場合に限り、異議を blocker にできる（blind bundle の README に同趣旨を載せた。裁定の理由・判定 C の所見は載せていない）。
 - **判定 C の結論:** 完了。阻害する findings なし。判定必須は、AC4 の上の 1 件を例外承認で除き、GO 候補 head `33e0f27f` で全て揃った。GO 判定は C'' と突き合わせる Phase D まで行わない。
 - 次: C'' 1 巡目（blind audit）。bundle は §0 の「C'' blind bundle」の欄。収録は、凍結した Phase A（base の本書）、Phase B の結果の記録時点の本書（`0366c6c6`、所見なし）、base..head の完全 diff、AC1 / 2 / 5 / 6 / 7 / 8 / 17 と contract-audit の生出力、全件回帰・head 単独・`develop` 単独の XML と log、directory Play の Console 記録、README（例外の 1 段落のみ）。
+### 判定 C（2 回目、2026-11-08、新 head）
+
+- 種別: 判定 C（§0 の owner の例外で縮めた形）。**状態: 完了。** 阻害する findings なし。GO 判定は Phase D まで行わない。
+- 開始時の照合: 起動指示の SHA `45214bee` と HEAD が一致。implementation head `e8eca726` は HEAD の祖先で、`e8eca726..HEAD` の差分は本書だけ。作業ツリーに本スライスの外の未追跡 file（`docs/handoff/` の他スライス 4 つ）があり、触れていない。GO 候補 head を `e8eca726` とし、ローカルの軽量 tag `evidence/runtime-refactor-bootstrap/2` で固定した（push しない。`/1` は旧 head のまま）。base は `9abd2ee6`。
+- 修正差分の照読（`git diff 33e0f27f e8eca726 -- unity/` のうち修正に当たる 2 file）: `AbstractApplicationInitializer.cs` は private `KeepServicesAttached(FrameworkServiceSet)`（`_services ??= services`）を足し、`UpdateSystemHost`・`DebugSocket`・`LoggerFactory`・`Vfx` の 4 代入の直後それぞれで呼ぶだけ。I4（hook の中で `ReleaseAll` が走っても戻り値が後の `ReleaseAll` で破棄される）と I4a（戻り値が次の hook の前に accessor から見える）の経路は、外れた set を同じ set で戻すので base の field 代入と同じ状態になる。`_services` を別の set に替えるのは冒頭だけ、という主張はコードで成り立つ。正常経路では `_services` が非 null なので `??=` は何もしない（通常の起動経路の値は変わらない）。公開面・AC13 の破棄順・`InitializeAfterSceneLoad` は不変。コメントは理由（hook 内 `ReleaseAll` と base との同一性）を書いていて、処理の言い換えではない。`BeforeSceneLoadServiceStagingTests` の新規 2 件は、それぞれ UpdateSystemHost と LoggerFactory の hook の中で `ReleaseAll` してから戻る経路を見て、後の解放と次の hook からの可視性を assertion している。`unity/` の他の差分は `git diff --stat` で ASSET_CYCLE の型移動・文書・README の範囲と確認した（本文は読んでいない。修正ではない）。
+- 判定必須テスト: `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、EditMode、sandbox 外の承認済み経路、新 head、Editor は閉じた状態から。結果 XML は `TestResults/a319b7db-…/results.xml`）。**1,655 件、Passed 1,655、Failed 0、Inconclusive 0、Skipped 0**（旧 head の 1,653 件 + 新規 2 件）。新規の `BeforeSceneLoadServiceStagingTests` は 5 件（旧 3 + 今回の 2: `ReleaseAllInsideUpdateSystemHostHook_TheReturnedHostIsStillReleased`、`ReleaseAllInsideLoggerFactoryHook_TheNextHookSeesTheReturnedFactoryAndItIsReleased`）全て Passed、`FrameworkServiceSetTests` 2、`LegacyRemoteCatalogProbeTests` 4、`InvalidCompanionConfigStartupTests` 4、`PlayerContentConfigurationTests` 13（AC4）、`VfxScenePlayTests` 5 も Passed。**`BuildContentDirectoryIntegrationTests` は今回 Passed**（225 秒。旧 head では 360 秒の Timeout だった。原因は調べていない。環境の負荷差の可能性があるが未確認）。このため owner の AC4 の例外は使っていない。
+- owner の決定（進行役 session 経由、2026-11-08）: AC4 の Timeout の例外承認を新 head `e8eca726` にも適用する。範囲は §7「判定 C の完了と owner の例外」と同じ（その 1 テストの Timeout による Failed を AC4 の合否に使わない）。今回は Passed なので結果に影響しない。
+- Unity 終了時の stall: XML 完成（01:34）後に Unity が終了せず、`step.json` が書かれなかった。既知の native stall と同じ症状で、規則どおり追加調査はしていない。この run の原記録は XML と `unity.log` だけで、強制終了した取得は成功証拠にしない。XML は完成しており（`test-run` が `result="Passed"`、`end-time` あり）、判定は XML で行った。Unity プロセスは未終了のまま残っている（前回の同症状の PID と、別 worktree の `BuildContentDirectoryIntegrationTests` の runner も残っている。強制終了は自動モードの分類器に拒否されたので行っていない。owner の手元で終了してよい）。
+- 取り直さなかったもの（owner の例外どおり）: AC1 の本文照合、機械検査（AC1 / 2 / 5 / 6 / 7 / 8 / 17）、contract-audit、directory Play、判定 bundle、C' 用 blind bundle。修正は公開面と通常の起動経路の値を変えないので旧 head `33e0f27f` の記録を使う。C' はやり直さない。
+- 後続スライスへ移送する findings: なし（旧 head の Timeout の件は `CONTENT_DIRECTORY_STARTUP` か BuildSystem 側への移送のまま。今回の Passed を踏まえた再評価はそちらで）。
+- 未確認事項: 新 head の directory Play（例外で取り直さない）。
+- 担当・モデル: Claude Code（Anthropic）、Claude Sonnet 5.5（Phase B と修正の Claude Opus 5.5 とは別モデル）。
+
 ## 8. Phase C'
 
 - 担当方式: AI（新規 session）。blind audit bundle だけを入力にした。
