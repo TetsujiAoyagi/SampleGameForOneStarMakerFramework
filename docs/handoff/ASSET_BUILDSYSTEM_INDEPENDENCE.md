@@ -4,7 +4,7 @@
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
-- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の改訂と、後続スライスの A0 への入力）
+- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の改訂と、後続スライスの A0 への入力）
 - status: `A`（A0 は閉じた。計画レビュー R1〜R3 反映済み、owner 判断済み（§6）。program 自体は進行中で、**実装キューではない**）
 - branch: `claude/runtime-refactor-stage0-plan`（既存 2 文書と同じ計画ブランチ。初版は ASSET_CYCLE の A3 凍結 commit `af97423f` で収録し、その後の記録訂正を含めて計画 PR で `develop` へ。正は計画 PR の最終 commit の版）
 - implementation base commit: `d4861882`（`develop` の head。2026-11-07 に `origin/develop` を fetch して確認し、`d4861882` から進んでいないので差は無い）
@@ -19,7 +19,7 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle: 該当なし
 - 引継ぎ票:
   - 本書（A0）の状態: 閉じた。D1〜D5 は owner 決定済みで、計画レビュー R1〜R3 の指摘は反映済み。以後、本書は program の地図として後続スライスから参照され、各スライスの状態は各スライスの HANDOFF を正とする。
-  - ASSET_CYCLE の状態（2026-11-07 時点）: §4.2 の改訂案を当てた A1 改訂版を作り、A2（アーキテクチャゲート、目的レビュー）を実施し、A3 の採否を整理した。owner は A3 の確認事項 Q1〜Q3 に答え、**A3 凍結を指示した**（2026-11-07。凍結版は本書を含む commit と Phase A snapshot）。次は、計画の文書 PR のマージ後の Phase B。共通契約の folder は `Runtime/AssetBuildContracts/` に決まった。詳しい状態と次の作業は [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) §0 を正とする。
+  - ASSET_CYCLE の状態（2026-11-07 時点）: §4.2 の改訂案を当てた A1 改訂版を作り、A2（アーキテクチャゲート、目的レビュー）を実施し、A3 の採否を整理した。owner は A3 の確認事項 Q1〜Q3 に答え、**A3 凍結を指示した**（2026-11-07。凍結版は本書を含む commit と Phase A snapshot）。次は、計画の文書 PR のマージ後の Phase B。共通契約の folder は `Runtime/AssetBuildContracts/` に決まった。詳しい状態と次の作業は `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） §0 を正とする。
   - BOOTSTRAP の状態: §4.2 の改訂をまだ当てていない（A1 初稿のまま）。次の作業は、§4.2 の BOOTSTRAP の表を当てる A1 改訂。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: BOOTSTRAP は §4.2 の改訂を当てるまで A2・A3・Phase B を始めない。ASSET_CYCLE の停止規則は同書 §0 に従う。

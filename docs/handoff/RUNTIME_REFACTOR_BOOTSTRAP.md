@@ -7,15 +7,15 @@
 - type: `slice`
 - status: `A`（A1 初稿。A2 未実施、A3 未凍結。**実装キューではない**）
 - **改訂待ちの注記（2026-11-07）:** 本書の前提の一部は program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) で置き換わった。特に §3.2 の「ASSET_CYCLE §1 の owner 決定で、目標は 2 assembly」は無効（上位目的は AssetManagement 単独・BuildSystem 単独・OSM での併用。assembly の構成は未決）。A0 §6 D4 で S2 は独立スライス `CONTENT_DIRECTORY_STARTUP` として `BUILDSYSTEM_STANDALONE_ENTRY` の後に進める。A0 §4.2 の BOOTSTRAP 向けの改訂は未適用で、本書は A2 に出す前にそれを当てる。それまで本書の §2〜§4 を判断の根拠にしない
-- branch: 計画は `claude/runtime-refactor-stage0-plan`（本書と [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) を同じ文書 PR で `develop` へ）。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-bootstrap` で決める）
-- implementation base commit: `d4861882`（`develop`。A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。B 開始時に `develop` の head で再固定する。順序は A0 §6 D4 に従う（[RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) と `BUILDSYSTEM_STANDALONE_ENTRY` の後。ASSET_CYCLE は namespace を変えないので、`using` の前提は無い）
+- branch: 計画は `claude/runtime-refactor-stage0-plan`（本書と `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） を同じ文書 PR で `develop` へ）。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-bootstrap` で決める）
+- implementation base commit: `d4861882`（`develop`。A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。B 開始時に `develop` の head で再固定する。順序は A0 §6 D4 に従う（`RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と `BUILDSYSTEM_STANDALONE_ENTRY` の後。ASSET_CYCLE は namespace を変えないので、`using` の前提は無い）
 - implementation head commit: 未固定（Phase B で記録）
 - risk: `high`（アプリ起動・終了の順序、失敗経路、Player の receipt に現れる stage 名、派生クラスの公開面に触れる。実行時挙動は変えないが、変えていないことの証明が主な作業になる）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-10-31
 - expires: 2026-11-30 または置換 revision の成立時。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/04-app-startup.md` §4.2（クラス構造）と §4.3（解放の保証）。§4.7「Content Directory の起動時選択」の契約文は変えない（実装の置き場所だけが変わる）。新しい Architecture 文書は作らない
-- 関連スライス: [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md)（先行）。`S-4_FULL_SPEC_WORLD_AUTHORING.md` の残スライス **d5b** は `AbstractApplicationInitializer` を触る可能性がある（d5a は `CreateVfxBackend` hook と `VfxRuntimeHost` 配線を足した）。**本スライスの Phase B と d5b の Phase B を同時に走らせない。** 順序は owner が決める（§2.5 U4）
+- 関連スライス: `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除）（先行）。`S-4_FULL_SPEC_WORLD_AUTHORING.md` の残スライス **d5b** は `AbstractApplicationInitializer` を触る可能性がある（d5a は `CreateVfxBackend` hook と `VfxRuntimeHost` 配線を足した）。**本スライスの Phase B と d5b の Phase B を同時に走らせない。** 順序は owner が決める（§2.5 U4）
 - Phase A snapshot の取得案内・状態: A1 入力版は本文を収録した commit と本文の content sha256 で固定する（文書だけなので stage は不要）。値は A2 開始時に §5「A2 独立レビュー」へ記録する。A3 凍結版は未生成
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成

@@ -44,6 +44,7 @@ Assets/
 │   │   ├── UISystem/            … UICommon (SiblingIndex 管理), UIView (6レイヤー)
 │   │   ├── AssetManagement/     … IAssetManagement, AddressableBackend, AssetResidentCache
 │   │   ├── AssetDescriptions/   … SceneAssetDescription, ScenePayload, LoadType
+│   │   ├── AssetBuildContracts/ … AssetType, ContentDirectoryException（AssetManagement と BuildSystem 本体の共通契約）
 │   │   ├── DebugSocketServices/ … DebugSocketService（ヒエラルキー/インスペクタ/コマンド）
 │   │   └── UpdateSystem/        … UpdateSystemHost, UpdaterDriver（ホスティング層）
 │   ├── Debug/                   ← OneStarMaker.Debug.asmdef (→ Foundation + Runtime + TMP)
