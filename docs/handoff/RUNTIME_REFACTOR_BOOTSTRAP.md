@@ -691,10 +691,11 @@ Evidence 取得案内: 新 head の判定 bundle・C' 用 blind bundle は未生
 
 ## 9. Phase D
 
-- C / C' の突合: 判定 C は阻害する指摘なし、C' 1 巡目の阻害指摘は AC4 の `BuildContentDirectoryIntegrationTests` の Failed 1 件（owner の例外承認が AC4 の合否を変えるので Phase A の新 revision が要る、という異議）。**owner の裁定（2026-11-08）: 例外承認を維持する。** Phase A は再開しない。理由は §7「判定 C の完了と owner の例外」のとおり（head に起因せず `develop` でも再現、本スライスの問いは他の証拠で判定できる、後続スライスへ移送）。C' の他の確認と AC1 の private nested 2 行（読み方の判断として移送）は §8 のとおり。C' は Haiku 5.5 で行った（高リスクの独立監査としては弱い点は owner が承知で選択）。
-- マージ判断:
-- 必要な Evidence の保存・取得・必須内容の閲覧確認:
-- 取得案内の引渡し確認:
-- harvest: `04-app-startup.md` §4.2 / §4.3
-- 削除確認:
-- 通常の task 終了・後始末の状態と未完了事項:
+- C / C' の突合（旧 head `33e0f27f`）: 判定 C は阻害する指摘なし、C' 1 巡目の阻害指摘は AC4 の `BuildContentDirectoryIntegrationTests` の Failed 1 件（owner の例外承認が AC4 の合否を変えるので Phase A の新 revision が要る、という異議）。**owner の裁定（2026-11-08）: 例外承認を維持する。** Phase A は再開しない。理由は §7「判定 C の完了と owner の例外」のとおり（head に起因せず `develop` でも再現、本スライスの問いは他の証拠で判定できる、後続スライスへ移送）。C' の他の確認と AC1 の private nested 2 行（読み方の判断として移送）は §8 のとおり。C' は Haiku 5.5 で行った（高リスクの独立監査としては弱い点は owner が承知で選択）。
+- C / C' の突合（新 head `e8eca726`、2026-11-08）: 旧 head の後に PR #166 のレビュー（owner と cursor[bot]）が I4 / I4a の阻害指摘を出し、B 適応で直した（§6「PR レビュー 1 巡目の修正」）。この経路は発見 C・判定 C・C' 1 巡目のどれも見ていなかった。owner の例外（§0）で、新 head の確認は縮めた判定 C（§7「判定 C（2 回目）」、全 EditMode 1,655 件 Passed、阻害なし）と PR の再レビュー（cursor[bot]: 阻害なし。owner: 指摘なし）で行い、C' はやり直していない。AC4 の例外は新 head にも適用すると owner が決めたが、判定 C（2 回目）で Passed だったので使っていない。
+- マージ判断: owner が「指摘無し」「PhaseD凍結としてマージして後始末して」と指示した（2026-11-08）。PR #166 を `develop` へマージする。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 旧 head `33e0f27f` の発見 C bundle と C' 1 巡目の blind bundle はローカル固定済み（判定 C が `fetch` の往復を確認し、C' が `status: passed` で取得した）。新 head の判定 C（2 回目）の生証拠（`results.xml` と `unity.log`）を Phase D で `evidence stage` に固定し（task `runtime-refactor-bootstrap`、base `9abd2ee6` / head `e8eca726`、`locality: local`）、別 process の `fetch` で `results.xml`（1,655 件 Passed）を閲覧した。判定 bundle・新 head の C' 用 blind bundle は owner の例外で作っていない。directory Play の Console 記録は旧 head のもの（共有 notes folder）。`evidence schedule status` は `passed`。
+- 取得案内の引渡し確認: 3 つの取得案内は主担当の作業領域（git 管理外の evidence-guides）にある。新しい案内は Phase D で追加した。昇格（R2）はしていない（Cloud・別 host の読み手はいない）。
+- harvest: `04-app-startup.md` §4.2（initializer と 3 つの部品、hook の戻り値を set へ入れる契約）と §4.3（`ReleaseAll` の図の `FrameworkServiceSet.Dispose` と `BootstrapUiCommonLoader.Dispose`）。旧メソッド名の追随: `20-variant-checkout-workflow.md` の 3 行と `STREAMING_CURRENT_SPEC.md` の 1 行を `LegacyRemoteCatalogProbe.TryLoadAsync` にした。後続へ移送する findings（AC4 の Timeout と負荷の観察、initializer の行番号の取り直し）は `RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md` §2 へ移した。
+- 削除確認: 本書は harvest と同じ commit で削除する。`docs/README.md`、`ASSET_BUILDSYSTEM_INDEPENDENCE.md`、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md` のリンクは文字列と「PR #166 で完了・削除」にした。
+- 通常の task 終了・後始末の状態と未完了事項: マージ後に `workflow-task.ps1 end -Reason completed`（Decision は owner の指示から作る chat 形式）を記録し、`develop` へ切替、マージ済みブランチと evidence tag を整理する。結果は PR と進行役の報告に書く（本書は削除済みのため）。
