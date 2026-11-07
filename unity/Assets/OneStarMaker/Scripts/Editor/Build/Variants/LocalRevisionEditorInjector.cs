@@ -16,7 +16,7 @@ namespace OneStarMaker.Editor.Build
     /// デリゲート経由で HEAD リビジョンを渡す。
     /// </para>
     /// <para>
-    /// 起動時のリビジョンずれ検知 (<c>AbstractApplicationInitializer.WarnOnRevisionMismatchAsync</c>) が
+    /// 起動時のリビジョンずれ検知 (<c>LegacyRemoteCatalogProbe.WarnOnRevisionMismatchAsync</c>。通常起動からは外れた旧経路) が
     /// 本デリゲートを介してローカルリビジョンを解決する。
     /// </para>
     /// <para>
