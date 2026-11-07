@@ -255,6 +255,7 @@ namespace OneStarMaker.Runtime
                 // Updater は scene object の Awake register を受ける必要があるため、
                 // BeforeSceneLoad の時点で install しておく。
                 services.UpdateSystemHost = CreateUpdateSystemHost();
+                KeepServicesAttached(services);
 
                 // テレメトリ閾値を Config から読み込み
                 AppTelemetry.Thresholds = new TelemetryThresholds(_config);
@@ -263,12 +264,15 @@ namespace OneStarMaker.Runtime
                 // ここでは service と logger factory を組み立てるだけに留め、
                 // 実際の socket 待受開始は AfterSceneLoad 側へ寄せる。
                 services.DebugSocket = CreateDebugSocketService(_config);
+                KeepServicesAttached(services);
                 LogDebugSocketBootstrapStatus(_config);
                 services.LoggerFactory = CreateLoggerFactory(services.DebugSocket?.RealtimeStream);
+                KeepServicesAttached(services);
                 // VfxSystem の ctor が能力判定を 1 回だけ行う。BeforeSceneLoad の後に Awake する Scene
                 // （Editor の Play で開いていた Scene）からも判定結果を読めるよう、ここで作る。
                 // 失敗は他の Create* hook と同じく BeforeSceneLoad の失敗にする（VFX を黙って無効にしない）。
                 services.Vfx = VfxRuntimeHost.Create(CreateVfxBackend(), services.LoggerFactory, services.UpdateSystemHost!.Coordinator);
+                KeepServicesAttached(services);
                 ActiveVfxRuntimeHost = services.Vfx;
                 // ── テレメトリ Sink 登録 ──
                 RegisterDefaultTelemetrySink();
@@ -279,6 +283,18 @@ namespace OneStarMaker.Runtime
             {
                 FinishStartupSpan(span, memBefore, success, "BeforeSceneLoad");
             }
+        }
+
+        /// <summary>
+        /// hook の中で ReleaseAll が走ると（派生クラスが <see cref="BootstrapSubsystemRegistration"/> を呼ぶ等）、set は破棄されて
+        /// <c>_services</c> から外れるが、hook はその後も戻り値を返し、BeforeSceneLoad は続く。分割前は戻り値を initializer の field へ
+        /// 直接代入していたので、その戻り値は次の hook の accessor から見え、後の ReleaseAll が破棄した。同じにするため、外れていたら
+        /// 同じ set を field に戻す（破棄済みの set のメンバーは null なので、分割前に field が null に戻っていたのと同じ状態になる）。
+        /// <c>_services</c> を別の set に替えるのは InitializeBeforeSceneLoad の冒頭だけなので、ここで見る値は null か同じ set に限る。
+        /// </summary>
+        private void KeepServicesAttached(FrameworkServiceSet services)
+        {
+            _services ??= services;
         }
 
         // ─── Lifecycle: AfterSceneLoad ───

@@ -1,18 +1,21 @@
 #nullable enable
 
 using System;
+using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
+using OneStarMaker.Foundation.Logging;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UISystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
+using OneStarMaker.Runtime.UpdateSystem.Hosting;
 using OneStarMaker.Tests.AssetManagement;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -86,6 +89,37 @@ namespace OneStarMaker.Tests.Bootstrap
         }
 
         [Test]
+        public void ReleaseAllInsideUpdateSystemHostHook_TheReturnedHostIsStillReleased()
+        {
+            // hook が ReleaseAll を呼んでから host を返す。ReleaseAll が config を null に戻すので、続く閾値の読み込みが投げ、
+            // catch の ReleaseAll が走る。戻り値の host がその ReleaseAll から見えていなければ PlayerLoop に残る。
+            _initializer = new StagingInitializer { ReleaseAllInsideUpdateSystemHostHook = true };
+
+            LogAssert.Expect(LogType.Exception, new Regex("NullReferenceException"));
+            _initializer.RunBefore();
+
+            Assert.That(_initializer.UpdateSystemHostHookReturnedHost, Is.True);
+            Assert.That(_initializer.CurrentUpdateCoordinator, Is.Null);
+            Assert.That(UpdateSystemRuntime.Coordinator, Is.Null, "hook が ReleaseAll の後に返した UpdateSystemHost が PlayerLoop に残っている");
+        }
+
+        [Test]
+        public void ReleaseAllInsideLoggerFactoryHook_TheNextHookSeesTheReturnedFactoryAndItIsReleased()
+        {
+            // hook が ReleaseAll を呼んでから logger factory を返す。次の VFX の hook は accessor でそれを読める。
+            // UpdateSystemHost は ReleaseAll で破棄済みなので、その後の VfxRuntimeHost.Create の引数で投げる（分割前も同じ）。
+            _initializer = new StagingInitializer { ReleaseAllInsideLoggerFactoryHook = true };
+
+            LogAssert.Expect(LogType.Exception, new Regex("NullReferenceException"));
+            _initializer.RunBefore();
+
+            Assert.That(_initializer.VfxHookSawLoggerFactory, Is.True, "hook が ReleaseAll の後に返した LoggerFactory が次の hook から見えない");
+            Assert.That(_initializer.VfxHookSawUpdateCoordinator, Is.False);
+            Assert.That(_initializer.CurrentLoggerFactory, Is.Null, "hook が ReleaseAll の後に返した LoggerFactory が破棄されていない");
+            Assert.That(UpdateSystemRuntime.Coordinator, Is.Null);
+        }
+
+        [Test]
         public async Task UiCommonRootWithoutComponent_FailsAtLoadUiCommonAndDestroysTheOwnedRoot()
         {
             _initializer = new StagingInitializer();
@@ -121,6 +155,9 @@ namespace OneStarMaker.Tests.Bootstrap
 
             internal bool ThrowFromVfxBackend { get; set; }
             internal bool ThrowFromTelemetrySink { get; set; }
+            internal bool ReleaseAllInsideUpdateSystemHostHook { get; set; }
+            internal bool ReleaseAllInsideLoggerFactoryHook { get; set; }
+            internal bool UpdateSystemHostHookReturnedHost { get; private set; }
 
             internal bool VfxHookSawUpdateCoordinator { get; private set; }
             internal bool VfxHookSawLoggerFactory { get; private set; }
@@ -146,6 +183,22 @@ namespace OneStarMaker.Tests.Bootstrap
                 typeof(AbstractApplicationInitializer)
                     .GetField("_assetManagement", BindingFlags.NonPublic | BindingFlags.Instance)!
                     .SetValue(this, replacement);
+            }
+
+            protected override UpdateSystemHost CreateUpdateSystemHost()
+            {
+                if (ReleaseAllInsideUpdateSystemHostHook)
+                    RunCleanup();
+                var host = base.CreateUpdateSystemHost();
+                UpdateSystemHostHookReturnedHost = true;
+                return host;
+            }
+
+            protected override AppLoggerFactory CreateLoggerFactory(Stream? realtimeStream)
+            {
+                if (ReleaseAllInsideLoggerFactoryHook)
+                    RunCleanup();
+                return base.CreateLoggerFactory(realtimeStream);
             }
 
             protected override IVfxBackend? CreateVfxBackend()
