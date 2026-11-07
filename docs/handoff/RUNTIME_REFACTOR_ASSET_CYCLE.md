@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（revision 0、A3 凍結済み（owner の指示、2026-11-07）。Phase B 完了（2026-11-07）。**発見 C 完了**（2026-11-07、阻害する findings なし）。次は判定 C）
+- status: `C`（revision 0、A3 凍結済み（owner の指示、2026-11-07）。Phase B 完了（2026-11-07）。発見 C 完了（2026-11-07、阻害する findings なし）。**判定 C 完了**（2026-11-07）。次は C'）
 - revision の経緯:
   - 2026-10-31 A1 初稿（旧名 `RUNTIME_REFACTOR_CYCLES.md`）は循環 2 件（AssetManagement ⇄ BuildContent、CameraSystem ⇄ Streaming）を扱い、A2 入力版を commit `93723a4c` で切った。
   - 2026-11-07 前半、A2 と外部レビューの後、Camera 側を別スライスへ切り出し、目的を「AssetManagement を BuildContent から独立した assembly にできる向き（例外型 2 つを AssetManagement へ移す）」に絞った書き直し版を作った（未 commit）。
@@ -21,27 +21,27 @@
 - 関連: program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（本書は A0 §6 D4 の順序の (1)）。後続は `BUILDSYSTEM_STANDALONE_ENTRY`（未作成）、[RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の S2、asmdef 分割スライス（未作成）。Camera ⇄ Streaming の循環は `RUNTIME_REFACTOR_CAMERA_FOCUS`（未作成）で、本書は扱わない
 - Phase A snapshot の取得案内・状態: A3 凍結 snapshot（凍結版の本書と、A3 凍結 script `p-check.ps1`）を `evidence stage` で固定した。ローカル固定済み（未昇格）。所在 task は `runtime-refactor-asset-cycle`、snapshot の base は `d4861882`、head は計画 PR の最終 commit `4da676bc`（マージ commit `3e8bf06c` と tree が同一）。reference と期待 packageSha256 は本書に書かず、Phase B の起動指示で渡した（B が 2026-11-07 に fetch し、`p-check.ps1` の content sha256 が §5 の `94291d8f…` と、本書が `3e8bf06c` の本書と一致することを確認）。発見 C・判定 C・C' にも同じ reference と packageSha256 を起動指示で渡す。A2 は同一 PC 上の写しを content sha256 で固定して渡した（§5 A2 記録）。A2 入力版の commit は切っていない（理由は §5 A2 記録）
 - Phase B result snapshot の取得案内・状態: 未生成（stage していない。B が実行した P 検査・ビルド・contract-audit の出力は判定の入力にしないので（§6）、発見 C・判定 C は head で自分で取り直す）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 判定 C の判定 evidence（base `3e8bf06c` / head `08177c39`）を `evidence stage` で固定した。ローカル固定済み（未昇格）。所在 task は `runtime-refactor-asset-cycle`。判定 evidence を取った head にはローカル tag `evidence/runtime-refactor-asset-cycle/1` を付けた（push しない）。reference と packageSha256 は本書に書かず、進行役の session に渡した。別 process の fetch で読み戻せることを確認済み
+- C' blind bundle の取得案内・状態: 判定 evidence と同じ生証拠に、Phase B の実装結果（implementation head の版の §6）を加えたものを `evidence stage` で固定した。ローカル固定済み（未昇格）。発見 C・判定 C の所見・結論は含まない。取得案内は判定 evidence の取得案内とは分けて、進行役の session に渡した
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C。発見 C は 1 回目で阻害する findings が無かった（§7）。implementation head はそのまま GO 候補 head とする（未公開の commit は実装 1 つだけなので、履歴の整理は無い）。
-  - 次の作業: GO 候補 head（implementation head 欄の SHA）で §5 の判定必須を行う。順序は §5 のとおり、全 EditMode 回帰（空 filter）を base と head で同じ機械・同じコマンドで 1 プロセスずつ（AC5）→ head の P 検査（AC4。凍結版 `p-check.ps1`、git には無い）→ AC6 → contract-audit。evidence bundle を作り、判定 evidence を取った head にローカル tag `evidence/runtime-refactor-asset-cycle/<n>` を付ける。発見 C が観測した統合テスト 1 件の timeout（§7）は、AC5 の base と head の比較で判断する。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit）。SHA は起動指示で渡す。implementation head は欄の SHA で、これとは別の commit。
-  - 取得案内の所在: Phase A snapshot の reference と packageSha256 は起動指示で渡す（同一 PC。`pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <reference> --sha256 <packageSha256>`）。
-  - 必要な権限: Unity Editor の起動、`pwsh tools/run-tests.ps1` の sandbox 外実行、Phase A snapshot の fetch と判定 evidence の stage（製品共通の事前承認の範囲）。fetch・stage の前に `tools/Artifacts` の DLL の Release build が要る（worktree に無ければ `unconfirmed` になる）。
-  - 停止規則: §4 の「Phase A へ差し戻す条件」に当たれば止める。base の全 EditMode が failed 0 にならなければ、head を判定せずに人間へ返す（AC5）。Unity が開いたときに作業ツリーへ出す変更（`MobileDependencyResolver/**/*.pdb.meta` の削除、`Settings/UniversalRenderPipelineGlobalSettings.asset`）は commit しない（AC2）。Unity の既知の native 終了 stall は `tools/Harness/README.md` の停止規則に従い、原因を調べない。発見 C の run の Unity process が終了できずに残っているので（§7）、Unity を起動する前に、それが消えていることと `unity/Temp/UnityLockfile` を確かめる。判定 C の session で C' に入らない。
-  - 引き渡さないもの: なし。
+  - 次の Phase・役割: C'（1 巡目、独立監査）。判定 C は完了した（§7）。高コスト証拠は無いので、この head の C' が最終 C' になる。
+  - 次の作業: C' blind bundle と Phase A snapshot だけを入力に、implementation head 欄の SHA を独立に監査し、§8 に記録する。§7 は読まない。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示で渡す。implementation head は欄の SHA で、これとは別の commit。
+  - 取得案内の所在: C' blind bundle と Phase A snapshot の reference・packageSha256 は、進行役が起動指示で渡す（同一 PC。`pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <reference> --sha256 <packageSha256>`。Release build 済みの worktree から、sandbox の外で実行する）。
+  - 必要な権限: Artifact Storage の fetch（ローカル）。同じテストを再実行する義務は無い。Unity を起動する場合は sandbox の外で実行し、既知の native 終了 stall は `tools/Harness/README.md` の停止規則に従う。
+  - 停止規則: 独立性は §5 で予約したとおり `独立性制約あり`（risk `normal` なので強化条件の対象外）。B・C と異なるモデルで、新しい session で開始する。満たせなければ C' を未実施として人間へ返す。PR はまだ無い。PR 作成・push は C' の完了後、owner の指示を待つ。
+  - 引き渡さないもの: §7（発見 C・判定 C の所見と結論）、判定 evidence の取得案内、進行役が受け取った所見。
 
 ### PR 状態ブロック
 
 ```text
-状態: 発見 C の 完了
+状態: 判定 C の 完了
 Phase A: revision 0、凍結版は計画 PR #161（マージ commit 3e8bf06c）
 implementation base / head: 3e8bf06c / 08177c39
 引き継ぐ commit: <PR 作成時に記録>（票を含む commit）
-次の担当: 判定 C。次の作業: GO 候補 head で §5 の判定必須（AC4〜AC6、全 EditMode の base / head）
+次の担当: C'。次の作業: C' blind bundle と Phase A snapshot だけを入力に、implementation head を独立に監査する
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_ASSET_CYCLE.md
-Evidence 取得案内: Phase A snapshot はローカル固定済み（未昇格）（`p-check.ps1` の実体はここだけ。証拠の取得はローカル担当）。Phase B result snapshot・判定 evidence は未生成
+Evidence 取得案内: Phase A snapshot・判定 evidence・C' blind bundle はローカル固定済み（未昇格）（証拠の取得はローカル担当）。Phase B result snapshot は未生成
 未決事項: なし（Q1〜Q3 回答済み）
 ```
 
@@ -357,6 +357,38 @@ owner の依頼で、凍結の前に、後の Phase で指摘されそうな点�
 - 判定必須のうち未実行（判定 C で行う）: 全 EditMode 回帰の base と head（AC5）。判定用の P 検査（AC4）、AC6、contract-audit。evidence bundle の作成。
 - 未確認事項: 上の timeout が環境によるものかどうか。B の担当モデルが §6 に書かれていないので、「Phase C は Phase B と異なるモデル」を満たすかは確認できていない（発見 C の担当は下記）。
 - 担当・モデル: Claude Code（Anthropic、Claude Opus 5.5）
+
+### 判定 C（2026-11-07）
+
+- 種別: 判定 C。GO 候補 head は implementation head `08177c39`（発見 C の後に履歴の整理は無い）。base は `3e8bf06c`。
+- 判定: **GO**。§2.1 の不変条件 I1〜I5 と成立条件 S1〜S3 を、AC1〜AC6 で全て確認した。理由は下の各 AC のとおりで、AC5 の読み方は「判断の注記」に書いた。
+- 開始時の照合: HEAD は渡された SHA `6f045114` と一致し、作業ツリーは clean だった。implementation head 欄の `08177c39` は HEAD の祖先で、その間の差分は本書だけ。Phase A snapshot を起動指示の reference と packageSha256 で fetch した。`p-check.ps1` の content sha256 は §5 の `94291d8f…` と一致し、snapshot 内の本書は `3e8bf06c` の本書と同一だった。
+- 使用した evidence bundle の取得案内・状態: §0 のとおり（判定 evidence、ローカル固定済み（未昇格）、tag `evidence/runtime-refactor-asset-cycle/1`）。収録物は diff、AC4・AC6・contract-audit の出力、AC5 の 3 回の run の `results.xml`・`unity.log`・`step.json`（run 2 の head は `step.json` なし。下記）、判定 C が書いた XML 比較 script とその出力。
+- 各 AC:
+  - AC1: 2 組（`.cs` と `.meta`）とも `R100` の rename で、本文差 0 行、`guid:` も同一。旧 path は無い。`Runtime/AssetBuildContracts/` に asmdef / asmref は無い。
+  - AC2: `git diff -M --name-status base head` の 10 行は、全て許可リストの 5 種類に入る。`using` を消した 3 ファイルの差分は各 1 行の削除だけ。csproj の差分は `Include` の 1 行だけで、`Link` は変わっていない。
+  - AC3: `AssetBuildContracts.meta` は `folderAsset: yes`、guid `ec29c3f0…` を持つ `.meta` は head に 1 件だけ。
+  - AC4: 凍結版 `p-check.ps1` を head の worktree に `-AllowMissingContract` なしで実行し、`P-CHECK pass=True`、exit 0。陽性 7 集合が全て exit 0（`UA-*` 31、`UB-runtime-*` 18、`UB-selection` 20、`UB-materialization` 6、`UB-content` 6 ファイル）。陰性対照の `NEG-UA-without-contract` は exit 1（`CS0234`×1、`CS0246`×22）、`NEG-UB-runtime-without-contract` は exit 1（`CS0103`×1、`CS0234`×1、`CS0246`×7）で、どちらも `reasonIsMissingContract=true`。Unity の実版は `6000.6.0f1_f7f8ed4d1e24`。参照した外部 DLL は head の AC5 の run 1 で作られた `Library/ScriptAssemblies` のもの。
+  - AC5: `pwsh tools/run-tests.ps1`（空 filter、EditMode、sandbox 外）を、同じ PC・Unity 6000.6.0f1・同じコマンドで実行した。base は専用の detached worktree（Library は新規作成）、head は本 worktree（unity/ の tree は `08177c39` と同一）。
+    - base: 総数 1644、passed 1619、failed 0、skipped 0、inconclusive 25。XML の root result は `Passed`。
+    - head の run 1: 総数 1644、passed 1618、failed 1。落ちたのは `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` で、`Timeout(360000)` の超過（実行 521 秒。base では 238 秒で passed）。実行中に、別 project（`SampleGameForOneStarMakerFramework`）の Unity Editor とその import worker（20:02 と 20:08 に起動）が動いていた。同じ Content build の段の所要が base の 2〜4 倍、run 全体も 922 → 1371 秒に延びた。発見 C の timeout も同じテストだった。
+    - owner が他の Unity process を全て閉じ（2026-11-07、owner の指示「閉じた・再実行して」）、head を同じコマンドで 1 回だけ再実行した。
+    - head の run 2: 総数 1644、passed 1619、failed 0、skipped 0、inconclusive 25。XML の root result は `Passed`。上のテストは 178 秒で passed、run 全体は 702 秒。
+    - base と head の run 2 の比較（parameterized の引数を含む full name）: base のケースは全て head にあり（欠落 0、追加 0）、結果が変わったケースは 0 件。base で passed のケースが head で skipped / failed になったものは無い。inconclusive の 25 件は両方とも同じケース。
+    - §5 の 8 ファイルのテストは head の XML に全て収録されている（`ContentRevisionGateTests` 4、`ContentDirectoryIndexTests` 5、`PlayerContentConfigurationTests` 13、`ContentDeliveryFailureMatrixTests` 16、`ContentDirectorySessionTests` 21、`AttachedAssetDirectoryTests` 2、`BuildContentDirectoryIntegrationTests` 1、`AttachedAssetDirectoryIntegrationTests` 1）。
+    - contract-audit: exit 0（`errors=0 warnings=0`）。
+  - AC6: `dotnet build tools/ContentDeliveryProbe/ContentDeliveryProbe.csproj` が head で成功した（警告 0、エラー 0）。比較の基準として base の worktree でも成功した（警告 0、エラー 0）。出力先は worktree の外。
+- 判断の注記:
+  - AC5 の「failed 0」と「head が合格」は、XML の failed 数と root result で読んだ。`run-tests.ps1` の `step.json` は、3 回とも Inconclusive があることを理由に status `failed` を記録している。Inconclusive の 25 件は `SampleGame.Tests.Rendering.Vfx.*PlayTests` で、`-nographics` で実行されたもの。base と head で同じケースが同じ結果なので、本スライスの変更によるものではない。凍結済みの AC5 は「同じコマンド（空 filter、EditMode）」だけを指定しているので、`-WithGraphics` は付けていない。runner の status で読めば base が比較の基準にならず、規則どおり人間へ返すことになる。この読み方の確認を owner に求めたが、回答の前に再実行の指示があったので、上の読み方で判定した。owner が runner の status で読むと裁定するなら、この判定は人間へ返す扱いに変わる。
+  - head の run 1 は、他の Unity の負荷が重なったことによる不一致とみて、合否の入力にしていない（bundle には生のまま収録した）。run 2 は 1 回だけ実行し、同じ条件での反復はしていない。
+  - Unity の終了: 3 回とも、結果 XML を書いた後に Unity が終了しなかった（既知の native 終了 stall と同じ症状。原因は調べていない）。base と head の run 1 の process は 20:30〜20:31 に exit 1 で終わり、`step.json` には「Unity process が正常終了しませんでした」がある。head の run 2 の process は XML から 10 分以上たっても終了せず、`step.json` の無い状態で bundle を作った。判定は XML で行った。
+  - Unity が作業ツリーに出した変更（`MobileDependencyResolver/**/*.pdb.meta` 5 件の削除、`Settings/UniversalRenderPipelineGlobalSettings.asset`）は `git checkout` で戻し、commit していない（AC2）。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings:
+  - `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` は、同じ PC で他の Unity と並行すると `Timeout(360000)` を超える（観測は 521 秒と 624 秒、静かなときは 178〜238 秒）。本スライスの変更とは関係が無い。判定用の全 EditMode は、他の Unity を閉じて実行する必要がある。
+  - `run-tests.ps1` は Inconclusive を不合格とするので、`-nographics` の全 EditMode は VFX の PlayTests 25 件のために常に status `failed` になる。全 EditMode を判定に使う AC の読み方（XML の failed 数か、runner の status か、`-WithGraphics` で流すか）を、Harness かテンプレートで決めておく必要がある。
+- 未確認事項: Phase C は Phase B と異なるモデルで行うという条件を満たすかは確認できていない（§6 に B のモデル名が無い。判定 C の担当は下記）。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 5.5）。発見 C とは別の session。
 
 ## 8. Phase C'
 
