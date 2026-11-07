@@ -607,19 +607,48 @@ Evidence 取得案内: C' 用 blind bundle はローカル固定済み（取得�
 - 次: C'' 1 巡目（blind audit）。bundle は §0 の「C'' blind bundle」の欄。収録は、凍結した Phase A（base の本書）、Phase B の結果の記録時点の本書（`0366c6c6`、所見なし）、base..head の完全 diff、AC1 / 2 / 5 / 6 / 7 / 8 / 17 と contract-audit の生出力、全件回帰・head 単独・`develop` 単独の XML と log、directory Play の Console 記録、README（例外の 1 段落のみ）。
 ## 8. Phase C'
 
-- 担当方式:
-- 種別と巡:
-- 受け取った決定記録の版:
-- 使用した blind audit bundle の取得案内・状態:
+- 担当方式: AI（新規 session）。blind audit bundle だけを入力にした。
+- 種別と巡: 1 巡目。高コスト証拠は「なし」（§5）なので、この 1 巡が C' の最終。
+- 受け取った決定記録の版: なし（C' 用決定記録は 2 巡目以降に渡す）。
+- 使用した blind audit bundle の取得案内・状態: C' blind bundle（§0 の欄）を取得案内どおりに `evidence fetch` で取得し、`status: passed`・`reasonCode: complete` で展開した。収録は bundle の README に従う。
 - 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
+  - 完全 diff（base `6844bf35` → head `33e0f27f`、15 file）を全行読んだ。
+  - 凍結 Phase A の I1〜I8、AC1〜AC17、§2.4 の常時契約と照合した。
+  - bundle の機械検査の生出力（AC1 / 2 / 5 / 6 / 7 / 8 / 17、contract-audit）を base と head で比べた。
+  - XML（全件回帰、head 単独、develop 単独）を集計した。
+  - head の `AbstractApplicationInitializer.cs` を読み、`ReleaseAll` の順序、`InitializeAfterSceneLoad` の長さ（286〜415 行の 130 行）、AfterSceneLoad の catch 連鎖、早期 return の guard、BeforeSceneLoad の失敗経路を確かめた。
+  - 新規 3 クラスと `DebugSocketService.CreateTelemetrySink` の本体を読んだ。
+  - Unity の再実行と Editor のコンパイルはしていない（必須ではない）。
+- 判定: **AI 監査の結論は「未解決の阻害 blocker 1 件あり」。PASS とは記録しない。** B-1（AC4）の扱いは人間の裁定が要る。
+- 現在の問いを阻害する findings（違反根拠つき）:
+  - **B-1（AC4 の失敗）。** `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` が全件回帰 XML で `Failed`（Timeout 360000 ms）。全 1653 件のうち Failed はこの 1 件だけ。head 単独と develop 単独の XML でも同じ Timeout で Failed。
+    - 違反根拠: AC4 は「XML 上 Passed」を要求し、判定定義は「一つでも未達なら NO-GO」（§2）。
+    - 例外について: bundle の README にある owner の例外（2026-11-08、AC4 の Failed を合否に使わない）は、AC4 の合否を変える裁定である。§2 の「A3 後の例外承認: なし」と、phases-and-handoff の「凍結条件の意味・合否を変える裁定は決定記録で行わず、Phase A を新しい revision として再開する」に照らすと、この形では満たさない。置き換える条件・期限・検証予算も書かれていない。
+    - 一次証拠: 全件回帰 `results.xml`（Failed 1 件）、head 単独の `step.json`（XML root が Passed でない）、develop 単独の `results.xml`。
+    - 注記: B の記録では、この失敗は head に起因せず develop でも再現する。つまり凍結 AC4 は現在の develop 上で満たせない。これは head の不具合ではなく、Phase A を新しい revision にするか、AC4 の読み替えを人間が決めるべき事項である。
+- 後続スライスへ移送する findings・所見（阻害しない）:
+  - **N-1（AC1 の機械照合の差）。** head の AC1-1 は base の 51 行に対し 53 行。増えた 2 行は private nested の `StartupProgress` の `internal` メンバー（`PlayerContentStages`、`Stage`）である。§3.5 の公開面（protected / internal の一覧）の宣言は変わっていない。diff で変わった listed member の本体は `Vfx`、`LoggerFactory`、`UpdateCoordinator` の accessor 本体だけで、AC1 が許すものである。
+    - 文言の読みの問題。I1 は違反していないので blocker にはしない。ただし、文字どおりの AC1-1 は不合格になるため、読み方は人間が決める（決定記録で確定するには合否を変える読みになる）。
+  - **N-2（AC17）。** 差の 3 行は補間式だけが変わり、文言は同じ。
+  - **N-3（nit）。** `LegacyRemoteCatalogProbe.cs` の `config?.GetString`（非 nullable の引数に対する `?.`）。契約違反ではない。
+- 確認できた不変条件（違反なし）: I1（§3.5 の宣言は変わらず、private フィールド名と型は保持）、I2（stage 16 個と動的 stage、順序）、I3（`ReleaseAll` 順序。二重呼び出しで安全）、I4（catch 連鎖、OCE の filter、早期 return 2 つ、BeforeSceneLoad の失敗経路）、I4a（作り済みサービスを次の hook で読める。UICommon の virtual は現行の時点で評価）、I5（Bootstrap に DebugSocket internal 型の識別子なし）、I6（asmdef と SampleGame の変更なし、新しい public 面なし）、I7（span 2 つ、payload の stage）、I8（新しい static なし）、S1（1,046 行、`InitializeAfterSceneLoad` 130 行）、S3〜S5、S7（全件回帰は 1653 件中 1652 Passed。base 1644 → +9 で AC14 の +8 以上を満たす）。`#nullable enable` と `record` なし、`Task.Delay` なし、Unity の破棄判定は `== null` / `!= null`。
+  - 補足: `_services!.StartAsync(ct)`（AAI 339 行付近）は、null になりえない。`ReleaseAll` が `_services` と `_cts` を同じ同期処理で null にし、その前の早期 return が `_cts == null` を見るため。
+  - PlayerContentConfigurationTests は XML 上 13 件 Passed。
 - 残存リスク:
+  - AC4 の Timeout の原因は未調査（調査しない指示どおり）。develop 上の既存の失敗として扱うかは人間の判断。
+  - 強化条件（異なるベンダー）は満たさない（後述）。
 - 監査できなかった範囲:
+  - §3.5 の全メンバーを本文で一つずつ見比べてはいない（diff の変更は上記 3 件の accessor だけと確認した）。
+  - AC3 の §6 対応表は B の自己申告。C' は主要行（`ReleaseAll` 順序、早期 return、catch 連鎖、BeforeSceneLoad の失敗、UICommon の所有）だけを head の実コードと照合した。全行は未照合。
+  - directory Play は Console 記録を読んだだけで、再実行していない。
 - 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+  - 最低条件（AI）: 満たす。新規 session、blind bundle のみ、モデルは B（Claude Opus 5.5、owner 申告）・発見 C（同）・判定 C（Claude Sonnet 5.5）のいずれとも異なる。
+  - 強化条件（異なるモデル系列・ベンダー）: 満たさない。B・C と同じ Anthropic 系の製品を使った。`独立性制約あり`（強化条件）として記録し、採否は人間が決める。
+  - 発見 C / 判定 C 結論の事前閲覧: 結論・指摘は読んでいない。ただし HANDOFF を検索した際に、§7 のモデル名を含む数行が表示された。監査判断には使っていない。モデル名は独立性の判定にだけ使った。
+  - bundle の README には、判定 C の指摘に関する owner の例外（人間の裁定）が含まれていた。盲検 bundle の規則（裁定は含めない）から外れるので、Phase D で確認してほしい。C' は、AC4 の判定をこの例外に頼らず、一次証拠で行った。
+  - 設計・実装への関与: なし。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 上記「独立性」に記録。
+- 担当・モデル: Claude Code（Anthropic）の新規 session。モデルは Claude Haiku 5.5（claude-haiku-5-5）。
 
 ## 9. Phase D
 
