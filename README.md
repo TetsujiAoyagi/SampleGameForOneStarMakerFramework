@@ -2,7 +2,7 @@
 
 Unity のゲームで、**ゲーム以外の部分（Scene の寿命・依存・ロード・観測）がゲームと一緒に複雑化しない**ための契約を、実装とドキュメントで公開するフレームワークです。いま実証に使っている適用先は**準オープンワールド**で、同じ repo の SampleGame が 4 季のセル世界を載せて確かめています。
 
-> OneStarMaker is a Unity 6 framework that keeps scene lifetime, dependencies, loading and observability from growing more complex as the game does. The sample game in this repo proves it on a semi-open-world: distance-streamed seasonal cells, purpose-scoped content builds, out-of-process debugging. Docs are in Japanese.
+> OneStarMaker is a Unity 6 framework that aims to keep scene lifetime, dependencies, loading and observability from growing more complex as the game does. The sample game in this repo exercises these contracts on a semi-open-world: distance-streamed seasonal cells, purpose-scoped content builds, out-of-process debugging. Erosion resistance under complex game rules is a stated goal, not yet demonstrated. Docs are in Japanese.
 
 大絶賛工事中です。試作段階で、コードには AI を活用しています。
 
@@ -39,10 +39,12 @@ OSM は、この「ゲーム以外の部分」をフレームワーク側が引�
 
 Unity **6000.6.0f1** で `unity/` を開きます（正確な版は `unity/ProjectSettings/ProjectVersion.txt`）。
 
-1. **まず飛ぶ。** 先に Addressables の Play Mode Script を `Use Asset Database` にしておきます（`Window > Asset Management > Addressables > Groups` の `Play Mode Script`）。`Tools/OSM/Play As/spring-full` を選ぶと source から Play に入ります。Title で Start すると Spring の `(0,4)` セルに spawn し、飛行 rig で移動するとセルが距離で load / unload されます。Play Mode Script や Variant profile が条件と違うときは、Play As が理由を出して入る前に止まります。
+1. **まず飛ぶ。** `Assets/SampleGame/OutGame/Title/Title.unity` を開いておきます（Editor は開いている Scene を初期登録に使うので、空の Scene から始めると Title は載りません）。Addressables の Play Mode Script は `Use Asset Database` にします（`Window > Asset Management > Addressables > Groups` の `Play Mode Script`）。`Tools/OSM/Play As/spring-full` を選ぶと source から Play に入ります。Title の「スタート」で InGame に入り、Spring の `(0,4)` セルの `(125, 28, 1125)` に spawn して、周囲のセルが距離で load されます。飛行 rig で移動すると、離れたセルが unload され、近づいたセルが load されます。Play Mode Script や Variant profile が条件と違うときは、Play As が理由を出して入る前に止まります（`A Variant profile is active` なら `Project Settings > OneStarMaker > Variant` で選択を外す）。
 2. **必要な分だけ build する。** `Tools/OSM/Content/Build spring-full` で Spring の Full 表現だけを Content Directory として build します。`spring-whitebox` にすると、Whitebox 変種を持つ床の Scene だけが Whitebox になり、置き物の Scene は Full のまま入ります。
 3. **build した物で Play する。** `Tools/OSM/Content/Verify Play/spring-full` で build → publish → install → Play を一続きで行います。cache root などは `Tools/OSM/Content/Delivery` の窓で設定します。
 4. **外から見る。** DebugStudio を起動して Play 中のログと telemetry を読みます（下の DebugStudio の節）。
+
+手順 1 は 2026-11-07 に Unity 6000.6.0f1 で 1 回通して、spawn 位置とセルの load / unload を確認しました。2 と 3 は menu と経路をコードで照合しただけで、実走はまだです。
 
 テストは Unity を batchmode で起動して回します。対象 project を開いている Editor は先に閉じます。既定では `D:\UnityEditor\<版>\Editor\Unity.exe` を探すので、Unity Hub の標準の場所に入れている場合は `-UnityExe` で指定します。
 

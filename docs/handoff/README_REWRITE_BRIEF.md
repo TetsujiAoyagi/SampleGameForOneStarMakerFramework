@@ -1,7 +1,7 @@
 # README 書き直しの brief（レビュー用）
 
 - type: `brief`（単一スライス。実装は `README.md` の書き直しのみ）
-- status: レビュー 1 巡目の修正済み（§7）。Editor で手順を通した確認はまだ行っていない
+- status: レビュー 2 巡目の修正済み（§7・§8）。「試す」の手順 1（Play As `spring-full`）は Editor で 1 回実走した（§8）。手順 2・3（Content build・Verify Play）は未実走
 - owner: root
 - created: 2026-11-07
 - expires: README の PR マージ時にこの file を削除する（harvest 先は無い。残す内容は README 本文がすべて）
@@ -39,7 +39,7 @@ owner の目的は「**Unity の開発のつらみを減らしつつ、準オー
 1. **目的の一文が owner の意図と合っているか。** 「準オープンワールドの土台」「Unity のつらみ」の言い方が過不足ないか。
 2. **「できること」に過大な主張が無いか。** 特に次の 3 つは実装と照らしてほしい。
    - `Play As` が「同じ表現・同じ companion 集合で Play に入る」
-   - `Verify Play` が「途中で失敗したら環境を変えずに止まる」（bridge 以降の失敗は ledger を戻してから止まる、が正確。README ではそこまで書いていない）
+   - `Verify Play` が「途中で失敗したら後続の段へ進まず、Play 用に置いた設定を戻して止まる（build の出力と、開始前に閉じた Scene は戻さない）」（1 巡目で限定した文。bridge より前の失敗は process 環境を触らず、bridge 以降は ledger を戻す）
    - Streaming の「4 季 × 9 × 6 セル、250 m、LoadRadius 375 m / UnloadRadius 550 m」（`WorldCellCatalog` の定数）
 3. **「試す」の手順が実際の menu と一致するか。** menu 名は `PlayAsLauncher.MenuRoot`・`VerifyPlayLauncher.MenuRoot`・`SampleGameContentBuild` の `MenuItem` から写した。Editor で通した確認はまだ無い。
 4. **「まだできないこと」に漏れが無いか。** 逆に、既にできているのに「できない」と書いた物が無いか。
@@ -79,3 +79,41 @@ owner のレビュー（インライン 4 件）と cursor[bot]（インライ�
 軽微: target の識別子を `StandaloneWindows64-Player` に、「同じ revision の上書き拒否」を「成功した revision の directory は上書きしない」に修正。
 
 owner に委ねた「準オープンワールドは適用先か対象制約か」は**適用先**と決まり、冒頭を二層に書き分けた（§2）。
+
+### 2 巡目（2026-11-07）
+
+| 指摘 | 対応 |
+|---|---|
+| 英文の `proves it` が、複雑なゲームルール投入後の侵食防止まで実証したように読める | `aims to keep ...` / `exercises these contracts` に弱め、`Erosion resistance under complex game rules is a stated goal, not yet demonstrated.` を足した |
+| §20 の §2 図と §3 手順が「未整備」を現況として説明したまま | owner の判断で後続に回す（§6）。この PR は冒頭の追記まで |
+| brief §4 の Verify Play の引用が旧文 | 1 巡目で限定した文に更新 |
+| マージ判断を「文書の整合」と「手順の実証」に分けて記録してほしい | 手順 1 を実走した（§8）。手順 2・3 は未実走のまま README に明記 |
+
+## 8. 「試す」手順 1 の実走記録（2026-11-07）
+
+環境: Unity 6000.6.0f1、Windows、この checkout（head は 2 巡目の修正 commit）。操作は `tools/unity-editor.cmd eval` で、menu が呼ぶのと同じ `PlayAsLauncher.Launch(declaration, interactive: false)` を呼んだ。人間が menu を押したのと違うのは、確認 dialog が出ない点だけ。
+
+**観測（時刻は JST）:**
+
+| 時刻 | 操作 / 観測 |
+|---|---|
+| 14:36 | `unity open` で Editor 起動。Asset Database refresh 549 秒、その後 Search の初回 index 作成で約 10 分間 eval が `Main thread operation timed out` になりやすかった（menu 操作には影響しない） |
+| 14:50 | 環境確認: Play Mode Script = `BuildScriptFastMode`（Use Asset Database）、開いていた Scene は `Title.unity`、compile error 無し |
+| 14:51 | 空の untitled Scene に切り替えて Play As `spring-full` → **拒否** `A Variant profile is active and overrides the representation.`（このマシンの `UserSettings/OneStarMaker/DeveloperVariantSettings.asset` に Production profile が選択されていた。VCS 外なので初見の clone では起きない）。README の「理由を出して入る前に止まる」はこの観測で確認 |
+| 14:54 | profile 選択を外して再実行 → 受理。Play に入ったが、**空 Scene からは Title が載らず**、UIScene と SceneResourceMap を載せた後 200 秒待っても UI も rig も出なかった。§4.6 の「Editor は開いている Scene を初期登録の入力にする」どおり。README 手順 1 に「`Title.unity` を開いておく」を足した |
+| 14:59:39 | `Title.unity` を開いて Play As `spring-full` → 受理（Editor log: `[PlayAs] spring-full content:runtimeMode=addressables world:cellCompanionSet=Full`） |
+| 15:00:09 | Play 開始 26.8 秒: 載っている Scene は `Title`、`UIScene`、`OutGameScene` |
+| 15:00:34 | `TitleView.Root` の `start-button`（表示「スタート」）に `NavigationSubmitEvent` を送信 |
+| 15:00:35〜 | Editor log に `InGameUI`、`PlayerScene`、`Spring_Lighting`、`Spring_AtmosphereVFX`、`Spring_Cell_0_4`、`Spring_Environment_0_4`、`Spring_Cell_0_3`、`0_5`、`1_4`、`1_3`、`1_5` と各 Environment の load が順に出た |
+| 15:01:38 | Play 開始 115.6 秒: rig の `transform.position` と `Rigidbody.position` がともに `(125.0, 28.0, 1125.0)`（`WorldCellCatalog.SpawnPosition()` と一致）。`Title` と `OutGameScene` は unload 済み。載っている Cell は (0..1, 3..5) の 6 セルと Environment |
+| 15:02:04 | `FlyController.Teleport` で `(875, 28, 1125)`（セル (3,4) の中心、spawn から 750 m 東）へ移動 |
+| 15:02:32 | 移動 28 秒後: `Spring_Cell_0_*` と `Spring_Environment_0_*` は全て unload、`Spring_Cell_1_4` と `Spring_Environment_1_4` は残存（500 m ≤ UnloadRadius 550 m と整合）、`Spring_Cell_2_3`〜`4_5` の 9 セルと Environment が load。rig は transform / Rigidbody とも `(875.0, 28.0, 1125.0)` |
+| 15:03:08 | profile 選択を Production に戻し、Play を終了 |
+
+**この Play で観測できなかった / しなかったこと:**
+
+- `Player ready at Cell stream spawn` の行は Editor の Console には出ない（App の ZLogger は Unity Console へ流していない）。App のログ file `unity/OneStarMakerLocal/Log/2026-11-07_000.log` には `Telemetry` category の行しか無く、Scene 系の行は入っていなかった。原因は調べていない。spawn の確認は rig の位置で行った。
+- 「飛行 rig で移動する」は入力操作ではなく `Teleport` で代替した。入力系（キー操作）は未確認。
+- Verify Play と Content build（手順 2・3）は実走していない。
+- Play 中の Error: 既知の `[DebugSocket] Failed to connect to DebugStudio server`（DebugStudio 未起動のため）以外に、filter 後の Editor log に Error / Exception 行は無かった。`ContentDeclarationMismatch` は 0 件。
+- Variant profile の解除と復元は `DeveloperVariantSettings.SetActiveProfileGuid` で行い、VCS 管理外の file だけを触った。
