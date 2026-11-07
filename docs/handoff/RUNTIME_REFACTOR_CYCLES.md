@@ -5,9 +5,9 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（A1 初稿。A2 未実施、A3 未凍結。**実装キューではない**）
+- status: `A`（A2 入力版。A2 実施中、A3 未凍結。**実装キューではない**）
 - branch: 計画は `claude/runtime-refactor-stage0-plan`（本書と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) を同じ文書 PR で `develop` へ）。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-cycles` で決める）
-- implementation base commit: `840b6609a443e7ed3252c1c83224d3d9c5c16b49`（`origin/develop`、PR #149 のマージ）。B 開始時に `develop` の head で再固定する
+- implementation base commit: `d486188268046ff9e9b6b0e9c977af0b232b17e4`（`origin/develop`、PR #160 のマージ。A1 初稿の `840b6609` から A2 入力版で再固定）。B 開始時に `develop` の head で再固定する
 - implementation head commit: 未固定（Phase B で記録）
 - risk: `normal`（public 型 2 つの namespace 変更と public メソッド 1 つの移動。実行時挙動の変更はない）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
@@ -15,14 +15,14 @@
 - expires: 2026-11-30 または置換 revision の成立時。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/27-folder-structure.md` §2.2（Runtime 内の folder 間でも循環を作らないこと、現行の向き 2 件）。新しい Architecture 文書は作らない
 - 関連スライス: [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md)（同時に計画した対のスライス。本書が先、Bootstrap が後。ファイルは重ならない）
-- Phase A snapshot の取得案内・状態: A1 入力版は本文を収録した commit と本文の content sha256 で固定する（文書だけなので stage は不要）。値は A2 開始時に §5「A2 独立レビュー」へ記録する。A3 凍結版は未生成
+- Phase A snapshot の取得案内・状態: A2 入力版は本文を収録した commit と本文の content sha256 で固定する（文書だけなので stage は不要。レビュー担当へは同じ bytes の写しを渡す）。値は §5「A2 独立レビュー」へ記録する。A3 凍結版は未生成
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A2（独立レビュー 2 観点）。
   - 次の作業: §5 の観点で本書を独立にレビューし、指摘を §5「A2 独立レビュー」へ記録する。A3 で owner と主担当が採否を決め、凍結版の commit と content sha256 を記録する。
-  - 引き継ぐ commit: 本書を収録した計画ブランチの commit（A2 開始時に §5 へ転記）。
+  - 引き継ぐ commit: この票を含む commit（A2 入力版）。SHA は tree の外で渡す。
   - 必要な権限: なし（文書のみ）。Unity Editor・テスト・資格情報は不要。
   - 停止規則: A3 の凍結は owner の承認を待つ。同じ session で Phase B に入らない。
   - 引き渡さないもの: なし（Phase A 内）。
@@ -30,9 +30,9 @@
 ### PR 状態ブロック
 
 ```text
-状態: Phase A の 作業中（A1 初稿）
+状態: Phase A の 作業中（A2）
 Phase A: revision 0、commit <計画 PR 作成時に記録>
-implementation base / head: 840b6609 / 未固定
+implementation base / head: d4861882 / 未固定
 次の担当: Phase A2 独立レビュー。次の作業: §5 の 2 観点でレビューし結果を §5 へ記録
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_CYCLES.md
 Evidence 取得案内: 未生成
@@ -49,12 +49,12 @@ Evidence 取得案内: 未生成
   - `SceneDirector` の `Loading` / `Unloading` / `Transitions` にある telemetry 終了処理 3 重化の除去: SceneSystem を次に触るスライス、または asmdef Stage 2 の core 整理
   - `CameraSystemSliceSetup.Create` に製品コードの呼び出しが無い事実の扱い（配線するか、独立 assembly に置くか）: asmdef Stage 1 / 3 の A0 入力。本スライスは配線しない・削除しない
   - `Runtime/Bootstrap` と `Runtime/Telemetry` の namespace が folder と一致しない件: Bootstrap を独立 assembly にするスライス
-- 現況（base `840b6609` の実測）:
-  - Runtime は 17 folder、約 24,800 行、1 asmdef。folder 間の依存は慣習だけで、機械検査は無い。型名の出現で辺を引いた結果、循環は次の 2 件だけで、どちらも 2026-07 以降レビューと監査をすり抜けていた。
-  - **循環 A。** `Runtime/AssetManagement/AssetManagement.ContentDirectory.cs` は `using OneStarMaker.Runtime.BuildContent;` を持ち、`ContentDirectoryException` と `ContentDirectoryFailureCode`（宣言は `Runtime/BuildContent/ContentDirectoryException.cs`、32 行、どちらも public）を 6 箇所で投げる。一方 BuildContent は AssetManagement の `AssetKey` / `AssetManagement` / `AssetType` / `SceneLoadOptions` と internal 5 型を使う。port `IContentDirectoryBackend` は `Runtime/AssetManagement/Internal/` にあり、adapter（`ContentDirectorySession`、`UnityContentDirectoryBackend`）は BuildContent にある。つまり BuildContent → AssetManagement が本来の向きで、例外型 2 つだけが逆向きの辺を作っている。
+- 現況（A1 初稿は base `840b6609`、A2 入力版で base `d4861882` に再実測）:
+  - Runtime は 17 folder、約 26,400 行、1 asmdef。folder 間の依存は慣習だけで、機械検査は無い。型名の出現で辺を引いた結果、循環は次の 2 件だけで、どちらも 2026-07 以降レビューと監査をすり抜けていた。
+  - **循環 A。** `Runtime/AssetManagement/AssetManagement.ContentDirectory.cs` は `using OneStarMaker.Runtime.BuildContent;` を持ち、`ContentDirectoryException` と `ContentDirectoryFailureCode`（宣言は `Runtime/BuildContent/ContentDirectoryException.cs`、32 行、どちらも public）を 6 箇所で投げる。一方 BuildContent は AssetManagement の `AssetKey` / `AssetManagement` / `AssetType` / `SceneLoadOptions` と internal 5 型を使う。port `IContentDirectoryBackend` は `Runtime/AssetManagement/Internal/` にあり、adapter（`ContentDirectorySession`、`UnityContentDirectoryBackend`）は BuildContent にある。つまり BuildContent → AssetManagement が本来の向きで、例外型 2 つだけが逆向きの辺を作っている。加えて `Runtime/AssetManagement/IAssetManagement.cs` と `Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs` も `using OneStarMaker.Runtime.BuildContent;` を持つが、BuildContent の型を 1 つも使わない未使用の `using` である（A1 初稿の base `840b6609` にも既にあり、初稿が見落としていた。残すと S1 / AC2 の `grep` が 0 行にならない）。
   - **循環 B。** `CameraFocusSource`（public readonly struct）は `Runtime/Streaming/CameraFocusProvider.cs` 69 行目で宣言され、`Runtime/CameraSystem/Hosting/CameraSystemSliceSetup.cs` 80 行目の `CreateStreamingFocusSources(bool includeMainView = false)` だけがそれを生成する。`CameraSystemSliceSetup.cs` の `using OneStarMaker.Runtime.Streaming;` はこのメソッドのためだけにある。Streaming は `CameraSystem` / `ICameraView` を使う（`CameraFocusProvider`、`CameraStreamingFocusAdapter`）。`CameraSystemSliceSetup.Create` と `CreateStreamingFocusSources` に製品コードの呼び出しは無く、テスト `Tests/Camera/CameraSystemSliceSetupTests.cs`（59 行、`[Test]` 2 件）だけが使う。
-  - `ContentDirectoryException` / `ContentDirectoryFailureCode` を参照するファイルは 19（Runtime/AssetManagement 1、Runtime/Bootstrap 1、Runtime/BuildContent 12、OneStarMaker.Tests 5、SampleGame.Tests.Editor 1）。うち `using OneStarMaker.Runtime.AssetManagement;` を**持たない**ものは 10（§3）。
-  - 設計文書での言及: `18-asset-description.md` 190 行目が `ContentDirectoryException` を名前だけで参照（namespace は書いていない）。`23-camera-system.md` は `CreateStreamingFocusSources` を参照しない。`docs/streaming/` にも参照は無い。
+  - `ContentDirectoryException` / `ContentDirectoryFailureCode` を参照するファイルは 21（宣言ファイルを含め Runtime/AssetManagement 1、Runtime/Bootstrap 1、Runtime/BuildContent 11、OneStarMaker.Tests 6、SampleGame.Tests.Editor 2）。A1 初稿から増えた 2 つ（`Tests/Editor/Build/AttachedAssetDirectoryTests.cs`、`SampleGame/Tests/Editor/Build/AttachedAssetDirectoryIntegrationTests.cs`）は既に `using OneStarMaker.Runtime.AssetManagement;` を持つ。持たないものは宣言ファイルと `AssetManagement.ContentDirectory.cs` を除いて 10（§3）。
+  - 設計文書での言及: `18-asset-description.md` 195 行目が `ContentDirectoryException` を名前だけで参照（namespace は書いていない）。`23-camera-system.md` は `CreateStreamingFocusSources` を参照しない。`docs/streaming/` にも参照は無い。
   - `SerializeReference` の実データは無く、`m_Script` は GUID 解決なので、`.cs` と `.meta` を一緒に移せば serialized 参照は壊れない。
 
 ## 2. 意思決定と受け入れ境界
@@ -91,7 +91,7 @@ Evidence 取得案内: 未生成
   grep -rn "OneStarMaker.Runtime.BuildContent" unity/Assets/OneStarMaker/Scripts/Runtime/AssetManagement
   ```
 
-- **AC3（I1 の失敗経路）** `ContentDirectoryFailureCode.<値>` を assert する既存テスト（`Tests/BuildContent/ContentRevisionGateTests.cs`、`ContentDirectoryIndexTests.cs`、`PlayerContentConfigurationTests.cs`、`Distribution/ContentDeliveryFailureMatrixTests.cs`、`Tests/Editor/Build/ContentDirectorySessionTests.cs`、`SampleGame/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs`）が、`using` 行の追加・削除以外の変更なしで合格する。`git diff base..head -- <各テスト>` に `using` 以外の変更行が無い。
+- **AC3（I1 の失敗経路）** `ContentDirectoryFailureCode.<値>` を assert する既存テスト（`Tests/BuildContent/ContentRevisionGateTests.cs`、`ContentDirectoryIndexTests.cs`、`PlayerContentConfigurationTests.cs`、`Distribution/ContentDeliveryFailureMatrixTests.cs`、`Tests/Editor/Build/ContentDirectorySessionTests.cs`、`Tests/Editor/Build/AttachedAssetDirectoryTests.cs`、`SampleGame/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs`、`SampleGame/Tests/Editor/Build/AttachedAssetDirectoryIntegrationTests.cs`）が、`using` 行の追加・削除以外の変更なしで合格する。`git diff base..head -- <各テスト>` に `using` 以外の変更行が無い。
 - **AC4（S2, I2）** `CameraSystemSliceSetup.cs` から `CreateStreamingFocusSources` と `using OneStarMaker.Runtime.Streaming;` が消え、次が 0 行を返す。
 
   ```bash
@@ -149,6 +149,7 @@ Evidence 取得案内: 未生成
 |---|---|---|---:|---:|
 | `Runtime/BuildContent/ContentDirectoryException.cs` → `Runtime/AssetManagement/Abstractions/ContentDirectoryException.cs`（`.meta` も） | Content Directory の公開境界で返す失敗情報（例外と reason code） | `git mv`、`namespace` 行の変更 | 32 | 0 |
 | `Runtime/AssetManagement/AssetManagement.ContentDirectory.cs` | 内蔵 Content Directory 経路（変更なし） | `using OneStarMaker.Runtime.BuildContent;` を削除 | 164 | −1 |
+| `Runtime/AssetManagement/IAssetManagement.cs`、`Runtime/AssetManagement/Internal/IContentDirectoryBackend.cs` | （変更なし） | 未使用の `using OneStarMaker.Runtime.BuildContent;` を削除（§1 現況） | — | 各 −1 |
 | `Runtime/BuildContent/ContentRevisionGate.cs`、`RevisionProcessLease.cs`、`PlayerContentConfiguration.cs`、`Distribution/ContentCacheStore.cs`、`Distribution/ContentInstaller.cs`、`Distribution/ContentSourceAdvisor.cs`、`Distribution/InstalledRevisionVerifier.cs` | （変更なし） | `using OneStarMaker.Runtime.AssetManagement;` を追加 | — | 各 +1 |
 | `Tests/BuildContent/ContentDirectoryIndexTests.cs`、`ContentRevisionGateTests.cs`、`PlayerContentConfigurationTests.cs` | （変更なし） | 同上 | — | 各 +1 |
 | `Runtime/Bootstrap/AbstractApplicationInitializer.cs` と、既に `using OneStarMaker.Runtime.AssetManagement;` を持つ残り 8 ファイル | （変更なし） | 変更不要。B は `using OneStarMaker.Runtime.BuildContent;` が他の型のために残ることを確認する | — | 0 |
@@ -167,7 +168,7 @@ Evidence 取得案内: 未生成
 ## 4. 実装計画
 
 - 変更対象: §3 の表のとおり。
-- 順序: (1) 例外型 2 つの `git mv`（`.cs` と `.meta`）と `namespace` 変更 → `using` の追加 7 + 3 と削除 1 → Unity Editor でコンパイル確認。(2) `CreateSliceFocusSources` を Streaming へ追加し、`CameraSystemSliceSetup` から削除 → テスト 2 件を移してファイルを削除 → コンパイル確認。(3) AC2 / AC4 / AC7 の `grep`。(4) `pwsh tools/contract-audit.ps1`。(5) 起点 filter のテストは Phase C（発見 C）が実行する。
+- 順序: (1) 例外型 2 つの `git mv`（`.cs` と `.meta`）と `namespace` 変更 → `using` の追加 7 + 3 と削除 3（うち 2 は未使用の `using`） → Unity Editor でコンパイル確認。(2) `CreateSliceFocusSources` を Streaming へ追加し、`CameraSystemSliceSetup` から削除 → テスト 2 件を移してファイルを削除 → コンパイル確認。(3) AC2 / AC4 / AC7 の `grep`。(4) `pwsh tools/contract-audit.ps1`。(5) 起点 filter のテストは Phase C（発見 C）が実行する。
 - 各手順を 1 commit にする（rename の検出を保つため、(1) の `git mv` と `namespace` 変更は同じ commit に入れてよい）。判定 C の前に整理するかは [公開点と Git 履歴](../../.agents/skills/osm-workflow/SKILL.md) に従う。
 - Phase B から Phase A へ差し戻す条件: 例外型 2 つ以外に移動が必要な型が見つかった（例: BuildContent の別の型を AssetManagement が使っている）。`CameraSystemSliceSetup` の private メンバーを public にしないと生成メソッドを移せない。`.meta` の rename を保てない。既存テストの assertion を変えないと通らない。
 - 対象外を維持する方法: `.asmdef` を開かない。`SampleGame/` は `Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs` の `using` 確認だけ。AC6 の `git diff --stat` で機械確認する。
@@ -175,7 +176,7 @@ Evidence 取得案内: 未生成
 ## 5. テストとレビュー計画
 
 - 単体テスト: 新しい中核ロジックは無い。移動する 2 テスト（AC5）が focus source 生成の挙動を固定する。例外型は既存テスト（AC3）が `Code` 値で固定する。
-- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: `OneStarMaker.Tests.Streaming`、`OneStarMaker.Tests.CameraSystem`、`OneStarMaker.Tests.BuildContent`、`SampleGame.Tests.Editor.Build`。
+- 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: `OneStarMaker.Tests.Streaming`、`OneStarMaker.Tests.CameraSystem`、`OneStarMaker.Tests.BuildContent`（`Distribution` を含む）、`OneStarMaker.Tests.Editor.Build`（`SampleGame/Tests/Editor/Build/` の 2 ファイルもこの namespace）。
 - 判定必須テスト（GO 候補 head）: 全 EditMode 回帰（空 filter）。XML で `CreateSliceFocusSources_*` 2 件と AC3 のテストが収録されていること。
 - 全 EditMode 回帰の適用除外: なし
 - 統合・Unity テスト: 既存の EditMode だけ。PlayMode・Build は不要（実行時の分岐を変えない）。
@@ -193,7 +194,11 @@ Evidence 取得案内: 未生成
 
 ### A2 独立レビュー
 
-（A1 入力版の commit と content sha256、各レビューの観点・担当・モデル・ベンダー・結果をここに記録する）
+（A2 入力版の commit と content sha256、各レビューの観点・担当・モデル・ベンダー・結果をここに記録する。A2 入力版の commit 自身には記録しない）
+
+A2 入力版での A1 初稿からの変更: base を `d4861882` へ再固定し、§1 現況・AC3・§3・§4・§5 の起点 filter を再実測で更新した（未使用の `using` 2 件の追加、参照ファイル 21、テストの namespace の訂正）。目的・対象外・最低条件・U1〜U3 は変えていない。
+
+目的レビュー・利用者の表・分割の検討・不変条件ごとの経路の箇条は、本スライスの A1 開始（2026-10-31）が規則の導入（2026-11-02、PR #154）より前なので適用しない（osm-workflow の Phase A の内部フローの適用開始の一文）。
 
 ## 6. Phase B 実装結果
 

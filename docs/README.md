@@ -51,7 +51,7 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 
 **未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
 
-**未承認の Runtime リファクタ候補（A1 初稿、2 スライス）:** `RUNTIME_REFACTOR_CYCLES.md`（Runtime 内の folder 間依存循環 2 件の解消）と `RUNTIME_REFACTOR_BOOTSTRAP.md`（`AbstractApplicationInitializer` の責務分解と internal 越境の seam 化）。前者が先、後者が後。どちらも A2・A3 未実施で実装キューではない。owner は root、期限は 2026-11-30 または置換 revision。harvest 先はそれぞれ Architecture §27 §2.2 と §04 §4.2 / §4.3。Runtime asmdef 分割（後続、未作成）の前提として計画した。
+**未承認の Runtime リファクタ候補（2 スライス）:** `RUNTIME_REFACTOR_CYCLES.md`（Runtime 内の folder 間依存循環 2 件の解消）と `RUNTIME_REFACTOR_BOOTSTRAP.md`（`AbstractApplicationInitializer` の責務分解と internal 越境の seam 化）。前者が先、後者が後。前者は A2 実施中、後者は A1 初稿で、どちらも A3 未凍結の実装キューではない。owner は root、期限は 2026-11-30 または置換 revision。harvest 先はそれぞれ Architecture §27 §2.2 と §04 §4.2 / §4.3。Runtime asmdef 分割（後続、未作成）の前提として計画した。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
