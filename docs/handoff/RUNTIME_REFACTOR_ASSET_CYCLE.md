@@ -26,7 +26,7 @@
 - 引継ぎ票:
   - 次の Phase・役割: Phase B（実装）。その前に、計画の文書 PR（本書・A0・`docs/README.md`）を `develop` へマージする。
   - 次の作業: §4 の順序で実装し、§6 に結果を書き、B の出口で commit する。P 検査は Phase A snapshot の凍結版 `p-check.ps1` を使う（git には無い）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版）。SHA は起動指示で渡す。
+  - 引き継ぐ commit: この票を含む commit（凍結後の記録訂正を含む、計画 PR の最終 commit）。A3 凍結 commit `af97423f` そのものではない（そこには記録訂正が無い）。SHA は起動指示で渡す。
   - 取得案内の所在: Phase A snapshot の reference と packageSha256 は起動指示で渡す（同一 PC。`pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <reference> --sha256 <packageSha256>`）。
   - 必要な権限: Unity Editor の起動と対象を限定した操作・コンパイル確認、Phase A snapshot の fetch（製品共通の事前承認の範囲）。
   - 停止規則: 計画の文書 PR のマージ前に B を始めない。§4 の「Phase A へ差し戻す条件」に当たれば止める。同じ session で発見 C・判定 C に入らない。
@@ -278,7 +278,7 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 - **Q2 目的の文言:** §1 の目的・利用者の文言で確定。
 - **Q3 凍結時の commit:** 主担当の案どおり。本書（旧名からの rename を含む）、A0、`docs/README.md` の一覧の更新を含め、BOOTSTRAP は A0 §4.2 の改訂を当てるまで含めない。
 
-**A3 凍結（2026-11-07）:** owner（root）が凍結を指示した。凍結の前に主担当が §5 の集合の表と `p-check.ps1` の `$Sets` を照合し、folder 7 組（陽性 5 集合と陰性対照 2 つ）と除外 10 件（`UB-runtime` と `NEG-UB-runtime-without-contract` の各 4 件、`UB-materialization` の 2 件）が一致することを確かめた。凍結版は、本書・A0・`docs/README.md` を含む commit（この票を含む commit）と、Phase A snapshot（本書と `p-check.ps1`）。BOOTSTRAP の未 commit の変更は含めていない（Q3）。
+**A3 凍結（2026-11-07）:** owner（root）が凍結を指示した。凍結の前に主担当が §5 の集合の表と `p-check.ps1` の `$Sets` を照合し、folder 7 組（陽性 5 集合と陰性対照 2 つ）と除外 10 件（`UB-runtime` と `NEG-UB-runtime-without-contract` の各 4 件、`UB-materialization` の 2 件）が一致することを確かめた。凍結版は、本書・A0・`docs/README.md` を含む A3 凍結 commit `af97423f` と、Phase A snapshot（本書と `p-check.ps1`）。その後の記録訂正（下の段落）を含む commit が引き継ぐ commit で、凍結そのものとは区別する。BOOTSTRAP の未 commit の変更は含めていない（Q3）。
 
 **凍結後の記録の訂正（計画 PR のレビュー、2026-11-07）:** 計画 PR の cursor[bot] レビューが引継ぎの状態表示の食い違いを指摘した。本書では、§0 の PR 状態ブロックの Evidence 欄（「未生成」→ Phase A snapshot はローカル固定済み）、§5 の A3 採否の見出し（「凍結は owner の指示待ち」→ 凍結済み）、§5 P 検査の陰性対照の照合範囲（引用符で囲まれた名前だけを数える。script の挙動そのものの明確化）を直した。凍結済みの条件（I1〜I5、S1〜S3、AC1〜AC6、P 検査の集合と script）の意味・合否は変えていないので、Phase A の revision は 0 のまま。Phase A snapshot は、訂正後の本書と同じ `p-check.ps1`（content sha256 `94291d8f…`、変更なし）で stage し直し、引き継ぐ commit はこの訂正を含む commit とする（渡された SHA と HEAD が一致するように）。
 
