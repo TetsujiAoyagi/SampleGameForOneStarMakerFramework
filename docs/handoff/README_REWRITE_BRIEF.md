@@ -41,7 +41,7 @@ owner の目的は「**Unity の開発のつらみを減らしつつ、準オー
    - `Play As` が「同じ表現・同じ companion 集合で Play に入る」
    - `Verify Play` が「途中で失敗したら後続の段へ進まず、Play 用に置いた設定を戻して止まる（build の出力と、開始前に閉じた Scene は戻さない）」（1 巡目で限定した文。bridge より前の失敗は process 環境を触らず、bridge 以降は ledger を戻す）
    - Streaming の「4 季 × 9 × 6 セル、250 m、LoadRadius 375 m / UnloadRadius 550 m」（`WorldCellCatalog` の定数）
-3. **「試す」の手順が実際の menu と一致するか。** menu 名は `PlayAsLauncher.MenuRoot`・`VerifyPlayLauncher.MenuRoot`・`SampleGameContentBuild` の `MenuItem` から写した。Editor で通した確認はまだ無い。
+3. **「試す」の手順が実際の menu と一致するか。** menu 名は `PlayAsLauncher.MenuRoot`・`VerifyPlayLauncher.MenuRoot`・`SampleGameContentBuild` の `MenuItem` から写した。手順 1 は §8 のとおり Editor で 1 回通した（起動は menu と同じ入口の直接呼び出し、移動は Teleport。menu のクリックとキー入力は未確認）。手順 2・3 は未実走。
 4. **「まだできないこと」に漏れが無いか。** 逆に、既にできているのに「できない」と書いた物が無いか。
 5. **読者の視点。** Unity で広い世界を作っている人が README だけ読んで、自分のつらみのどれに効くか分かるか。
 
@@ -59,7 +59,7 @@ README とは別に、同じ目的で直す候補。この brief の範囲では
 - `docs/GOALS_AND_STRENGTHS.md` の冒頭に owner の目的の一文を足す。
 - `docs/handoff/SEASON_WORLD_DESIGN.md` §4 の「イテレーション」行が `Verify Play` 以前の記述のままになっている。
 - `unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md` 本文（§2 の図、§3 の手順）の「未整備」3 箇所を現況に書き換える。この PR では冒頭の追記だけで止めた。
-- 手順を Editor で一度通し、所要時間を測って README の「試す」に足す。
+- 手順 1 を menu のクリックとキー入力で通す（§8 は直接呼び出しと Teleport）。手順 2・3（Content build・Verify Play）を Editor で通し、所要時間を測って README の「試す」に足す。
 
 ## 7. レビュー 1 巡目の対応（2026-11-07）
 
