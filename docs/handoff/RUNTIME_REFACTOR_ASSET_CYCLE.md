@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（revision 0、A3 凍結済み（owner の指示、2026-11-07）。Phase B 完了（2026-11-07）。発見 C 完了（2026-11-07、阻害する findings なし）。**判定 C 完了**（2026-11-07）。次は C'）
+- status: `C`（revision 0、A3 凍結済み（owner の指示、2026-11-07）。Phase B 完了（2026-11-07）。発見 C 完了（2026-11-07、阻害する findings なし）。**判定 C 完了**（2026-11-07）。**C' 1 巡目 完了**（2026-11-07、阻害する findings なし、独立性制約あり）。次は Phase D（PR 作成・push は owner の指示待ち））
 - revision の経緯:
   - 2026-10-31 A1 初稿（旧名 `RUNTIME_REFACTOR_CYCLES.md`）は循環 2 件（AssetManagement ⇄ BuildContent、CameraSystem ⇄ Streaming）を扱い、A2 入力版を commit `93723a4c` で切った。
   - 2026-11-07 前半、A2 と外部レビューの後、Camera 側を別スライスへ切り出し、目的を「AssetManagement を BuildContent から独立した assembly にできる向き（例外型 2 つを AssetManagement へ移す）」に絞った書き直し版を作った（未 commit）。
@@ -22,26 +22,26 @@
 - Phase A snapshot の取得案内・状態: A3 凍結 snapshot（凍結版の本書と、A3 凍結 script `p-check.ps1`）を `evidence stage` で固定した。ローカル固定済み（未昇格）。所在 task は `runtime-refactor-asset-cycle`、snapshot の base は `d4861882`、head は計画 PR の最終 commit `4da676bc`（マージ commit `3e8bf06c` と tree が同一）。reference と期待 packageSha256 は本書に書かず、Phase B の起動指示で渡した（B が 2026-11-07 に fetch し、`p-check.ps1` の content sha256 が §5 の `94291d8f…` と、本書が `3e8bf06c` の本書と一致することを確認）。発見 C・判定 C・C' にも同じ reference と packageSha256 を起動指示で渡す。A2 は同一 PC 上の写しを content sha256 で固定して渡した（§5 A2 記録）。A2 入力版の commit は切っていない（理由は §5 A2 記録）
 - Phase B result snapshot の取得案内・状態: 未生成（stage していない。B が実行した P 検査・ビルド・contract-audit の出力は判定の入力にしないので（§6）、発見 C・判定 C は head で自分で取り直す）
 - evidence bundle の取得案内・状態: 判定 C の判定 evidence（base `3e8bf06c` / head `08177c39`）を `evidence stage` で固定した。ローカル固定済み（未昇格）。所在 task は `runtime-refactor-asset-cycle`。判定 evidence を取った head にはローカル tag `evidence/runtime-refactor-asset-cycle/1` を付けた（push しない）。reference と packageSha256 は本書に書かず、進行役の session に渡した。別 process の fetch で読み戻せることを確認済み
-- C' blind bundle の取得案内・状態: 判定 evidence と同じ生証拠に、Phase B の実装結果（implementation head の版の §6）を加えたものを `evidence stage` で固定した。ローカル固定済み（未昇格）。発見 C・判定 C の所見・結論は含まない。取得案内は判定 evidence の取得案内とは分けて、進行役の session に渡した
+- C' blind bundle の取得案内・状態: C' が別 process の fetch で取得し、必須内容の閲覧を確認した（確認済み、ローカル固定済み（未昇格））。判定 evidence と同じ生証拠に、Phase B の実装結果（implementation head の版の §6）を加えたものを `evidence stage` で固定した。ローカル固定済み（未昇格）。発見 C・判定 C の所見・結論は含まない。取得案内は判定 evidence の取得案内とは分けて、進行役の session に渡した
 - 引継ぎ票:
-  - 次の Phase・役割: C'（1 巡目、独立監査）。判定 C は完了した（§7）。高コスト証拠は無いので、この head の C' が最終 C' になる。
-  - 次の作業: C' blind bundle と Phase A snapshot だけを入力に、implementation head 欄の SHA を独立に監査し、§8 に記録する。§7 は読まない。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示で渡す。implementation head は欄の SHA で、これとは別の commit。
-  - 取得案内の所在: C' blind bundle と Phase A snapshot の reference・packageSha256 は、進行役が起動指示で渡す（同一 PC。`pwsh tools/artifacts.ps1 fetch --profile osm --config <v2-config> --reference <reference> --sha256 <packageSha256>`。Release build 済みの worktree から、sandbox の外で実行する）。
-  - 必要な権限: Artifact Storage の fetch（ローカル）。同じテストを再実行する義務は無い。Unity を起動する場合は sandbox の外で実行し、既知の native 終了 stall は `tools/Harness/README.md` の停止規則に従う。
-  - 停止規則: 独立性は §5 で予約したとおり `独立性制約あり`（risk `normal` なので強化条件の対象外）。B・C と異なるモデルで、新しい session で開始する。満たせなければ C' を未実施として人間へ返す。PR はまだ無い。PR 作成・push は C' の完了後、owner の指示を待つ。
-  - 引き渡さないもの: §7（発見 C・判定 C の所見と結論）、判定 evidence の取得案内、進行役が受け取った所見。
+  - 次の Phase・役割: Phase D（owner の判断）。C' 1 巡目は完了した（§8）。高コスト証拠は無いので、この C' が最終 C' である。
+  - 次の作業: owner が C / C' を突き合わせてマージ可否を決める。PR 作成・push はその後の owner の指示を待つ（まだ PR は無い）。PR 作成前に `git log --oneline` / `git log --name-status` / `git log -p` の公開前点検と `pwsh tools/docs-audit.ps1`（SKILL「公開点と Git 履歴」）を行う。harvest は §0 harvest to のとおり。
+  - 引き継ぐ commit: この票を含む commit（C' の記録 commit）。SHA は起動指示で渡す。implementation head は欄の SHA で、これとは別の commit。
+  - 取得案内の所在: Phase A snapshot・判定 evidence・C' blind bundle はローカル固定済み（未昇格）。reference と packageSha256 は進行役が保持する。
+  - 必要な権限: Artifact Storage の保存・引渡し確認（Phase D の担当が既存経路で行う）、`pwsh tools/artifacts.ps1 evidence schedule status` の確認。
+  - 停止規則: PR 作成・push は owner の指示後。判定 C と C' の所見は Phase D で初めて突き合わせる。
+  - 引き渡さないもの: なし（C' 完了により隔離は解除）。
 
 ### PR 状態ブロック
 
 ```text
-状態: 判定 C の 完了
+状態: C' の 完了
 Phase A: revision 0、凍結版は計画 PR #161（マージ commit 3e8bf06c）
 implementation base / head: 3e8bf06c / 08177c39
 引き継ぐ commit: <PR 作成時に記録>（票を含む commit）
-次の担当: C'。次の作業: C' blind bundle と Phase A snapshot だけを入力に、implementation head を独立に監査する
+次の担当: Phase D（owner）。次の作業: C / C' の突合とマージ判断、PR 作成は owner の指示待ち
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_ASSET_CYCLE.md
-Evidence 取得案内: Phase A snapshot・判定 evidence・C' blind bundle はローカル固定済み（未昇格）（証拠の取得はローカル担当）。Phase B result snapshot は未生成
+Evidence 取得案内: Phase A snapshot・判定 evidence・C' blind bundle はローカル固定済み（未昇格）（証拠の取得はローカル担当。C' blind bundle は C' が別 process の fetch で閲覧確認済み）。Phase B result snapshot は未生成
 未決事項: なし（Q1〜Q3 回答済み）
 ```
 
@@ -392,19 +392,19 @@ owner の依頼で、凍結の前に、後の Phase で指摘されそうな点�
 
 ## 8. Phase C'
 
-- 担当方式:
-- 種別と巡:
-- 受け取った決定記録の版:
-- 使用した blind audit bundle の取得案内・状態:
-- 確認範囲・方法:
-- 判定:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 残存リスク:
-- 監査できなかった範囲:
-- 独立性:
-- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与:
-- 担当・モデル:
+- 担当方式: AI（新規 session、blind audit bundle と Phase A snapshot だけを入力）
+- 種別と巡: 最終 C'（高コスト証拠なし）、1 巡目（全体を初見で監査）
+- 受け取った決定記録の版: なし（決定記録は作っていない）
+- 使用した blind audit bundle の取得案内・状態: 判定 evidence と同じ生証拠に Phase B の実装結果を加えた C' blind bundle（base `3e8bf06c` / head `08177c39`）と、Phase A snapshot。どちらも別 process の fetch で取得し、必須内容を閲覧できた（確認済み、ローカル固定済み（未昇格））
+- 確認範囲・方法: implementation head `08177c39` について、(1) 引継ぎ照合（HEAD が渡された SHA と一致、作業ツリー clean、head は祖先、head から HEAD までの差分は HANDOFF のみ）。(2) AC1・AC2・AC3 は bundle の diff に加え、リポジトリの commit に対して自分で `git diff -M --name-status`・`git ls-tree`・`git grep` を取り直した: 変更集合は許可リストの 5 種類だけ、移動した 4 件は R100、`.meta` の guid 同一、folder `.meta` は `folderAsset: yes` で guid はリポジトリ内で 1 件のみ、新 folder に asmdef / asmref なし、`using` 削除は 3 ファイル各 1 行、csproj は 1 行。移動前の path の参照は `artifacts/` の過去記録だけ（対象外）。(3) AC4 は `summary.json` と `csc.log` を読んだ: 陽性 7 集合 exit 0（`UA` 31 / `UB-runtime` 18 / `UB-selection` 20 / `UB-materialization` 6 / `UB-content` 6 ファイル）、陰性対照 2 つは exit 1 で error が `'BuildContent'`・`'AssetType'`・`'ContentDirectoryFailureCode'` の欠落を示し、`-AllowMissingContract` は無し、Unity の実版は 6000.6.0f1。同梱の `p-check.frozen.ps1` の sha256 は Phase A snapshot の `p-check.ps1` と一致（`94291d8f…`）、`$Sets` は §5 の表と一致。(4) AC5 は 3 本の `results.xml` と比較 JSON を読んだ: base 1644 件 passed 1619 / failed 0 / inconclusive 25。head-run2 は同数で passed 1619 / failed 0、case ID 集合は base と一致（欠落 0、追加 0、結果変化 0）、必須 8 fixture の 67 ケースが全て Passed。Inconclusive の 25 件は base・head で同一集合（VFX PlayTests、`-nographics`）。(5) AC6 は base・head の build ログがどちらも 0 警告 0 エラー。(6) contract-audit は `errors=0 warnings=0 checks=1〜9`。(7) 追加で、`Library` のコンパイル確認に関する Editor.log の `error CS` は 3 本の `unity.log` のどれにも無いことを確かめた。
+- 判定: 現在の問いを阻害する findings は無い（AC1〜AC6、I1〜I5、S1〜S3 に違反する証拠は見つからなかった）。head-run1 の失敗 1 件は下記のとおり扱いを記録する。
+- 現在の問いを阻害する findings: なし
+- 後続スライスへ移送する findings: なし。注記（blocker ではない）: head-run1（別プロジェクトの Unity Editor とその import worker が同時に動いていた）では `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` が `TimeoutAttribute`（360000 ms）超過で Failed になった（520.7 s）。同じ head の run2（他の Unity を全て閉じた状態）では Passed（178.3 s）、base でも Passed（237.9 s）。失敗の message は timeout だけで assertion の失敗ではなく、log に `error CS` は無い。この test は content build の実行時間に依存するので、同時負荷による timeout と読むのが自然だが、bundle に run1 の時間超過の原因を直接示す生証拠（CPU・I/O）は無い。AC5 は「head が合格」を要求し、同じ条件の再実行（run2）が合格しているので、blocker にしない
+- 残存リスク: (a) 上の timeout の原因は状況証拠だけで、直接の証明ではない（base・run2 の所要が 360 s 未満であることと、assertion の失敗でないことが根拠）。(b) P 検査は asmdef ごとのコンパイル・実行時の挙動・serialize 互換を示さない（§5 のとおり。これらは AC5 の回帰と、型の完全名・script の `.meta` の guid 不変で間接に担保される）。`AssetType` を `BuildContentRoot._category`（serialized field）が使うが、型名・namespace・assembly・enum 値は R100 で同一。(c) 3 本の Unity 実行はどれも終了時に正常終了せず（既知の native 終了 stall、`tools/Harness/README.md` の停止規則に従い、調査は反復しない。XML は完成しており、判定の入力に使えた）。
+- 監査できなかった範囲: Unity の実行・テストの再実行（義務なし、実施せず）。head-run2 の `step.json` は無い（run 後も Unity が終了していなかったため、bundle の README に記載）。XML は完成していた。`AssetBuildContracts` を `Library/ScriptAssemblies/OneStarMaker.Runtime.dll` に reflection で読んだ B の観測は判定入力でないので、C' は使っていない。asmdef を分けたときの共通契約の所有・namespace・バイナリ互換は後続（asmdef 分割スライス）の問い。
+- 独立性: `独立性制約あり`（§5 で予約したとおり。risk `normal` なので強化条件の対象外）。B・C と異なるモデルで、新規 session、blind audit bundle を使った。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: §7 は読んでいない。ただし、HEAD 直前の commit 件名に「判定 C（GO）」とあるのを起動時の git 状態の表示で目にした（所見・指摘の内容は見ていない）。設計・実装への関与なし。
+- 担当・モデル: Claude Code（Anthropic、Sonnet 5.5）
 
 ## 9. Phase D
 
