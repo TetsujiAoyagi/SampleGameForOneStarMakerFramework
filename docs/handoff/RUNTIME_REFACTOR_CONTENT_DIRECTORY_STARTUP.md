@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A0 入力だけ。A1 未着手、実装キューではない**）。本書は [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の A1 改訂（2026-11-07）で同書から切り出した S2 の設計素材を、program A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の改訂を当てた形で預かる。素材の正本は本書だけで、BOOTSTRAP には残していない
+- status: `A`（**A0 入力だけ。A1 未着手、実装キューではない**）。本書は `RUNTIME_REFACTOR_BOOTSTRAP.md`（PR #166 で完了・削除。本文は git 履歴にある）の A1 改訂（2026-11-07）で同書から切り出した S2 の設計素材を、program A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の改訂を当てた形で預かる。素材の正本は本書だけで、BOOTSTRAP には残していない
 - 切り出しの根拠: program A0 §6 D4（owner 判断、2026-11-07）。「S2（+ AC9 / AC10）を独立スライス `CONTENT_DIRECTORY_STARTUP` にする」
 - 順序（D4）: (1) ASSET_CYCLE 改訂版 → (2) `BUILDSYSTEM_STANDALONE_ENTRY`（未作成） → **(3) 本スライス** → (4) asmdef スライス。(2) の Phase D より前に本書の A1 を始めない。BOOTSTRAP（S3〜S5）はこの列の外にあるが、同じ `AbstractApplicationInitializer.cs` を触るので、**本スライスと BOOTSTRAP の Phase B を同時に走らせない**
 - branch: 未定（A1 の担当が決める）
@@ -32,6 +32,8 @@
 位置付け（program A0 §2.2 X5、§4.3）: 越境を facade の 1 箇所に集めておけば、asmdef スライスはその 1 箇所だけを裁定すればよい。facade は BuildSystem 本体ではなく、連携部分（`ContentDirectorySession` 等）と OSM 固有の起動構成（`AppConfig` を読む `Resolve`）にまたがる。
 
 ## 2. A1 の着手時にやり直すこと
+
+- **BOOTSTRAP から移送された入力（PR #166、2026-11-08）。** (a) BOOTSTRAP は完了し、initializer は 1,062 行になった（常駐サービスは `FrameworkServiceSet`、UICommon は `BootstrapUiCommonLoader`、旧リモートカタログは `LegacyRemoteCatalogProbe` へ移った）。下の行番号は全て取り直す。(b) `BuildContentDirectoryIntegrationTests` が Content Directory build の所要時間で `[Timeout(360000)]` を超えて Failed になることがあった（2026-11-07 に 668 秒・363 秒、`develop` でも 362 秒。2026-11-08 の再実行では 225 秒で Passed）。失敗した実行のうち後の 2 回は、終了時に固まった別の Unity batch プロセスが残っている間に走った（そのプロセスは 2026-11-08 の時点で CPU を 1 コア使い続けていた。走った時点の負荷は測っていない）。負荷の影響か build 自体が重くなったのかは切り分けていない。timeout の延長は修復と扱わない。所有はこのスライスか BuildSystem 側で、A1 で決める。
 
 - **base の取り直し。** 下の行番号・型名・可視性は base `d4861882`。`BUILDSYSTEM_STANDALONE_ENTRY` は `ContentDirectoryIndex` や `InstalledRevisionVerifier` 等の public 入口を作る可能性があり（A0 §4.3 X6）、そうなれば facade が越える internal の一覧が変わる。BOOTSTRAP が先に入っていれば initializer の構成と行数も変わる。
 - **不変条件の取り直し。** BOOTSTRAP §2.1 の I1〜I4（公開面、起動順序と stage 名、終了順序、失敗経路）と同じ形の不変条件を、着手時の base の実測で書く。BOOTSTRAP が完了して削除されていれば、git 履歴の同書と harvest 後の `04-app-startup.md` を参照する。

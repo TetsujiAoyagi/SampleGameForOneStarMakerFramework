@@ -4,7 +4,7 @@
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
-- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の改訂と、後続スライスの A0 への入力）
+- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と `RUNTIME_REFACTOR_BOOTSTRAP.md`（PR #166 で完了・削除）の改訂と、後続スライスの A0 への入力）
 - status: `A`（A0 は閉じた。計画レビュー R1〜R3 反映済み、owner 判断済み（§6）。program 自体は進行中で、**実装キューではない**）
 - branch: `claude/runtime-refactor-stage0-plan`（既存 2 文書と同じ計画ブランチ。初版は ASSET_CYCLE の A3 凍結 commit `af97423f` で収録し、その後の記録訂正を含めて計画 PR で `develop` へ。正は計画 PR の最終 commit の版）
 - implementation base commit: `d4861882`（`develop` の head。2026-11-07 に `origin/develop` を fetch して確認し、`d4861882` から進んでいないので差は無い）

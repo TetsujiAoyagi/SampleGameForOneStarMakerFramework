@@ -102,7 +102,7 @@ S-4b の 216 Cell と関連 SceneResource は一回限りの生成で確定し�
 
 通常の Content Directory build、DIST install、Play / Playerの手順は [§18](../../unity/Assets/Docs/Architecture/18-asset-description.md) / [§20](../../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md) を参照する。
 
-§20 の旧 Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `TryLoadRemoteCatalogAsync` / `RemoteCatalogRuntimeBridge`）は通常経路から切断済み。ファイルは残るがメニュー/CLI は案内のみ。Editor側の在庫は `unity/Assets/OneStarMaker/Scripts/Editor/Build/Variants/`。Runtime側は Bootstrap / AssetManagement に残る。
+§20 の旧 Variant 機構（`VariantFilteringBuildScript` / whitelist / Hybrid Play / `LegacyRemoteCatalogProbe.TryLoadAsync` / `RemoteCatalogRuntimeBridge`）は通常経路から切断済み。ファイルは残るがメニュー/CLI は案内のみ。Editor側の在庫は `unity/Assets/OneStarMaker/Scripts/Editor/Build/Variants/`。Runtime側は Bootstrap / AssetManagement に残る。
 
 ---
 

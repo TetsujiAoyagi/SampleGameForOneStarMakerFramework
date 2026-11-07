@@ -95,7 +95,7 @@ flowchart TB
 | Editor | `VariantCheckoutReportWindow` / Hybrid registrar / Remote setup | メニューは案内 no-op。本体 mutation は呼ばない |
 | Editor | `VariantHybridPlayModeScript` / `VariantFilteringBuildScript` | group mutation をせず base Fast/Packed へ委譲する警告経路 |
 | Editor | `VariantPlayerBuild` | メニューは app-config を書き換えない |
-| Runtime | `RemoteCatalogRuntimeBridge` / `TryLoadRemoteCatalogAsync` | 通常起動から切断。injector は代入しない |
+| Runtime | `RemoteCatalogRuntimeBridge` / `LegacyRemoteCatalogProbe.TryLoadAsync` | 通常起動から切断。injector は代入しない |
 | 外部 | `tools/rebuild-remote.ps1` / `tools/serve-addressables.ps1` | 失敗案内のみ |
 
 `SceneVariantEditorInjector` と明示 `addressables` の SceneVariant 選択は互換 rollback 用に残す。
@@ -151,7 +151,7 @@ publish 済み source を用意した後は、Delivery で install し、**Use F
 | OneStarMaker > Variant > Checkout Report | 案内のみ。sparse-checkout を代行しない |
 | Register Hybrid Play Mode Script / Variant Hybrid Play Mode Script | 案内のみ。DataBuilders / catalog を変えない |
 | OneStarMaker > Build > Build Player (Active Variant) | 案内のみ。app-config overlay を書かない。通常 Player は BS4 coordinator |
-| 起動時 `TryLoadRemoteCatalogAsync` | 通常起動から切断 |
+| 起動時 `LegacyRemoteCatalogProbe.TryLoadAsync` | 通常起動から切断 |
 
 明示 `content:runtimeMode=addressables` だけが Addressables 互換口である。
 
@@ -266,7 +266,7 @@ managed pair は legacy `content:directoryPath` より優先して検証する�
 RET 完了後も次は残る。本書の通常手順にはしない。
 
 - ADDR-RETIRE: Addressables package と serialized `AssetReference` の全廃は未確認。残存 owner は冒頭の表。WorldCompanion の Addressables 登録と flake、Player の `DoNotBuildWithPlayer` を含む。衛生スライスと混ぜない。
-- ADDR-HYGIENE: Active Player DataBuilder がまだ `VariantFilteringBuildScript`。`TryLoadRemoteCatalogAsync` は呼び出し切断済みの死コード。retired メニュー / CLI / batch / DataBuilder / settings 反射の試験はメニュー 4 つ以外が未証明。`CompleteContentDirectoryPlayStopAsync` は参照 0 でも削除しない。settings mutation は衛生スライスの仕事であり、未着手。
+- ADDR-HYGIENE: Active Player DataBuilder がまだ `VariantFilteringBuildScript`。`LegacyRemoteCatalogProbe.TryLoadAsync` は呼び出し切断済みの死コード。retired メニュー / CLI / batch / DataBuilder / settings 反射の試験はメニュー 4 つ以外が未証明。`CompleteContentDirectoryPlayStopAsync` は参照 0 でも削除しない。settings mutation は衛生スライスの仕事であり、未着手。
 - 配信運用拡張（signing、latest channel、CDN、delta/resume）は DIST v1 に含めない。同一 directory 内の季節グループ単位ハッシュ不変もここに含まれ、現行契約では主張しない。
 - 非 Scene Description / Mesh は実需要が出た種別だけの専用 slice。
 - 部分 Checkout 開発の再燃は未所有。世界計画の S-7 実装スライスは廃止し、通常の未取得実行は DIST が担う。
