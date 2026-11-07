@@ -93,6 +93,21 @@
 - **local object store と installed cache は別の層。** Artifacts の store に置いただけでは Play に使えず、cache root への install と verify が要る。
 - **`ExitingEditMode` は Play への移行途中。** 探索、install、hash を同期で置けるとは限らず、取り消し → 準備 → 再 Play、重複 event、compile / import 中、domain reload、crash を含む状態機械が要る。
 
+### 2.5 類似事例（2026-11-08 調査。A1 の比較材料で、採用の決定ではない）
+
+「Editor で開いている Dirty な Scene の複製」と「built content」を同じ Play で、所有の契約付きで扱う公開事例は見つかっていない。部分ごとに近い物を挙げる。「確認」は一次の公開文書を読んだ物、「要約」は検索結果の要約だけで、原典・source は読んでいない。
+
+| 事例 | 近い部分 | 効くスライス | 確度 |
+|---|---|---|---|
+| Unity Entities の Content Management（[概要](https://docs.unity3d.com/Packages/com.unity.entities@1.4/manual/content-management-intro.html)、[archive の作成](https://docs.unity3d.com/Packages/com.unity.entities@1.4/manual/content-management-create-content-archives.html)、[配信](https://docs.unity3d.com/Packages/com.unity.entities@1.4/manual/content-management-delivery.html)） | subscene ごとに content archive を作り、複数の subscene が共有する object は共有 archive へ分ける。Player を build し直さずに `Assets > Publish > Content Update` か `RemoteContentCatalogBuildUtility.BuildContent` / `PublishContent` で archive と catalog を作れる。publish は file 名を内容の hash にし、出力は端末の local cache と同じ構造。weak reference は利用者が load / release し、参照数で unload。`ContentDeliveryGlobalState.Initialize` で remote から content set を取得・cache する | §5.2 (ii)（小さな directory を Play 前に作る）、S2 の共有依存の単位、S4 の cache | 確認（Entities 1.4）。Editor Play で archive を読むか AssetDatabase を読むか、Editor 由来との混在、版と hash の検証は文書に記述なし |
+| Unity Addressables の Play Mode Script（[開発サイクル](https://docs.unity3d.com/Packages/com.unity.addressables@1.16/manual/AddressableAssetsDevelopmentCycle.html)） | Asset Database か既存 build かを 1 つ選ぶ。混成の公式手段は無い。現行 OSM の「起動時に 1 つ選ぶ」と同じ立場 | S0-b の比較の基準、S0-c | 要約 |
+| Unity `ContentLoadManager.RegisterContentDirectory`（[6.6](https://docs.unity3d.com/ScriptReference/Unity.Loading.ContentLoadManager.RegisterContentDirectory.html)） | §2.4 に加え、Editor Play で built content を読むには type tree 付きで build する必要がある（`DisableWriteTypeTree` の content は Editor で読めない） | §5.2 (ii) の build 設定と所要時間 | 確認 |
+| Unreal の Cooked Editor / `FHybridPackageStoreBackend`（[API](https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/CoreUObject/FHybridPackageStoreBackend/ForceLoadPackageAsLoose)、[KB](https://forums.unrealengine.com/t/how-to-work-with-cooked-content-in-editor/265094)） | Editor が cook 済み package を読み、編集する物だけ cook 済み版をやめて source に戻す。Scene A が source、Scene B が built の形に最も近い。World Partition の map は Cooked Editor で未対応と Epic が述べている | S0-b（旧 Hybrid Play の回顧の比較対象。混在時に同じ asset が source と cook 済みの 2 実体になる問題の扱いを見る） | 要約 |
+| Unreal の Cook on the fly / Zen storage server（[COTF](https://docs.unrealengine.com/4.27/API/Editor/UnrealEd/CookOnTheSide/ECookMode__Type/index.html)、[Zen](https://dev.epicgames.com/documentation/en-us/unreal-engine/using-zen-storage-server-as-cooked-output-store-for-unreal-engine)） | 要求された時に cook して配る server。要求時解決と供給元の分離 | S0-a、S4 | 要約 |
+| Unreal の IoStore OnDemand（Experimental、[API](https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/IoStoreOnDemandCore/IOnDemandIoStore)） | 実行中に必要な content を install / stream し、cache の verify・purge・必要容量の照会を持つ | S2（Stage II）、S4 | 要約 |
+| GDC 2023 Guerrilla「Scaling Tools for Millions of Assets」（[Vault](https://gdcvault.com/play/1028848/Scaling-Tools-for-Millions-of)） | 手元の file を直接読まず server から content を配る Editor | S4（LAN tier） | 要約 |
+| Insomniac「Loading Based on Imperfect Data」（[Vault](https://www.gdcvault.com/play/1017878/contactUs)） | source と built の asset 管理を、tool の反復速度を落とさずに両立させる | S0-b、S2 | 要約 |
+
 ## 3. 概念モデル（A1 で API の形を決める。型名は仮称）
 
 Rev4 の最小の汎用モデルを採る。**既存の `IAssetManagement`、`IContentDirectoryBackend`、BuildSystem の入口で足りる所に重複する interface を増やさない。** これは S0-a が最初に判定する。
