@@ -25,8 +25,6 @@ using OneStarMaker.Runtime.UpdateSystem.Hosting;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime
@@ -73,8 +71,6 @@ namespace OneStarMaker.Runtime
         private AppConfig? _config;
         private SceneDirector? _sceneDirector;
         private SceneResourceMap? _sceneResourceMap;
-        private GameObject? _uiCommonObject;
-        private GameObject? _eventSystemObject;
         private CancellationTokenSource? _cts;
         private AppLoggerFactory? _loggerFactory;
         private DebugSocketService? _debugSocketService;
@@ -94,8 +90,11 @@ namespace OneStarMaker.Runtime
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
-        /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
-        private ISceneHandle? _uiSceneHandle;
+        /// <summary>
+        /// UICommon の取得と、取得で得た GameObject（UICommon と、loader が作った入力用の GameObject）の寿命。AfterSceneLoad で取得を await する前に入れ、
+        /// 取得の途中で失敗しても ReleaseAll が同じ位置で破棄できるようにする。
+        /// </summary>
+        private BootstrapUiCommonLoader? _uiCommonLoader;
 
         // ─── Protected accessors ───
 
@@ -315,7 +314,12 @@ namespace OneStarMaker.Runtime
 
                 startupStage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
-                var uiCommon = await LoadUICommonAsync();
+                _uiCommonLoader = new BootstrapUiCommonLoader();
+                var uiCommon = await _uiCommonLoader.LoadAsync(_assetManagement!, new BootstrapUiCommonSource(
+                    _contentDirectoryConfiguration != null,
+                    () => UseRequiredPlayerFileConfiguration,
+                    GetDirectoryBootstrapSceneLogicalKey,
+                    GetUICommonPrefabAddress));
 
                 startupStage = "wait-ui-common-ready";
                 await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
@@ -508,86 +512,6 @@ namespace OneStarMaker.Runtime
                     tags: null,
                     payload: payload);
             }
-        }
-
-        private void EnsureEventSystem()
-        {
-            if (!Application.isPlaying) return;
-            if (EventSystem.current != null) return;
-
-            var go = new GameObject("[EventSystem]");
-            go.AddComponent<EventSystem>();
-            go.AddComponent<InputSystemUIInputModule>();
-            UnityEngine.Object.DontDestroyOnLoad(go);
-            _eventSystemObject = go;
-        }
-
-        private async UniTask<UICommon> LoadUICommonAsync()
-        {
-            UICommon? uiCommon = null;
-
-            var activeScene = SceneManager.GetActiveScene();
-            if(activeScene.name == "UICommon")
-            {
-                // 既に UICommon シーンがロードされている場合は、そこから UICommon を探す
-                var tempGo = activeScene.GetRootGameObjects().FirstOrDefault(g => g.name == "UICommon");
-                if (tempGo != null)
-                {
-                    uiCommon = tempGo.GetComponent<UICommon>();
-                    if (uiCommon != null)
-                    {
-                        return uiCommon;
-                    }
-                }
-            }
-
-            if (UseRequiredPlayerFileConfiguration)
-                throw new InvalidOperationException("The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.");
-
-            string bootstrapIdentity;
-            if (_contentDirectoryConfiguration != null)
-            {
-                var logicalKey = GetDirectoryBootstrapSceneLogicalKey();
-                if (string.IsNullOrEmpty(logicalKey))
-                    throw new InvalidOperationException("Directory Editor Play requires a bootstrap Scene logical key.");
-                bootstrapIdentity = logicalKey;
-                _uiSceneHandle = await _assetManagement!.LoadContentSceneAsync(
-                    logicalKey,
-                    "Full",
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
-            }
-            else
-            {
-                bootstrapIdentity = GetUICommonPrefabAddress();
-                // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
-                // bool / int / SceneReleaseMode の並びを位置引数で固定しないとオーバーロードが曖昧になる
-                var desc = new SceneAssetDescription();
-                desc.AddPayload(string.Empty, new AssetReference(bootstrapIdentity));
-                _uiSceneHandle = await _assetManagement!.LoadSceneAsync(
-                    "UICommon",
-                    desc,
-                    string.Empty,
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
-            }
-
-            var go = _uiSceneHandle.GetRootGameObjects().FirstOrDefault();
-            if (go == null)
-            {
-                throw new InvalidOperationException($"UICommon scene has no root object: {bootstrapIdentity}");
-            }
-            go.name = "[UICommon]";
-            _uiCommonObject = go;
-
-            uiCommon = go.GetComponent<UICommon>();
-            if (uiCommon == null)
-            {
-                throw new InvalidOperationException(
-                    $"UICommon component not found on prefab: {bootstrapIdentity}");
-            }
-
-            EnsureEventSystem();
-
-            return uiCommon;
         }
 
         private async UniTask InstallConfiguredContentDirectoryAsync()
@@ -829,19 +753,10 @@ namespace OneStarMaker.Runtime
 
             _sceneResourceMap = null;
 
-            if (_uiCommonObject != null)
-            {
-                UnityEngine.Object.Destroy(_uiCommonObject);
-                _uiCommonObject = null;
-            }
-
-            _uiSceneHandle = null;
-
-            if (_eventSystemObject != null)
-            {
-                UnityEngine.Object.Destroy(_eventSystemObject);
-                _eventSystemObject = null;
-            }
+            // UICommon の GameObject → scene handle の参照 → loader が作った入力用の GameObject の順に手放す（loader の Dispose の中の順）。
+            // AssetManagement.ReleaseAll の後に置く。scene の unload は AM が担い、loader は unload しない。
+            _uiCommonLoader?.Dispose();
+            _uiCommonLoader = null;
 
             // テレメトリをシャットダウン（Sink の Flush + Dispose）
             AppTelemetry.Shutdown();
