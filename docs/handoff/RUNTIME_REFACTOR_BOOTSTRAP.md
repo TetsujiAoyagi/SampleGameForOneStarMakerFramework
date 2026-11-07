@@ -5,37 +5,39 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A3 凍結**。2026-11-07 に owner が凍結を指示した。Phase B は本書を含む文書 PR の `develop` へのマージ後に始める）
+- status: `B`（Phase B 完了。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
 - **A1 改訂の記録（2026-11-07）:** program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の BOOTSTRAP 向けの表を当てた。§6 D4（owner 判断）に従い、S2（Content Directory 起動の facade）と、それだけに属する AC9 / AC10・U1 / U2・責務マップの行・実装手順 1 を独立スライス `CONTENT_DIRECTORY_STARTUP` へ移し、素材は A0 §4.2 の §3.2 / §2.1 S2 / §2.3 の行を当てた形で [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に置いた（正本は同書だけ）。本書は S3〜S5 と、それに伴う `InitializeAfterSceneLoad` の分割だけを扱う。番号は A0 や他文書からの参照を保つため振り直さず、移した S2・S6・AC9・AC10・U1・U2 は欠番にした。分割の判断は §2.6
-- branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-bootstrap` で決める）
-- implementation base commit: `d4861882`（A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。A1 改訂の時点（2026-11-07）の `develop` の head `7c9b364d` は、`unity/Assets/OneStarMaker/` と `unity/Assets/SampleGame/` で `d4861882` との差が 0 なので、取り直していない。B 開始時に `develop` の head で再固定する。順序: 本スライスは A0 §6 D4 の列（ASSET_CYCLE → `BUILDSYSTEM_STANDALONE_ENTRY` → `CONTENT_DIRECTORY_STARTUP` → asmdef）の外にあり、先行条件を持たない（ASSET_CYCLE は Bootstrap folder を触らず namespace も変えない）。ただし `CONTENT_DIRECTORY_STARTUP` と同じ `AbstractApplicationInitializer.cs` を触るので、両者の Phase B を同時に走らせない。後に B へ入る側が base を取り直す
-- implementation head commit: 未固定（Phase B で記録）
+- branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は `claude/runtime-refactor-bootstrap`（A3 凍結版 `6844bf35` から切った。下の「Phase B 開始の記録」）
+- implementation base commit: `6844bf35`
+- **Phase B 開始の記録（owner の決定、2026-11-07）:** 文書 PR のマージを待たずに Phase B を始める。A3 凍結版 `6844bf35` から専用ブランチを切り、implementation base を `6844bf35` に固定する。`develop` の head `7c9b364d` とのコードの差は 0 で（`7c9b364d..6844bf35` は Phase A の文書 4 file だけ）、base を `develop` にすると実装差分に HANDOFF の変更まで入るため。`d4861882` とも `unity/Assets/OneStarMaker/` と `unity/Assets/SampleGame/` の差が 0 であることを B 開始時に確かめたので、§1 と §3.5 の行番号・公開面は取り直していない（`AbstractApplicationInitializer.cs` は 1,303 行で一致）。判定 C・C' の実装差分は base `6844bf35` で固定する
+- implementation base の経緯: A1 時点の値は `d4861882`（A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。A1 改訂の時点（2026-11-07）の `develop` の head `7c9b364d` は、`unity/Assets/OneStarMaker/` と `unity/Assets/SampleGame/` で `d4861882` との差が 0 なので、取り直していない。A3 は「B 開始時に `develop` の head で再固定する」としていたが、上の owner の決定で `6844bf35` に固定した。順序: 本スライスは A0 §6 D4 の列（ASSET_CYCLE → `BUILDSYSTEM_STANDALONE_ENTRY` → `CONTENT_DIRECTORY_STARTUP` → asmdef）の外にあり、先行条件を持たない（ASSET_CYCLE は Bootstrap folder を触らず namespace も変えない）。ただし `CONTENT_DIRECTORY_STARTUP` と同じ `AbstractApplicationInitializer.cs` を触るので、両者の Phase B を同時に走らせない。後に B へ入る側が base を取り直す
+- implementation head commit: `33e0f27f`
 - risk: `high`（アプリ起動・終了の順序、失敗経路、Player の receipt に現れる stage 名、派生クラスの公開面に触れる。実行時挙動は変えないが、変えていないことの証明が主な作業になる）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-10-31
 - expires: 2026-11-30 または置換 revision の成立時。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/04-app-startup.md` §4.2（クラス構造）と §4.3（解放の保証）。§4.7「Content Directory の起動時選択」の契約文は変えない（実装の置き場所だけが変わる）。新しい Architecture 文書は作らない
 - 関連スライス: [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本書から切り出した S2。順序は上の implementation base の行）。[RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) は先行条件ではない（namespace を据え置くので、本書が前提にする `using` の変化は無い）。S-4 の d5a は `CreateVfxBackend` hook と `VfxRuntimeHost` 配線を足した。残っていた d5b は PR #157 で完了し、initializer を触らなかった（§2.5 U4）
-- Phase A snapshot の取得案内・状態: A2 入力版は commit `7b2cf205` の本書（§5「A2 独立レビュー」に content sha256）。A3 凍結版は、この票を含む commit の本書（SHA は本書に書かず起動指示で渡す）。本スライスは文書だけで、凍結する script・機械向け期待値を持たないので、Artifact Storage の snapshot は作らない（凍結の正は commit）。A3 途中版を外部レビューへ渡した経路は owner の手元で、取得案内は無い
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase A snapshot の取得案内・状態: A2 入力版は commit `7b2cf205` の本書（§5「A2 独立レビュー」に content sha256）。A3 凍結版は commit `6844bf35` の本書。本スライスは文書だけで、凍結する script・機械向け期待値を持たないので、Artifact Storage の snapshot は作らない（凍結の正は commit）。A3 途中版を外部レビューへ渡した経路は owner の手元で、取得案内は無い
+- Phase B result snapshot の取得案内・状態: 未生成（作らない。B の結果は implementation head と §6 で固定する。未 commit の変更は無い）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。新しい session で始める。
-  - 次の作業: 本書を含む文書 PR が `develop` へマージされた後、`develop` の head で implementation base を再固定し（§1 と §3.5 の行番号・公開面を取り直す。差があれば §1 を直してから進める）、専用ブランチを切って §4 の順序で実装する。最初に AC15 の harness が `OneStarMaker.Tests` の型だけで組めるかを確かめる。§6 に結果（AC3 の 4 つの表、AC6 の分類、Content Directory の状態に触れるメソッドの一覧）を書き、B の出口で commit する。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示で渡す）。Phase B の実装の起点は、そのマージ後の `develop`。
-  - 必要な権限: ローカルの Unity Editor の起動とコンパイル確認（`osm-unity-editor` Skill に従う）。Unity テストの実行・判定は Phase C。資格情報は不要。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら止めて返す。`CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。`CONTENT_DIRECTORY_STARTUP` へ移した範囲（facade・Content Directory の判定表）を本書へ戻す必要が出たら、本書で裁かず owner に返す（D4 の変更になる）。判定 C の実行や C' の起動を担わない。
-  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。
+  - 次の Phase・役割: 動作確認（Phase B の後）。新しい session で始める。動作確認の後は発見 C。
+  - 次の作業: §5「操作・実行時・目視条件の検証経路」の Editor の directory Play を implementation head で 1 回だけ実行し、§6「動作確認」に対象 head、コマンド、生の観測（Console の `[AppInit]` の順序と例外の有無）、期待との差を書く。合否・GO は書かない。期待と違う観測があれば B へ戻す。最後に本票を次の担当（発見 C、差し戻しなら B）へ書き換えて commit する。
+  - 引き継ぐ commit: この票を含む commit（B の出口の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値（実装の最後の commit）で、この記録 commit とは別。
+  - 必要な権限: ローカルの Unity Editor の起動と Play の操作（`osm-unity-editor` Skill に従う）。Content Directory の install が Delivery に無ければ `20-variant-checkout-workflow.md` の手順で用意する（Build を伴うなら Phase C 側の作業になるので、その場合は `未実施` と理由を書く）。Unity テスト・Build の実行・判定は Phase C。資格情報は不要。
+  - 停止規則: 検証経路の手順だけを実行し、想定外の結果を原因調査や再実行で埋めない。`CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。判定 C の実行や C' の起動を担わない。
+  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。B の session が取った観測（B は動作確認を行っていない）。
 
 ### PR 状態ブロック
 
 ```text
-状態: Phase A の 完了（A3 凍結）
-Phase A: revision 0、A2 入力版 commit 7b2cf205、A3 凍結版 commit <起動指示で渡す>
-implementation base / head: d4861882（B 開始時に develop の head で再固定） / 未固定
-引き継ぐ commit: <A3 凍結版の commit。起動指示で渡す>
-次の担当: Phase B。次の作業: 文書 PR のマージ後、§4 の順序で実装
+状態: Phase B の 完了
+Phase A: revision 0、A2 入力版 commit 7b2cf205、A3 凍結版 commit 6844bf35
+implementation base / head: 6844bf35 / 33e0f27f
+引き継ぐ commit: <B の出口の記録 commit。起動指示で渡す>
+次の担当: 動作確認。次の作業: §5 の directory Play を 1 回実行し §6 に記録
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_BOOTSTRAP.md
 Evidence 取得案内: 未生成
 未決事項: なし（U1・U2 は CONTENT_DIRECTORY_STARTUP へ移し、U3 は D4 で決定、U4 は事実で解消、U5 は A3 で閉じた）
@@ -378,12 +380,158 @@ Evidence 取得案内: 未生成
 
 ## 6. Phase B 実装結果
 
-- 実装:
+- 実装（`6844bf35..33e0f27f`、§4 の手順ごとに 1 commit。各 commit で Unity Editor 6000.6.0f1 のコンパイル成功を確認）:
+  - 手順 1 `bb046d29`: `LegacyRemoteCatalogProbe`（internal static）へ旧 5 メソッドを移した。変えたのは `_config` を引数 `AppConfig config` にしたこと、`static` を付けたこと、入口の名前を §3.1 の `TryLoadAsync` にしたこと、`DeriveBuildInfoUrl` を internal にしたこと（テストから呼ぶため）だけ。`LegacyRemoteCatalogProbeTests`（AC11）。
+  - 手順 2 `690a82c9`: `BootstrapUiCommonLoader`（internal sealed）と `BootstrapUiCommonSource`（internal readonly struct）。
+  - 手順 3 `9950bb30`: `DebugSocketService.CreateTelemetrySink()`（internal、`DebugSocketService.cs` の本体）と `FrameworkServiceSet`（internal sealed）。
+  - 手順 4 `c37cadc0`: `InitializeAfterSceneLoad` の分割（`LoadEditorFirstSceneAsync`、`RunPlayerContentSmokeAsync`、`CleanupAfterStartupFailureAsync`、`FinishStartupSpan`、private nested `StartupProgress`）。
+  - 手順 5 `936b10d1`: `BeforeSceneLoadServiceStagingTests`（AC15 の 3 件）、`FrameworkServiceSetTests`（AC16 の 2 件）。AC15 の harness は `OneStarMaker.Tests` の型（`FakeAssetBackend` と framework の型）だけで組めた（差し戻し条件に当たらない）。
+  - `33e0f27f`: §2.4 のコメント追随。`Editor/Build/Variants/LocalRevisionEditorInjector.cs:19` の `AbstractApplicationInitializer.WarnOnRevisionMismatchAsync` を `LegacyRemoteCatalogProbe.WarnOnRevisionMismatchAsync` に。§2.4 の残り 2 箇所（`RemoteCatalogRuntimeBridge.cs:18`、`VfxRuntimeHost.cs:17`）は `AbstractApplicationInitializer` というクラス名と `ReleaseAll` を書いているだけで、移したメソッド名を含まず、内容も変更後に成り立つので変えていない。
+- 機械検査の結果（head `33e0f27f`。base の値は `6844bf35` で同じコマンドを実行して取った）:
+  - AC1-1: base 51 行、head 53 行。差は次の 2 行だけで、どちらも §4 手順 4 が求める private nested `StartupProgress` のメンバー（実効アクセスは private。§3.5 の公開面ではない）: `internal List<PlayerContentStage> PlayerContentStages { get; } = new()`、`internal string Stage { get; set; } = "load-ui-common"`。AC1 のコマンドは修飾子で始まる行を全て拾うので、private nested 型の internal メンバーも出る。§3.5 の 51 行は一致（判定 C の本文の見比べで確かめる）。
+  - AC1-2: `PlayerContentStage` の 10 値の並びが一致。
+  - AC1-3: `_sceneDirector`（`SceneDirector?`）、`_assetManagement`（`IAssetManagement?`）、`_contentDirectorySession`（`ContentDirectorySession?`）の 3 宣言。
+  - AC2: 16 個が一致。`"load-editor-first-scene:"` は 1 行（`LoadEditorFirstSceneAsync`）。
+  - AC5: `DebugSocketTelemetrySink` は Bootstrap folder で 0 行。Content Directory の正規表現は `AbstractApplicationInitializer.cs` の 1 ファイルだけ。
+  - AC6: 1 は該当 0 行（`.asmdef` と `unity/Assets/SampleGame/` の変更なし）。2 は 0 行。3 も 0 行（`Scripts/` の追加行に `public` を含む行が無い）なので分類する行は無い。
+  - AC7: `AppTelemetry.StartSpan(... AppStartup ...)` は 2 箇所（BeforeSceneLoad、AfterSceneLoad）。span を閉じる処理は `FinishStartupSpan(span, memBefore, success, stage)` に抽出し、BeforeSceneLoad は `"BeforeSceneLoad"`、AfterSceneLoad は `success ? "AfterSceneLoad" : progress.Stage` を渡す。`isSuccess: success`、`level: TelemetryLevel.Summary`、`tags: null`、`payload` は base と同じ。
+  - AC8: `AbstractApplicationInitializer.cs` 1,046 行。`InitializeAfterSceneLoad` 130 行（286〜415 行目）。初版は 135 行で、`StartupProgress` を使う理由のコメントを同型の doc へ移し、2 つのコメント行をまとめ、空行を 1 つ除いて 130 行にした（コードは変えていない）。
+  - AC11: `AbstractApplicationInitializer.cs` に `Addressables.LoadContentCatalogAsync`、`UnityWebRequest`、`RemoteCatalogRuntimeBridge`、`using UnityEngine.Networking` は無い。
+  - AC12: 同ファイルに `SceneManager.GetActiveScene`、`EventSystem`、`InputSystemUIInputModule`、`GetComponent<UICommon>` は無い（コメントにも書いていない。`using UnityEngine.EventSystems` / `using UnityEngine.InputSystem.UI` も外した）。
+  - AC13: 同ファイルに `_loggerFactory` / `_debugSocketService` / `_updateSystemHost` / `_vfxRuntimeHost` / `_debugSocketTelemetrySinkRegistered` は無い。サービスは `_services`（`FrameworkServiceSet?`）だけ。
+  - AC17: base・head とも 28 個。差は 3 行で、いずれも補間の穴の式だけが変わり、文言は同じ: `AfterSceneLoad failed at stage '{startupStage}'` → `'{progress.Stage}'`、`Starting DebugSocket transport. mode={_debugSocketService.Options...}` → `{DebugSocket.Options...}`、`DebugSocket transport start sequence finished. mode={_debugSocketService.Options...}` → `{DebugSocket!.Options...}`。
+  - `pwsh tools/contract-audit.ps1`: `errors=0 warnings=0`（checks 1〜9）。
 - HANDOFF との差:
-- AC3 の順序対応表（§1「現在の順序」の各行 → head の呼び出し位置）:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+  - implementation base は `6844bf35`（§0「Phase B 開始の記録」の owner の決定）。§1・§3.5 の行番号は `d4861882` のまま有効（コードの差 0）。
+  - AC11 の 3 ケースのうち「末尾 `/` あり」は、末尾が `/` の URL と、file 名で終わる URL の 2 つの `[TestCase]` にした（`/` を含む通常の catalog URL も固定するため）。新規テストの件数は AC11 が 4、AC15 が 3、AC16 が 2 の計 9 件で、AC14 の「base + 8 件以上」を満たす。
+  - `FrameworkServiceSet.StartAsync` は await の後も `DebugSocket` プロパティを都度読む（base が field を都度読んでいたのと同じ。await 中に `ReleaseAll` が走ったときの挙動を変えないため）。
+  - `InitializeAfterSceneLoad` の `await _services!.StartAsync(ct)` は、base の `_debugSocketService == null` の警告分岐を `_services` が null の場合には通らない。`_services` は BeforeSceneLoad の成功時に必ず作られ、`ReleaseAll` が `_cts` と同時に null にするので、直前の早期 return（`_assetManagement == null || _cts == null`）を通過した時点で null にならない（到達しない経路）。
+  - UICommon の取得で、directory か否か（`_contentDirectoryConfiguration != null`）と `_assetManagement!` は `LoadAsync` の呼び出し時に読む（AC12 が許す field の読み取り）。virtual 3 つは関数で渡し、loader の中の base と同じ位置で評価する。
+  - 新しい事実の分類: 上記はいずれも B 適応で、Phase A の差し戻し条件には当たらない。
+  - 行数について owner の発言（2026-11-07、B の作業中）: 「行数は目安で絶対ではない。理由があれば超えてよく、コメントによる超過は人間判断で可」。現 head は AC8 を満たしているので凍結条件は変えていない。後の修正で超えた場合の扱いは、必要になった時点で決定記録にする。
+- AC3 の対応表（head `33e0f27f`。行番号は `AbstractApplicationInitializer.cs`（AAI）、`FrameworkServiceSet.cs`（FSS）、`BootstrapUiCommonLoader.cs`（Loader））:
+
+  **表 1 順序**
+
+  | §1「現在の順序」の行 | head の位置 |
+  |---|---|
+  | BSL: CTS 生成 | AAI `InitializeBeforeSceneLoad` 228 |
+  | BSL: `Application.quitting` 購読 | 231 |
+  | BSL: `AssetManagement` 生成 | 234 |
+  | BSL: `BuildConfig`（required Player なら baked もここ） | 237 |
+  | BSL: `ReadContentDirectoryConfiguration` | 238 |
+  | BSL: （directory なら）`SealAddressables` と `Debug.Log` | 239〜248 |
+  | BSL: `FrameworkServiceSet` を空で作り `_services` へ入れる（追加の行。最初の `Create*` より前） | 252〜253 |
+  | BSL: `CreateUpdateSystemHost` → set へ | 257 |
+  | BSL: `AppTelemetry.Thresholds` | 260 |
+  | BSL: `CreateDebugSocketService` → set へ | 265 |
+  | BSL: `LogDebugSocketBootstrapStatus` | 266 |
+  | BSL: `CreateLoggerFactory`（引数は set の DebugSocket の stream）→ set へ | 267 |
+  | BSL: `VfxRuntimeHost.Create`（`CreateVfxBackend` をここで評価、logger と coordinator は set から）→ set へ | 271 |
+  | BSL: `ActiveVfxRuntimeHost` の設定 | 272 |
+  | BSL: `RegisterDefaultTelemetrySink`（base 実装は `_services?.LoggerFactory` を読む） | 274 |
+  | BSL: span の終了 | finally 280 `FinishStartupSpan(..., "BeforeSceneLoad")` |
+  | ASL: 冒頭の `_cts == null` で例外 | AAI `InitializeAfterSceneLoad` 296〜297 |
+  | ASL: （directory かつ非 required）session 登録 → 直後に `WarnOnDeclarationMismatch` | 301〜305 → `InstallConfiguredContentDirectoryAsync` 573 |
+  | ASL: UICommon 取得 | 307〜314（loader を 309 で field に入れてから 310 で await） |
+  | ASL: `WaitForPanelReadyAsync` | 317 |
+  | ASL: SceneResourceMap（Player / directory / Addressables） | 323〜327 |
+  | ASL: 早期 return（`_assetManagement` か `_cts` が null） | 329〜333 |
+  | ASL: `StartFrameworkServicesAsync` | 339 `_services!.StartAsync(ct)`（本文は FSS 46〜70） |
+  | ASL: `OnServicesInitializing` | 343 |
+  | ASL: `CreateSceneFactory` | 346 |
+  | ASL: `ResolveSceneVariant` | 349 |
+  | ASL: （directory かつ未登録）session 登録 | 352〜356 |
+  | ASL: representation の上書き | 358〜359 |
+  | ASL: `SceneDirector` 生成 | 364〜370 |
+  | ASL: `BindSceneDirector` | 372 |
+  | ASL: `BindSceneLifecycle`（VFX） | 374 |
+  | ASL: 早期 return（`_sceneDirector` が null） | 376〜380 |
+  | ASL: `RegisterAlreadyLoadedScenes` | 386 |
+  | ASL: Editor の初回 Scene の `AddScene` と観測ログ 1 行 | 388〜390 → `LoadEditorFirstSceneAsync` 426〜430 |
+  | ASL: Player content smoke の 6 段 | 391〜392 → `RunPlayerContentSmokeAsync` 439〜456 |
+  | ASL: span の終了 | finally 413 `FinishStartupSpan(..., success ? "AfterSceneLoad" : progress.Stage)` |
+  | RA: `_cts.Cancel` | AAI `ReleaseAll` 699 |
+  | RA: `DisposeVfx` | 705〜709（`ActiveVfxRuntimeHost` が set の Vfx と `ReferenceEquals` のときだけ解除）→ 712 `services?.Dispose()` の先頭（FSS 83〜85。参照を外してから Dispose） |
+  | RA: DebugSocket → sink の印の初期化 → UpdateSystemHost → LoggerFactory | FSS 87 → 89 → 91 → 94（`Dispose` の中。try/catch なし） |
+  | RA: `_services = null` | 713 |
+  | RA: CTS の Dispose | 715〜716 |
+  | RA: `_bakedPlayerContent` / `_config` / `_contentDirectoryConfiguration` | 717、719、720 |
+  | RA: `SceneDirector.Dispose` | 723〜724 |
+  | RA: `AssetManagement.ReleaseAll`（+ `CompleteContentDirectoryPlayStop` / `BeginSynchronousShutdown`） | 728〜740 |
+  | RA: map | 742 |
+  | RA: UICommon GO → `_uiSceneHandle` → EventSystem GO | 746 `_uiCommonLoader?.Dispose()`（Loader 143〜157 の中でこの順）、747 で null |
+  | RA: `AppTelemetry.Shutdown` | 750 |
+
+  **表 2 stage**（代入先は全て 288 行目で起動ごとに作る `StartupProgress` の `Stage`。catch の `LogError`（403）、`CleanupAfterStartupFailureAsync` の 2 つの hook（505、507）、finally の telemetry（413）は同じインスタンスの現在値を読む）
+
+  | base の代入点 | 値 | head のメソッドと行 | 直後の処理 |
+  |---|---|---|---|
+  | 296（初期値） | `load-ui-common` | `StartupProgress.Stage` の初期値 546 | 最初の代入より前の失敗（冒頭の `_cts == null` の例外など）で読まれる |
+  | 313 | `register-content-directory`（非 required の先行登録） | `InitializeAfterSceneLoad` 303 | `InstallConfiguredContentDirectoryAsync` 304 |
+  | 317 | `load-ui-common` | 307 | loader の生成 309、`LoadAsync` 310 |
+  | 321 | `wait-ui-common-ready` | 316 | `WaitForPanelReadyAsync` 317 |
+  | 326 | `load-scene-resource-map` | 321 | map の取得 323 |
+  | 343 | `start-framework-services` | 338 | `_services!.StartAsync` 339 |
+  | 347 | `initialize-app-services` | 342 | `OnServicesInitializing` 343 |
+  | 350 | `create-scene-factory` | 345 | `CreateSceneFactory` 346 |
+  | 353 | `resolve-scene-variant` | 348 | `ResolveSceneVariant` 349 |
+  | 360 | `register-content-directory`（後段の登録） | 355 | `InstallConfiguredContentDirectoryAsync` 356 |
+  | 368 | `create-scene-director` | 363 | `new SceneDirector` 364、Bind 372・374 |
+  | 390 | `register-loaded-scenes` | 385 | `RegisterAlreadyLoadedScenes` 386 |
+  | 400 | `"load-editor-first-scene:" + firstScene` | `LoadEditorFirstSceneAsync` 426 | `AddScene` 427 |
+  | 408 | `load-player-first-scene` | `RunPlayerContentSmokeAsync` 439 | `AddScene` 440 |
+  | 411 | `run-player-content-smoke` | 442 | `OnPlayerContentReadyAsync` 443、fixture の失敗の throw 445 |
+  | 415 | `unload-player-first-scene` | 446 | `UnloadScene` 447 |
+  | 418 | `close-player-content-directory` | 449 | 具象 AM の確認 450〜451、`CloseContentDirectoryAsync` 452 |
+  | 424 | `complete-player-content-smoke` | 455 | `OnPlayerContentShutdownCompletedAsync` 456 |
+  | 201（別の行） | `before-scene-load` | `BootstrapAfterSceneLoad` 198〜202 | base と同じ位置・条件（`_beforeSceneLoadSucceeded` が false で失敗を保持し、`ShouldNotifyPlayerContentFailure` が true のとき） |
+
+  helper は stage を戻り値で返さない。helper の中で投げた例外は try/catch を持たない 2 つの helper（`LoadEditorFirstSceneAsync`、`RunPlayerContentSmokeAsync`）を素通りし、本体の catch がその helper が書いた stage を読む。
+
+  **表 3 失敗経路**
+
+  | 経路 | head |
+  |---|---|
+  | ASL catch 1: `LogError`（到達 stage） | AAI 403 |
+  | catch 2: required Player で初回 Scene がロード済みなら unload（段ごとの try/catch） | `CleanupAfterStartupFailureAsync` 467〜482 |
+  | catch 3: directory が登録済みなら close（段ごとの try/catch） | 483〜498 |
+  | catch 4: `OnAfterSceneLoadInitializationFailed(stage, ex)` | 505（4・5 は 1 つの try/catch で、失敗は `LogError` だけ） |
+  | catch 5: （required Player なら）`OnPlayerContentStartupFailedAsync(stage, ex, stages)` | 506〜507 |
+  | catch 6: `ReleaseAll` | 本体の catch 408（helper の後） |
+  | OCE の filter（非 required のときだけ成功扱い） | 396〜400（本体に 1 つ） |
+  | 早期 return 1（`_assetManagement` か `_cts` が null。catch を通らず finally の telemetry だけ） | 329〜333 |
+  | 早期 return 2（`_sceneDirector` が null） | 376〜380 |
+  | BSL の途中失敗で作り済みのサービスを破棄 | `BootstrapBeforeSceneLoad` 172〜181 の catch の `ReleaseAll` → `_services` は最初の `Create*` より前に入っているので、作り済みのものだけが FSS `Dispose` で破棄される。AC15-1・2 が観測する |
+  | UICommon の取得途中の失敗で GameObject を破棄 | loader を await より前に field へ入れる（309〜310）。Loader は root を component の検査より前に記録（125）→ 失敗で catch → `ReleaseAll` 746 の `_uiCommonLoader.Dispose` が root を `Destroy`。AC15-3 が観測する |
+
+  **表 4 UICommon**（`BootstrapUiCommonLoader.LoadAsync`）
+
+  | base の段 | head |
+  |---|---|
+  | ロード済み Scene の検査（借用経路はここで return） | Loader 75〜88 |
+  | `UseRequiredPlayerFileConfiguration` の評価と拒否（同じメッセージ） | 90〜91（`source.UseRequiredPlayerFileConfiguration()`。ここで初めて評価） |
+  | directory か否かの分岐 | 94（呼び出し時の bool） |
+  | directory: `GetDirectoryBootstrapSceneLogicalKey` の評価、空なら例外（同じメッセージ）、`LoadContentSceneAsync` | 96〜103 |
+  | Addressables: `GetUICommonPrefabAddress` の評価、`LoadSceneAsync` | 107〜116 |
+  | handle と GameObject の記録 | handle 100 / 112、root なしの例外 120〜123、GameObject 125 |
+  | component の検査（同じメッセージ） | 127〜132 |
+  | `EnsureEventSystem` | 134（本体 160〜170。Play 中で `EventSystem.current` が無いときだけ作り、そのときだけ記録） |
+
+  | 経路 | GameObject を破棄するか | handle を持つか | EventSystem を作りうるか |
+  |---|---|---|---|
+  | 借用（active Scene の UICommon） | しない（記録しない） | 持たない | 作らない（`EnsureEventSystem` を呼ばない） |
+  | directory | する（`Dispose`） | 持つ（`Dispose` で null。unload しない） | 作りうる |
+  | Addressables | する（`Dispose`） | 持つ（同上） | 作りうる |
+
+  `_uiCommonLoader.Dispose` の呼び出しは AAI 746 で、AM の `ReleaseAll`（728〜740）と map の解放（742）の後。base の `_uiCommonObject` の `Destroy` と同じ位置。
+
+- Content Directory の状態に触れるメソッドの一覧（`CONTENT_DIRECTORY_STARTUP` への入力。受け入れ条件ではない。head で `_contentDirectoryConfiguration` / `_contentDirectorySession` / `_bakedPlayerContent` を grep）: フィールド宣言 88〜90、`InitializeBeforeSceneLoad`（238、239）、`InitializeAfterSceneLoad`（301、311、325、352、353、358、359、360、388、391）、`LoadEditorFirstSceneAsync`（424、430）、`RunPlayerContentSmokeAsync`（440、447、453）、`CleanupAfterStartupFailureAsync`（468〜470、475、484、491）、`InstallConfiguredContentDirectoryAsync`（552、572）、`ReleaseAll`（717、720、731、737、740）、`BuildConfig`（653）、`ReadContentDirectoryConfiguration`（829、854）。新しい 3 クラスには無い（AC5）。
+- U5 の再 grep（B 開始時）: `GetField(` / `GetMethod(` / `GetProperty(` / `nameof(` を `unity/Assets/SampleGame/Tests` と `unity/Assets/OneStarMaker/Tests` で `-A2` 付きで見た。`AbstractApplicationInitializer` を reflection で読むのは base と同じ `_assetManagement`（`InvalidCompanionConfigStartupTests`）、`_contentDirectorySession`・`_sceneDirector`（`BuildContentDirectoryIntegrationTests`）、`_sceneDirector`（`VfxScenePlayTests`、`LocalVfxEventPlayTests.Scenes`、`SeasonMajorEventPlayTests.Scenes`）だけで、増えていない。新規の `BeforeSceneLoadServiceStagingTests` も `_assetManagement` を同じ形で使う。
+- §3.4 の harvest 先の確認: `20-variant-checkout-workflow.md` は旧経路をメソッド名 `TryLoadRemoteCatalogAsync` / `WarnOnRevisionMismatchAsync` で書いている（98、154、177、269 行目）。クラス名 `AbstractApplicationInitializer` は書いていないが、入口の名前は `TryLoadAsync` に変わったので、Phase D で 1 語の追随が要るかを harvest 担当が判断する（本スライスでは文書を変えない）。
+- 未実行: Unity テスト（新規 9 件を含む）と全 EditMode 回帰は Phase C（本 B では実行していない。コンパイルだけ確認した）。動作確認（directory Play）も未実行で、次の担当が行う。`pwsh tools/docs-audit.ps1` は push 前の公開点で実行する。
+- implementation head commit: §0 の欄を正とする。
+- Phase B 担当・ベンダー: Claude Code（Anthropic）。
 
 ### 動作確認
 
