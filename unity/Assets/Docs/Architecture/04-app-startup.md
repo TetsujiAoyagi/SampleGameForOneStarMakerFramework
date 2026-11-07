@@ -35,7 +35,14 @@ AbstractApplicationInitializer (OneStarMaker.Runtime)
         ├── Framework・アプリサービス開始 → CreateSceneFactory()
         ├── 起動表現確定（BS4はここでdirectory登録）→ SceneDirector構築
         └── RegisterAlreadyLoadedScenes() / 必要な論理初回Sceneロード
+
+initializer が使う internal の部品（同じ Bootstrap folder・namespace）
+  ├── FrameworkServiceSet         … 常駐サービス（logger factory / DebugSocket / UpdateSystemHost / VfxRuntimeHost）の入れ物と開始・破棄の順序
+  ├── BootstrapUiCommonLoader     … UICommon の取得（借用 / directory / Addressables の 3 経路）と、取得した GameObject の破棄
+  └── LegacyRemoteCatalogProbe    … 旧リモート catalog の案内経路（通常起動から切断済み。§20）
 ```
+
+initializer に残るのは、3 フェーズの順序、派生クラス向けの hook、失敗境界、Content Directory の起動である。常駐サービスは派生クラスの `Create*` hook が作り、`FrameworkServiceSet` は受け取って持つだけにする。BeforeSceneLoad は最初の `Create*` より前に空の set を field に入れ、hook の戻り値を 1 つ作るたびに set へ入れる。こうすると、後の hook は前に作ったサービスを protected accessor（`UpdateCoordinator` / `LoggerFactory` / `Vfx`）で読め、途中の hook が投げても作り済みのものは `ReleaseAll` で破棄される。hook の中で `ReleaseAll` が走って set が外れた場合も、hook が返した値は同じ set を field に戻してから入れるので、次の hook から見え、後の `ReleaseAll` が破棄する。
 
 実際の派生クラスは [SampleGameのAppInitializer](../../SampleGame/DependOnAll/AppInitializer.cs)、共通順序は [AbstractApplicationInitializer](../../OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs) を参照する。3つのRuntimeInitializeOnLoadMethodから対応するBootstrap関数を呼ぶ。Editorのdirectory logical key、互換Addressables key、BS4のrequired file config / graph metadataを同じアドレスとして扱わない。残存するEditor設定読取と旧Variant検証の不一致候補は§4.7 / §4.8に分けて示す。
 
@@ -55,12 +62,13 @@ Play Mode 終了時は Unity が先に Scene を解体する。そのあとで `
 
 ```
 Initializer.ReleaseAll()
-  ├── cancel CTS / stop services
-  ├── DisposeVfx()                 … VFX の Tick 解除 → VfxSystem.Dispose → backend Dispose。logger・SceneDirector・AM より前（§24 §16.5）
+  ├── cancel CTS
+  ├── FrameworkServiceSet.Dispose() … VFX（Tick 解除 → VfxSystem.Dispose → backend Dispose）→ DebugSocket → UpdateSystemHost → logger factory。
+  │                                    VFX は logger・SceneDirector・AM より前（§24 §16.5）。テスト用の ActiveVfxRuntimeHost はその前に外す
   ├── SceneDirector.Dispose()       … 論理 Scene 台帳と SceneBase のみ破棄（AM Unload は呼ばない）
   ├── AssetManagement.ReleaseAll()  … directory Scene は token だけ返す。Addressables Scene Unload も native UnloadSceneAsync も呼ばない
   ├── CompleteContentDirectoryPlayStop() … 受付停止、cache 退避、unregister、OS read lease 解放。UniTask.GetResult は使わない
-  ├── UICommon 等の残存 GO 破棄
+  ├── BootstrapUiCommonLoader.Dispose() … 取得した UICommon の GO → scene handle の参照 → 作った EventSystem の順に手放す。scene の unload はしない（AM が担う）
   └── AppTelemetry.Shutdown()
 ```
 

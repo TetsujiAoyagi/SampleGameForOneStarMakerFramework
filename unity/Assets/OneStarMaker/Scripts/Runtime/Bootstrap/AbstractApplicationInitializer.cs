@@ -25,9 +25,6 @@ using OneStarMaker.Runtime.UpdateSystem.Hosting;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
-using UnityEngine.Networking;
-using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime
@@ -74,14 +71,13 @@ namespace OneStarMaker.Runtime
         private AppConfig? _config;
         private SceneDirector? _sceneDirector;
         private SceneResourceMap? _sceneResourceMap;
-        private GameObject? _uiCommonObject;
-        private GameObject? _eventSystemObject;
         private CancellationTokenSource? _cts;
-        private AppLoggerFactory? _loggerFactory;
-        private DebugSocketService? _debugSocketService;
-        private UpdateSystemHost? _updateSystemHost;
-        private VfxRuntimeHost? _vfxRuntimeHost;
-        private bool _debugSocketTelemetrySinkRegistered;
+
+        /// <summary>
+        /// Framework の常駐サービス（logger / DebugSocket / UpdateSystemHost / VFX）。BeforeSceneLoad の最初の Create* より前に
+        /// 空で作り、hook の戻り値を 1 つずつ入れる。ReleaseAll で Dispose して null に戻す。
+        /// </summary>
+        private FrameworkServiceSet? _services;
 
         /// <summary>
         /// Addressables Load / Release の一元管理。
@@ -95,8 +91,11 @@ namespace OneStarMaker.Runtime
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
-        /// <summary>LoadUICommonAsync でロードした UICommon シーンのハンドル。</summary>
-        private ISceneHandle? _uiSceneHandle;
+        /// <summary>
+        /// UICommon の取得と、取得で得た GameObject（UICommon と、loader が作った入力用の GameObject）の寿命。AfterSceneLoad で取得を await する前に入れ、
+        /// 取得の途中で失敗しても ReleaseAll が同じ位置で破棄できるようにする。
+        /// </summary>
+        private BootstrapUiCommonLoader? _uiCommonLoader;
 
         // ─── Protected accessors ───
 
@@ -117,16 +116,16 @@ namespace OneStarMaker.Runtime
         /// 環境でも何もしない handle を返す（Game に対応可否の分岐を書かせない）。
         /// Scene class へは factory の ctor 注入で渡す（service locator にしない）。
         /// </summary>
-        protected IVfxSystem? Vfx => _vfxRuntimeHost?.System;
+        protected IVfxSystem? Vfx => _services?.Vfx?.System;
 
         /// <summary>
         /// Framework 標準のロガーファクトリ。
         /// DebugSocketService が有効な場合は、その realtime stream もここへ配線される。
         /// </summary>
-        protected AppLoggerFactory? LoggerFactory => _loggerFactory;
+        protected AppLoggerFactory? LoggerFactory => _services?.LoggerFactory;
 
         /// <summary>Framework 標準の更新 coordinator。BeforeSceneLoad 完了後に有効。</summary>
-        protected UpdateCoordinator? UpdateCoordinator => _updateSystemHost?.Coordinator;
+        protected UpdateCoordinator? UpdateCoordinator => _services?.UpdateSystemHost?.Coordinator;
 
         /// <summary>
         /// テスト用: 起動中の initializer が所有する VFX の composition。Play 中のテストが、生成・Tick 要素の登録・
@@ -248,9 +247,15 @@ namespace OneStarMaker.Runtime
                               "Only Content Directory loads are accepted from here on.");
                 }
 
+                // 常駐サービスの入れ物を最初の Create* より前に作る。以後の hook は作り済みのサービスを accessor で読め、
+                // 途中の hook が投げても作り済みのものは ReleaseAll で破棄される。
+                var services = new FrameworkServiceSet();
+                _services = services;
+
                 // Updater は scene object の Awake register を受ける必要があるため、
                 // BeforeSceneLoad の時点で install しておく。
-                _updateSystemHost = CreateUpdateSystemHost();
+                services.UpdateSystemHost = CreateUpdateSystemHost();
+                KeepServicesAttached(services);
 
                 // テレメトリ閾値を Config から読み込み
                 AppTelemetry.Thresholds = new TelemetryThresholds(_config);
@@ -258,14 +263,17 @@ namespace OneStarMaker.Runtime
                 // DebugSocket は Config 解決後でないと起動条件を決められない。
                 // ここでは service と logger factory を組み立てるだけに留め、
                 // 実際の socket 待受開始は AfterSceneLoad 側へ寄せる。
-                _debugSocketService = CreateDebugSocketService(_config);
+                services.DebugSocket = CreateDebugSocketService(_config);
+                KeepServicesAttached(services);
                 LogDebugSocketBootstrapStatus(_config);
-                _loggerFactory = CreateLoggerFactory(_debugSocketService?.RealtimeStream);
+                services.LoggerFactory = CreateLoggerFactory(services.DebugSocket?.RealtimeStream);
+                KeepServicesAttached(services);
                 // VfxSystem の ctor が能力判定を 1 回だけ行う。BeforeSceneLoad の後に Awake する Scene
                 // （Editor の Play で開いていた Scene）からも判定結果を読めるよう、ここで作る。
                 // 失敗は他の Create* hook と同じく BeforeSceneLoad の失敗にする（VFX を黙って無効にしない）。
-                _vfxRuntimeHost = VfxRuntimeHost.Create(CreateVfxBackend(), _loggerFactory, _updateSystemHost.Coordinator);
-                ActiveVfxRuntimeHost = _vfxRuntimeHost;
+                services.Vfx = VfxRuntimeHost.Create(CreateVfxBackend(), services.LoggerFactory, services.UpdateSystemHost!.Coordinator);
+                KeepServicesAttached(services);
+                ActiveVfxRuntimeHost = services.Vfx;
                 // ── テレメトリ Sink 登録 ──
                 RegisterDefaultTelemetrySink();
 
@@ -273,57 +281,60 @@ namespace OneStarMaker.Runtime
             }
             finally
             {
-                var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
-                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
-                    memBefore,
-                    memAfter,
-                    stage: "BeforeSceneLoad");
-
-                AppTelemetry.FinishSpan(
-                    span: span,
-                    metadata: metadata,
-                    isSuccess: success,
-                    level: TelemetryLevel.Summary,
-                    tags: null,
-                    payload: payload);
+                FinishStartupSpan(span, memBefore, success, "BeforeSceneLoad");
             }
+        }
+
+        /// <summary>
+        /// hook の中で ReleaseAll が走ると（派生クラスが <see cref="BootstrapSubsystemRegistration"/> を呼ぶ等）、set は破棄されて
+        /// <c>_services</c> から外れるが、hook はその後も戻り値を返し、BeforeSceneLoad は続く。分割前は戻り値を initializer の field へ
+        /// 直接代入していたので、その戻り値は次の hook の accessor から見え、後の ReleaseAll が破棄した。同じにするため、外れていたら
+        /// 同じ set を field に戻す（破棄済みの set のメンバーは null なので、分割前に field が null に戻っていたのと同じ状態になる）。
+        /// <c>_services</c> を別の set に替えるのは InitializeBeforeSceneLoad の冒頭だけなので、ここで見る値は null か同じ set に限る。
+        /// </summary>
+        private void KeepServicesAttached(FrameworkServiceSet services)
+        {
+            _services ??= services;
         }
 
         // ─── Lifecycle: AfterSceneLoad ───
 
         private async UniTaskVoid InitializeAfterSceneLoad()
         {
-            var startupStage = "load-ui-common";
-            var playerContentStages = new List<PlayerContentStage>();
+            var progress = new StartupProgress();
             var span = AppTelemetry.StartSpan(Foundation.Core.TelemetryStartType.AppStartup, null);
             var success = false;
             CancellationToken ct = default;
             // Contract v3: AfterSceneLoad 区間の memory delta + 最終 stage 名を payload に載せる。
             var memBefore = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
-
             try
             {
                 if (_cts == null)
                     throw new InvalidOperationException("BeforeSceneLoad lifetime token is unavailable.");
                 ct = _cts.Token;
-                // 旧リモート Addressables catalog 追加ロードは通常起動から外した。
+                // 旧リモート Addressables catalog 追加ロードは通常起動から外した（LegacyRemoteCatalogProbe に隔離）。
 
                 if (_contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration)
                 {
-                    startupStage = "register-content-directory";
+                    progress.Stage = "register-content-directory";
                     await InstallConfiguredContentDirectoryAsync();
                 }
 
-                startupStage = "load-ui-common";
+                progress.Stage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
-                var uiCommon = await LoadUICommonAsync();
+                _uiCommonLoader = new BootstrapUiCommonLoader();
+                var uiCommon = await _uiCommonLoader.LoadAsync(_assetManagement!, new BootstrapUiCommonSource(
+                    _contentDirectoryConfiguration != null,
+                    () => UseRequiredPlayerFileConfiguration,
+                    GetDirectoryBootstrapSceneLogicalKey,
+                    GetUICommonPrefabAddress));
 
-                startupStage = "wait-ui-common-ready";
+                progress.Stage = "wait-ui-common-ready";
                 await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
                 if (UseRequiredPlayerFileConfiguration)
-                    playerContentStages.Add(PlayerContentStage.UiCommonReady);
+                    progress.PlayerContentStages.Add(PlayerContentStage.UiCommonReady);
 
-                startupStage = "load-scene-resource-map";
+                progress.Stage = "load-scene-resource-map";
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
                 _sceneResourceMap = UseRequiredPlayerFileConfiguration
                     ? LoadPlayerSceneResourceMap()
@@ -339,33 +350,33 @@ namespace OneStarMaker.Runtime
 
                 // Framework 標準の長寿命サービスを先に起動する。
                 // 派生クラスが OnServicesInitializing を override しても、
-                // base 呼び出し忘れで DebugSocket が起動しない事故を避けるため。
-                startupStage = "start-framework-services";
-                await StartFrameworkServicesAsync(ct);
+                // base 呼び出し忘れで DebugSocket が起動しない事故を避けるため。_services は上の _cts と一緒に null になる。
+                progress.Stage = "start-framework-services";
+                await _services!.StartAsync(ct);
 
                 // Phase 2 拡張ポイント: HostedService 等の追加初期化
-                startupStage = "initialize-app-services";
+                progress.Stage = "initialize-app-services";
                 await OnServicesInitializing(ct);
 
-                startupStage = "create-scene-factory";
+                progress.Stage = "create-scene-factory";
                 var sceneFactory = CreateSceneFactory();
 
-                startupStage = "resolve-scene-variant";
+                progress.Stage = "resolve-scene-variant";
                 var sceneVariant = ResolveSceneVariant()
                     ?? throw new InvalidOperationException("ResolveSceneVariant returned null.");
 
                 var useContentDirectory = _contentDirectoryConfiguration != null;
                 if (_contentDirectoryConfiguration != null && _contentDirectorySession == null)
                 {
-                    startupStage = "register-content-directory";
+                    progress.Stage = "register-content-directory";
                     await InstallConfiguredContentDirectoryAsync();
                 }
                 if (_contentDirectoryConfiguration != null)
                     sceneVariant = _contentDirectoryConfiguration.Representation;
                 if (UseRequiredPlayerFileConfiguration && _contentDirectorySession != null)
-                    playerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
+                    progress.PlayerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
 
-                startupStage = "create-scene-director";
+                progress.Stage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
                     sceneFactory,
                     uiCommon,
@@ -374,9 +385,9 @@ namespace OneStarMaker.Runtime
                     _assetManagement,
                     sceneVariant,
                     useContentDirectory);
-                _updateSystemHost?.BindSceneDirector(_sceneDirector);
+                _services?.UpdateSystemHost?.BindSceneDirector(_sceneDirector);
                 // 最初の Scene の登録・ロードより前に接続する（VfxSystem は途中接続の状態同期を約束しない）。
-                _vfxRuntimeHost?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
+                _services?.Vfx?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
 
                 if (_sceneDirector == null)
                 {
@@ -387,43 +398,14 @@ namespace OneStarMaker.Runtime
                 // Editor のプレイモードで開いていたシーンを SceneDirector に登録する。
                 // PerformUnitySceneLoad が SceneManager.GetSceneByName でロード済みシーンを検出し、
                 // 再ロードせず RootGameObjects を返すため二重ロードは発生しない。
-                startupStage = "register-loaded-scenes";
+                progress.Stage = "register-loaded-scenes";
                 await RegisterAlreadyLoadedScenes(ct);
 
                 if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0
                     && !RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration))
-                {
-                    // Editor directory Play の初回 Scene（App が config content:firstScene で渡す）。ロードしたまま Play を続け、
-                    // Player の smoke（検証・unload・close・receipt）は行わない。ロードの失敗は起動の失敗で、別の Scene へ逃がさない。
-                    var firstScene = _contentDirectoryConfiguration.FirstScene;
-                    // 失敗のログ（AfterSceneLoad failed at stage ...）に Scene 名を残す。
-                    startupStage = "load-editor-first-scene:" + firstScene;
-                    await _sceneDirector.AddScene(firstScene, null, ct);
-                    // 検証 Play の観測点。Unity の Scene のロードではなく SceneDirector の Stable を出す。
-                    Debug.Log($"[AppInit] Editor content directory first scene: scene={firstScene} " +
-                              $"identity={_contentDirectoryConfiguration.BuildIdentity} stable={_sceneDirector.IsSceneStable(firstScene)}");
-                }
+                    await LoadEditorFirstSceneAsync(progress, ct);
                 else if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
-                {
-                    startupStage = "load-player-first-scene";
-                    await _sceneDirector.AddScene(_contentDirectoryConfiguration.FirstScene, null, ct);
-                    playerContentStages.Add(PlayerContentStage.FirstSceneStable);
-                    startupStage = "run-player-content-smoke";
-                    var fixtureResult = await OnPlayerContentReadyAsync(_assetManagement, ct);
-                    AppendFixtureStages(playerContentStages, fixtureResult.CompletedStages);
-                    if (fixtureResult.Failure != null) throw fixtureResult.Failure;
-                    startupStage = "unload-player-first-scene";
-                    await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
-                    playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
-                    startupStage = "close-player-content-directory";
-                    if (_assetManagement is not AssetManagement.AssetManagement playerAssets)
-                        throw new InvalidOperationException("Player content requires the framework asset manager.");
-                    await playerAssets.CloseContentDirectoryAsync();
-                    _contentDirectorySession = null;
-                    playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
-                    startupStage = "complete-player-content-smoke";
-                    await OnPlayerContentShutdownCompletedAsync(playerContentStages.ToArray());
-                }
+                    await RunPlayerContentSmokeAsync(progress, ct);
 
                 success = true;
             }
@@ -434,58 +416,8 @@ namespace OneStarMaker.Runtime
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{startupStage}': {ex}");
-                // 初回 Scene の unload は Player の smoke の失敗経路だけ（receipt の前に token を返す）。
-                // Editor は ReleaseAll と Play の終了に任せる。
-                if (RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration)
-                    && _sceneDirector != null && _contentDirectoryConfiguration != null
-                    && _contentDirectoryConfiguration.FirstScene.Length != 0
-                    && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
-                {
-                    try
-                    {
-                        // failure receipt より先に正式 unload を完了し、directory tokenを返す。
-                        await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
-                        playerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
-                    }
-                    catch (Exception unloadException)
-                    {
-                        Debug.LogError($"[AppInit] Player first scene cleanup also failed: {unloadException}");
-                    }
-                }
-                if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
-                    && _contentDirectorySession != null)
-                {
-                    try
-                    {
-                        // 起動途中の directory は initializer が所有する。失敗時も root/native token を残さず、
-                        // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
-                        await directoryAssetManagement.CloseContentDirectoryAsync();
-                        _contentDirectorySession = null;
-                        playerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
-                    }
-                    catch (Exception closeException)
-                    {
-                        Debug.LogError($"[AppInit] Content directory cleanup after startup failure also failed: {closeException}");
-                    }
-                }
-                try
-                {
-                    // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
-                    // その後段（SceneDirector 構築・初回シーン追加）の失敗では通常の終了処理まで残り続ける。
-                    // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
-                    // 所有者である派生クラスへ限定的な回収機会を渡す。
-                    OnAfterSceneLoadInitializationFailed(startupStage, ex);
-                    if (ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration))
-                        await OnPlayerContentStartupFailedAsync(startupStage, ex, playerContentStages.ToArray());
-                }
-                catch (Exception cleanupException)
-                {
-                    // 元の起動失敗を隠さず、後始末の失敗は追加情報としてだけ記録する。
-                    Debug.LogError(
-                        $"[AppInit] Cleanup after failed AfterSceneLoad initialization also failed: {cleanupException}");
-                }
-
+                Debug.LogError($"[AppInit] AfterSceneLoad failed at stage '{progress.Stage}': {ex}");
+                await CleanupAfterStartupFailureAsync(progress, ex);
                 // SceneDirector や SceneFactory は、途中まで初期化したアプリ固有サービスを参照している可能性がある。
                 // 失敗した bootstrap を継続して stale な依存を使わせないため、派生側の回収後に
                 // Framework の Director / Updater / AssetManagement も同じ失敗境界で破棄する。
@@ -493,102 +425,142 @@ namespace OneStarMaker.Runtime
             }
             finally
             {
-                var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
                 // 成功時は最終段階名ではなく区間名を載せる（失敗時だけ到達 stage で切り分ける）。
-                var stageForPayload = success ? "AfterSceneLoad" : startupStage;
-                var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
-                    memBefore,
-                    memAfter,
-                    stage: stageForPayload);
-
-                AppTelemetry.FinishSpan(
-                    span: span,
-                    metadata: metadata,
-                    isSuccess: success,
-                    level: TelemetryLevel.Summary,
-                    tags: null,
-                    payload: payload);
+                FinishStartupSpan(span, memBefore, success, success ? "AfterSceneLoad" : progress.Stage);
             }
         }
 
-        private void EnsureEventSystem()
+        /// <summary>
+        /// Editor directory Play の初回 Scene（App が config content:firstScene で渡す）。ロードしたまま Play を続け、
+        /// Player の smoke（検証・unload・close・receipt）は行わない。ロードの失敗は起動の失敗で、別の Scene へ逃がさない。
+        /// 例外は握らず <see cref="InitializeAfterSceneLoad"/> の catch へ出す。
+        /// </summary>
+        private async UniTask LoadEditorFirstSceneAsync(StartupProgress progress, CancellationToken ct)
         {
-            if (!Application.isPlaying) return;
-            if (EventSystem.current != null) return;
-
-            var go = new GameObject("[EventSystem]");
-            go.AddComponent<EventSystem>();
-            go.AddComponent<InputSystemUIInputModule>();
-            UnityEngine.Object.DontDestroyOnLoad(go);
-            _eventSystemObject = go;
+            var firstScene = _contentDirectoryConfiguration!.FirstScene;
+            // 失敗のログ（AfterSceneLoad failed at stage ...）に Scene 名を残す。
+            progress.Stage = "load-editor-first-scene:" + firstScene;
+            await _sceneDirector!.AddScene(firstScene, null, ct);
+            // 検証 Play の観測点。Unity の Scene のロードではなく SceneDirector の Stable を出す。
+            Debug.Log($"[AppInit] Editor content directory first scene: scene={firstScene} " +
+                      $"identity={_contentDirectoryConfiguration!.BuildIdentity} stable={_sceneDirector!.IsSceneStable(firstScene)}");
         }
 
-        private async UniTask<UICommon> LoadUICommonAsync()
+        /// <summary>
+        /// Player content smoke の 6 段（初回 Scene のロード → fixture → unload → directory の close → 完了通知）。
+        /// 例外は握らず <see cref="InitializeAfterSceneLoad"/> の catch へ出す。stage は段に入るたびに progress へ書く。
+        /// </summary>
+        private async UniTask RunPlayerContentSmokeAsync(StartupProgress progress, CancellationToken ct)
         {
-            UICommon? uiCommon = null;
+            progress.Stage = "load-player-first-scene";
+            await _sceneDirector!.AddScene(_contentDirectoryConfiguration!.FirstScene, null, ct);
+            progress.PlayerContentStages.Add(PlayerContentStage.FirstSceneStable);
+            progress.Stage = "run-player-content-smoke";
+            var fixtureResult = await OnPlayerContentReadyAsync(_assetManagement!, ct);
+            AppendFixtureStages(progress.PlayerContentStages, fixtureResult.CompletedStages);
+            if (fixtureResult.Failure != null) throw fixtureResult.Failure;
+            progress.Stage = "unload-player-first-scene";
+            await _sceneDirector!.UnloadScene(_contentDirectoryConfiguration!.FirstScene);
+            progress.PlayerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
+            progress.Stage = "close-player-content-directory";
+            if (_assetManagement is not AssetManagement.AssetManagement playerAssets)
+                throw new InvalidOperationException("Player content requires the framework asset manager.");
+            await playerAssets.CloseContentDirectoryAsync();
+            _contentDirectorySession = null;
+            progress.PlayerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
+            progress.Stage = "complete-player-content-smoke";
+            await OnPlayerContentShutdownCompletedAsync(progress.PlayerContentStages.ToArray());
+        }
 
-            var activeScene = SceneManager.GetActiveScene();
-            if(activeScene.name == "UICommon")
+        /// <summary>
+        /// AfterSceneLoad の失敗時、ReleaseAll より前に行う後始末（Player 初回 Scene の unload → directory の close → 派生クラスへの通知）。
+        /// 各段の失敗は記録するだけで、元の起動例外を隠さない。ReleaseAll は呼び出し元の catch がこの後に呼ぶ。
+        /// </summary>
+        private async UniTask CleanupAfterStartupFailureAsync(StartupProgress progress, Exception ex)
+        {
+            // 初回 Scene の unload は Player の smoke の失敗経路だけ（receipt の前に token を返す）。
+            // Editor は ReleaseAll と Play の終了に任せる。
+            if (RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration)
+                && _sceneDirector != null && _contentDirectoryConfiguration != null
+                && _contentDirectoryConfiguration.FirstScene.Length != 0
+                && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
             {
-                // 既に UICommon シーンがロードされている場合は、そこから UICommon を探す
-                var tempGo = activeScene.GetRootGameObjects().FirstOrDefault(g => g.name == "UICommon");
-                if (tempGo != null)
+                try
                 {
-                    uiCommon = tempGo.GetComponent<UICommon>();
-                    if (uiCommon != null)
-                    {
-                        return uiCommon;
-                    }
+                    // failure receipt より先に正式 unload を完了し、directory tokenを返す。
+                    await _sceneDirector.UnloadScene(_contentDirectoryConfiguration.FirstScene);
+                    progress.PlayerContentStages.Add(PlayerContentStage.FirstSceneUnloaded);
+                }
+                catch (Exception unloadException)
+                {
+                    Debug.LogError($"[AppInit] Player first scene cleanup also failed: {unloadException}");
                 }
             }
-
-            if (UseRequiredPlayerFileConfiguration)
-                throw new InvalidOperationException("The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.");
-
-            string bootstrapIdentity;
-            if (_contentDirectoryConfiguration != null)
+            if (_assetManagement is AssetManagement.AssetManagement directoryAssetManagement
+                && _contentDirectorySession != null)
             {
-                var logicalKey = GetDirectoryBootstrapSceneLogicalKey();
-                if (string.IsNullOrEmpty(logicalKey))
-                    throw new InvalidOperationException("Directory Editor Play requires a bootstrap Scene logical key.");
-                bootstrapIdentity = logicalKey;
-                _uiSceneHandle = await _assetManagement!.LoadContentSceneAsync(
-                    logicalKey,
-                    "Full",
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+                try
+                {
+                    // 起動途中の directory は initializer が所有する。失敗時も root/native token を残さず、
+                    // close 側の ResourcesInUse 判定や cleanup 失敗は元の起動例外を隠さず記録する。
+                    await directoryAssetManagement.CloseContentDirectoryAsync();
+                    _contentDirectorySession = null;
+                    progress.PlayerContentStages.Add(PlayerContentStage.ContentDirectoryClosed);
+                }
+                catch (Exception closeException)
+                {
+                    Debug.LogError($"[AppInit] Content directory cleanup after startup failure also failed: {closeException}");
+                }
             }
-            else
+            try
             {
-                bootstrapIdentity = GetUICommonPrefabAddress();
-                // UICommon は SceneDirector 管理外の App 常駐シーン。ReleaseAppAll で解放される
-                // bool / int / SceneReleaseMode の並びを位置引数で固定しないとオーバーロードが曖昧になる
-                var desc = new SceneAssetDescription();
-                desc.AddPayload(string.Empty, new AssetReference(bootstrapIdentity));
-                _uiSceneHandle = await _assetManagement!.LoadSceneAsync(
-                    "UICommon",
-                    desc,
-                    string.Empty,
-                    new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: 100));
+                // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
+                // その後段（SceneDirector 構築・初回シーン追加）の失敗では通常の終了処理まで残り続ける。
+                // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
+                // 所有者である派生クラスへ限定的な回収機会を渡す。
+                OnAfterSceneLoadInitializationFailed(progress.Stage, ex);
+                if (ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration))
+                    await OnPlayerContentStartupFailedAsync(progress.Stage, ex, progress.PlayerContentStages.ToArray());
             }
-
-            var go = _uiSceneHandle.GetRootGameObjects().FirstOrDefault();
-            if (go == null)
+            catch (Exception cleanupException)
             {
-                throw new InvalidOperationException($"UICommon scene has no root object: {bootstrapIdentity}");
+                // 元の起動失敗を隠さず、後始末の失敗は追加情報としてだけ記録する。
+                Debug.LogError(
+                    $"[AppInit] Cleanup after failed AfterSceneLoad initialization also failed: {cleanupException}");
             }
-            go.name = "[UICommon]";
-            _uiCommonObject = go;
+        }
 
-            uiCommon = go.GetComponent<UICommon>();
-            if (uiCommon == null)
-            {
-                throw new InvalidOperationException(
-                    $"UICommon component not found on prefab: {bootstrapIdentity}");
-            }
+        /// <summary>
+        /// AppStartup span を閉じる（BeforeSceneLoad と AfterSceneLoad で共通）。payload の stage は呼び出し側が決める。
+        /// </summary>
+        private static void FinishStartupSpan(
+            TelemetrySpan? span, RuntimeTelemetryMemorySnapshot memBefore, bool success, string stage)
+        {
+            var memAfter = RuntimeTelemetryMetadataFactory.CaptureMemorySnapshot();
+            var (metadata, payload) = RuntimeTelemetryMetadataFactory.CreateTimingMemoryTelemetry(
+                memBefore,
+                memAfter,
+                stage: stage);
 
-            EnsureEventSystem();
+            AppTelemetry.FinishSpan(
+                span: span,
+                metadata: metadata,
+                isSuccess: success,
+                level: TelemetryLevel.Summary,
+                tags: null,
+                payload: payload);
+        }
 
-            return uiCommon;
+        /// <summary>
+        /// 1 回の AfterSceneLoad の進み具合。stage は失敗時に hook・receipt・telemetry へ渡す名前で、初期値は load-ui-common。
+        /// 起動ごとに作り、static にしない。helper にも同じインスタンスを渡し、stage は helper の中でもここへ書く。
+        /// helper の中の失敗でも catch・後始末・finally の telemetry が失敗した処理の stage を読むため
+        /// （戻り値で返すと、helper の途中で投げたときに呼び出し前の古い stage が残る）。
+        /// </summary>
+        private sealed class StartupProgress
+        {
+            internal string Stage { get; set; } = "load-ui-common";
+            internal List<PlayerContentStage> PlayerContentStages { get; } = new();
         }
 
         private async UniTask InstallConfiguredContentDirectoryAsync()
@@ -662,166 +634,6 @@ namespace OneStarMaker.Runtime
         }
 
         /// <summary>
-        /// リモート Addressables カタログを追加ロードする(開発ワークフロー専用のフォールバック)。
-        /// URL の解決順序:
-        ///   1. AppConfig のキー "assetCheckout:remoteCatalogUrl"(開発ビルド・実機で使用)
-        ///   2. Editor のみ: RemoteCatalogRuntimeBridge 経由で現在選択中プロファイルの URL
-        /// URL が空ならロードをスキップする(ローカル完結の開発者に一切影響を与えない)。
-        /// ロード失敗(サーバ不達等)は警告ログのみで起動を継続する。
-        /// サーバ不達で起動が長時間ブロックされるのを避けるためタイムアウトを設ける。
-        /// </summary>
-        private async UniTask TryLoadRemoteCatalogAsync()
-        {
-            var url = ResolveRemoteCatalogUrl();
-            if (string.IsNullOrEmpty(url))
-            {
-                return;
-            }
-
-            try
-            {
-                Debug.Log($"[AppInit] Loading remote content catalog: {url}");
-                // サーバ不達時に無限待機しないよう短いタイムアウトを設ける。
-                var handle = UnityEngine.AddressableAssets.Addressables.LoadContentCatalogAsync(url);
-                await handle.ToUniTask().Timeout(System.TimeSpan.FromSeconds(10));
-                Debug.Log("[AppInit] Remote content catalog loaded. Missing local assets will resolve from remote bundles.");
-                await WarnOnRevisionMismatchAsync(url);
-            }
-            catch (System.Exception ex)
-            {
-                // フォールバック不能でも起動は続行する。ローカルに揃っている開発者には無害。
-                Debug.LogWarning($"[AppInit] Failed to load remote content catalog ('{url}'). Continuing with local assets only. Reason: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// リモートカタログ URL を解決する。Config 優先、次に Editor 注入。
-        /// </summary>
-        private string ResolveRemoteCatalogUrl()
-        {
-            var fromConfig = _config?.GetString("assetCheckout:remoteCatalogUrl", string.Empty) ?? string.Empty;
-            if (!string.IsNullOrEmpty(fromConfig))
-            {
-                return fromConfig;
-            }
-
-#if UNITY_EDITOR
-            var resolver = OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorRemoteCatalogUrlResolver;
-            if (resolver != null)
-            {
-                var url = resolver();
-                if (!string.IsNullOrEmpty(url))
-                {
-                    return url!;
-                }
-            }
-#endif
-
-            return string.Empty;
-        }
-
-        /// <summary>
-        /// リモートのビルド元リビジョンとローカル作業コピーのリビジョンを比較し、乖離を警告する。
-        /// </summary>
-        /// <remarks>
-        /// <para>
-        /// catalog と同じディレクトリにある build-info.json を取得し、
-        /// <c>revision</c> フィールドをローカルリビジョンと比較する。
-        /// </para>
-        /// <para>
-        /// ベストエフォート。取得/解析失敗やローカルリビジョン不明時は静かにスキップし、
-        /// 起動をブロックしない。
-        /// </para>
-        /// </remarks>
-        /// <param name="catalogUrl">ロード済みリモートカタログの URL。</param>
-        private async UniTask WarnOnRevisionMismatchAsync(string catalogUrl)
-        {
-            try
-            {
-                var buildInfoUrl = DeriveBuildInfoUrl(catalogUrl);
-                if (string.IsNullOrEmpty(buildInfoUrl)) return;
-
-                string json;
-                using (var request = UnityWebRequest.Get(buildInfoUrl))
-                {
-                    await request.SendWebRequest().ToUniTask();
-                    if (request.result != UnityWebRequest.Result.Success)
-                    {
-                        // build-info.json が無い/取得失敗。比較はスキップ(警告のみ debug)。
-                        Debug.Log($"[AppInit] build-info.json を取得できませんでした（比較スキップ）: {buildInfoUrl}");
-                        return;
-                    }
-                    json = request.downloadHandler.text;
-                }
-
-                var info = JsonUtility.FromJson<RemoteBuildInfo>(json);
-                var remoteRevision = info?.revision ?? string.Empty;
-                var localRevision = ResolveLocalRevision();
-
-                if (string.IsNullOrEmpty(remoteRevision) || string.IsNullOrEmpty(localRevision))
-                {
-                    // どちらか不明なら比較不能。
-                    return;
-                }
-
-                if (!string.Equals(remoteRevision, localRevision, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    Debug.LogWarning(
-                        $"[AppInit] リビジョン乖離を検出しました。リモートのビルド済みアセットは古い/新しい可能性があります。\n" +
-                        $"  local  = {localRevision}\n" +
-                        $"  remote = {remoteRevision} (builtAtUtc={info?.builtAtUtc})\n" +
-                        "  混在ロードで不具合が出る場合はリモートを再ビルドするか、ローカルをリモートのリビジョンへ合わせてください。");
-                }
-                else
-                {
-                    Debug.Log($"[AppInit] リビジョン一致: {localRevision}");
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[AppInit] リビジョン比較に失敗しました（無視して続行）: {ex.Message}");
-            }
-        }
-
-        /// <summary>catalog URL と同じディレクトリの build-info.json の URL を導出する。</summary>
-        /// <param name="catalogUrl">リモートカタログの URL。</param>
-        /// <returns>build-info.json の URL。導出不能時は空文字。</returns>
-        private static string DeriveBuildInfoUrl(string catalogUrl)
-        {
-            if (string.IsNullOrEmpty(catalogUrl)) return string.Empty;
-            var lastSlash = catalogUrl.LastIndexOf('/');
-            if (lastSlash < 0) return string.Empty;
-            return catalogUrl.Substring(0, lastSlash + 1) + "build-info.json";
-        }
-
-        /// <summary>
-        /// ローカル作業コピーのリビジョンを解決する。
-        /// </summary>
-        /// <remarks>
-        /// 解決順序:
-        /// <list type="number">
-        /// <item><description>AppConfig の <c>assetCheckout:localRevision</c>(ビルド時に焼き込み)</description></item>
-        /// <item><description>Editor 注入 (<see cref="RemoteCatalogRuntimeBridge.EditorLocalRevisionResolver"/>)</description></item>
-        /// </list>
-        /// どちらも無ければ空文字を返す。
-        /// </remarks>
-        /// <returns>ローカル Git リビジョン。不明時は空文字。</returns>
-        private string ResolveLocalRevision()
-        {
-            var fromConfig = _config?.GetString("assetCheckout:localRevision", string.Empty) ?? string.Empty;
-            if (!string.IsNullOrEmpty(fromConfig)) return fromConfig;
-#if UNITY_EDITOR
-            var resolver = OneStarMaker.Runtime.AssetManagement.RemoteCatalogRuntimeBridge.EditorLocalRevisionResolver;
-            if (resolver != null)
-            {
-                var rev = resolver();
-                if (!string.IsNullOrEmpty(rev)) return rev!;
-            }
-#endif
-            return string.Empty;
-        }
-
-        /// <summary>
         /// Editor でプレイモードに入った際、既にロード済みのシーンを SceneDirector に登録する。
         /// SceneResourceMap に未登録のシーン（テストシーン等）はスキップする。
         /// </summary>
@@ -879,50 +691,6 @@ namespace OneStarMaker.Runtime
             public void Load(Dictionary<string,string> store){foreach(var value in _values)store[value.Key]=value.Value;}
         }
 
-        /// <summary>
-        /// Framework が標準で持つサービス群を起動する。
-        /// 今回は DebugSocketService だけだが、将来の長寿命サービスもここへ集約できる。
-        /// </summary>
-        private async UniTask StartFrameworkServicesAsync(CancellationToken ct)
-        {
-            if (_debugSocketService == null)
-            {
-                Debug.LogWarning("[AppInit] DebugSocket は無効です。DebugStudio 接続を受けるには debugSocket:enabled=true が必要です。");
-                return;
-            }
-
-            Debug.Log(
-                $"[AppInit] Starting DebugSocket transport. mode={_debugSocketService.Options.TransportMode}, endpoint={_debugSocketService.Options.EndpointDisplayName}, autoStart={_debugSocketService.Options.AutoStart}.");
-            await _debugSocketService.StartAsync(ct);
-            Debug.Log(
-                $"[AppInit] DebugSocket transport start sequence finished. mode={_debugSocketService.Options.TransportMode}, isRunning={_debugSocketService.IsRunning}.");
-
-            // Telemetry は AppTelemetry から流れてくるため、
-            // socket service へ橋渡しする sink を一度だけ登録する。
-            if (_debugSocketService.Options.SendTelemetry && !_debugSocketTelemetrySinkRegistered)
-            {
-                AppTelemetry.AddSink(new DebugSocketTelemetrySink(_debugSocketService));
-                _debugSocketTelemetrySinkRegistered = true;
-            }
-        }
-
-        private void DisposeVfx()
-        {
-            var host = _vfxRuntimeHost;
-            _vfxRuntimeHost = null;
-            if (host == null)
-            {
-                return;
-            }
-
-            if (ReferenceEquals(ActiveVfxRuntimeHost, host))
-            {
-                ActiveVfxRuntimeHost = null;
-            }
-
-            host.Dispose();
-        }
-
         private void OnApplicationQuitting()
         {
             ReleaseAll();
@@ -949,17 +717,16 @@ namespace OneStarMaker.Runtime
             // VFX は logger・UpdateSystemHost・SceneDirector・AssetManagement より前に回収する。
             // 回収時の診断ログを出せ、生きている coordinator から登録解除でき、
             // source asset は instance の破棄要求より後に解放される。
-            DisposeVfx();
+            // テスト用の static は、自分の host を指しているときだけ、host の Dispose より前に外す。
+            var services = _services;
+            if (services?.Vfx != null && ReferenceEquals(ActiveVfxRuntimeHost, services.Vfx))
+            {
+                ActiveVfxRuntimeHost = null;
+            }
 
-            _debugSocketService?.Dispose();
-            _debugSocketService = null;
-            _debugSocketTelemetrySinkRegistered = false;
-
-            _updateSystemHost?.Dispose();
-            _updateSystemHost = null;
-
-            _loggerFactory?.Dispose();
-            _loggerFactory = null;
+            // VFX → DebugSocket → UpdateSystemHost → LoggerFactory の順（順序の理由は FrameworkServiceSet.Dispose）。
+            services?.Dispose();
+            _services = null;
 
             _cts?.Dispose();
             _cts = null;
@@ -990,19 +757,10 @@ namespace OneStarMaker.Runtime
 
             _sceneResourceMap = null;
 
-            if (_uiCommonObject != null)
-            {
-                UnityEngine.Object.Destroy(_uiCommonObject);
-                _uiCommonObject = null;
-            }
-
-            _uiSceneHandle = null;
-
-            if (_eventSystemObject != null)
-            {
-                UnityEngine.Object.Destroy(_eventSystemObject);
-                _eventSystemObject = null;
-            }
+            // UICommon の GameObject → scene handle の参照 → loader が作った入力用の GameObject の順に手放す（loader の Dispose の中の順）。
+            // AssetManagement.ReleaseAll の後に置く。scene の unload は AM が担い、loader は unload しない。
+            _uiCommonLoader?.Dispose();
+            _uiCommonLoader = null;
 
             // テレメトリをシャットダウン（Sink の Flush + Dispose）
             AppTelemetry.Shutdown();
@@ -1274,12 +1032,13 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected virtual void RegisterDefaultTelemetrySink()
         {
-            if(_loggerFactory == null)
+            var loggerFactory = _services?.LoggerFactory;
+            if(loggerFactory == null)
             {
                 Debug.LogWarning("[AppInit] LoggerFactory が未構築のため、デフォルトのテレメトリ Sink を登録できません。");
                 return;
             }
-            AppTelemetry.AddSink(new JsonFileTelemetrySink(_loggerFactory));
+            AppTelemetry.AddSink(new JsonFileTelemetrySink(loggerFactory));
         }
 
         private static void LogDebugSocketBootstrapStatus(AppConfig config)

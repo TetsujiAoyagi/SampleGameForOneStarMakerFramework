@@ -4,7 +4,7 @@
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
-- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の改訂と、後続スライスの A0 への入力）
+- type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） と `RUNTIME_REFACTOR_BOOTSTRAP.md`（PR #166 で完了・削除）の改訂と、後続スライスの A0 への入力）
 - status: `A`（A0 は閉じた。計画レビュー R1〜R3 反映済み、owner 判断済み（§6）。program 自体は進行中で、**実装キューではない**）
 - branch: `claude/runtime-refactor-stage0-plan`（既存 2 文書と同じ計画ブランチ。初版は ASSET_CYCLE の A3 凍結 commit `af97423f` で収録し、その後の記録訂正を含めて計画 PR で `develop` へ。正は計画 PR の最終 commit の版）
 - implementation base commit: `d4861882`（`develop` の head。2026-11-07 に `origin/develop` を fetch して確認し、`d4861882` から進んでいないので差は無い）
@@ -20,9 +20,9 @@
 - 引継ぎ票:
   - 本書（A0）の状態: 閉じた。D1〜D5 は owner 決定済みで、計画レビュー R1〜R3 の指摘は反映済み。以後、本書は program の地図として後続スライスから参照され、各スライスの状態は各スライスの HANDOFF を正とする。
   - ASSET_CYCLE の状態（2026-11-07 時点）: §4.2 の改訂案を当てた A1 改訂版を作り、A2（アーキテクチャゲート、目的レビュー）を実施し、A3 の採否を整理した。owner は A3 の確認事項 Q1〜Q3 に答え、**A3 凍結を指示した**（2026-11-07。凍結版は本書を含む commit と Phase A snapshot）。次は、計画の文書 PR のマージ後の Phase B。共通契約の folder は `Runtime/AssetBuildContracts/` に決まった。詳しい状態と次の作業は `RUNTIME_REFACTOR_ASSET_CYCLE.md`（PR #165 で完了・削除） §0 を正とする。
-  - BOOTSTRAP の状態: §4.2 の改訂をまだ当てていない（A1 初稿のまま）。次の作業は、§4.2 の BOOTSTRAP の表を当てる A1 改訂。
+  - BOOTSTRAP の状態（2026-11-07 時点）: §4.2 の BOOTSTRAP の表を当てた A1 改訂版を作り、A2（4 件）と外部レビューを経て A3 で凍結した（owner の指示）。D4 に従い S2 とそれだけに属する AC9 / AC10・U1 / U2 を独立スライス [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（A0 入力だけ、A1 未着手）へ移し、BOOTSTRAP は S3〜S5 だけを扱う。次は計画の文書 PR のマージ後の BOOTSTRAP の Phase B。詳しい状態は各書の §0 を正とする。
   - 必要な権限: なし（文書のみ）。
-  - 停止規則: BOOTSTRAP は §4.2 の改訂を当てるまで A2・A3・Phase B を始めない。ASSET_CYCLE の停止規則は同書 §0 に従う。
+  - 停止規則: `CONTENT_DIRECTORY_STARTUP` は D4 の (2) `BUILDSYSTEM_STANDALONE_ENTRY` の Phase D より前に A1 を始めない。BOOTSTRAP と ASSET_CYCLE の停止規則は各書の §0 に従う。
   - 引き渡さないもの: なし。
 
 ### 実測の方法
@@ -89,7 +89,7 @@
 |---|---|
 | `Runtime/BuildContent/ContentDirectorySession.cs` | 生成済み directory を登録し、AssetManagement の port `IContentDirectoryBackend` を実装する |
 | `Runtime/BuildContent/UnityContentDirectoryBackend.cs` | Unity の Content Directory API で、AssetManagement の `IBackendAsset` / `IBackendScene` / `IBackendInstance` を実装する |
-| （予定）BOOTSTRAP S2 の `ContentDirectoryStartup` | 起動時の登録・install・close・Play 停止。§4.2 |
+| （予定）`CONTENT_DIRECTORY_STARTUP`（旧 BOOTSTRAP S2）の `ContentDirectoryStartup` | 起動時の登録・install・close・Play 停止。§4.2 |
 
 **OSM 固有部分**
 
@@ -182,7 +182,7 @@ Editor 側の P 検査: `Selection` 単独 **成功**。`Materialization` は全
 
 ### 4.2 各文書の改訂案
 
-各文書の A1 改訂で当てる差分。適用状況: **ASSET_CYCLE の表は適用済み**（2026-11-07 の A1 改訂版。表の「§2.2 AC1」の置き場所は `Runtime/AssetBuildContracts/` に、「§2.2 AC2・AC6」は P 検査の AC4 になり、A2 の指摘で AC2〜AC5 をさらに改めた。適用後の正本は同書）。**BOOTSTRAP の表は未適用**。
+各文書の A1 改訂で当てる差分。適用状況: **ASSET_CYCLE の表は適用済み**（2026-11-07 の A1 改訂版。表の「§2.2 AC1」の置き場所は `Runtime/AssetBuildContracts/` に、「§2.2 AC2・AC6」は P 検査の AC4 になり、A2 の指摘で AC2〜AC5 をさらに改めた。適用後の正本は同書）。**BOOTSTRAP の表も適用済み**（2026-11-07 の A1 改訂版。S2 に関わる行は、D4 で切り出した [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に当てた。適用後の正本は両書）。
 
 **ASSET_CYCLE**（適用済み。以下は適用時の指示の記録）
 
@@ -220,7 +220,7 @@ Editor 側の P 検査: `Selection` 単独 **成功**。`Materialization` は全
 
 | 項目 | 後続 | 入力 |
 |---|---|---|
-| X5: Bootstrap の Content Directory 起動ポリシーを facade に集める | BOOTSTRAP S2（独立スライス化は D4） | 本書 §4.2 |
+| X5: Bootstrap の Content Directory 起動ポリシーを facade に集める | `CONTENT_DIRECTORY_STARTUP`（旧 BOOTSTRAP S2。D4 で独立スライス化。[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)） | 本書 §4.2 |
 | X6: BuildSystem 単独の入力経路（`BuildMaterializationSnapshot` を SceneResourceMap 無しで作る public 入口）と、実行時に成果物を読む・検証する public 入口（`ContentDirectoryIndex` 等） | 新規 `BUILDSYSTEM_STANDALONE_ENTRY`（未作成。D5） | §2.3 の U-B の行。public 面を増やすので、最小の入口 1 つから始める。コンストラクタをそのまま公開せず、候補・依存の閉包・tag・graph を利用者が組み立てられる factory にし、OSM 専用の provider identity を一般用途に漏らさない。AC に「SceneResourceMap も `InternalsVisibleTo` も使わない」を入れる |
 | X7: 出力先と target の固定 | `BUILDSYSTEM_STANDALONE_ENTRY` か別の小スライス（D5） | 「安全な出力先の検証」と「OSM が許可する置き場所の規約」を別の責務に分ける。安全機構は外さない。検証: OSM 既定とは別の、利用者が選んだ安全な path で public 経路の Build が成立し、既存の path 境界・symlink の防御が退行しない。target は Windows Player のまま（§1.1） |
 | X1・X4: asmdef の構成（AssetManagement、BuildSystem 本体、共通契約、連携、OSM 固有をどの assembly に入れるか）と、連携部分が越える internal の扱い | asmdef 分割スライス（未作成） | 本書 §2.2 X4 の 13 件、§2.4 の `BuildContentRoot` のシリアライズ互換、P 検査の集合 |
