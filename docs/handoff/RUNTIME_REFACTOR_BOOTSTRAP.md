@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（Phase B 完了。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
+- status: `B`（Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
 - **A1 改訂の記録（2026-11-07）:** program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の BOOTSTRAP 向けの表を当てた。§6 D4（owner 判断）に従い、S2（Content Directory 起動の facade）と、それだけに属する AC9 / AC10・U1 / U2・責務マップの行・実装手順 1 を独立スライス `CONTENT_DIRECTORY_STARTUP` へ移し、素材は A0 §4.2 の §3.2 / §2.1 S2 / §2.3 の行を当てた形で [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に置いた（正本は同書だけ）。本書は S3〜S5 と、それに伴う `InitializeAfterSceneLoad` の分割だけを扱う。番号は A0 や他文書からの参照を保つため振り直さず、移した S2・S6・AC9・AC10・U1・U2 は欠番にした。分割の判断は §2.6
 - branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は `claude/runtime-refactor-bootstrap`（A3 凍結版 `6844bf35` から切った。下の「Phase B 開始の記録」）
 - implementation base commit: `6844bf35`
@@ -23,21 +23,22 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 動作確認（Phase B の後）。新しい session で始める。動作確認の後は発見 C。
-  - 次の作業: §5「操作・実行時・目視条件の検証経路」の Editor の directory Play を implementation head で 1 回だけ実行し、§6「動作確認」に対象 head、コマンド、生の観測（Console の `[AppInit]` の順序と例外の有無）、期待との差を書く。合否・GO は書かない。期待と違う観測があれば B へ戻す。最後に本票を次の担当（発見 C、差し戻しなら B）へ書き換えて commit する。
-  - 引き継ぐ commit: この票を含む commit（B の出口の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値（実装の最後の commit）で、この記録 commit とは別。
-  - 必要な権限: ローカルの Unity Editor の起動と Play の操作（`osm-unity-editor` Skill に従う）。Content Directory の install が Delivery に無ければ `20-variant-checkout-workflow.md` の手順で用意する（Build を伴うなら Phase C 側の作業になるので、その場合は `未実施` と理由を書く）。Unity テスト・Build の実行・判定は Phase C。資格情報は不要。
-  - 停止規則: 検証経路の手順だけを実行し、想定外の結果を原因調査や再実行で埋めない。`CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。判定 C の実行や C' の起動を担わない。
-  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。B の session が取った観測（B は動作確認を行っていない）。
+  - 次の Phase・役割: 発見 C。新しい session で始める。
+  - 次の作業: implementation base / head（上の欄）で evidence bundle を固定し、§2 の受け入れ条件・§3 の責務マップ・§6 の AC3 対応表と実装差分を照合する（構造レビューを先に）。差し戻し中のテストは §5 の起点 `-Filter` から選ぶ。GO 判定はせず、C' も起動しない。結果を §7 に書き、本票を次の担当（差し戻しなら B、無ければ判定 C）へ書き換えて commit する。
+  - 引き継ぐ commit: この票を含む commit（動作確認の出口の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値で、この記録 commit とは別。
+  - 必要な権限: ローカルの Unity Editor と `pwsh tools/run-tests.ps1`（Editor を閉じてから、sandbox 外の承認済み経路で起動）。資格情報は不要。
+  - 未解消の `未実施`: §6「動作確認」の Editor directory Play（Content Directory build が要るため動作確認では実行していない）。発見 C は開始してよいが、判定 C を完了と記録する前に GO 候補 head で取得する（Verify Play による build → publish → install → Play。取得は判定 C の担当が行ってよい）。
+  - 停止規則: `CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。明確な差し戻しが決まった段階で最終判定用の検証一式を実行しない。判定 C の実行や C' の起動を担わない。
+  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。
 
 ### PR 状態ブロック
 
 ```text
-状態: Phase B の 完了
+状態: 動作確認 の 完了（directory Play は 未実施）
 Phase A: revision 0、A2 入力版 commit 7b2cf205、A3 凍結版 commit 6844bf35
 implementation base / head: 6844bf35 / 33e0f27f
-引き継ぐ commit: <B の出口の記録 commit。起動指示で渡す>
-次の担当: 動作確認。次の作業: §5 の directory Play を 1 回実行し §6 に記録
+引き継ぐ commit: <動作確認の出口の記録 commit。起動指示で渡す>
+次の担当: 発見 C。次の作業: 実装差分の構造・契約レビューと §7 への記録
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_BOOTSTRAP.md
 Evidence 取得案内: 未生成
 未決事項: なし（U1・U2 は CONTENT_DIRECTORY_STARTUP へ移し、U3 は D4 で決定、U4 は事実で解消、U5 は A3 で閉じた）
@@ -535,11 +536,11 @@ Evidence 取得案内: 未生成
 
 ### 動作確認
 
-- 対象 head:
-- 条件ごとの実行担当・環境・実行したコマンド:
-- 生の観測（Console ログの順序、例外の有無）と保存先・状態:
-- 検証経路の期待と違う観測と、B への差し戻し:
-- `未実施` の条件と理由・担当:
+- 対象 head: implementation head `33e0f27f`（開始時の HEAD は B の出口の記録 commit `0366c6c6`。`33e0f27f..0366c6c6` の差分は本書だけであることを確かめた）。実施日 2026-11-07。
+- 条件ごとの実行担当・環境・実行したコマンド: Editor の directory Play（§5 の 1 条件）。担当は動作確認の session（Claude Code）、ローカル Windows。実行したのは前提の確認だけ: `tools/unity-editor.cmd status`（起動中の Editor なし）、Delivery の設定と cache root の中身の確認。Editor は起動していない。
+- 生の観測（Console ログの順序、例外の有無）と保存先・状態: なし（Play を行っていない）。
+- 検証経路の期待と違う観測と、B への差し戻し: なし（観測が無いので差し戻さない）。
+- `未実施` の条件と理由・担当: **Editor の directory Play が `未実施`。** 理由: 現 head の content と対応する install が手元に無い。既定の cache root の `installed/spring-full` は空で、Delivery の設定と `artifacts/` に残る publish 済み source・install はいずれも 2026-09 のもの（BS5a・BS5b-2・S-4 の変更より前）で、現 head の SceneResourceMap と対応する保証が無い。現 head で用意するには `Tools/OSM/Content/Verify Play/<宣言名>` の Content Directory build → publish → install が要り、Build は動作確認の対象外（Phase C の作業。§0 の旧票の指示どおり）。取得の担当: 判定 C の担当（判定 C を完了と記録する前に GO 候補 head で行う。§5 の観測項目をそのまま使う）。
 
 ## 7. Phase C
 
