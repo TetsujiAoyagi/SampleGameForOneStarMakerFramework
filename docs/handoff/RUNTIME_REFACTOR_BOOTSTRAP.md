@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（発見 C 1 回目を記録、阻害する指摘なし（§7）。ただし B と同じモデルで行ったので「C は B と異なるモデル」を満たさず、扱いは owner の判断待ち（§7「独立性」）。Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
+- status: `C`（発見 C 1 回目を記録、阻害する指摘なし（§7）。B と同じモデルで行ったので「C は B と異なるモデル」を満たさず、owner が `独立性制約あり` として受け入れた（§7「独立性」）。判定 C 待ち。Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
 - **A1 改訂の記録（2026-11-07）:** program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の BOOTSTRAP 向けの表を当てた。§6 D4（owner 判断）に従い、S2（Content Directory 起動の facade）と、それだけに属する AC9 / AC10・U1 / U2・責務マップの行・実装手順 1 を独立スライス `CONTENT_DIRECTORY_STARTUP` へ移し、素材は A0 §4.2 の §3.2 / §2.1 S2 / §2.3 の行を当てた形で [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に置いた（正本は同書だけ）。本書は S3〜S5 と、それに伴う `InitializeAfterSceneLoad` の分割だけを扱う。番号は A0 や他文書からの参照を保つため振り直さず、移した S2・S6・AC9・AC10・U1・U2 は欠番にした。分割の判断は §2.6
 - branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は `claude/runtime-refactor-bootstrap`（A3 凍結版 `6844bf35` から切った。下の「Phase B 開始の記録」）
 - implementation base commit: `6844bf35`
@@ -23,7 +23,7 @@
 - evidence bundle の取得案内・状態: 発見 C 1 回目の bundle（base / head は上の欄、テストは §5 の起点 filter の実行）がローカル固定済み（未昇格）。取得案内は主担当の作業領域にあり、判定 C の起動指示で渡す。発見 C の所見を含むので C' には渡さない。判定 bundle は未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C。新しい session で始める（Phase B と異なるモデル。Claude Opus 5.5 は B と発見 C 1 回目で使ったので使わない）。ただし発見 C 1 回目が B と同じモデルだったので、owner が「別モデルで発見 C をやり直す」と決めた場合は、次の担当を発見 C（Phase B と異なるモデル）に読み替える。
+  - 次の Phase・役割: 判定 C。新しい session で始める（Claude Opus 5.5 は B と発見 C で使ったので使わない。発見 C は owner の判断で `独立性制約あり` として受け入れ済み。§7「独立性」）。
   - 次の作業: GO 候補 head を implementation head（上の欄）とし（B の 6 commit は §4 の手順ごとの単位なので履歴の整理は不要と判断した）、ローカルの軽量 tag `evidence/runtime-refactor-bootstrap/1` で固定する。§5 の判定必須を実行する: 全 EditMode 回帰（空 filter、**`-WithGraphics`**、StandaloneWindows64 の Editor。§7 O5）。XML をクラス名で確かめる（§7 O4: `BuildContentDirectoryIntegrationTests` は `OneStarMaker.Tests.Editor.Build`、`unity/Assets/SampleGame/Tests/Bootstrap/` のテストは `OneStarMaker.Tests.Bootstrap`）。AC1 の §3.5 の各メンバーの本文での見比べを §7 に記録する（必須）。§6 の `未実施`（directory Play）を取得する。§7 O2 を base と一致させるか（1 行の B 適応）を判断する。直すなら head が変わるので B へ戻す。判定 bundle と C' 用 blind bundle を同じ head から作る。結果を §7 に書き、本票を次の担当（C'、差し戻しなら B）へ書き換えて commit する。
   - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値で、この記録 commit とは別。
   - 必要な権限: ローカルの Unity Editor と `pwsh tools/run-tests.ps1`（Editor を閉じてから、sandbox 外の承認済み経路で起動）。directory Play には Content Directory の build → publish → install（`Tools/OSM/Content/Verify Play/<宣言名>`）。Evidence の stage は事前承認の範囲。資格情報は不要。
@@ -572,7 +572,7 @@ Evidence 取得案内: 発見 C の bundle はローカル固定済み（取得�
 - 判定必須のうち未実行: 全 EditMode 回帰（空 filter、`-WithGraphics`、StandaloneWindows64）と、その XML での AC4 の `BuildContentDirectoryIntegrationTests` の Passed、VFX の Play テスト群の Passed。§6「動作確認」の Editor の directory Play（`未実施` のまま。判定 C を完了と記録する前に GO 候補 head で取得する）。AC1 の §3.5 の各メンバーの本文での見比べ（判定 C の必須。機械の補助は上のとおり一致）。
 - 未確認事項: O2 の到達可否。
 - 担当・モデル: Claude Code（Anthropic）、Claude Opus 5.5。
-- 独立性: **「Phase C は Phase B と異なるモデル」を満たしていない。** owner によれば Phase B も Claude Opus 5.5（2026-11-07、発見 C の記録の後に owner が伝えた）。本記録は同じモデルによるレビューで、正規の発見 C としての扱いは owner が決める（別モデルで発見 C をやり直すか、`独立性制約あり` として受け入れるか）。
+- 独立性: **「Phase C は Phase B と異なるモデル」を満たしていない。** owner によれば Phase B も Claude Opus 5.5（2026-11-07、発見 C の記録の後に owner が伝えた）。**owner の判断（2026-11-07）: `独立性制約あり` として本記録を発見 C に受け入れ、やり直さない。** 判定 C と C' は Claude Opus 5.5 以外のモデルで行う。
 
 ## 8. Phase C'
 
