@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
+- status: `C`（発見 C 1 回目を完了、阻害する指摘なし（§7）。判定 C 待ち。Phase B 完了、動作確認済み（directory Play は `未実施`。§6「動作確認」）。2026-11-07 に owner が凍結を指示し、同日に文書 PR のマージを待たずに Phase B を始めた（下の「Phase B 開始の記録」））
 - **A1 改訂の記録（2026-11-07）:** program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の BOOTSTRAP 向けの表を当てた。§6 D4（owner 判断）に従い、S2（Content Directory 起動の facade）と、それだけに属する AC9 / AC10・U1 / U2・責務マップの行・実装手順 1 を独立スライス `CONTENT_DIRECTORY_STARTUP` へ移し、素材は A0 §4.2 の §3.2 / §2.1 S2 / §2.3 の行を当てた形で [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) に置いた（正本は同書だけ）。本書は S3〜S5 と、それに伴う `InitializeAfterSceneLoad` の分割だけを扱う。番号は A0 や他文書からの参照を保つため振り直さず、移した S2・S6・AC9・AC10・U1・U2 は欠番にした。分割の判断は §2.6
 - branch: A1 初稿は計画ブランチ `claude/runtime-refactor-stage0-plan`（PR #161 で `develop` へマージ済み）。A1 改訂は `claude/runtime-refactor-bootstrap-a1-d230c4`。実装は `claude/runtime-refactor-bootstrap`（A3 凍結版 `6844bf35` から切った。下の「Phase B 開始の記録」）
 - implementation base commit: `6844bf35`
@@ -20,27 +20,27 @@
 - 関連スライス: [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本書から切り出した S2。順序は上の implementation base の行）。[RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) は先行条件ではない（namespace を据え置くので、本書が前提にする `using` の変化は無い）。S-4 の d5a は `CreateVfxBackend` hook と `VfxRuntimeHost` 配線を足した。残っていた d5b は PR #157 で完了し、initializer を触らなかった（§2.5 U4）
 - Phase A snapshot の取得案内・状態: A2 入力版は commit `7b2cf205` の本書（§5「A2 独立レビュー」に content sha256）。A3 凍結版は commit `6844bf35` の本書。本スライスは文書だけで、凍結する script・機械向け期待値を持たないので、Artifact Storage の snapshot は作らない（凍結の正は commit）。A3 途中版を外部レビューへ渡した経路は owner の手元で、取得案内は無い
 - Phase B result snapshot の取得案内・状態: 未生成（作らない。B の結果は implementation head と §6 で固定する。未 commit の変更は無い）
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 発見 C 1 回目の bundle（base / head は上の欄、テストは §5 の起点 filter の実行）がローカル固定済み（未昇格）。取得案内は主担当の作業領域にあり、判定 C の起動指示で渡す。発見 C の所見を含むので C' には渡さない。判定 bundle は未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C。新しい session で始める。
-  - 次の作業: implementation base / head（上の欄）で evidence bundle を固定し、§2 の受け入れ条件・§3 の責務マップ・§6 の AC3 対応表と実装差分を照合する（構造レビューを先に）。差し戻し中のテストは §5 の起点 `-Filter` から選ぶ。GO 判定はせず、C' も起動しない。結果を §7 に書き、本票を次の担当（差し戻しなら B、無ければ判定 C）へ書き換えて commit する。
-  - 引き継ぐ commit: この票を含む commit（動作確認の出口の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値で、この記録 commit とは別。
-  - 必要な権限: ローカルの Unity Editor と `pwsh tools/run-tests.ps1`（Editor を閉じてから、sandbox 外の承認済み経路で起動）。資格情報は不要。
-  - 未解消の `未実施`: §6「動作確認」の Editor directory Play（Content Directory build が要るため動作確認では実行していない）。発見 C は開始してよいが、判定 C を完了と記録する前に GO 候補 head で取得する（Verify Play による build → publish → install → Play。取得は判定 C の担当が行ってよい）。
-  - 停止規則: `CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。明確な差し戻しが決まった段階で最終判定用の検証一式を実行しない。判定 C の実行や C' の起動を担わない。
-  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。
+  - 次の Phase・役割: 判定 C。新しい session で始める（Phase B と異なるモデル）。
+  - 次の作業: GO 候補 head を implementation head（上の欄）とし（B の 6 commit は §4 の手順ごとの単位なので履歴の整理は不要と判断した）、ローカルの軽量 tag `evidence/runtime-refactor-bootstrap/1` で固定する。§5 の判定必須を実行する: 全 EditMode 回帰（空 filter、**`-WithGraphics`**、StandaloneWindows64 の Editor。§7 O5）。XML をクラス名で確かめる（§7 O4: `BuildContentDirectoryIntegrationTests` は `OneStarMaker.Tests.Editor.Build`、`unity/Assets/SampleGame/Tests/Bootstrap/` のテストは `OneStarMaker.Tests.Bootstrap`）。AC1 の §3.5 の各メンバーの本文での見比べを §7 に記録する（必須）。§6 の `未実施`（directory Play）を取得する。§7 O2 を base と一致させるか（1 行の B 適応）を判断する。直すなら head が変わるので B へ戻す。判定 bundle と C' 用 blind bundle を同じ head から作る。結果を §7 に書き、本票を次の担当（C'、差し戻しなら B）へ書き換えて commit する。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示で渡す）。implementation head は上の欄の値で、この記録 commit とは別。
+  - 必要な権限: ローカルの Unity Editor と `pwsh tools/run-tests.ps1`（Editor を閉じてから、sandbox 外の承認済み経路で起動）。directory Play には Content Directory の build → publish → install（`Tools/OSM/Content/Verify Play/<宣言名>`）。Evidence の stage は事前承認の範囲。資格情報は不要。
+  - 未解消の `未実施`: §6「動作確認」の Editor directory Play。判定 C を完了と記録する前に GO 候補 head で取得する（観測項目は §5）。
+  - 停止規則: `CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。判定必須または `未実施` の証拠が揃わないうちは判定 C を完了と記録せず、C' を起動しない。差し戻しが決まったら最終判定用の検証一式を続けない。
+  - 引き渡さないもの: A2 レビュー担当の生の回答（主担当の作業領域にだけあり、採否は §5 の表が正）。C' には §7（発見 C・判定 C の所見）と発見 C の bundle を渡さない。
 
 ### PR 状態ブロック
 
 ```text
-状態: 動作確認 の 完了（directory Play は 未実施）
+状態: 発見 C の 完了（阻害する指摘なし。directory Play は 未実施）
 Phase A: revision 0、A2 入力版 commit 7b2cf205、A3 凍結版 commit 6844bf35
 implementation base / head: 6844bf35 / 33e0f27f
-引き継ぐ commit: <動作確認の出口の記録 commit。起動指示で渡す>
-次の担当: 発見 C。次の作業: 実装差分の構造・契約レビューと §7 への記録
+引き継ぐ commit: <発見 C の記録 commit。起動指示で渡す>
+次の担当: 判定 C。次の作業: 判定必須（全 EditMode、-WithGraphics）、AC1 の本文照合、directory Play の取得、§7 への記録
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_BOOTSTRAP.md
-Evidence 取得案内: 未生成
+Evidence 取得案内: 発見 C の bundle はローカル固定済み（取得はローカル担当。判定 bundle は未生成）
 未決事項: なし（U1・U2 は CONTENT_DIRECTORY_STARTUP へ移し、U3 は D4 で決定、U4 は事実で解消、U5 は A3 で閉じた）
 ```
 
@@ -544,16 +544,34 @@ Evidence 取得案内: 未生成
 
 ## 7. Phase C
 
-- 種別:
-- 使用した evidence bundle の取得案内・状態:
-- 構造適合（§3.1 との照合、§3.3 の行数警報の判定: 分割済み / 非分割妥当 / Phase A 再開）:
-- 現在の問いを阻害する findings:
-- 後続スライスへ移送する findings:
-- 実行したテストコマンドと `-Filter`、対象を選んだ理由:
-- テスト結果:
-- 判定必須のうち未実行:
-- 未確認事項:
-- 担当・モデル:
+### 発見 C（1 回目、2026-11-07）
+
+- 種別: 発見 C。GO 判定はしていない。C' は起動していない。
+- 開始時の照合: 起動指示の SHA `048cd53e` と worktree の HEAD が一致。implementation head `33e0f27f` は HEAD の祖先で、`33e0f27f..048cd53e` の差分は本書だけ。base `6844bf35` は head の祖先。PR は無い。作業ツリーに本スライスの外の未追跡 file（`docs/handoff/` の他スライスの HANDOFF 4 つ）があり、触れていない。
+- 使用した evidence bundle の取得案内・状態: base `6844bf35` / head `33e0f27f` の完全 diff・stat・name-status、AC1 / AC2 / AC5 / AC7 / AC8 / AC17 のコマンドの base と head の出力、AC6 と hard gate の出力、contract-audit の結果、下のテストの XML と log。`evidence stage` でローカル固定済み（未昇格）。取得案内は主担当の作業領域にあり、次の担当には起動指示で渡す。task は `runtime-refactor-bootstrap`。
+- 構造適合（§3.1 との照合、§3.3 の行数警報の判定）:
+  - 3 クラスのメンバー・可視性・所有は §3.1 と一致。`LegacyRemoteCatalogProbe`（internal static、`TryLoadAsync(AppConfig)` と internal `DeriveBuildInfoUrl`、他は private static）、`BootstrapUiCommonLoader`（internal sealed、`LoadAsync(IAssetManagement, BootstrapUiCommonSource)` と `Dispose`）と `BootstrapUiCommonSource`（internal readonly struct、bool と `Func<bool>` と `Func<string>` 2 つ）、`FrameworkServiceSet`（internal sealed、引数なし ctor、4 つの getter / setter、`StartAsync`、`Dispose`）。新しい interface・抽象・static 可変状態は無い（I8）。namespace は `OneStarMaker.Runtime` のまま、asmdef の変更は無い。
+  - `DebugSocketService.CreateTelemetrySink()` は internal で本体 file にあり、signature に `ZLogger*` 型は出ていない。
+  - 3 クラスは各 1 責務。initializer に残るのは「順序 + hook + 失敗境界」と、`CONTENT_DIRECTORY_STARTUP` が外す Content Directory 起動。行数警報は **非分割妥当**（§3.3 の判断どおり。1,046 行の残りは公開面の宣言・順序・Content Directory 起動で、これ以上分けるには hook の再設計が要る）。
+  - base と head のコードを突き合わせ、移動で意味が変わった箇所が無いことを確かめた: BeforeSceneLoad の逐次代入（set を最初の `Create*` より前に入れる、`VfxRuntimeHost.Create` の引数の評価順）、`ReleaseAll` の VFX 解除と set の `Dispose` の順と例外時の扱い（`Dispose` の途中で投げると `_services = null` に届かず、次の `ReleaseAll` が残りを破棄する。base の field と同じ）、`StartAsync` の await 後の都度読み、UICommon の 3 経路と virtual の評価時点、`CleanupAfterStartupFailureAsync` の本文（base の catch と同一）、`FinishStartupSpan` の引数。
+  - Unity の偽 null: 新しい file の `?.` / `??` は `FrameworkServiceSet` の 4 サービス（いずれも `UnityEngine.Object` ではない）と `BootstrapUiCommonSource` の `Func` だけ。GameObject と `EventSystem.current` は `== null` / `!= null`。
+- 受け入れ条件の照合（機械の補助は base と head で同じコマンドを実行して比べた。判定 C の必須の本文照合（AC1）は判定 C が行う）:
+  - AC1: 1 は base の 51 行が head に全て同じ字面で残り、増えたのは private nested `StartupProgress` の internal メンバー 2 行だけ（§4 手順 4 が求める型。§3.5 の公開面ではない）。2 は 10 値の並びが一致。3 は同じ 3 宣言。
+  - AC2: 16 個が一致、動的 stage は 1 行。AC3: §6 の 4 つの表の全行を head の行番号と照合し、全て一致（対応の無い行・順序の入れ替わりは無い）。AC5: 0 行と 1 ファイル。AC6: 1・2・3 とも 0 行。AC7: 2 箇所、`FinishStartupSpan` に渡す値は base と同じ。AC8: 1,046 行、`InitializeAfterSceneLoad` は 286〜415 行目の 130 行。AC11: 禁止の識別子は無い。AC12・AC13: 禁止の識別子・field は無く、順序は表どおり。AC17: 28 個、差は補間の穴の式の 3 行だけで文言は同じ。
+  - contract-audit: `errors=0 warnings=0`（checks 1〜9）。hard gate: 追加・変更した `.cs` は全て先頭が `#nullable enable`、`record` 型は無い（一致したのは引数名 `record` だけ）、テストに `Task.Delay` / `Thread.Sleep` は無い。
+- 現在の問いを阻害する findings: なし（B への差し戻しは無い）
+- 阻害しない観察（凍結済み条件・常時契約への違反根拠を持たない。判定 C と owner の参考）:
+  - **O1 AC11 の「変えてよいもの」と §3.1 の名前。** AC11 は移動で変えてよいのを「`_config` を引数にすること」と「`static`」に限るが、B は入口の名前を `TryLoadRemoteCatalogAsync` から `TryLoadAsync` に、`DeriveBuildInfoUrl` を private から internal にした。どちらも凍結済みの §3.1 の公開面（`TryLoadAsync(AppConfig config)`、`string DeriveBuildInfoUrl(string)`）と AC11 自身のテスト要求に従ったもので、§6 に記録がある。凍結条件の間の読み方であり違反ではない。
+  - **O2 `ReleaseAll` が `_uiCommonLoader` を null に戻す（確認待ち）。** base は UICommon の GameObject を initializer の field に持っていたので、UICommon のロードを await している間に `ReleaseAll` が走り（Editor の Play 停止で `Application.quitting`）、その後にロードが完了して root が記録された場合、後で走る `ReleaseAll` がその root を破棄しえた。head は 1 回目の `ReleaseAll` で loader を外すので、後から記録された root は外れた loader に残る。差が出るには、ロード中の `ReleaseAll` の後もロードが完了し、さらに同じ instance でもう一度 `ReleaseAll` が走る必要がある（例: component 欠落で catch に入る）。release 済みの AssetManagement でロードが完了するか、Play 停止で Unity が Scene の object を先に解体するかを確かめておらず、到達できるかは未確認。I3 が求める解放順と複数回呼び出しの安全性は保たれ、AC3 の表 3（取得途中の失敗で GameObject を破棄する経路）も満たすので、blocker にしない。判定 C か owner が base と完全に一致させたいなら、修正は `ReleaseAll` の `_uiCommonLoader = null;` の 1 行を消すことで済む（loader の `Dispose` は 2 回呼んでも安全）。
+  - **O3 AC15-3 は同期完了に依存する。** `await _initializer.Failed.Task` は、`OnAfterSceneLoadInitializationFailed` の中の `TrySetResult` より前に `RunAfter` が全て同期で終わることを前提にする（`FakeAssetBackend` の Scene ロードは `UniTask.FromResult`）。非同期になると、assertion が `ReleaseAll` より前に走りうる。既存の `InvalidCompanionConfigStartupTests` と同じ形なので、本スライスの欠陥にはしない。下のテストでは Passed。
+  - **O4 §5 の起点 filter と AC4 の名前に、存在しない namespace・テストがある。** `SampleGame.Tests.Bootstrap` と `SampleGame.Tests.Editor.Build` は存在しない（`unity/Assets/SampleGame/Tests/Bootstrap/` のテストは namespace `OneStarMaker.Tests.Bootstrap`、`BuildContentDirectoryIntegrationTests` は `OneStarMaker.Tests.Editor.Build`）。`GameSceneLoggingTests` はコードに無く、`05-scene.md` に名前があるだけ。AC4 の `SampleGame.Tests.Editor.Build.BuildContentDirectoryIntegrationTests` も fullname としては誤り。判定必須は空 filter の全件回帰なので収録は変わらないが、判定 C は XML をクラス名（`OneStarMaker.Tests.Editor.Build.BuildContentDirectoryIntegrationTests`）で確かめる。凍結条件の合否は変わらない（文言の誤記）。
+  - **O5 判定 C は `-WithGraphics` で実行する。** 下の起点 filter の実行は `-nographics`（`run-tests.ps1` の既定）で、VFX の実 backend を使う 25 件が `No graphics device (GraphicsDeviceType.Null)` で Inconclusive になり、step は `failed`（Inconclusive あり、Unity の exit code 2）になった。§5 は VFX の Play テスト群が Passed であることを求め、Skipped / Ignored を不合格とするので、判定必須の全件回帰は `pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、StandaloneWindows64 の Editor）で取る。
+- 後続スライスへ移送する findings: なし（O2 を base と一致させる修正は B 適応で済み、後続の問いにはならない）
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh -NoProfile -File tools/run-tests.ps1 -Filter "OneStarMaker.Tests.BuildContent;OneStarMaker.Tests.Bootstrap;SampleGame.Tests.Bootstrap;SampleGame.Tests.Editor.Build;OneStarMaker.Tests.SampleGame;SampleGame.Tests.Rendering;SampleGame.Tests.Streaming"`（EditMode、`-nographics`、sandbox 外、Editor は閉じた状態）。§5 の起点 filter をそのまま使った。B は Unity テストを 1 件も実行していないので、新規 9 件と、AC2 / AC4 と起動経路の既存テストが head で通るかを確かめるため。Content Directory build を伴う `BuildContentDirectoryIntegrationTests` は O4 の namespace の誤りで filter に入らず、重い統合なので発見 C では追加実行していない（判定 C の全件回帰に含まれる）。
+- テスト結果: 315 件。Passed 290、Failed 0、Inconclusive 25（全て O5 の graphics device 無し、VFX の実 backend）、Skipped 0。新規 `BeforeSceneLoadServiceStagingTests` 3、`FrameworkServiceSetTests` 2、`LegacyRemoteCatalogProbeTests` 4 は全て Passed。`InvalidCompanionConfigStartupTests` 4、`PlayerContentConfigurationTests` 13（base と同じ件数）、`FlyControllerTeleportTests` 1 は Passed。`VfxScenePlayTests` は 3 Passed / 2 Inconclusive。step の status は `failed`（理由は Inconclusive と exit code 2 だけ）。
+- 判定必須のうち未実行: 全 EditMode 回帰（空 filter、`-WithGraphics`、StandaloneWindows64）と、その XML での AC4 の `BuildContentDirectoryIntegrationTests` の Passed、VFX の Play テスト群の Passed。§6「動作確認」の Editor の directory Play（`未実施` のまま。判定 C を完了と記録する前に GO 候補 head で取得する）。AC1 の §3.5 の各メンバーの本文での見比べ（判定 C の必須。機械の補助は上のとおり一致）。
+- 未確認事項: O2 の到達可否。
+- 担当・モデル: Claude Code（Anthropic）、Claude Opus 5.5。Phase B のモデルは本書に記録が無い（「Claude Code（Anthropic）」だけ）ので、C と B が異なるモデルであることは本書からは確かめられない。
 
 ## 8. Phase C'
 
