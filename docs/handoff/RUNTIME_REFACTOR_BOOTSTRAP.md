@@ -8,7 +8,7 @@
 - status: `A`（A1 初稿。A2 未実施、A3 未凍結。**実装キューではない**）
 - **改訂待ちの注記（2026-11-07）:** 本書の前提の一部は program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) で置き換わった。特に §3.2 の「ASSET_CYCLE §1 の owner 決定で、目標は 2 assembly」は無効（上位目的は AssetManagement 単独・BuildSystem 単独・OSM での併用。assembly の構成は未決）。A0 §6 D4 で S2 は独立スライス `CONTENT_DIRECTORY_STARTUP` として `BUILDSYSTEM_STANDALONE_ENTRY` の後に進める。A0 §4.2 の BOOTSTRAP 向けの改訂は未適用で、本書は A2 に出す前にそれを当てる。それまで本書の §2〜§4 を判断の根拠にしない
 - branch: 計画は `claude/runtime-refactor-stage0-plan`（本書と [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) を同じ文書 PR で `develop` へ）。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-bootstrap` で決める）
-- implementation base commit: `d4861882`（`develop`。A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。B 開始時に `develop` の head で再固定する。**[RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) のマージ後に始める**（同じファイルは触らないが、例外型の namespace が変わった後の `using` を前提にする）
+- implementation base commit: `d4861882`（`develop`。A1 初稿は `840b6609`（PR #149 のマージ）で測り、2026-11-07 に再固定した。間に initializer を変えたのは BS5a（#150）と BS5b-2（#156）で、§1 と §3.5 は `d4861882` の実測に取り直してある）。B 開始時に `develop` の head で再固定する。順序は A0 §6 D4 に従う（[RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) と `BUILDSYSTEM_STANDALONE_ENTRY` の後。ASSET_CYCLE は namespace を変えないので、`using` の前提は無い）
 - implementation head commit: 未固定（Phase B で記録）
 - risk: `high`（アプリ起動・終了の順序、失敗経路、Player の receipt に現れる stage 名、派生クラスの公開面に触れる。実行時挙動は変えないが、変えていないことの証明が主な作業になる）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
@@ -21,20 +21,20 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A2（独立レビュー 3 観点）。
-  - 次の作業: §5 の観点で本書を独立にレビューし、指摘を §5「A2 独立レビュー」へ記録する。A3 で owner と主担当が採否を決め、§2.5 の未決事項を閉じ、凍結版の commit と content sha256 を記録する。
-  - 引き継ぐ commit: 本書を収録した計画ブランチの commit（A2 開始時に §5 へ転記）。
+  - 次の Phase・役割: A1 改訂（A0 §4.2 の BOOTSTRAP 向けの改訂を当てる）。
+  - 次の作業: A0 §4.2 の BOOTSTRAP の表を本書へ当て、S2 を独立スライス `CONTENT_DIRECTORY_STARTUP` に切り出すかを含めて A1 を改める。その後に A2（独立レビュー）。
+  - 引き継ぐ commit: 本書を含む計画 PR のマージ後の `develop`。
   - 必要な権限: なし（文書のみ）。Unity Editor・テスト・資格情報は不要。
-  - 停止規則: A3 の凍結は owner の承認を待つ。同じ session で Phase B に入らない。
+  - 停止規則: A0 §4.2 の改訂を当てるまで A2・A3・Phase B を始めない。同じ session で Phase B に入らない。
   - 引き渡さないもの: なし（Phase A 内）。
 
 ### PR 状態ブロック
 
 ```text
-状態: Phase A の 作業中（A1 初稿）
-Phase A: revision 0、commit <計画 PR 作成時に記録>
+状態: Phase A の 作業中（A1 初稿。A0 §4.2 の改訂待ち）
+Phase A: revision 0、commit <A2 入力版の commit 時に記録>
 implementation base / head: d4861882 / 未固定
-次の担当: Phase A2 独立レビュー。次の作業: §5 の 3 観点でレビューし結果を §5 へ記録
+次の担当: A1 改訂。次の作業: A0 §4.2 の BOOTSTRAP 向けの改訂を当てる（それまで A2 に出さない）
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_BOOTSTRAP.md
 Evidence 取得案内: 未生成
 未決事項: §2.5 の U1〜U5
@@ -185,7 +185,7 @@ Evidence 取得案内: 未生成
 | ファイル | 責務（一文） | 変更理由 | 所有者・寿命 | 許可する依存 | 公開面 | 現在行 → 予想 |
 |---|---|---|---|---|---|---|
 | `Runtime/Bootstrap/AbstractApplicationInitializer.cs` | 3 フェーズの起動順序、失敗境界、派生クラス向け hook の template | 起動契約（順序・stage・hook）が変わるとき | App 寿命。下の 4 クラスを所有し `ReleaseAll` で破棄 | 下の 4 クラス、`SceneDirector` / `UICommon` / `IAssetManagement` / `AppConfig` / `AppTelemetry` の public API | §3.5 のまま | 1,303 → 約 860（非分割判断は §3.3） |
-| `Runtime/BuildContent/ContentDirectoryStartup.cs`（新規、public sealed） | `AppConfig` から Content Directory の起動構成を解き、session の登録・install・close・Play 停止時の完了を所有する | Content Directory の起動規則（mode、pair、protected key、Editor Play 限定、verify）が変わるとき | initializer が BeforeSceneLoad で `Resolve` し、ReleaseAll で `CompletePlayStop` / `BeginSynchronousShutdown`。session の寿命は従来どおり | 同 folder の internal 型全部、`AssetManagement` の internal メソッド 4 つ（§2.1 I5）、`ContentDirectoryException`（ASSET_CYCLE 後は `OneStarMaker.Runtime.AssetManagement`） | public: `static ContentDirectoryStartup? Resolve(AppConfig, in ContentDirectoryStartupContext)`、`string Path` / `BuildIdentity` / `Representation` / `FirstScene`、`bool IsInstalled`、`UniTask InstallAsync(AssetManagement)`、`UniTask CloseAsync(AssetManagement)`、`void CompletePlayStop(AssetManagement)`、`void BeginSynchronousShutdown()`、封じの入口（U1 で `Seal(AssetManagement)` を足すか `Resolve` の signature に含めるかを決める）。internal: `VerifiedInstalledRevision? VerifiedRevision`。`ContentDirectoryStartupContext` は public readonly struct（U1） | 0 → 約 250 |
+| `Runtime/BuildContent/ContentDirectoryStartup.cs`（新規、public sealed） | `AppConfig` から Content Directory の起動構成を解き、session の登録・install・close・Play 停止時の完了を所有する | Content Directory の起動規則（mode、pair、protected key、Editor Play 限定、verify）が変わるとき | initializer が BeforeSceneLoad で `Resolve` し、ReleaseAll で `CompletePlayStop` / `BeginSynchronousShutdown`。session の寿命は従来どおり | 同 folder の internal 型全部、`AssetManagement` の internal メソッド 4 つ（§2.1 I5）、`ContentDirectoryException`（namespace は `OneStarMaker.Runtime.BuildContent` のまま。ASSET_CYCLE は置き場所だけを共通契約 `Runtime/AssetBuildContracts/` へ移す） | public: `static ContentDirectoryStartup? Resolve(AppConfig, in ContentDirectoryStartupContext)`、`string Path` / `BuildIdentity` / `Representation` / `FirstScene`、`bool IsInstalled`、`UniTask InstallAsync(AssetManagement)`、`UniTask CloseAsync(AssetManagement)`、`void CompletePlayStop(AssetManagement)`、`void BeginSynchronousShutdown()`、封じの入口（U1 で `Seal(AssetManagement)` を足すか `Resolve` の signature に含めるかを決める）。internal: `VerifiedInstalledRevision? VerifiedRevision`。`ContentDirectoryStartupContext` は public readonly struct（U1） | 0 → 約 250 |
 | `Runtime/Bootstrap/LegacyRemoteCatalogProbe.cs`（新規、internal sealed） | 旧リモート Addressables catalog の追加ロードと revision 乖離警告（案内のみの旧経路） | 旧経路の案内文・URL 規則が変わるとき、または退役するとき | 状態なし。`AppConfig` を受け取る | Addressables、`UnityWebRequest`、`RemoteCatalogRuntimeBridge`、`RemoteBuildInfo` | internal: `UniTask TryLoadAsync(AppConfig config)`、internal static `string DeriveBuildInfoUrl(string)` | 0 → 約 160 |
 | `Runtime/Bootstrap/BootstrapUiCommonLoader.cs`（新規、internal sealed） | UICommon の取得 3 経路（ロード済み Scene / directory logical key / Addressables address）と EventSystem の生成、両 GameObject と scene handle の破棄 | UICommon の取得経路・EventSystem の構成が変わるとき | initializer が所有。GameObject は App 寿命 | `IAssetManagement`、`UICommon`、`SceneManager`、`EventSystem`、`InputSystemUIInputModule`、`SceneAssetDescription` | internal: `UniTask<UICommon> LoadAsync(IAssetManagement, BootstrapUiCommonSource source)`、`void Dispose()`。`BootstrapUiCommonSource` は internal readonly struct（mode と key / address） | 0 → 約 110 |
 | `Runtime/Bootstrap/FrameworkServiceSet.cs`（新規、internal sealed） | logger / DebugSocket / UpdateSystemHost / VfxRuntimeHost の保持、`StartAsync`、telemetry sink の一度だけの登録、`Dispose` の順序 | 常駐サービスの集合と開始・停止順が変わるとき | initializer が所有。生成は initializer の hook（`Create*`）が行い、インスタンスを受け取る | `DebugSocketService`（public）、`UpdateSystemHost`、`AppLoggerFactory`、`VfxRuntimeHost`（internal、S-4d 所有）、`AppTelemetry` | internal: ctor(logger, debugSocket, updateHost, vfxHost)、`UniTask StartAsync(CancellationToken)`、`UpdateSystemHost? UpdateSystemHost`、`VfxRuntimeHost? Vfx`、`void Dispose()` | 0 → 約 120 |

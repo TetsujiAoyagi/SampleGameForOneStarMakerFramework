@@ -41,7 +41,7 @@ implementation base / head: d4861882 / 未固定
 引き継ぐ commit: <PR 作成時に記録>（票を含む commit）
 次の担当: Phase B。次の作業: 計画の文書 PR のマージ後、§4 の順序で実装
 HANDOFF: docs/handoff/RUNTIME_REFACTOR_ASSET_CYCLE.md
-Evidence 取得案内: 未生成
+Evidence 取得案内: Phase A snapshot はローカル固定済み（未昇格）（`p-check.ps1` の実体はここだけ。証拠の取得はローカル担当）。判定 evidence は未生成
 未決事項: なし（Q1〜Q3 回答済み）
 ```
 
@@ -216,7 +216,7 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 | 陰性対照 `NEG-UA-without-contract` | `Runtime/AssetDescriptions/`、`Runtime/AssetManagement/`（`UA-player` と同じ条件で、共通契約だけを除く） | なし | なし | なし |
 | 陰性対照 `NEG-UB-runtime-without-contract` | `Runtime/BuildContent/`（`UB-runtime-player` と同じ条件で、共通契約だけを除く） | `UB-runtime` と同じ 4 ファイル | なし | なし |
 
-- **合格:** 陽性の 7 集合が全て exit 0、陰性対照 2 つがどちらも exit ≠ 0 かつ compiler の error に共通契約の型・namespace 名（`BuildContent`、`ContentDirectoryException`、`ContentDirectoryFailureCode`、`AssetType` のいずれか）が現れる。script は合格なら exit 0、不合格なら 1、前提の不備・証明範囲外なら 2 で終わる。
+- **合格:** 陽性の 7 集合が全て exit 0、陰性対照 2 つがどちらも exit ≠ 0 かつ compiler の error に共通契約の型・namespace 名（`BuildContent`、`ContentDirectoryException`、`ContentDirectoryFailureCode`、`AssetType` のいずれか）が現れる。照合の範囲: `: error CS<番号>` を含む行だけを対象にし、名前が単一引用符で囲まれた形（`'BuildContent'` 等。compiler が型・namespace 名を示す書き方）だけを数える（script の `$NegativeReasonPattern`）。ファイル path（`…\Runtime\BuildContent\…`）は引用符で囲まれないので、path に `BuildContent` があっても理由の一致にはならない（計画 PR のレビューへの回答として記録した明確化で、凍結時の script の挙動そのもの）。script は合格なら exit 0、不合格なら 1、前提の不備・証明範囲外なら 2 で終わる。
 - **exit 2（判定しない）になる場合:** Unity の実版（`Editor/Unity.exe` の ProductVersion）が `ProjectVersion.txt` と違う。compiler・参照 DLL・集合の folder・除外対象が無い。集合が空。集合のファイルに `#if` / `#elif` がある（P 検査は define を「無し」と `UNITY_EDITOR` の 2 通りしか試さないので、条件付きコンパイルが入った時点で証明範囲の外になる。Phase A へ戻す）。外部 DLL（`UniTask` / `Unity.Addressables` / `Unity.ResourceManager`）が `OneStarMaker*` namespace の型を定義している（偽陽性の経路）。予期しない例外。
 - **出力（evidence）:** `summary.json`（Unity の期待版と実版、compiler の path、参照する外部 DLL ごとの path・assembly identity・byte 数・sha256、集合ごとのファイル数・exit code・エラー番号の集計、陰性対照の理由の判定）、各集合の `files.txt`（コンパイルしたファイルの相対 path）・`args.rsp`（参照と define）・`csc.log`（compiler の出力）。
 - **外部 DLL の扱い:** `Library/ScriptAssemblies` の DLL は、対象 worktree の `Packages/packages-lock.json` から Unity が生成したもので、P 検査はその由来（lock との一致）までは検証しない。偽陽性の経路（DLL が OSM の型を持ち込む）は上の検査で塞ぎ、偽陰性（版違いで失敗）は失敗として表に出る。由来を問うときは `summary.json` の sha256 と assembly identity を、同じ lock から生成した別 worktree の値と比べる。
@@ -259,7 +259,7 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 
 実施 2026-11-07。2 件は互いの指摘を見ていない。
 
-### A3 採否（主担当の整理。凍結は owner の指示待ち）
+### A3 採否（主担当の整理。2026-11-07 に owner の指示で凍結）
 
 | 指摘 | 採否 | 反映 |
 |---|---|---|
@@ -279,6 +279,8 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 - **Q3 凍結時の commit:** 主担当の案どおり。本書（旧名からの rename を含む）、A0、`docs/README.md` の一覧の更新を含め、BOOTSTRAP は A0 §4.2 の改訂を当てるまで含めない。
 
 **A3 凍結（2026-11-07）:** owner（root）が凍結を指示した。凍結の前に主担当が §5 の集合の表と `p-check.ps1` の `$Sets` を照合し、folder 7 組（陽性 5 集合と陰性対照 2 つ）と除外 10 件（`UB-runtime` と `NEG-UB-runtime-without-contract` の各 4 件、`UB-materialization` の 2 件）が一致することを確かめた。凍結版は、本書・A0・`docs/README.md` を含む commit（この票を含む commit）と、Phase A snapshot（本書と `p-check.ps1`）。BOOTSTRAP の未 commit の変更は含めていない（Q3）。
+
+**凍結後の記録の訂正（計画 PR のレビュー、2026-11-07）:** 計画 PR の cursor[bot] レビューが引継ぎの状態表示の食い違いを指摘した。本書では、§0 の PR 状態ブロックの Evidence 欄（「未生成」→ Phase A snapshot はローカル固定済み）、§5 の A3 採否の見出し（「凍結は owner の指示待ち」→ 凍結済み）、§5 P 検査の陰性対照の照合範囲（引用符で囲まれた名前だけを数える。script の挙動そのものの明確化）を直した。凍結済みの条件（I1〜I5、S1〜S3、AC1〜AC6、P 検査の集合と script）の意味・合否は変えていないので、Phase A の revision は 0 のまま。Phase A snapshot は、訂正後の本書と同じ `p-check.ps1`（content sha256 `94291d8f…`、変更なし）で stage し直し、引き継ぐ commit はこの訂正を含む commit とする（渡された SHA と HEAD が一致するように）。
 
 #### Phase C / C' で問われそうな点の事前確認（A3、2026-11-07）
 

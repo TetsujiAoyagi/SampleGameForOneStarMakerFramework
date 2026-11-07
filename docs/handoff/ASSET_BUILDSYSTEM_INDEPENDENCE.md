@@ -6,7 +6,7 @@
 
 - type: `program`（A0 の planning packet。実装スライスではない。既存 2 スライス [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) と [RUNTIME_REFACTOR_BOOTSTRAP.md](RUNTIME_REFACTOR_BOOTSTRAP.md) の改訂と、後続スライスの A0 への入力）
 - status: `A`（A0 は閉じた。計画レビュー R1〜R3 反映済み、owner 判断済み（§6）。program 自体は進行中で、**実装キューではない**）
-- branch: `claude/runtime-refactor-stage0-plan`（既存 2 文書と同じ計画ブランチ。未 commit）
+- branch: `claude/runtime-refactor-stage0-plan`（既存 2 文書と同じ計画ブランチ。ASSET_CYCLE の A3 凍結版と同じ commit で収録し、計画 PR で `develop` へ）
 - implementation base commit: `d4861882`（`develop` の head。2026-11-07 に `origin/develop` を fetch して確認し、`d4861882` から進んでいないので差は無い）
 - implementation head commit: 該当なし（program）
 - risk: 各スライスで決める
@@ -15,7 +15,7 @@
 - expires: 2026-11-30、または §6 の owner 判断で各スライスへ取り込まれた時点
 - harvest to: `unity/Assets/README.md` の依存図と `27-folder-structure.md`（案 3 の境界: AssetManagement と BuildSystem 本体は互いを参照せず共通契約だけを共有し、両方を知るのは連携部分）。program の完了時（§5.2 段階 4）に反映する
 - 関連: ASSET_CYCLE（§4 で採否と改訂案）、BOOTSTRAP（§4 で改訂案）、CameraSystem ⇄ Streaming は別スライス `RUNTIME_REFACTOR_CAMERA_FOCUS`（未作成）のままで、本書は扱わない
-- Phase A snapshot の取得案内・状態: 未生成（A0 は未 commit の版を owner へ渡す）
+- Phase A snapshot の取得案内・状態: 該当なし（A0 は program の地図で、凍結する snapshot を持たない。本書は計画ブランチの commit で固定され、各スライスの snapshot は各 HANDOFF §0 が持つ）
 - Phase B result snapshot / evidence bundle / C' blind bundle: 該当なし
 - 引継ぎ票:
   - 本書（A0）の状態: 閉じた。D1〜D5 は owner 決定済みで、計画レビュー R1〜R3 の指摘は反映済み。以後、本書は program の地図として後続スライスから参照され、各スライスの状態は各スライスの HANDOFF を正とする。
