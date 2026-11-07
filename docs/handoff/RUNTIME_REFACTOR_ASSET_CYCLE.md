@@ -9,11 +9,11 @@
 - revision の経緯:
   - 2026-10-31 A1 初稿（旧名 `RUNTIME_REFACTOR_CYCLES.md`）は循環 2 件（AssetManagement ⇄ BuildContent、CameraSystem ⇄ Streaming）を扱い、A2 入力版を commit `93723a4c` で切った。
   - 2026-11-07 前半、A2 と外部レビューの後、Camera 側を別スライスへ切り出し、目的を「AssetManagement を BuildContent から独立した assembly にできる向き（例外型 2 つを AssetManagement へ移す）」に絞った書き直し版を作った（未 commit）。
-  - 2026-11-07 後半、owner が上位目的を「AssetManagement 単独・BuildSystem 単独・OSM での併用」に改めた。program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（以下「A0」）がこれを受けて構成案 3（共通契約の切り出し）を推奨し、owner が決定した（A0 §6 D1〜D5）。前半の書き直し版（案 1）は撤回し、本書は A0 に基づく A1 改訂版である。凍結前なので revision は 0 のまま。
+  - 2026-11-07 後半、owner が上位目的を「AssetManagement 単独・BuildSystem 単独・OSM での併用」に改めた。program の A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（以下「A0」）がこれを受けて構成案 3（共通契約の切り出し）を推奨し、owner が決定した（A0 §6 D1〜D5）。前半の書き直し版（案 1）は撤回し、本書は A0 に基づく A1 改訂版である。初回の凍結前に改めたので revision は 0 のままで、revision 0 として A3 凍結した（2026-11-07）。
 - branch: 計画は `claude/runtime-refactor-stage0-plan`。実装は Phase B 開始時に `develop` から専用ブランチを切る（名前は B 担当が `<prefix>/runtime-refactor-asset-cycle` で決める）
 - implementation base commit: `d486188268046ff9e9b6b0e9c977af0b232b17e4`（`develop` の head。2026-11-07 に fetch して確認）。B 開始時に `develop` の head で再固定する
 - implementation head commit: 未固定
-- risk: `normal`（owner 裁定 2026-11-07 のまま。根拠は変更の性質だけで判定する: public 型 3 つのファイルの置き場所を変えるが、型の完全名・宣言・所属 assembly（`OneStarMaker.Runtime`）は変えない。実行時の分岐・serialized データ・寿命は変えない。旧版の根拠だった namespace 変更による互換の破壊は無くなったので、`low` に下げるかは A3 で owner が判断する（§5 A3 採否））
+- risk: `normal`（owner 裁定 2026-11-07 のまま。根拠は変更の性質だけで判定する: public 型 3 つのファイルの置き場所を変えるが、型の完全名・宣言・所属 assembly（`OneStarMaker.Runtime`）は変えない。実行時の分岐・serialized データ・寿命は変えない。旧版の根拠だった namespace 変更による互換の破壊は無くなったが、A3 で owner が `normal` のままと決めた（§5 A3 採否 Q1））
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-10-31（A1 初稿）、2026-11-07 A1 改訂
 - expires: 2026-11-30 または置換 revision の成立時。期限時は owner が更新・廃止を判断する
@@ -263,7 +263,7 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 
 | 指摘 | 採否 | 反映 |
 |---|---|---|
-| R-01 変更集合の制約が `.cs` と一部の path に限られ、他の `.meta`・asset・設定の便乗変更を通しうる | 採用 | AC2 を base→head の全 path の許可リスト（4 種類）に置き換えた。folder の `.meta` の妥当性と GUID の重複なしを AC3 にした |
+| R-01 変更集合の制約が `.cs` と一部の path に限られ、他の `.meta`・asset・設定の便乗変更を通しうる | 採用 | AC2 を base→head の全 path の許可リスト（この時点で 4 種類。後の事前確認で `ContentDeliveryProbe.csproj` の 1 行を足して現行は 5 種類）に置き換えた。folder の `.meta` の妥当性と GUID の重複なしを AC3 にした |
 | R-02 P 検査が folder の欠落を黙って飛ばし、除外を名前で全ファイルに当てる | 採用 | script の除外を相対 path の完全一致にし、folder・除外対象の欠落と空集合を exit 2 にした。共通契約の folder の欠落は `-AllowMissingContract`（base 測定専用）のときだけ許す。§5 の表の文言も合わせた |
 | R-03 外部 DLL の実体・由来を確かめない（偽陽性・偽陰性） | 一部採用 | Unity の実版を `Unity.exe` の ProductVersion で照合し、外部 DLL の assembly identity・sha256 を `summary.json` に残し、DLL が `OneStarMaker*` の型を定義していれば exit 2 にした（偽陽性の経路を塞ぐ）。`packages-lock.json` との一致の検証は採らない: DLL は同じ worktree の lock から Unity が生成したもので、残る経路（版違い）は失敗として表に出る偽陰性だけのため。由来を問うときの比べ方を §5 に書いた |
 | R-04 陰性対照が理由を問わず失敗を合格とする。前提の不備で exit 2 に届かない | 採用 | 陰性対照は error に共通契約の型・namespace 名が現れることを要求（`reasonIsMissingContract`）。`UA-player` と同じ条件で実行。前提の不備は stderr と exit 2 を明示し、全体を try/catch で exit 2 にした。版違い・除外欠落・`#if` 出現・隠れた依存の 4 経路を実際に通して確かめた（§5） |
@@ -280,7 +280,7 @@ S1・S2 の証明は P 検査（コンパイラ）が行う。`grep` は補助�
 
 **A3 凍結（2026-11-07）:** owner（root）が凍結を指示した。凍結の前に主担当が §5 の集合の表と `p-check.ps1` の `$Sets` を照合し、folder 7 組（陽性 5 集合と陰性対照 2 つ）と除外 10 件（`UB-runtime` と `NEG-UB-runtime-without-contract` の各 4 件、`UB-materialization` の 2 件）が一致することを確かめた。凍結版は、本書・A0・`docs/README.md` を含む A3 凍結 commit `af97423f` と、Phase A snapshot（本書と `p-check.ps1`）。その後の記録訂正（下の段落）を含む commit が引き継ぐ commit で、凍結そのものとは区別する。BOOTSTRAP の未 commit の変更は含めていない（Q3）。
 
-**凍結後の記録の訂正（計画 PR のレビュー、2026-11-07）:** 計画 PR の cursor[bot] レビューが引継ぎの状態表示の食い違いを指摘した。本書では、§0 の PR 状態ブロックの Evidence 欄（「未生成」→ Phase A snapshot はローカル固定済み）、§5 の A3 採否の見出し（「凍結は owner の指示待ち」→ 凍結済み）、§5 P 検査の陰性対照の照合範囲（引用符で囲まれた名前だけを数える。script の挙動そのものの明確化）を直した。凍結済みの条件（I1〜I5、S1〜S3、AC1〜AC6、P 検査の集合と script）の意味・合否は変えていないので、Phase A の revision は 0 のまま。Phase A snapshot は、訂正後の本書と同じ `p-check.ps1`（content sha256 `94291d8f…`、変更なし）で stage し直し、引き継ぐ commit はこの訂正を含む commit とする（渡された SHA と HEAD が一致するように）。
+**凍結後の記録の訂正（計画 PR のレビュー、2026-11-07）:** 計画 PR の cursor[bot] レビューが引継ぎの状態表示の食い違いを指摘した。本書では、§0 の PR 状態ブロックの Evidence 欄（「未生成」→ Phase A snapshot はローカル固定済み）、§5 の A3 採否の見出し（「凍結は owner の指示待ち」→ 凍結済み）、§5 P 検査の陰性対照の照合範囲（引用符で囲まれた名前だけを数える。script の挙動そのものの明確化）を直した。凍結済みの条件（I1〜I5、S1〜S3、AC1〜AC6、P 検査の集合と script）の意味・合否は変えていないので、Phase A の revision は 0 のまま。Phase A snapshot は、訂正後の本書と同じ `p-check.ps1`（content sha256 `94291d8f…`、変更なし）で stage し直し、引き継ぐ commit はこの訂正を含む commit とする（渡された SHA と HEAD が一致するように）。続く cursor[bot] と owner のレビューで、凍結 commit と引き継ぐ commit の呼び分け（§0 の票と上の凍結の段落）、§0 の risk と revision の経緯に残っていた凍結前の言い回し、R-01 の採否欄の許可リストの件数（現行は 5 種類）を直した。これらも条件の意味・合否は変えない。Phase A snapshot は訂正のたびに、引き継ぐ commit を head にして stage し直す。
 
 #### Phase C / C' で問われそうな点の事前確認（A3、2026-11-07）
 
