@@ -3,7 +3,6 @@
 using System.Threading;
 using System;
 using Cysharp.Threading.Tasks;
-using OneStarMaker.Runtime.BuildContent;
 using UnityEngine;
 
 namespace OneStarMaker.Runtime.AssetManagement.Internal
