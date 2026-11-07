@@ -652,7 +652,7 @@ Evidence 取得案内: C' 用 blind bundle はローカル固定済み（取得�
 
 ## 9. Phase D
 
-- C / C' の突合:
+- C / C' の突合: 判定 C は阻害する指摘なし、C' 1 巡目の阻害指摘は AC4 の `BuildContentDirectoryIntegrationTests` の Failed 1 件（owner の例外承認が AC4 の合否を変えるので Phase A の新 revision が要る、という異議）。**owner の裁定（2026-11-08）: 例外承認を維持する。** Phase A は再開しない。理由は §7「判定 C の完了と owner の例外」のとおり（head に起因せず `develop` でも再現、本スライスの問いは他の証拠で判定できる、後続スライスへ移送）。C' の他の確認と AC1 の private nested 2 行（読み方の判断として移送）は §8 のとおり。C' は Haiku 5.5 で行った（高リスクの独立監査としては弱い点は owner が承知で選択）。
 - マージ判断:
 - 必要な Evidence の保存・取得・必須内容の閲覧確認:
 - 取得案内の引渡し確認:
