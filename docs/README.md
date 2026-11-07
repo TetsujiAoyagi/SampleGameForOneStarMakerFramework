@@ -51,7 +51,7 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 
 **未承認の単一スライス候補:** `UI_ACCESSIBILITY_BUTTON_PILOT.md` は Button の Windows Narrator 最初の実証に向けた A1 改稿（A2・PR コメントを照合）。実装キューではなく、検証経路と人間の A3 合意が未成立。owner は root、期限は 2026-11-05 または置換 revision、harvest 先は Architecture §6。上記 program 4件とは別に保持する。
 
-**未承認の Runtime リファクタ候補（program 1 件 + 2 スライス）:** `ASSET_BUILDSYSTEM_INDEPENDENCE.md`（AssetManagement 単独・BuildSystem 単独・OSM での併用を可能にする program の A0。構成案と順序は owner 決定済み）、`RUNTIME_REFACTOR_ASSET_CYCLE.md`（その最初の段: AssetManagement と BuildSystem 本体が共有する 3 型を共通契約 `Runtime/AssetBuildContracts/` へ移す。A3 凍結済み。この文書 PR のマージ後に Phase B）、`RUNTIME_REFACTOR_BOOTSTRAP.md`（`AbstractApplicationInitializer` の責務分解と internal 越境の seam 化。A1 初稿で、A0 §4.2 の改訂が未反映。A3 未凍結の実装キューではない）。owner は root、期限は 2026-11-30 または置換 revision。harvest 先は各文書の §0。
+**未承認の Runtime リファクタ候補（program 1 件 + 3 スライス）:** `ASSET_BUILDSYSTEM_INDEPENDENCE.md`（AssetManagement 単独・BuildSystem 単独・OSM での併用を可能にする program の A0。構成案と順序は owner 決定済み）、`RUNTIME_REFACTOR_ASSET_CYCLE.md`（その最初の段: AssetManagement と BuildSystem 本体が共有する 3 型を共通契約 `Runtime/AssetBuildContracts/` へ移す。A3 凍結済み。この文書 PR のマージ後に Phase B）、`RUNTIME_REFACTOR_BOOTSTRAP.md`（`AbstractApplicationInitializer` から旧リモートカタログ・UICommon 取得・常駐サービスを分ける。A0 §4.2 を当てた A1 改訂版で、次は A2。A3 未凍結の実装キューではない）、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md`（BOOTSTRAP から切り出した Content Directory 起動の facade。A0 入力だけで、program の順序の 3 番目。A1 未着手）。owner は root、期限は 2026-11-30 または置換 revision。harvest 先は各文書の §0。
 
 Streaming の M-1〜M-4 と S-4c は完了し、決定を公開面へ harvest して、移行計画と各着手時 HANDOFF を削除済み。テストアセンブリの分離も完了し、依存の向きは `unity/Assets/README.md` と `unity/Assets/Docs/Architecture/27-folder-structure.md` にある。完了済み HANDOFF は復活させない。
 
