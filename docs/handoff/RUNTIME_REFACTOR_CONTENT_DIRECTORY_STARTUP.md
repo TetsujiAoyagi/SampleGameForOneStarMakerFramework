@@ -36,6 +36,7 @@
 - **base の取り直し。** 下の行番号・型名・可視性は base `d4861882`。`BUILDSYSTEM_STANDALONE_ENTRY` は `ContentDirectoryIndex` や `InstalledRevisionVerifier` 等の public 入口を作る可能性があり（A0 §4.3 X6）、そうなれば facade が越える internal の一覧が変わる。BOOTSTRAP が先に入っていれば initializer の構成と行数も変わる。
 - **不変条件の取り直し。** BOOTSTRAP §2.1 の I1〜I4（公開面、起動順序と stage 名、終了順序、失敗経路）と同じ形の不変条件を、着手時の base の実測で書く。BOOTSTRAP が完了して削除されていれば、git 履歴の同書と harvest 後の `04-app-startup.md` を参照する。
 - **新しい A1 の規則。** 本スライスは新しく A1 を始めるので、[Phase と HANDOFF](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の内部フロー) の利用者の入力の表、目的レビュー、分割の検討、不変条件と成立条件の主張と経路の箇条を適用する。
+- **reflection で読まれる private field。** `SampleGame/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs`（449 行目）が `_contentDirectorySession` を reflection で読む（BOOTSTRAP の A2 で判明。同書は I1 でこの名前を守る）。下の §3.3 の「フィールド 3 つを `_contentDirectory` 1 つにする」はこのテストを壊すので、A1 で、名前を保つか、SampleGame のテストの変更をスライスの範囲に含めるかを決める。BOOTSTRAP の Phase B は、Content Directory の状態に触れるメソッドの一覧を同書 §6 に残す。
 - **P 検査の集合。** facade は BuildSystem 本体（U-B）の集合に含めない（A0 §4.2）。着手時に存在する P 検査（ASSET_CYCLE で凍結した方式、または常設化されたもの）の U-B 集合から除くファイルとして、`ContentDirectoryStartup.cs` を AC に名前で挙げる。
 
 ## 3. 設計素材（BOOTSTRAP A1 初稿から移したもの。A0 §4.2 適用済み）
@@ -62,9 +63,9 @@
 
   installed pair の verify 成功経路と Player の `PlayerContentConfiguration.Resolve` 経路は既存の `PlayerContentConfigurationTests` と `BuildContentDirectoryIntegrationTests` が覆う（新規テストでは重複させない）。
 - **install 失敗経路（旧 AC10）:** `ContentDirectoryStartup.InstallAsync` は、install が失敗したとき登録済み session を close してから元の例外を再送出する（現行 `InstallConfiguredContentDirectoryAsync` の catch と同じ）。EditMode テストで、既に directory を install 済みの `AssetManagement` に対して 2 回目の `InstallAsync` を呼ぶと `InvalidOperationException` が返り、session は close 済み（`ContentDirectorySession` の observable な状態、または偽 `IContentNativeDirectory` の呼び出し記録）であることを確認する。既存 `ContentDirectorySessionTests` の fixture（temp directory の index / manifest）を再利用する。
-- **internal 越境 0（旧 I5 / AC5 の BuildContent 部分）:** 変更後の `Runtime/Bootstrap/**` に `ContentDirectorySession`、`UnityContentDirectoryBackend`、`PlayerContentConfiguration`、`PlayerBakedContentConfiguration`、`ContentDeliveryFiles`、`ContentInstallReceipt`、`InstalledRevisionVerifier`、`VerifiedInstalledRevision`、`SealAddressables`、`InstallContentDirectory`、`CloseContentDirectoryAsync`、`CompleteContentDirectoryPlayStop` が現れない（grep）。BOOTSTRAP はこれらを initializer 1 ファイルに留める（同書 AC5）。
+- **internal 越境 0（旧 I5 / AC5 の BuildContent 部分）:** 変更後の `Runtime/Bootstrap/**` に `ContentDirectorySession`、`UnityContentDirectoryBackend`、`PlayerContentConfiguration`、`PlayerBakedContentConfiguration`、`ContentDeliveryFiles`、`ContentInstallReceipt`、`InstalledRevisionVerifier`、`VerifiedInstalledRevision`、`ContentDeclarationMismatch`（BOOTSTRAP の A2 で一覧の漏れが見つかった）、`SealAddressables`、`InstallContentDirectory`、`CloseContentDirectoryAsync`、`CompleteContentDirectoryPlayStop` が現れない（grep）。BOOTSTRAP はこれらを initializer 1 ファイルに留める（同書 AC5）。
 - **公開面（旧 I6）:** 新しい public 型は `ContentDirectoryStartup` と、U1 で決める入力の型だけ。
-- **サイズ（旧 S1 の残り）:** BOOTSTRAP 完了後の initializer（同書 S1 で 1,050 行以下）から、Content Directory の分を除いて 900 行以下。数値は着手時の base で見直す。
+- **サイズ（旧 S1 の残り）:** BOOTSTRAP 完了後の initializer（同書 S1 で 1,080 行以下）から、Content Directory の分を除いて 900 行以下。数値は着手時の base で見直す。
 
 ### 3.2 責務マップの素材
 

@@ -20,7 +20,7 @@
 - 引継ぎ票:
   - 本書（A0）の状態: 閉じた。D1〜D5 は owner 決定済みで、計画レビュー R1〜R3 の指摘は反映済み。以後、本書は program の地図として後続スライスから参照され、各スライスの状態は各スライスの HANDOFF を正とする。
   - ASSET_CYCLE の状態（2026-11-07 時点）: §4.2 の改訂案を当てた A1 改訂版を作り、A2（アーキテクチャゲート、目的レビュー）を実施し、A3 の採否を整理した。owner は A3 の確認事項 Q1〜Q3 に答え、**A3 凍結を指示した**（2026-11-07。凍結版は本書を含む commit と Phase A snapshot）。次は、計画の文書 PR のマージ後の Phase B。共通契約の folder は `Runtime/AssetBuildContracts/` に決まった。詳しい状態と次の作業は [RUNTIME_REFACTOR_ASSET_CYCLE.md](RUNTIME_REFACTOR_ASSET_CYCLE.md) §0 を正とする。
-  - BOOTSTRAP の状態（2026-11-07 時点）: §4.2 の BOOTSTRAP の表を当てた A1 改訂版（A2 入力版）を作った。D4 に従い S2 とそれだけに属する AC9 / AC10・U1 / U2 を独立スライス [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（A0 入力だけ、A1 未着手）へ移し、BOOTSTRAP は S3〜S5 だけを扱う。次は BOOTSTRAP の A2。詳しい状態は各書の §0 を正とする。
+  - BOOTSTRAP の状態（2026-11-07 時点）: §4.2 の BOOTSTRAP の表を当てた A1 改訂版を作り、A2（4 件）と外部レビューを経て A3 で凍結した（owner の指示）。D4 に従い S2 とそれだけに属する AC9 / AC10・U1 / U2 を独立スライス [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（A0 入力だけ、A1 未着手）へ移し、BOOTSTRAP は S3〜S5 だけを扱う。次は計画の文書 PR のマージ後の BOOTSTRAP の Phase B。詳しい状態は各書の §0 を正とする。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: `CONTENT_DIRECTORY_STARTUP` は D4 の (2) `BUILDSYSTEM_STANDALONE_ENTRY` の Phase D より前に A1 を始めない。BOOTSTRAP と ASSET_CYCLE の停止規則は各書の §0 に従う。
   - 引き渡さないもの: なし。
