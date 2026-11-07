@@ -1,21 +1,30 @@
 # OneStarMaker (OSM)
 
-Unity のゲームで、**ゲーム以外の部分（Scene の寿命・依存・ロード・観測）がゲームと一緒に複雑化しない**ための契約を、実装とドキュメントで公開するフレームワークです。いま実証に使っている適用先は**準オープンワールド**で、同じ repo の SampleGame が 4 季のセル世界を載せて確かめています。
+## このリポジトリのモチベーションと概要
 
-> OneStarMaker is a Unity 6 framework that aims to keep scene lifetime, dependencies, loading and observability from growing more complex as the game does. The sample game in this repo exercises these contracts on a semi-open-world: distance-streamed seasonal cells, purpose-scoped content builds, out-of-process debugging. Erosion resistance under complex game rules is a stated goal, not yet demonstrated. Docs are in Japanese.
+Unity のゲーム開発で問題になりそうなことを、事前に Policy を決めることで解決するためのフレームワークの試作リポジトリです。
+多人数開発による Scene ファイルの競合、大規模な Scene ファイルが出来上がって分割できない、Scene の前提がコードの中にしか無く分かっている人がいないといじりづらい、膨大な数の Asset があり開くのが重い、など。
+これを、USD の Variant に着想を得た Asset 表現（[`AssetDescription`](unity/Assets/Docs/Architecture/18-asset-description.md)）と、親子関係にある Scene で解決しようとしています。
+その他、よく作りそうなものもセットにしています。性能計測のための Telemetry、デバッグのために別アプリを作って通信させる仕組み、レイヤー別の UpdateSystem、など。
+いま実証に使っている適用先は**準オープンワールド**で、同じ repo の SampleGame が 4 季のセル世界を載せて確かめています。
+
+> OneStarMaker is a Unity 6 framework prototype that settles, up front, the policies a multi-person Unity project otherwise rediscovers the hard way: scene lifetime, ownership and edit units as one scene tree, USD-Variant-inspired asset descriptions, purpose-scoped content builds, and out-of-process observability. The sample game exercises it on a semi-open-world. Docs are in Japanese.
 
 大絶賛工事中です。試作段階で、コードには AI を活用しています。
 
 ## 目的
 
-Unity で世界が広いゲームを作ると、ゲームそのものとは別の場所で同じ苦労を毎回やり直すことになります。
+一番の目的は、**複数の職種が同じ世界を同時に作れる**ことです。そのために、Unity では別々の仕組みに散りがちな 3 つを 1 本の Scene の木に揃えます。
 
-- どの Scene がいつ居て、いつ使える状態になるかを人が暗記している
-- 1 箇所直すために全部を build して待つ
-- 同じ場所を 2 人で触るとファイルが衝突する
-- Player の中で何が起きているかが外から見えない
+| 軸 | 木が決めること |
+|---|---|
+| 寿命 | どの Scene がいつ載り、いつ降りるか。親は枝に居る間ずっと居残り、子は親が Ready であることを前提にしてよい |
+| 所有 | 誰がその node の中身に責任を持つか。親は、その枝の全ての子が必要とするものだけを初期化する |
+| 編集単位 | 誰がどのファイルを触るか。フォルダ構成も木に揃え、職種ごとに Scene を分ける |
 
-OSM は、この「ゲーム以外の部分」をフレームワーク側が引き受けることを目的にしています。Scene の寿命を木として宣言し、目的ごとに必要な分だけ build して Play し、ログと telemetry を外のツールで見る。ゲームが複雑になっても、寿命・UI・Service・ロードまで一緒に複雑化しないための境界と契約を、実装とドキュメントの両方で公開します。
+木は画面遷移の分類図ではなく、Ready と寿命を共有するスコープの木です。「親に置くと子が巻き込まれる」は機能の問題ではなく木の形が実態と合っていない印で、木を切り直すか、App サービスに出すか、子で吸収するかのどれかで直します。何を独立した node にするかにも規則があり、たとえば起点の Cell より長く生きるイベントは flag ではなく、Season の子という別の親を持ちます。詳細は [`05-scene.md` §5.6](unity/Assets/Docs/Architecture/05-scene.md) と §5.13 にあります。
+
+部品そのものは目新しくありません。寿命管理、Update の順序、手動 DI の配線、構造化ログ、部分 build は、多くの現場が毎回作り直しているものです。この repo の成果物は部品ではなく、それらを同じ契約で繋ぐ決め方と、その理由と却下した案の記録です。性能についても「速い」とは言わず、外から計測でき、境界で原因を局所化できる状態を目指しています。
 
 契約そのものは世界の広さに依りません。準オープンワールドは、その契約に一番負荷がかかる適用先として選んだもので、SampleGame が距離で stream するセル世界を載せて確かめています。
 
@@ -25,8 +34,10 @@ OSM は、この「ゲーム以外の部分」をフレームワーク側が引�
 
 今日この repo を開いて動くものです。
 
-- **Scene の寿命を木で持つ。** 親子と LoadType（NecessaryAlways / OnDemand / IncrementalAlways）で「いつ居るか」を宣言し、14 状態の lifecycle を単一の owner が進める。Scene Graph Editor が木を検証して `SceneResource` を生成する。
-- **世界を距離で stream する。** サンプルは 4 季 × 9 × 6 セル（1 セル 250 m）で、床の Scene と置き物の Scene を職種ごとに分けて持つ。飛行 rig の位置から LoadRadius 375 m / UnloadRadius 550 m でセルを load / unload する。
+- **Scene の寿命・所有・編集単位を 1 本の木で持つ。** 親子と LoadType（NecessaryAlways / OnDemand / IncrementalAlways）で「いつ居るか」を宣言し、14 状態の lifecycle を単一の owner が進める。親が先に Stable になり、子は親のサービスを `ISceneQuery` で引く。兄弟は直接参照しない。Scene Graph Editor が木を検証して `SceneResource` を生成する。
+- **職種ごとに Scene を分けて同じ Cell を並行して作る。** サンプルの 4 季 × 9 × 6 セル（1 セル 250 m）は、床（Cell）と置き物（Environment）を別 Scene に持ち、Lighting / VFX / Events も必要な Cell にだけ companion として足す。companion は Cell と同じ寿命で、Cell を跨ぐイベントだけが Season の子になる。
+- **同じ論理 Asset を役割ごとの表現で差し替える。** `AssetDescription` が 1 つの論理 Scene に Full / Whitebox などの Variant を持ち、Play と build が同じ宣言から表現を選ぶ。Variant 名は自由ラベルで、意味は project 側が決める。
+- **世界を距離で stream する。** 飛行 rig の位置から LoadRadius 375 m / UnloadRadius 550 m でセルを load / unload する。距離の政策計算とロードの重さは分けて測れる設計にしてある（数字はまだ無い）。
 - **目的ごとに必要な分だけ build する。** `spring-full`、`spring-whitebox`、`spring-planner-whitebox`、`all-full` などの宣言を選ぶと、その季節・職種・表現（Full / Whitebox）に必要な Scene だけを Content Directory として build する。成功した revision の directory は上書きせず、再 build は新しい revision になる。
 - **build せずに source から Play する。** `Play As` で宣言を選ぶと、Asset Database のまま同じ表現・同じ companion 集合で Play に入る。
 - **build から Play まで menu 一発で通す。** `Verify Play` は build → publish → install → Play を一続きで行い、途中で失敗したら後続の段へ進まず、Play 用に置いた設定を戻して止まる（build の出力と、開始前に閉じた Scene は戻さない）。
