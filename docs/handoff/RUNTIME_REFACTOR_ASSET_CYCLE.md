@@ -408,10 +408,10 @@ owner の依頼で、凍結の前に、後の Phase で指摘されそうな点�
 
 ## 9. Phase D
 
-- C / C' の突合:
-- マージ判断:
-- 必要な Evidence の保存・取得・必須内容の閲覧確認:
-- 取得案内の引渡し確認:
-- harvest: §0 harvest to のとおり
-- 削除確認:
-- 通常の task 終了・後始末の状態と未完了事項:
+- C / C' の突合: 判定 C は GO（§7）、C' 1 巡目は阻害する findings なし（§8）で、矛盾は無い。head-run1 の timeout の扱い（同時負荷によるもので、他の Unity を閉じた再実行 run2 で判定）は判定 C と C' で同じ。AC5 の「failed 0」を XML の failed 数で読んだこと（`step.json` の status は Inconclusive 25 件のため `failed`）は、owner が Phase D で GO とすることで承認した。PR #165 の外部レビューは blocker なし（owner 報告、2026-11-07）。
+- マージ判断: GO（owner の指示「PhaseD完了として後始末したあとマージ」、2026-11-07）。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: Phase A snapshot（発見 C・判定 C・C' が fetch して `p-check.ps1` の sha256 を照合）、判定 evidence（Phase D の session が別 process で fetch し、51 file と 3 本の `results.xml`（base Passed、head-run1 Failed 1 件、head-run2 Passed）を閲覧）、C' blind bundle（C' が fetch して閲覧）。3 つともローカル固定済み（未昇格）で、未保存の採用 Evidence は無い。`evidence schedule status` は `passed`。
+- 取得案内の引渡し確認: 3 つの取得案内は進行役の session のノート（削除予定の worktree の外）にあり、各 Phase の担当が起動指示で受け取って fetch できた。昇格の指示は無いので `locality` は `local` のまま。
+- harvest: §0 harvest to のとおり（`27-folder-structure.md` §2.2 に共通契約の段落、`unity/Assets/README.md` のフォルダ構成図に `AssetBuildContracts/` の 1 行）。§7・§8 の後続へ送る注記（統合テストの並行負荷 timeout、`-nographics` の全 EditMode と runner の status の読み方）は、後続の Harness 作業の入力で、恒久文書へは転記しない。
+- 削除確認: harvest と同じ commit で本書を `git rm` する。
+- 通常の task 終了・後始末の状態と未完了事項: マージ後に `workflow-task.ps1 end -Reason completed` を記録し、作業用の worktree（`osm-rac`、`osm-rac-base`）とマージ済みブランチを片付ける。結果は PR #165 のコメントと owner への報告に残す。
