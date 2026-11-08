@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `C`（**判定 C の全件再実行が完了し、AC11 の機構 (ii) の欠測で B へ差し戻し（§7.5）**、2026-11-08。C' の 2 巡目は未起動。Phase A revision 2 は commit `26aa48cc`、A3 凍結版は commit `3dd43790`）
+- status: `B 完了`（**§7.5 の差し戻しの修正が完了し、次は判定 C の `ac11-no-type-tree` だけの再実行（§6.10、決定記録 D-2）**、2026-11-08。C' の 2 巡目は未起動。Phase A revision 2 は commit `26aa48cc`、A3 凍結版は commit `3dd43790`）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: a4b7a6e69b210554143260f83cca064590e14d88
+- implementation head commit: この票を含む commit
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -17,13 +17,14 @@
 - 関連: program §2.4・§3・§5.2・§6・§8 S0-b 行・§9・§10（**本スライスの A0**。§0 の停止規則を本書 §2 に転記した）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。§5「判定 C の照合 script の方式」。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、担当は判定 C の進行役。head `a4b7a6e6` の判定入力で、新 head の合格証拠には流用しない
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、担当は判定 C の進行役。head `a4b7a6e6` の判定入力で、新 head の判定には決定記録 D-2 の範囲（`ac11-no-type-tree` 以外の cell と Baseline）でだけ使う
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）・未使用（差し戻しで C' を起動しなかった。新 head では作り直す）
 - 引継ぎ票:
-  - 次の Phase・役割: **Phase B（判定 C の差し戻しの修正）**。実装担当は新しい session が務める。修正の後は判定 C（§2 の決定記録 D-2 により `ac11-no-type-tree` だけの再実行）、続けて C' の 2 巡目を行う。発見 C は、差分が no-type-tree の build の経路に閉じるので挟まない。
-  - 次の作業: §7.5 の「現在の問いを阻害するもの」を直す。`FixtureFactory.BuildDirectoryWithoutTypeTree` の build が Unity に `Unable to use flags DisableWriteTypeTree unless SerializeUnityVersion is also specified.` で拒否され、`ac11-no-type-tree` が登録の観測まで進まない（4 設定とも `round.untested`、cause `no-type-tree-build`）。Unity が受理する no-type-tree の build にして、Editor Play での登録と要求の観測（§6.9 の record）に進めるようにする。製品 code・SampleGame・asmdef は変えない（N6）。差分は D-2 の条件 (1) に収める（他の round の進行・観測に及ぶなら全件の再実行になる）。B の後の判定 C の実行は、環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac11-no-type-tree` を設定し、`pwsh tools/run-tests.ps1 -Filter "<Matrix_* 4 件の完全名を ; で連結>"` を 1 回実行する（Baseline は含めない）。各 record の `harness.started` が `rounds=1`、`matrixScenarioFilter=ac11-no-type-tree` であることを確かめる。判断と C' の入力には `a4b7a6e6` の全件実行の証拠を合わせる。C' の入力には D-2 の証拠の組み立ての条件だけを渡し、理由は渡さない。
+  - 次の Phase・役割: **判定 C（§2 の決定記録 D-2 により `ac11-no-type-tree` だけの再実行）**。実行担当は新しい session が務める。続けて C' の 2 巡目を行う。発見 C は、差分が no-type-tree の build の経路に閉じるので挟まない。動作確認は、残りの観測が Unity テストの中にしか無いので対象なし。
+  - 次の作業: §6.10 の修正の後の head で、`ac11-no-type-tree` の record を取り直す。判定 C の実行は、環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac11-no-type-tree` を設定し、`pwsh tools/run-tests.ps1 -Filter "<Matrix_* 4 件の完全名を ; で連結>"` を 1 回実行する（Baseline は含めない）。各 record の `harness.started` が `rounds=1`、`matrixScenarioFilter=ac11-no-type-tree` であることを確かめる。判断と C' の入力には `a4b7a6e6` の全件実行の証拠を合わせる。C' の入力には D-2 の証拠の組み立ての条件だけを渡し、理由は渡さない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: B は対象を限定した Editor 操作とコンパイル確認まで。Unity テストの実行は判定 C の実行担当が、Unity Editor を閉じた状態から、Windows では最初の実行から sandbox 外の承認済み経路で行う。
+  - 必要な権限: Unity テストの実行は判定 C の実行担当が、Unity Editor を閉じた状態から、Windows では最初の実行から sandbox 外の承認済み経路で行う。
+  - 実行する checkout: 短い path の detached worktree で行う。root 98 文字の worktree（`.claude/worktrees/` の下）では、依存の DLL があるのに `MessagePack` / `ZLogger` が解決されずコンパイルが失敗した（§6.10。原因は未調査）。
   - 判定 C の実行担当への注意: 判断担当に Codex CLI を使う場合、read-only sandbox では集計手段が動かない（§7.5）。`$null` を stdin に渡し、書き込みを packet に限る設定で起動する。XML の完了後に Unity が終わらないのは既知の終了 stall で、起動した PID だけを止める。`Get-Process -Id` と `taskkill` は exit 中の PID を見つけられないことがある。
   - 停止規則: §2 の停止規則、§4、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。C' の差し戻しの残りは 1 巡で、次に収束しなければ残る指摘と違反根拠を付けて owner に返す。
   - 引き渡さないもの: §7・§8 の所見と結論を C' の入力へ転載しない（C' 自身の前巡の指摘への裁定を除く）。
@@ -415,6 +416,20 @@ Phase A revision 2（§2 の決定記録の次の項）を凍結した後の修�
 - Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。閉じた状態（lockfile 無し、Unity の process 無し）から batch で起動し、`OneStarMaker.Tests.Editor.dll` が再生成され、`error CS` 0 件、実験 folder の警告 0 件、exit 0 で自然終了した。Unity が消した vendor の `.pdb.meta` 5 件は作業範囲外として `git restore` で戻した。
 - `pwsh tools/contract-audit.ps1`: 違反なし。AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 496 行（変更なし）。
 - 未実行（判定 C）: Unity テスト。
+
+### 6.10 判定 C の差し戻しの修正（全件再実行の後、2026-11-08）
+
+引き継いだ commit `a976332f`（その時点の implementation head `a4b7a6e6`）。修正の implementation head はこの節を含む commit（§0 の欄）。§7.5 の差し戻しだけを扱う B 適応で、変更は §3 の folder の 2 file だけ、製品 code・SampleGame・asmdef の差分は無い。
+
+| 対象 | 修正 |
+|---|---|
+| no-type-tree の build（`FixtureFactory.cs`） | build option を定数 `NoTypeTreeOptions`（`DisableWriteTypeTree \| SerializeUnityVersion`）にした。Unity の拒否文が要求する組み合わせで、`SerializeUnityVersion` は Unity 6000.6.0f1 の API 文書（`UnityEditor.CoreModule.xml`）に実在する。type tree を書かない点は変わらない |
+| `ac11.built` の record（`RoundRunner.Editor.cs`） | `options` の値を固定の文字列から `NoTypeTreeOptions.ToString()` に変えた。record が実際に指定した option を示す |
+
+- D-2 の条件 (1): 上の 2 か所は `BuildDirectoryWithoutTypeTree` とその呼び出しの record だけで、`ac11-no-type-tree` 以外の round は通らない。確かめるのは判定 C の `git diff a4b7a6e6 <新 head>`。
+- Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。閉じた状態（lockfile 無し、Unity の process 無し）から batch で起動した。最初にこの session の worktree（root 98 文字、`unity/Library` 無しの初回 import）で実行し、exit 1、`error CS` 1185 件で止まった。全て `Scripts/Foundation` の `MessagePack` / `ZLogger` の未解決で、実験 folder のエラーは 0 件、DLL は `unity/Assets/Packages` に tracked で存在する。原因は調べず、同じ commit の短い path の既存 checkout に変更の 2 file だけを写して実行し、exit 0 で自然終了、`error CS` 0 件、実験 folder の警告 0 件、`OneStarMaker.Tests.Editor.dll` の再生成を確かめた。写した file と、Unity が消した vendor の `.pdb.meta` 5 件はその checkout で `git restore` し、clean に戻した。
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 496 行（変更なし）。
+- 未確認（判定 C の実行で観測する）: Unity がこの組み合わせの build を受理すること（Content Directory の build は Phase C の担当なので B では実行していない）、§6.9 の未知（登録・load がどう失敗するか）。別の理由で build が拒否されたら、`round.untested` のまま B へ戻す。
 
 ## 7. Phase C
 

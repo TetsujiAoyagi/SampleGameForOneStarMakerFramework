@@ -55,6 +55,12 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
     {
         internal const string Representation = "Full";
 
+        /// <summary>
+        /// AC11 の機構 (ii) の build option。Unity は `DisableWriteTypeTree` を `SerializeUnityVersion` なしで拒否するので、両方を指定する。
+        /// `SerializeUnityVersion` は版の情報を足すだけで、この directory に type tree が無いという観測の前提は変えない。
+        /// </summary>
+        internal const BuildContentOptions NoTypeTreeOptions = BuildContentOptions.DisableWriteTypeTree | BuildContentOptions.SerializeUnityVersion;
+
         internal static FixturePaths Create(TempRootLease lease)
         {
             var folder = lease.EnsureAssetChild("fixture");
@@ -118,7 +124,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
 
         /// <summary>
         /// type tree を書かない directory を build する（AC11 の機構 (ii)）。製品の adapter は build option を固定していて
-        /// 外から変えられないので、adapter の Scene の経路だけをここに写す。違いは `DisableWriteTypeTree` だけで、
+        /// 外から変えられないので、adapter の Scene の経路だけをここに写す。違いは <see cref="NoTypeTreeOptions"/> だけで、
         /// 直す時は `UnityContentDirectoryAdapter.Build` と揃える。root の一時 asset は build の成否にかかわらず消す。
         /// </summary>
         internal static BuiltDirectory BuildDirectoryWithoutTypeTree(string identity, string workspace, string assetFolder, string logicalKey, string scenePath)
@@ -142,7 +148,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 var report = BuildPipeline.BuildContentDirectory(new BuildContentDirectoryParameters
                 {
                     outputPath = workspace, rootAssetPaths = new[] { rootPath }, name = identity,
-                    compression = BuildCompression.Uncompressed, options = BuildContentOptions.DisableWriteTypeTree,
+                    compression = BuildCompression.Uncompressed, options = NoTypeTreeOptions,
                     extraScriptingDefines = Array.Empty<string>()
                 });
                 if (report == null || report.summary.result != BuildResult.Succeeded)

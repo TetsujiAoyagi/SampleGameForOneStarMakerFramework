@@ -153,7 +153,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 state.tempDirectory = FixtureFactory.BuildDirectoryWithoutTypeTree(identity, workspace, lease.EnsureAssetChild("snap/r" + state.index), "Next", state.fixture.buildNext);
                 state.hasTempDirectory = true;
                 record.Write(cell, "ac11.built", ("identity", identity), ("path", state.tempDirectory.path), ("summary", state.tempDirectory.summary),
-                    ("elapsedMs", state.tempDirectory.elapsedMs), ("options", "DisableWriteTypeTree"));
+                    ("elapsedMs", state.tempDirectory.elapsedMs), ("options", FixtureFactory.NoTypeTreeOptions.ToString()));
                 return true;
             }
             catch (Exception ex)
