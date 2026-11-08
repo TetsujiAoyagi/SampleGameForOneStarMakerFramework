@@ -21,7 +21,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: B（発見 C の差し戻しの修正。B と発見 C の往復の 1 巡目）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、Phase C の実行担当が持つ）。
-  - 次の作業: §7「現在の問いを阻害する findings」の C-01・C-02 を直す（どちらも B 適応の範囲。§4「B 適応で扱ってよいもの」と §6.3 の追記で足り、Phase A を再開しない）。§7「現在の問いを阻害しないが直すべき findings」の C-03〜C-06 は同じ修正で扱ってよい（扱わない物は理由を §6 に書く）。C-07 は owner の裁定を待つ（裁定が出るまで実装を変えない）。修正後に Editor のコンパイル確認と `pwsh tools/contract-audit.ps1` を行い、§6 に修正の記録を足し、新しい implementation head を固定して発見 C の 2 巡目へ渡す。B は引き続き Unity テスト・Content Directory build を実行しない。
+  - 次の作業: §7「現在の問いを阻害する findings」の C-01・C-02 を直す（どちらも B 適応の範囲。§4「B 適応で扱ってよいもの」と §6.3 の追記で足り、Phase A を再開しない）。§7「現在の問いを阻害しないが直すべき findings」の C-03〜C-06 は同じ修正で扱ってよい（扱わない物は理由を §6 に書く）。C-07 は owner が許した（§7.1 の裁定。用途を広げない。見直しは後続へ移送済みで、B は何もしない）。修正後に Editor のコンパイル確認と `pwsh tools/contract-audit.ps1` を行い、§6 に修正の記録を足し、新しい implementation head を固定して発見 C の 2 巡目へ渡す。B は引き続き Unity テスト・Content Directory build を実行しない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は `9a606dac` で、この commit との差分は本書だけ。
   - 必要な権限: Unity Editor（コンパイル確認。閉じた状態から起動し、自分で起動した Editor だけを終了する）。
   - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。B と発見 C の往復は 4 巡まで（SKILL）。
@@ -383,9 +383,11 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
   - **C-05 abandoned の回収が失敗しても回収済みに数える。** `DrainAbandoned` は `finally` で `_abandonedRecovered` を増やす（`RoutingBackend.cs` 300 行目）ので、AC6 の「未回収 token の計数が 0」が回収の失敗を隠す。失敗は別の計数にする。
   - **C-06 AC0 の改ざんの時点が HANDOFF と違う。** AC0 は「Play 中に元の Scene の値を書き換えて保存する」だが、実装は Play の停止後・t2 の前に改ざんする（Play 中は Scene を保存できない）。検出器の妥当性の確認としては妥当なので、§6.3 に B 適応として理由を書く。
 - owner の裁定を待つ事項:
-  - **C-07** `PlayEnvironment.FindGamePrefix` は Game の initializer の型を reflection で発見し、その method を呼ぶ（§6.3 の 7）。AC13 の grep は通るが、N6「`SampleGame` の型・asset を参照しない」に実行時の参照として当たるかは文言だけでは決まらない。裁定が出るまで実装を変えない。
+  - **C-07** `PlayEnvironment.FindGamePrefix` は Game の initializer の型を reflection で発見し、その method を呼ぶ（§6.3 の 7）。AC13 の grep は通るが、N6「`SampleGame` の型・asset を参照しない」に実行時の参照として当たるかは文言だけでは決まらない。
+    - **裁定（owner、2026-11-08）: 許す。見直しは後続へ積む。** 許す範囲は、compile 時の依存を足さず、Game の bootstrap を静かに起動させる目的（環境変数の接頭辞の取得）にだけ使うこと。B はこの用途を広げない。判定 C は Game の bootstrap との干渉（§6.3 の 7、§6.6 (4)）を §7 に書く。見直しは下の「後続スライスへ移送する findings」の C-07 に移した。
 - 確認して問題が無かった事項: fixture の Scene 名（`Boot`・`Entry`・`Next`・`Other`・`Dup`）は SampleGame の Scene 名と重ならない（Game の bootstrap が名前で取り込む見込みは無い。C の実行で `observe` で確かめる §6.6 (4) は残る）。`UnityContentDirectoryBackend` は static な状態を持たず、instance 2 つで 2 件の native 登録を持てる。機構 (i) が前提にする `PerformUnitySceneLoad` の順序（`GetSceneByName` が先で、directory mode でも同じ）は製品 code と一致する。
-- 後続スライスへ移送する findings: なし（上の全てを現スライスで扱う）。
+- 後続スライスへ移送する findings:
+  - **C-07（見直し）** Editor Play の実験・検証が、project の Game の bootstrap を止められず、Game の型を reflection で呼んで静かに起動させている構造。Game を起動させずに Editor Play の検証を行う手段（Play の目的ごとの起動の抑止など）を Framework 側に持つかを見直す。移送先: S0-c `EDITOR_PLAY_ENTRY_PROOF`（Play 入口と RunPurpose を持つ）。Phase D で program §10 へ harvest する時に移送先へ渡す。本スライスでは追加実装しない。
 - 実行したテストコマンドと `-Filter`: なし。発見の段階で Unity テストを実行していない（C-01・C-02 は code と UTF の source から確かめられ、明確な差し戻しが決まったので、最終判定用の検証を実行しない）。
 - テスト結果: なし。
 - 判定必須のうち未実行: 判定必須テストの全て（§5 の filter の 5 test）。
