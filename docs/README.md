@@ -23,7 +23,7 @@ H1適用をA3で明示したArtifacts/Harness作業では、Git外のCURRENTと�
 |---|---|---|---|
 | **公開面** | `README.md` / `unity/Assets/ARCHITECTURE.md` / `unity/Assets/Docs/Architecture/` / `docs/` 直下 / **`docs/updater/`**（UpdateSystem 正本仕様 + 視覚メモ） / **`docs/streaming/`**（Streaming 現状仕様 + 対照。到着契約は Architecture §34） / `protocol/` / `tools/**/README.md` | tracked | 永続。**今この瞬間に真であること** |
 | **作業台** | `docs/handoff/` | tracked | 進行中のスライス。複数スライスに跨る計画も置いてよい（harvest 先と期限を本文に書く）。完了スライスはマージ時にPhase D手順（保存・引渡し確認 → harvest → 削除・後始末）で閉じる。進行中 program / 候補は解決・置換時に同手順を適用する |
-| **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` `docs/agents/` | ignored | 無期限。公開面から参照しない。`docs/agents/` は実行環境に固有の運用メモと導入理由の実測記録だけを持ち、Phase契約の正本にしない。モデル・製品の担当割当は固定しない |
+| **手元** | `docs/planning/` `docs/reference/` `docs/slides/` `docs/debugstudio/` `docs/agents/` | ignored | 無期限。公開面から参照しない。`docs/agents/` は実行環境に固有の運用メモと取得案内だけを持ち、Phase契約の正本にしない。モデル・製品の担当割当は固定しない |
 
 ## 公開面のルール
 
