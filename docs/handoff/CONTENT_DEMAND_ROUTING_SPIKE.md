@@ -21,7 +21,8 @@
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）・引渡し未完了、担当は判定 C の進行役。C' の 2 巡目で使った。別プロセスの fetch で manifest 全件の一致を確かめた（別 session からの取得確認は未了）。C' の担当は bundle の写しの packet を読み、fetch はしていない
 - 引継ぎ票:
   - 次の Phase・役割: **Phase D（owner）**。判定 C（§7.6）と C' の 2 巡目（§8）を初めて突き合わせ、マージを判断する。
-  - 次の作業: §7.6 と §8 を読む。§8 が「差分内の静的な残件」とした `FixtureFactory.BuildDirectoryWithoutTypeTree` の `report?.summary.result`（偽 null の常時契約に関わる）の扱いを決める。Evidence の保存・引渡し（判定入力、C' 入力、判定 C と C' の出力の 4 bundle。いずれもローカル固定で別 session からの取得確認は未了）を確かめ、harvest と HANDOFF の削除へ進む。PR は未作成で、この記録の commit は `claude/play-content-s0b-spike` に載っていない（detached の worktree）。
+  - 次の作業: §7.6 と §8 を読む。§8 が「差分内の静的な残件」とした `FixtureFactory.BuildDirectoryWithoutTypeTree` の `report?.summary.result`（偽 null の常時契約に関わる）の扱いを決める。Evidence の保存・引渡し（判定入力、C' 入力、判定 C と C' の出力の 4 bundle。いずれもローカル固定で別 session からの取得確認は未了）を確かめ、harvest と HANDOFF の削除へ進む。PR は #172 で、Phase D の前に owner が外部レビューを行う。
+  - `develop` の取り込み: PR の競合を解消するため、owner の指示で `develop`（`389b2cae`、S0-a の製品 code を含む）を merge した（commit `3100f66d`）。implementation head は `94b0c4a6` のままで、判定 C と C' の証拠は merge より前の tree で取った。merge 後の tree では Unity のコンパイルもテストも実行していない。この merge により「implementation head から HEAD までの差分が HANDOFF だけ」の照合は成り立たないので、merge の第 1 親 `bc6b862f` までで照合する。再検証の要否は owner が判断する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
   - 必要な権限: Evidence の確認と取得は非仮想化の pwsh で行う。R2 への昇格は owner が指示した場合だけ行う。
   - 停止規則: §2 の停止規則に従う。S1 以降は本スライスの Phase D より前に Phase B を始めない。
