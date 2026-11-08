@@ -45,6 +45,7 @@ Assets/
 │   │   ├── AssetManagement/     … IAssetManagement, AddressableBackend, AssetResidentCache
 │   │   ├── AssetDescriptions/   … SceneAssetDescription, ScenePayload, LoadType
 │   │   ├── AssetBuildContracts/ … AssetType, ContentDirectoryException（AssetManagement と BuildSystem 本体の共通契約）
+│   │   ├── ContentResolution/   … ContentRequest, ContentResolver, ContentRequestLoader（要求時解決の任意の層）
 │   │   ├── DebugSocketServices/ … DebugSocketService（ヒエラルキー/インスペクタ/コマンド）
 │   │   └── UpdateSystem/        … UpdateSystemHost, UpdaterDriver（ホスティング層）
 │   ├── Debug/                   ← OneStarMaker.Debug.asmdef (→ Foundation + Runtime + TMP)
@@ -144,7 +145,7 @@ OTel 互換の TraceId/SpanId を持つ軽量スパン計測。JSONL ファイ�
 
 ### AssetManagement（アセット管理）
 通常経路は Content Directory。Addressables は `IAssetManagement` / `IAssetBackend` の互換口として残る。
-LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
+LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。要求時に候補を探して由来を残す `Runtime/ContentResolution/` はこの上の任意の層で、所有と解放は `IAssetManagement` の既存 API を使う。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
 
 ### Content Directory / Delivery（Editor ツール）
 Editor directory Play は Content Directory build 後の transport publish と DIST Delivery の verified install を使う。Editor Play 向け publish 入口は未整備。BS4 Player は Player build 内で publish する別経路。

@@ -55,6 +55,7 @@
 | 公開 API | `IAssetManagement` に Content Directory 用の型付き Object / Scene / Prefab 入口を追加。既存 Addressables API の署名と既定挙動は維持 |
 | テレメトリ結合 | `AssetResidentCache.GetSnapshot()` をテレメトリ層がポーリング（配線は次パス）。AssetManagement にリアクティブ依存（R3）を持ち込まない判断 |
 | 配信 cache | transport の取得・検証・disk budget・known-good pin・物理削除は DIST が所有。`AssetResidentCache` のメモリ budget と混同しない |
+| 要求時解決 | `Runtime/ContentResolution/` の任意の層が、要求に対する候補の探索と由来の記録を持つ。`IAssetManagement` に member を足さず、所有と解放は既存の API のまま。この層を使わない AssetManagement と BuildSystem の単独利用は変わらない |
 
 ### Unity 6.6 Content Directories の実証済み境界
 
@@ -214,6 +215,25 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 `ReleaseAll` は意図的に Addressables backend Scene Unload を行わない。directory の Play 停止完了は
 続けて同期 `CompletePlayStop` が所有し、`StopAndDrain` は明示 close だけが使う。`.Forget()` による
 非同期 Unload も持たない。
+
+### 要求時の Content 解決（`Runtime/ContentResolution/`）
+
+呼び出し側が供給元の種類や所在を知らないまま、要求に対して候補を得てロードし、何をどの供給元から得たかを説明するための任意の層である。
+
+| 型 | 役割 |
+|---|---|
+| `ContentRequest` | logical key、kind（Scene / Object）、表現、expected identity。resolver も provider も書き換えない |
+| `IContentProvider` | 供給元。候補の有無を `Available` / `NotFound` / `Unavailable` / `Rejected` で答えるだけで、bytes の取得や install はしない |
+| `IContentCompatibilityRule` | 候補を採ってよいかの規則。製品の実装はまだ無く、host が policy に渡す |
+| `ResolutionPolicy` | provider の順序と規則 |
+| `ContentResolver` | 上の 3 つを順に当て、probe ごとの結果を残す。Unity に依存しない（`Core/`） |
+| `ContentRequestLoader` | 採用した候補を既存の `LoadContentSceneAsync` / `LoadContentAssetAsync<T>` に渡し、handle と `ContentLoadRecord` を返す |
+
+- **順序・可用性・互換は別の判定である。** 供給元の順序、候補があること、候補を採ってよいことを混ぜない。採用した時点で以後の供給元を probe しない。不在・不達・規則の不採用は記録して次へ進む。
+- **fail-closed:** 採用、identity の無い `Rejected`、pin の食い違い、`Fault`、取消の 5 つだけが探索を止める。候補は受け入れ根拠（`ContentAcceptanceBasis`）を申告し、供給元の種別ごとの固定表に合わなければ規則が採用しても採用しない。`Rejected` が 4 欄そろった identity を伴うときは、その identity と全欄一致する検証済みの候補だけで修復できる。この pin は 1 要求の中だけで持続する。
+- **`IAssetManagement` に member を足さない理由:** 探索と由来は任意の機能なので、使わない利用者の必須依存にしない。loader は AssetManagement の public だけを使い、同じ assembly の internal を呼ばない。別 asmdef に分けていないので、コンパイルでは防げない。この点を確かめる検査は常設していない。
+- **所有と解放は既存の契約のまま。** `Release`、`UnloadSceneAsync` → `ReleaseScene`、`ReleaseAll` を使い、解放 API を足さない。
+- **まだ保証しないこと:** record は採用した候補の記録であり、実際にロードした directory との同一性は検証していない（`SourceBindingVerified` は常に false）。`IAssetManagement` が directory の identity を返さないためで、Runtime の供給元の接続で閉じる。record の表現は provider が申告した値で、`ContentDirectoryIndex` の `Full` fallback の実効値は写さない。Scene の provider adapter・SceneDirector 経由の経路・要求をまたぐ pin は未実装である。実在の provider はまだ無く、fake でだけ検証している。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 
