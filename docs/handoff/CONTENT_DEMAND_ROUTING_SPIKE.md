@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `B`（**判定 C の 1 回目で B へ差し戻し**、2026-11-08。行列は完走したが AC6 の取消の経路に harness 自身の欠陥があり、判定を出さない（§7.3 C-08）。B と C の往復は 2 巡目に入り、残りは 2 巡。直前の状態: 発見 C は 2 巡目で収束（§7.2）。前の B 完了の head は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
+- status: `C`（**判定 C の再実行待ち**、2026-11-08。B が §7.3 の C-08 を直した（§6.8）。決定記録 D-1 により、再実行は AC6 の cell だけ。B と C の往復は 2 巡目で、残りは 2 巡。直前の状態: 判定 C の 1 回目で B へ差し戻し（§7.3）。前の B 完了の head は `c45a37b8`、その前は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: `c45a37b8`
+- implementation head commit: この票を含む commit
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: **B（差し戻し）。** §7.3 の C-08 だけを直す（B 適応）。修正後は発見 C ではなく、判定 C を再実行する（発見 C の 2 巡目で他の欠陥は無いと確認済み。§7.3 は AC6 以外の cell の record に harness 起因の異常が無いことも確かめた）。判定 C は B と異なるモデル系列の担当を選ぶ（今回の担当は B と同じ Anthropic 系列で、`独立性制約あり`。§7.3）。
-  - 次の作業: `RoutingBackend.LoadSceneAsync` の取消の経路（`operation` を `AttachExternalCancellation(ct)` で await した後、`DrainAbandoned` が同じ `operation` を再び await する。record は `routing.abandoned.failed`（stage `load`、`Already continuation registered, can not await twice`）で、`pendingOperations` と `unrecoveredAbandoned` が残り Scene が回収されない）を直す。native の完了を 1 つの完了通知（`TaskCompletionSource` 等）に載せて、取消した caller の待ちと回収の待ちが同じ UniTask を 2 度 await しない形にする、が修正の方向。AC6 の record で `routing.load.canceled` → 遅れて完了した Scene の回収（`routing.abandoned.recovered`）→ `unrecoveredAbandoned=0`・`pendingOperations=0` → unregister の順になることを、コンパイルと record の読みの範囲で確かめる（Unity テストの実行は判定 C）。AC6 の round だけを選んで実行できる手段も足す（決定記録 D-1。判定 C が AC6 だけを新 head で再実行し、他は旧 evidence を再利用するため）。出口で implementation head を更新し、引継ぎ票を判定 C へ戻す。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は §0 の欄の値（`c45a37b8`。B が修正するまで変わらない）で、この commit との差分は本書だけ。判定 evidence を取った head は軽量 tag `evidence/content-demand-routing-spike/1` で到達可能に保っている（push しない）。
+  - 次の Phase・役割: **判定 C（再実行、AC6 だけ）。** B が C-08 を直した（§6.8）。発見 C は挟まない（発見 C の 2 巡目で他の欠陥は無いと確認済み、§7.3 は AC6 以外の cell の record に harness 起因の異常が無いことを確かめた）。判定 C は B と異なるモデル系列の担当を選ぶ（前回の判定 C は B と同じ Anthropic 系列で `独立性制約あり`。§7.3）。
+  - 次の作業: 決定記録 D-1 に従う。(1) `git diff c45a37b8 <implementation head>` を読み、再利用の条件 (1) を確かめる。差分は `RoutingBackend.cs`（C-08 の修正、取消・回収の経路だけ）と、D-1 が B に許した AC6 の round を選ぶ手段（`Scenarios.cs` の環境変数による行列の絞り込みと、`RoundRunner.cs` の `harness.started` への 1 項目）の 3 file で、他の round の進行・観測には触れていない（§6.8）。後者を条件 (1) の違反と読むなら全件を再実行する。(2) Process の環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac6-cancel-gate` を設定した shell から、`Matrix_*` 4 件だけを選ぶ `-Filter`（例: 4 件の完全名を `;` で区切る。`Baseline_DetectorAndControls` は絞り込みが効かず全 round を走らせるので含めない）で `pwsh tools/run-tests.ps1` を 1 回実行する。各 record の `harness.started` の `matrixScenarioFilter` が `ac6-cancel-gate`、`rounds` が 6（2 機構 × 3 反復）であることで、絞った実行だったことを確かめる。(3) AC6 の record で、各 identity について `routing.load.canceled` → `routing.gate.opened` → `routing.abandoned.recovered`（`how=unloaded` の見込み）の順になり、`routing.abandoned.failed` が無く、`ac6.afterDrain` の `routing` が `pendingOperations=0`・`unrecoveredAbandoned=0`・`abandonedRecoveryFailed=0`、`routing.unregistered` がその後（Play 停止の `play-stop`、`liveTokens=0`）に来ることを確かめる。(4) 旧 head の evidence（tag `evidence/content-demand-routing-spike/1`）と合わせて cell ごとの出所を §7 に書き、XML の件数・test 名を突き合わせて判定を出す。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head も同じ commit（§0 の欄）。判定 C の 1 回目の evidence を取った head（`c45a37b8`）は軽量 tag `evidence/content-demand-routing-spike/1` で到達可能に保っている（push しない）。
   - 必要な権限: Unity Editor（閉じた状態から。`unity/Temp/UnityLockfile` が無いこと）と、Windows では最初の実行から sandbox 外の承認済み経路での `pwsh tools/run-tests.ps1`。evidence bundle の保存は Artifact Storage の事前承認の範囲。
-  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。判定 C で欠陥が出て B へ戻す時は、B と発見 C の往復の残り 3 巡に数える。判定 C の担当は B と異なるモデルを選ぶ（発見 C の `独立性制約あり` を引き継がない）。C' の起動は判定 C の完了後。
+  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。判定 C で欠陥が出て B へ戻す時は、B と C の往復の残り 2 巡に数える。判定 C の担当は B と異なるモデルを選ぶ（発見 C の `独立性制約あり` を引き継がない）。C' の起動は判定 C の完了後。
   - 引き渡さないもの: §7 の発見 C の所見を Phase B result・C' 用の入力へ転載しない（C' 完了まで隔離）。
 
 ### 実測の方法
@@ -383,6 +383,21 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
 - AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い（grep）。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 472 行（500 行の警報に届かない）。
 - 未実行（Phase C）: Unity テスト、Content Directory の build、Play の往復。C-01 の record の順序と、C-02 の DR 有効の設定で round が 2 件以上進むこと（§7.1 の smoke）は C の最初の実行で確かめる。§6.6 の (1)〜(5) も残る。
+
+### 6.8 判定 C の差し戻しの修正（2 巡目、2026-11-08）
+
+引き継いだ commit `a01e45d6`（その時点の implementation head `c45a37b8`）。修正の implementation head はこの節を含む commit（§0 の欄）。§7.3 の C-08 だけを扱い、決定記録 D-1 が許す AC6 の round の選択手段を足した。変更は §3 の folder の 3 file だけで、製品 code・SampleGame・asmdef の差分は無い。
+
+| 対象 | 修正 |
+|---|---|
+| C-08（`RoutingBackend.cs`） | 原因: `LoadThroughGate(...).Preserve()` の UniTask を caller が `AttachExternalCancellation(ct)` で待ち、取消の後に `DrainAbandoned` が同じ UniTask を待っていた。`Preserve` は完了後の複数回の await を許すだけで、未完了の間に 2 つ目の継続を登録すると `Already continuation registered` を投げる（UniTask の `MemoizeSource` は元の source へ継続を 1 つだけ渡す）。修正: 新しい `StartLoad` が native の load と gate を走らせ、その終端（Scene か例外）を `UniTaskCompletionSource<IBackendScene>` に載せて、その `Task` を返す。この class は未完了の間も継続を複数持てる（package の source で `secondaryContinuationList` を確かめた）ので、取消した caller の待ちと回収の待ちが同じ完了通知をそれぞれ await できる。取消・回収以外の経路（計数、gate、停止後の完了の回収 C-01、unregister）は変えていない |
+| AC6 の選択（`Scenarios.cs`、`RoundRunner.cs`） | 環境変数 `OSM_CDR_MATRIX_SCENARIOS`（カンマ区切りの scenario 名）が設定されていれば、`Scenarios.MatrixRounds` がその scenario の round だけを返す。未設定・空なら従来どおり全 round。行列に無い名前は test の開始で `ArgumentException` にして、綴りの誤りで黙って round が欠けないようにした。基準の test（`BaselineRounds`）には効かない（AC0 の検出器 2 件を assert しているため）。`harness.started` に `matrixScenarioFilter`（値、全件なら null）を足し、絞った実行を record で区別できるようにした。round の並びと各 round の中身は変えていない。test の分割は採らなかった（namespace の filter の全件実行に AC6 の test が重複して入り、旧 evidence と test 名・件数が変わるため） |
+
+- AC6 の record の見込み（コードの読み、未実行）: identity ごとに `routing.gate.closed` → `routing.native.completed` → `routing.gate.holding` → `ac6.beforeCancel` → `routing.load.canceled` → `ac6.callerOutcome`（`canceled`）→ `routing.gate.opened` → `routing.gate.released` → `routing.abandoned.recovered`（`how=unloaded`、`unrecoveredAbandoned=0`）→ `ac6.afterDrain`（`pendingOperations=0`）。登録の解除は Play 停止の `CompletePlayStop` で、pending が 0 なので遅らせずに `routing.unregistered`（reason `play-stop`、`liveTokens=0`）になる。
+- Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。閉じた状態（lockfile 無し、Unity の process 無し）からこの worktree の project を起動し、`OneStarMaker.Tests.Editor.dll` が再生成され、`unity/Logs/Editor.log` に `error CS` が 0 件、実験 folder の警告が 0 件であることを確かめた。Editor は自分で起動した物だけを正常終了した（Scene・asset の編集はしていない）。初回 import が vendor の `MobileDependencyResolver` の `.pdb.meta` 5 件を消したので、作業範囲外として `git restore` で戻した。
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
+- AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い（grep）。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 496 行（500 行の警報に届かない）。
+- 未実行（判定 C）: Unity テスト。AC6 の record の順序と計数、環境変数が `run-tests.ps1` の起動した Unity へ引き継がれること（`ProcessStartInfo` は `UseShellExecute=false` で親の環境を継ぐ見込み）、`Matrix_*` の完全名の `-Filter` で `[Explicit]` の test が選ばれることは、判定 C の実行で確かめる。
 
 ## 7. Phase C
 

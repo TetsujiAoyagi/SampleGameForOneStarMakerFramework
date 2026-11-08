@@ -146,7 +146,10 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             try
             {
                 // caller の取消は Unity の load 自体を止めない。遅れて完了した Scene を回収するまで unregister しない。
-                var operation = LoadThroughGate(directory, entry, sceneIdentity, options).Preserve();
+                // 完了は 1 つの completion source に載せ、取消した caller の待ちと回収（DrainAbandoned）の待ちがそれぞれ
+                // その Task を await する。UniTask を Preserve しても、未完了の間に 2 か所から await すると
+                // 「Already continuation registered」で 2 つ目が失敗し、回収が走らない（判定 C の C-08）。
+                var operation = StartLoad(directory, entry, sceneIdentity, options);
                 IBackendScene scene;
                 try { scene = await operation.AttachExternalCancellation(ct); }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -286,6 +289,27 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             if (chosen == null || chosenEntry == null)
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.EntryMissing, "No routed directory has the scene.", BuildIdentity, Target, identity, representation);
             return (chosen, chosenEntry);
+        }
+
+        // native の load と gate を走らせ、その終端（Scene か例外）を複数の await を許す UniTaskCompletionSource で返す。
+        // 返す Task は caller の待ちと DrainAbandoned の待ちで共有する（未完了の間に 2 度 await されうる）。
+        private UniTask<IBackendScene> StartLoad(NativeDirectory directory, BuildContentEntry entry, string identity, SceneLoadOptions options)
+        {
+            var completion = new UniTaskCompletionSource<IBackendScene>();
+            Run().Forget();
+            return completion.Task;
+
+            async UniTaskVoid Run()
+            {
+                IBackendScene scene;
+                try { scene = await LoadThroughGate(directory, entry, identity, options); }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                    return;
+                }
+                completion.TrySetResult(scene);
+            }
         }
 
         private async UniTask<IBackendScene> LoadThroughGate(NativeDirectory directory, BuildContentEntry entry, string identity, SceneLoadOptions options)

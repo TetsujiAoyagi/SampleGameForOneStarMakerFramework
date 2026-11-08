@@ -159,7 +159,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             var record = state.OpenRecord();
             record.Write(null, "harness.started", ("test", testName), ("unityVersion", Application.unityVersion),
                 ("pid", Process.GetCurrentProcess().Id), ("epmSetting", epm.ToString()), ("epmBefore", EnterPlayModeMatrix.Describe()),
-                ("rounds", rounds.Count), ("startSceneBefore", PlayEnvironment.CurrentStartScene()),
+                ("rounds", rounds.Count), ("matrixScenarioFilter", Scenarios.MatrixFilter()), ("startSceneBefore", PlayEnvironment.CurrentStartScene()),
                 ("activeBuildTarget", EditorUserBuildSettings.activeBuildTarget.ToString()), ("batchMode", Application.isBatchMode));
             SaveInitialSetup();
             state.gameBootstrapEnvKey = PlayEnvironment.QuietGameBootstrap() ?? string.Empty;

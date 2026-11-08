@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 
 namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
@@ -56,7 +57,38 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             return rounds;
         }
 
+        /// <summary>
+        /// 行列の round を scenario 名で絞る Process の環境変数（カンマ区切り。例 `ac6-cancel-gate`）。未設定または空なら全 round。
+        /// 判定 C が修正した cell だけを新しい head で再実行し、他の cell は前の head の evidence を再利用するための手段
+        /// （HANDOFF の決定記録 D-1）。基準の test には効かない（AC0 の検出器の件数を assert しているため）。
+        /// 絞った実行は record の `harness.started` の `matrixScenarioFilter` に値が残る。全件の実行では null。
+        /// </summary>
+        internal const string MatrixFilterVariable = "OSM_CDR_MATRIX_SCENARIOS";
+
+        /// <summary>環境変数の値（前後の空白を除く）。未設定または空なら null。</summary>
+        internal static string? MatrixFilter()
+        {
+            var value = Environment.GetEnvironmentVariable(MatrixFilterVariable)?.Trim();
+            return string.IsNullOrEmpty(value) ? null : value;
+        }
+
         internal static List<RoundSpec> MatrixRounds()
+        {
+            var all = AllMatrixRounds();
+            var filter = MatrixFilter();
+            if (filter == null) return all;
+            var wanted = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var name in filter.Split(',')) if (name.Trim().Length != 0) wanted.Add(name.Trim());
+            var known = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var round in all) known.Add(round.scenario);
+            // 綴りの誤りで round が黙って 0 件や一部欠けにならないよう、行列に無い名前は test の開始で失敗させる。
+            foreach (var name in wanted)
+                if (!known.Contains(name))
+                    throw new ArgumentException(MatrixFilterVariable + " names an unknown matrix scenario: " + name);
+            return all.FindAll(round => wanted.Contains(round.scenario));
+        }
+
+        private static List<RoundSpec> AllMatrixRounds()
         {
             var rounds = new List<RoundSpec>();
             foreach (var mechanism in new[] { MechanismAlreadyLoaded.Name, MechanismTempDirectory.Name })
