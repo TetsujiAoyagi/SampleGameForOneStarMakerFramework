@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `B`（**発見 C から差し戻し**、2026-11-08。B 完了の head は `9a606dac`。発見 C の 1 回目で現在の問いを阻害する指摘 2 件（§7）。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`。次は B の修正）
+- status: `C`（発見 C の 2 巡目待ち、2026-11-08。発見 C の 1 回目の差し戻し（§7.1 の C-01〜C-06）を B が修正した（§6.7）。B と発見 C の往復の 1 巡目。前の B 完了の head は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: `9a606dac`
+- implementation head commit: `c45a37b8`
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: B（発見 C の差し戻しの修正。B と発見 C の往復の 1 巡目）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、Phase C の実行担当が持つ）。
-  - 次の作業: §7「現在の問いを阻害する findings」の C-01・C-02 を直す（どちらも B 適応の範囲。§4「B 適応で扱ってよいもの」と §6.3 の追記で足り、Phase A を再開しない）。§7「現在の問いを阻害しないが直すべき findings」の C-03〜C-06 は同じ修正で扱ってよい（扱わない物は理由を §6 に書く）。C-07 は owner が許した（§7.1 の裁定。用途を広げない。見直しは後続へ移送済みで、B は何もしない）。修正後に Editor のコンパイル確認と `pwsh tools/contract-audit.ps1` を行い、§6 に修正の記録を足し、新しい implementation head を固定して発見 C の 2 巡目へ渡す。B は引き続き Unity テスト・Content Directory build を実行しない。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は `9a606dac` で、この commit との差分は本書だけ。
-  - 必要な権限: Unity Editor（コンパイル確認。閉じた状態から起動し、自分で起動した Editor だけを終了する）。
-  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。B と発見 C の往復は 4 巡まで（SKILL）。
+  - 次の Phase・役割: 発見 C（2 巡目。B と発見 C の往復の 1 巡目の再レビュー）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、Phase C の実行担当が持つ）。
+  - 次の作業: §6.7 の修正が §7.1 の C-01〜C-06 を解消したかを、implementation head の差分（前の head `9a606dac` から）で確かめる。2 巡目は前巡の指摘の解消と修正差分を中心に見る。C-01 の record の順序と C-02 の DR 有効の設定で round が 2 件以上進むことは、Unity テストの実行で初めて観測できる（B は未実行）。差し戻し中に限定実行するなら §5 の起点 filter で理由と範囲を記録する。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は §0 の欄の値で、この commit との差分は本書だけ。
+  - 必要な権限: 差し戻しの判断だけなら無し。Unity テストを限定実行するなら Unity（Editor が閉じていること）と sandbox 外の承認済み経路（SKILL の Phase C）。
+  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。B と発見 C の往復は 4 巡まで（SKILL。この修正で 1 巡を使った）。
   - 引き渡さないもの: §7 の発見 C の所見を Phase B result・C' 用の入力へ転載しない（C' 完了まで隔離）。
 
 ### 実測の方法
@@ -344,7 +344,8 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 11. **新規未保存の Scene は snapshot を拒否する**（`snapshot.refused`、AC2 が許す唯一の拒否。元を黙って使わない）。
 12. **AC4 の「path / GUID が元と同じ場合」**: `saveAsCopy` は常に新しい GUID を割り当てるので、この機構では作れない。`snapshot.created` の `guidDiffers` に残す。
 13. **AC9 (a) の機構 (i) は snapshot の作成の失敗だけ**（一時 directory の build が無い）。(ii) は snapshot の失敗（`ac9a-fail-snapshot`）と build の失敗（`ac9a-fail-build`）の両方。失敗した round は作った snapshot と directory を全て消し、Play に入らない。
-14. **Domain Reload を跨ぐ再開。** UTF が Domain Reload の後に test の enumerator をどう再開するか（局所変数が戻るか、先頭から再実行か）に依らないよう、round の位置は state file、phase（prepared / played / verified）は SessionState に置き、yield の後は file から読み直す。
+14. **Domain Reload を跨ぐ再開。** round の位置は state file、phase は SessionState に置き、yield の後は file から読み直す。`EnterPlayMode` / `ExitPlayMode` は test method 自身の enumerator から yield する（1 巡目の修正の C-02。UTF は test method の enumerator の位置だけを戻し、入れ子の enumerator の位置と局所変数を戻さない）。
+15. **AC0 の改ざんは Play の停止後・t2 の前に行う**（1 巡目の修正の C-06）。AC0 の文言は「Play 中に元の Scene の値を書き換えて保存する」だが、Play 中は Editor の Scene を保存できない。検出器の妥当性（N1 の比較が disk の書き換えと Dirty の消失を検出するか）は改ざんの時点に依らず、t2 の比較の前に壊れていれば確かめられる。
 
 ### 6.4 U-b1〜U-b4 の確認結果
 
@@ -364,6 +365,24 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 - Unity テスト、Content Directory の build、Play の往復を一度も実行していない。record は 1 行も生成していない。
 - C の最初の実行で確かめること（§5 の未知の経路を含む）: (1) `[Explicit]` の test が namespace の filter で選ばれるか。(2) batch の EditMode test で `EnterPlayMode` / `ExitPlayMode` が往復でき、Domain Reload の後に state file から続きを再開できるか（再開できなければ §5 の承認済みの対話的な実行へ移す）。(3) test の中から adapter の build が通り、Editor Play で directory の Scene を読めるか（type tree）。(4) Game の bootstrap が静かに起動し、実験の Scene を取り込まないか。(5) 行列の所要時間。1 件の `Matrix_*` で Play の往復が 52 回、(ii) の build が 27 回あり、4 件で数時間になりうる（test の timeout は 4 時間）。
 - 実際の Editor の異常終了と実 process 2 つの衝突は本スライスの範囲外（§2）。record では AC9 (b) と AC10 を模擬と明記している。
+
+### 6.7 発見 C の差し戻しの修正（1 巡目、2026-11-08）
+
+引き継いだ commit `cff662b1`（その時点の implementation head `9a606dac`）。修正の implementation head は `c45a37b8`（§0 の欄）。§7.1 の C-01〜C-06 を全て扱った（C-07 は owner の裁定どおり何もしない）。変更は §3 の folder の中だけで、製品 code・SampleGame・asmdef の差分は無い。
+
+| finding | 修正 |
+|---|---|
+| C-01 AC7 (b) で `RoutingBackend` 自身が FAIL を作る | `LoadSceneAsync` が native の完了（gate の解放）の後に `!_accepting`（Play の停止・close の後）を見て、token を発行せず、Scene を unload して回収し、`ContentDirectoryException`（`DirectoryNotRegistered`）を投げる。回収はその operation の計数を持ったまま行うので、遅らせた unregister は回収の後に起きる。record は `routing.load.completedAfterStop` → `routing.abandoned.recovered` → `routing.unregistered`（reason `deferred-after-drain`）の順になる見込み。Play の停止で Unity が既に Scene を unload していれば native の unload を呼ばず `how=already-unloaded-by-unity` で回収済みに数える（製品の `ReleaseSceneTokenAfterPlayStop` と同じく、Unity が片付けた後は token だけを返す扱い） |
+| C-02 DR 有効の `Matrix_*` が最初の reload の後に進まない | 入れ子の `RoundRunner.Run` を廃し、各 test method が `RoundRunner.Start` の後に `for (step = Next(); step != Done; step = Next()) yield return Instruction(step);` を持つ形にした。`Instruction` は `EnterPlayMode` / `ExitPlayMode` の instruction そのものを返すので、Play の出入りは test method 自身の enumerator から yield される。reload の後は yield の次の `Next()` から再開し、SessionState の phase（`entering` / `playing` / `played` / `exiting` / `verifying`）から続きを決める。Play 中の観測と Edit の検証は reload を伴わないので入れ子のままにした。歩が途中で失われた場合（phase が `playing` / `verifying` のまま `Next` に戻った等）は `harness.stepError` と harness の失敗として残し、偽の PASS にしない |
+| C-03 AC5 の前提が行列で成り立たない | 基準 test に隔離なし・`Other` が map に無い round（`ac5-control-no-isolation-not-in-map`）を足した。`Baseline_DetectorAndControls` の round は 6 → 7。AC5 の各 round に前提の行 `ac5.premise`（隔離の有無、map の有無、要求前に Play 中で loaded な `Other` の数）を残す。数が 0 なら「要求前に参加しない」は自明な PASS で、判定担当はこの行で区別する |
+| C-04 record の `seq` が重複しうる | `ExperimentRecord.Open` が同じ domain の中で path ごとに 1 つの instance を共有する。Domain Reload で共有が消えた後は、最初に開いた時に既存の行数から再開する（従来どおり） |
+| C-05 回収の失敗を回収済みに数える | 回収の成功と失敗を別の計数にした（`abandonedRecoveryFailed`）。失敗は `unrecoveredAbandoned` に残る。AC6 の drain の待ちは計数ではなく operation の終端（`PendingOperations == 0`）だけを見て、両方の数を `ac6.afterDrain` の `routing` に残す |
+| C-06 AC0 の改ざんの時点 | code は変えない。§6.3 の 15 に B 適応として理由を書いた |
+
+- Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。閉じた状態からこの worktree の project を起動し、`OneStarMaker.Tests.Editor.dll` が再生成され、`unity/Logs/Editor.log` に `error CS` が 0 件、実験 folder の警告が 0 件であることを確かめた。Editor は自分で起動した物だけを main window から正常終了した（Scene・asset の編集はしていない）。初回 import が vendor の `MobileDependencyResolver` の `.pdb.meta` 5 件を消した（この worktree に `.pdb` が無いため）ので、作業範囲外として `git restore` で戻した。
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
+- AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い（grep）。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 472 行（500 行の警報に届かない）。
+- 未実行（Phase C）: Unity テスト、Content Directory の build、Play の往復。C-01 の record の順序と、C-02 の DR 有効の設定で round が 2 件以上進むこと（§7.1 の smoke）は C の最初の実行で確かめる。§6.6 の (1)〜(5) も残る。
 
 ## 7. Phase C
 
