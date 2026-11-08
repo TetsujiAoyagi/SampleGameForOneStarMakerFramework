@@ -107,6 +107,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                     await Step(record, cell, "addScene:Next", () => harness.AddSceneAsync("Next", "request"));
                     Observe(record, cell, harness, "ac8.afterNext", "Entry", "Next");
                     break;
+                case Scenarios.NoTypeTree:
+                    await RequestWithoutTypeTreeAsync(harness, record, cell);
+                    break;
                 case Scenarios.Baseline:
                 case Scenarios.DetectorRewriteSave:
                 case Scenarios.DetectorClearDirty:
@@ -156,6 +159,21 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             if (Scenarios.IsUnisolatedBaseline(state.Round.scenario)) return;
             await Step(record, cell, "addScene:Other", () => harness.AddSceneAsync("Other", "request"));
             Observe(record, cell, harness, "ac5.afterRequest", "Other");
+        }
+
+        /// <summary>
+        /// type tree の無い directory の Scene を要求する（AC11 の機構 (ii)）。失敗の仕方が未知なので完了を frame の上限つきで待ち、
+        /// 止まったままでも結果を record に残して Play の停止へ進む。
+        /// </summary>
+        private static async UniTask RequestWithoutTypeTreeAsync(DirectorHarness harness, ExperimentRecord record, Cell cell)
+        {
+            Observe(record, cell, harness, "ac11.beforeRequest", "Next");
+            var finished = false;
+            Step(record, cell, "addScene:Next", () => harness.AddSceneAsync("Next", "request")).ContinueWith(() => finished = true).Forget();
+            var frames = await WaitFrames(() => finished);
+            record.Write(cell, "ac11.request", ("finished", finished), ("framesWaited", frames), ("routing", harness.Routing?.Describe()),
+                ("scenes", PlayObserver.LoadedScenes()));
+            Observe(record, cell, harness, "ac11.afterRequest", "Next");
         }
 
         /// <summary>

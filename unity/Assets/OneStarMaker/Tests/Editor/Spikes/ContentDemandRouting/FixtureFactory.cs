@@ -7,7 +7,10 @@ using System.IO;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime.BuildContent;
+using Unity.Loading;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -111,6 +114,50 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             result.elapsedMs = watch.Elapsed.TotalMilliseconds;
             result.summary = built.Summary;
             return result;
+        }
+
+        /// <summary>
+        /// type tree を書かない directory を build する（AC11 の機構 (ii)）。製品の adapter は build option を固定していて
+        /// 外から変えられないので、adapter の Scene の経路だけをここに写す。違いは `DisableWriteTypeTree` だけで、
+        /// 直す時は `UnityContentDirectoryAdapter.Build` と揃える。root の一時 asset は build の成否にかかわらず消す。
+        /// </summary>
+        internal static BuiltDirectory BuildDirectoryWithoutTypeTree(string identity, string workspace, string assetFolder, string logicalKey, string scenePath)
+        {
+            ValidateBuildTarget();
+            var guid = AssetDatabase.AssetPathToGUID(scenePath);
+            if (guid.Length == 0) throw new InvalidOperationException("Build source scene is not imported: " + scenePath);
+            var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(scenePath);
+            var entries = new List<BuildContentEntry> { new BuildContentEntry(logicalKey, logicalKey + "/" + Representation, Representation, sceneId) };
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize(identity, BuildContentCoordinator.TargetName, entries, null);
+            var rootPath = assetFolder + "/BuildContentRoot.asset";
+            AssetDatabase.CreateAsset(root, rootPath);
+            EditorUtility.SetDirty(root);
+            AssetDatabase.SaveAssetIfDirty(root);
+            AssetDatabase.ImportAsset(rootPath, ImportAssetOptions.ForceUpdate);
+            try
+            {
+                Directory.CreateDirectory(workspace);
+                var watch = Stopwatch.StartNew();
+                var report = BuildPipeline.BuildContentDirectory(new BuildContentDirectoryParameters
+                {
+                    outputPath = workspace, rootAssetPaths = new[] { rootPath }, name = identity,
+                    compression = BuildCompression.Uncompressed, options = BuildContentOptions.DisableWriteTypeTree,
+                    extraScriptingDefines = Array.Empty<string>()
+                });
+                if (report == null || report.summary.result != BuildResult.Succeeded)
+                    throw new InvalidOperationException("Unity Content BuildReport failed: " + report?.summary.result);
+                return new BuiltDirectory
+                {
+                    identity = identity, path = Path.GetFullPath(workspace), elapsedMs = watch.Elapsed.TotalMilliseconds,
+                    summary = report.summary.result + "|" + report.summary.platform + "|" + report.summary.totalSize,
+                    logicalKeys = new List<string> { logicalKey }
+                };
+            }
+            finally
+            {
+                AssetDatabase.DeleteAsset(rootPath);
+            }
         }
 
         internal static void ValidateBuildTarget() => new UnityContentDirectoryAdapter().ValidateTarget();

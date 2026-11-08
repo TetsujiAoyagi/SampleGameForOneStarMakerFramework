@@ -140,6 +140,29 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             }
         }
 
+        /// <summary>
+        /// Editor の Scene を変える前に、type tree の無い directory を build する（AC11）。build できなければ観測が無いので UNTESTED にする。
+        /// 一時 directory の欄に持たせ、回収と次の round の残骸の検出は通常の一時 directory と同じ経路を通す。
+        /// </summary>
+        private static bool BuildNoTypeTreeDirectory(HarnessState state, TempRootLease lease, ExperimentRecord record, Cell cell)
+        {
+            try
+            {
+                var identity = "cdr-" + lease.LeaseId + "-r" + state.index + "-no-type-tree";
+                var workspace = Path.Combine(lease.DiskPath, "built", "r" + state.index);
+                state.tempDirectory = FixtureFactory.BuildDirectoryWithoutTypeTree(identity, workspace, lease.EnsureAssetChild("snap/r" + state.index), "Next", state.fixture.buildNext);
+                state.hasTempDirectory = true;
+                record.Write(cell, "ac11.built", ("identity", identity), ("path", state.tempDirectory.path), ("summary", state.tempDirectory.summary),
+                    ("elapsedMs", state.tempDirectory.elapsedMs), ("options", "DisableWriteTypeTree"));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Untested(state, record, cell, "no-type-tree-build", ex.ToString());
+                return false;
+            }
+        }
+
         private static void SeedAndReclaimStale(HarnessState state, ExperimentRecord record, Cell cell)
         {
             var deadPid = TempRootLease.FindDeadPid();
@@ -153,7 +176,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             var reclaimed = TempRootLease.ReclaimStale();
             record.Write(cell, "ac9b.staleReclaim", ("deadPid", deadPid), ("seeded", stale), ("seededSceneImported", imported),
                 ("reclaimed", reclaimed), ("seededFolderLeft", Directory.Exists(TempRootLease.FullPath(stale))),
-                ("note", "a real Editor crash is not reproduced; that cell stays UNTESTED"));
+                ("note", "a real Editor crash is not reproduced; it is out of scope and not a cell"));
         }
 
 

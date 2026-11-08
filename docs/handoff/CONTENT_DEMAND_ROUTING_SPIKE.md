@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `B`（C' の差し戻しの修正中、2026-11-08。Phase A revision 2 を凍結し、AC11 の機構 (ii) の scenario を足す。判定 C の結論 §7.4 と C' の結論 §8 は前の head に対する記録）。C' の差し戻しは 1 巡目（上限 3 巡）。A3 凍結版 commit は `3dd43790`、Phase A revision 2 はこの票を含む commit。
+- status: `C`（**判定 C の再実行待ち（全件）**、2026-11-08。B が C' の差し戻しの 1 巡目を直した（§6.9）。Phase A revision 2 は commit `26aa48cc`、A3 凍結版は commit `3dd43790`。前の implementation head は `01ee19b4` で、§7.4 の判定 C と §8 の C' はその head に対する記録）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: `01ee19b4`（判定 C の対象。§7.4 以降の HANDOFF だけの commit は implementation head を動かさない）
+- implementation head commit: この票を含む commit
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -17,12 +17,15 @@
 - 関連: program §2.4・§3・§5.2・§6・§8 S0-b 行・§9・§10（**本スライスの A0**。§0 の停止規則を本書 §2 に転記した）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。§5「判定 C の照合 script の方式」。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）（判定 C の実行担当が固定。Artifact Storage への保存は未了）
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）（§8）
+- evidence bundle の取得案内・状態: 未生成（前の head の bundle はこの判定に使わない）
+- C' blind bundle の取得案内・状態: 未生成（前の head の bundle はこの判定に使わない）
 - 引継ぎ票:
-  - 次の Phase・役割: **owner の裁定**（判定 C と C' の突き合わせ）。§7.4 の CONDITIONAL ACCEPT と §8 の NO-GO が一致しない。裁定まで Phase D へ進まない。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は `01ee19b4`（§0 の欄）。
-  - 必要な権限: 裁定の内容による。既知の Unity 終了 stall の調査は再開しない（今回の限定確認 1 回で打ち切り済み）。
+  - 次の Phase・役割: **判定 C（全件の再実行）**、続けて **C' の 2 巡目**。実行担当は B の session ではない新しい session が務める。判断担当と C' の担当は B と異なるモデル系列とし、C' の担当は判定 C の担当と別の系列にする。発見 C は挟まない（§6.9 の差分は AC11 の scenario の追加だけ）。
+  - 次の作業: (1) 実行担当が、Unity Editor を閉じた状態で `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting` を 1 回実行する（環境変数 `OSM_CDR_MATRIX_SCENARIOS` は設定しない。決定記録 D-1 は使わない）。約 90 分。各 `Matrix_*` の record の `harness.started` が `rounds=58`、`matrixScenarioFilter` が null であることを確かめる。(2) 実行担当は判断せず、XML・record・ログと実行の事実を evidence bundle にして判断担当へ渡す。(3) 判断担当が全 cell の値と判定を §2（revision 2）に照らして決める。AC5 は revision 2 の定義、AC9 (b) と AC10 は模擬の cell として record から値を付ける。AC11 の機構 (ii) は `ac11-no-type-tree` の record で見る。(4) 判定 C の完了後に C' の 2 巡目を起動する。入力は §1〜§5 の revision 2 の本文（§2 の D-1 と revision 2 の決定記録の行は除く）、§6.1〜§6.6 と §6.9（Phase C の所見への参照は除く）、新しい head の diff と evidence。C' 自身の前巡の指摘への裁定として、AC5 の結論と理由だけを C' 用決定記録で渡す。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
+  - 必要な権限: Unity Editor（閉じた状態から。`unity/Temp/UnityLockfile` が無いこと）と、Windows では最初の実行から sandbox 外の承認済み経路での `pwsh tools/run-tests.ps1`。evidence bundle の保存は Artifact Storage の事前承認の範囲（この worktree には `tools/Artifacts` の Release build がある。無い worktree では先に build する）。
+  - 停止規則: §2 の停止規則、§4、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。XML の完了後に Unity が終わらないのは既知の終了 stall で、調査は打ち切り済み（`tools/Harness/README.md`）。起動した PID だけを止め、強制終了した事実を生データに添える。`ac11-no-type-tree` で Editor が落ちて XML・record が欠けた時は、再実行せず生結果のまま判断担当へ渡し、判断を仰ぐ。判定 C または C' で欠陥が出て B へ戻す時は C' の差し戻しの残り 2 巡に数える。C' の起動は判定 C の完了後。
+  - 引き渡さないもの: §7・§8 の所見と結論を C' の入力へ転載しない（C' 自身の前巡の指摘への裁定を除く）。
 
 ### 実測の方法
 
@@ -291,7 +294,7 @@
 | 目的レビューのやり直し: 封じの時点が Enter Play Mode の設定で揺れうる | 目的レビュー（A3 やり直し） | 採用 | U-b4 で封じの時刻を設定ごとに記録し、動かないことを確かめる |
 | 目的レビューのやり直し: 3 値の境界、由来・所有者・一意・壊れないの定義、同時か順か、4 通りの範囲、限定の具体化、再現性、優劣比較をしない、D4 自体を直さない | 目的レビュー（A3 やり直し） | 反映済み（変更なし） | §2 の用語・判定定義・AC で既に定義済み。目的の文言の再改訂は不要と判断し、やり直しは 1 回で終える |
 - C' 用に予約した担当: xAI（cursor-agent の Grok 系）。Phase A では使わない。
-- 独立性の強化条件を満たせない場合の理由: 発見 C（1 回目）は B と同じモデル系列（Anthropic）で行った。「Phase C は Phase B と異なるモデルで行う」を満たさない。owner（root）が 2026-11-08 に `独立性制約あり` として受け入れ、続行を指示した（§7）。判定 C の担当は未定。
+- 独立性の強化条件を満たせない場合の理由: 発見 C（1 回目）は B と同じモデル系列（Anthropic）で行った。「Phase C は Phase B と異なるモデルで行う」を満たさない。owner（root）が 2026-11-08 に `独立性制約あり` として受け入れ、続行を指示した（§7）。判定 C の担当は未定。 §6.9 の B は判定 C の実行担当を務めた session（Anthropic）が owner の指示で行った。次の判定 C の実行担当は別の session にする。
 
 ## 6. Phase B 実装結果
 
@@ -396,6 +399,20 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
 - AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い（grep）。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 496 行（500 行の警報に届かない）。
 - 未実行（判定 C）: Unity テスト。AC6 の record の順序と計数、環境変数が `run-tests.ps1` の起動した Unity へ引き継がれること（`ProcessStartInfo` は `UseShellExecute=false` で親の環境を継ぐ見込み）、`Matrix_*` の完全名の `-Filter` で `[Explicit]` の test が選ばれることは、判定 C の実行で確かめる。
+
+### 6.9 C' の差し戻しの修正（1 巡目、2026-11-08）
+
+Phase A revision 2（§2 の決定記録の次の項）を凍結した後の修正。§8 の C' の指摘のうち AC11 の機構 (ii) だけをコードで扱う。AC5 は revision 2 で cell の定義を改めたのでコードの変更は無い。変更は §3 の folder の 6 file だけで、製品 code・SampleGame・asmdef の差分は無い。
+
+| 対象 | 修正 |
+|---|---|
+| AC11 の機構 (ii)（`Scenarios.cs`、`FixtureFactory.cs`、`RoundRunner.cs`、`RoundRunner.Editor.cs`、`MechanismTempDirectory.cs`、`RoundPlay.cs`） | 機構 (ii) の行列の末尾に scenario `ac11-no-type-tree` を 1 件足した（1 test の round は 57 から 58 になる）。Edit で `Next` を `BuildContentOptions.DisableWriteTypeTree` で build し（製品の adapter は option を固定しているので、Scene の経路だけを `FixtureFactory.BuildDirectoryWithoutTypeTree` に写した）、Play でその directory だけを `RoutingBackend` に登録して `Next` を要求する。record は `ac11.built`、`ac11.registration`（`registered` / `failed`）、`ac11.request`（600 frame を上限に待った結果）、`observe` の `ac11.beforeRequest` / `ac11.afterRequest`、失敗時の `play.step.failed`。build できなければ `round.untested`（cause `no-type-tree-build`）。snapshot は作らない |
+| record の注記（`RoundRunner.Editor.cs`） | `ac9b.staleReclaim` の note を revision 2 の AC9 に揃えた（実 crash は範囲外で cell にしない） |
+
+- 未知（判定 C の実行で観測する）: 登録・load がどう失敗するか（例外か、止まるか、Editor ごと落ちるか）。native の crash で後の round を失わないよう行列の最後に置いたが、4 test を順に走らせるので、最初の test で落ちると後の 3 test は実行されない。
+- Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。閉じた状態（lockfile 無し、Unity の process 無し）から batch で起動し、`OneStarMaker.Tests.Editor.dll` が再生成され、`error CS` 0 件、実験 folder の警告 0 件、exit 0 で自然終了した。Unity が消した vendor の `.pdb.meta` 5 件は作業範囲外として `git restore` で戻した。
+- `pwsh tools/contract-audit.ps1`: 違反なし。AC12・AC13: 実験 code に `"content:` と `SampleGame` の文字列は無い。asmdef の差分は無い。最大の file は `RoutingBackend.cs` の 496 行（変更なし）。
+- 未実行（判定 C）: Unity テスト。
 
 ## 7. Phase C
 

@@ -38,6 +38,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         internal const string FailBuild = "ac9a-fail-build";
         internal const string StaleRemnant = "ac9b-stale-remnant";
         internal const string LeaseConflict = "ac10-lease-conflict";
+        internal const string NoTypeTree = "ac11-no-type-tree";
 
         internal const string NoMechanism = "baseline";
 
@@ -112,6 +113,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                     // Play → 停止 → 再 Play を 2 回繰り返す。再 Play の前に毎回内容とマーカーを変えて snapshot を作り直す（AC8）。
                     for (var play = 0; play < 3; play++) Add(rounds, mechanism, Reentry, i, play);
                 }
+                // 機構 (ii) の失敗経路（AC11）。native がどう失敗するか未知で、Editor ごと落ちると後の round を失うので、行列の最後に置く。
+                if (mechanism == MechanismTempDirectory.Name) Add(rounds, mechanism, NoTypeTree);
             }
             return rounds;
         }

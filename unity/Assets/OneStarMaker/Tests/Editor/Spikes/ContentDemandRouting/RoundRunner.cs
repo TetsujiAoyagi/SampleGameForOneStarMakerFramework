@@ -282,13 +282,14 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 }
                 var lease = state.Lease() ?? throw new InvalidOperationException("Temp root lease was lost.");
                 if (scenario == Scenarios.StaleRemnant) SeedAndReclaimStale(state, record, cell);
+                if (scenario == Scenarios.NoTypeTree && !BuildNoTypeTreeDirectory(state, lease, record, cell)) return;
                 var targets = SetUpEditor(state, scenario);
                 state.mapIdentities = MapIdentities(scenario);
                 state.isolation = !Scenarios.IsUnisolatedBaseline(scenario);
                 var t0 = SceneStateProbe.CaptureSetup();
                 state.t0 = JsonUtility.ToJson(t0);
                 record.Write(cell, "n1.t0", ("setup", t0.scenes), ("active", t0.activeScene));
-                if (state.Round.mechanism != Scenarios.NoMechanism)
+                if (state.Round.mechanism != Scenarios.NoMechanism && scenario != Scenarios.NoTypeTree)
                 {
                     CreateSnapshots(state, lease, targets, record, cell);
                     if (state.Round.mechanism == MechanismTempDirectory.Name)

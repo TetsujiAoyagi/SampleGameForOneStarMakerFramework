@@ -49,12 +49,33 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         internal static async UniTask<DirectorHarness> SetUpPlayAsync(HarnessState state, ExperimentRecord record, Cell cell)
         {
             var routing = new RoutingBackend(record, cell);
-            routing.Add("snapshot", "snapshot", state.tempDirectory);
-            routing.Add("fixture", "fixture", state.fixtureDirectory);
+            if (state.Round.scenario == Scenarios.NoTypeTree) RegisterWithoutTypeTree(state, routing, record, cell);
+            else
+            {
+                routing.Add("snapshot", "snapshot", state.tempDirectory);
+                routing.Add("fixture", "fixture", state.fixtureDirectory);
+            }
             var harness = DirectorHarness.Create(state.mapIdentities, state.SceneGuids(), routing, record, cell);
             harness.Seal();
             await harness.RegisterAlreadyLoadedScenesAsync();
             return harness;
+        }
+
+        /// <summary>
+        /// type tree の無い directory だけを登録する（AC11）。登録の失敗も観測なので、record に残して round を続ける。
+        /// source へ戻る経路は持たない。戻っていないことは、要求の後の Scene の観測（loaded の数と path）で確かめる。
+        /// </summary>
+        private static void RegisterWithoutTypeTree(HarnessState state, RoutingBackend routing, ExperimentRecord record, Cell cell)
+        {
+            try
+            {
+                routing.Add("no-type-tree", "fixture-no-type-tree", state.tempDirectory);
+                record.Write(cell, "ac11.registration", ("outcome", "registered"), ("routing", routing.Describe()));
+            }
+            catch (Exception ex)
+            {
+                record.Write(cell, "ac11.registration", ("outcome", "failed"), ("error", ex), ("detail", ex.ToString()));
+            }
         }
     }
 }
