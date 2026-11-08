@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C`（**発見 C 完了（2026-11-08）。現在の問いを阻害する指摘なし。次は判定 C（§7）。** Phase A は A3 凍結版（revision 0、owner の指示で 2026-11-08 に凍結）のまま変えていない。A2 入力版は commit `d5f15d3`。本版は A2（§5）、外部の計画レビュー R1（対象 `d5f15d3`）・R2・R3（対象 `a2c6efe`）・R4（対象 `3734f91`）の採用分と、owner の Q1〜Q7 の裁定（R1 の推奨どおり）を反映した版。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。Phase A の commit は A2 入力版 `d5f15d3`、A3 整理版（`15c2469`〜`3734f91`。外部レビューの入力に使うための owner 指示による逸脱）、A3 凍結版（本版を含む commit）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
+- status: `D 待ち`（**判定 C は GO、C' は 2 巡目で PASS（2026-11-08。§7・§8）。次は Phase D（owner のマージ判断）。** Phase A は A3 凍結版（revision 0、owner の指示で 2026-11-08 に凍結）のまま変えていない。A2 入力版は commit `d5f15d3`。本版は A2（§5）、外部の計画レビュー R1（対象 `d5f15d3`）・R2・R3（対象 `a2c6efe`）・R4（対象 `3734f91`）の採用分と、owner の Q1〜Q7 の裁定（R1 の推奨どおり）を反映した版。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。Phase A の commit は A2 入力版 `d5f15d3`、A3 整理版（`15c2469`〜`3734f91`。外部レビューの入力に使うための owner 指示による逸脱）、A3 凍結版（本版を含む commit）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
 - branch: `claude/adoring-galileo-4afnfa`（S0-a のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `5f971da`（`develop` の head、2026-11-08。本書の実測は全てこの base）
 - implementation head commit: `7aa249d`
@@ -16,17 +16,16 @@
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`（要求時解決の任意の層と所有の契約。§2 決定事項サマリと §5 Interface 設計に節を足す。`IAssetManagement` に member を足さなかった理由、規則の製品実装が S1 にある理由、ロード元の同一性が S3 まで未検証であることを含める）、`27-folder-structure.md` §2.2（`Runtime/ContentResolution/` の依存位置: AssetManagement の公開面と共通契約だけに依存し、BuildSystem 本体・SceneSystem・Bootstrap を参照しない、AssetManagement の上の任意の層）、`unity/Assets/README.md`（プロジェクト構造の木と AssetManagement の節）。program の harvest（§18 §4 等）は program の完了時
 - 関連: [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（**所有境界の正本。** resolver は AssetManagement の上の任意の層で、BuildSystem 本体を参照しない。同書 §2.1 の「連携部分（両方を知る）」とは別の分類として扱い、U-A / U-B の P 検査の集合に参照を増やさない。境界を本書で定義し直さない）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本スライスは起動コードに触れないので順序制約の対象外。§2.4）、S0-b `CONTENT_DEMAND_ROUTING_SPIKE`（ブランチ `claude/play-content-s0b-spike`、判定 C の再実行待ち。本書は S0-b の 2 機構に中立な形にしてある。§5「S0-b ブランチの確認」）
 - Phase A snapshot の取得案内・状態: 確認済み（ローカル固定、未昇格）。発見 C の session が同じ PC から `evidence fetch` で取得し、収録された本書の内容 hash が A3 凍結 commit `30c98a7` の本書と一致することを確かめた。取得案内の reference と期待 packageSha256 は owner の手元と起動指示にあり、本書には転記しない。
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成。発見 C は commit `7aa249d` で対象を固定し、差し戻しが無かったので stage snapshot を作っていない。発見 C の生結果（XML・log・step.json）はローカルの worktree にだけあり未保存で、判定の入力にしない。判定 evidence bundle と C' blind bundle は判定 C の担当が GO 候補 head から作る。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 判定 evidence bundle、C' blind bundle、C' の所見の bundle の 3 つはローカル固定済み（未昇格）。Phase B result は単独の snapshot を作らず、blind bundle の `B-implementation-notes.md`（commit `7aa249d` の票の「実装の読み方」の写し）で渡した。取得案内は owner の手元（判定・C' の担当の報告）にあり、本書には転記しない。C' の担当の入力は、この session が `evidence fetch` で検証して取り出した写しで、別 session からの取得確認は未実施（C' の担当の実行環境では store に書けないため）。Phase D で別 session から取得と閲覧を確認する。
 - 引継ぎ票:
-  - 次の Phase・役割: **判定 C（GO 候補 head `7aa249d`）。** 発見 C に現在の問いを阻害する指摘が無く、B への差し戻しは 0 巡。新しいローカルの session で、判断担当のモデルは B と別にする（発見 C を B と同じモデルで行った例外は発見 C に限る。§7）。C' 用に OpenAI を未関与で残す。
-  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は SHA で、そこから HEAD までの差分は `docs/handoff/` の本書と決定記録だけ）。§5 の判定必須を実行する: base と head の全 EditMode 回帰（AC6）→ P 検査（AC4。script は判定 C が用意する）→ offline suite（AC1・AC8）→ AC3・AC9 の grep → `pwsh tools/contract-audit.ps1`、AC2・AC7 の照合。判定 evidence bundle と C' blind bundle は同じ head から作って stage する。
-  - 発見 C で確認したこと（判定の入力にしない）: §7。Unity コンパイルと `.meta` の import は head `7aa249d` で問題なし。
-  - B の未確認の状態: (1) Unity のコンパイルと (2) 手書きの `.meta` の import は発見 C で解消した（§7）。(3) P 検査（AC4）と全 EditMode 回帰（AC6）は計画どおり判定 C。
-  - 実装の読み方（C が照合に使う。凍結条件は変えていない）: I5 の `FailureCode` の優先順位は、探索の途中で止めた場合（`Fault`、identity の無い `Rejected`、pin の食い違い）にも、それまでの probe 全体に同じ優先順位を当てて 1 つに決める（例: `PinMismatch` の後の `Fault` は `IntegrityRejected`）。I5 の (1) が止める事象（identity の無い `Rejected`・pin の食い違い）を含むことに合わせた読み。`ContentAvailability` の状態の enum は `ContentAvailabilityStatus`（§3 の「public readonly struct + enum」）。`ContentTraceability` は 0 を未定義にした（`Traceable = 1`、`Reproducible = 2`）。T13 は §5 の文字列に加えて AC1 の file 先頭の `#nullable enable`・禁止 `using`・`record`・`init` も見る。T13 の禁止語は AC9 の grep に自分自身が当たらないよう文字列を分割して組み立てている。
-  - 引き継ぐ commit: この票を含む発見 C の記録 commit（SHA は tree の外、起動指示と PR #171 の状態ブロックで渡す）。
-  - 必要な権限: `pwsh tools/run-tests.ps1`（Windows では最初から sandbox 外の承認済み経路）、ローカルの Artifact Storage の `fetch`（ASSET_CYCLE の `p-check.ps1`）と `evidence stage`。
-  - 停止規則: program §0 の停止規則を引き継ぐ。新しい worktree で Unity が import すると、`*.pdb` が git 管理外なので `unity/Assets/MobileDependencyResolver/Editor/` の `*.pdb.meta` 5 件を消す。本スライスの変更ではないので `git restore` で戻し、commit に入れない（AC2）。
-  - 引き渡さないもの: C' に発見 C・判定 C の所見（§7）を渡さない。
+  - 次の Phase・役割: **Phase D（owner のマージ判断と後始末）。** 判定 C は GO、C' は 2 巡目で PASS。implementation head は `7aa249d` のまま変わっていない。
+  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は SHA で、そこから HEAD までの差分は `docs/handoff/` の本書と決定記録だけ）。Phase D の手順: Evidence の取得・閲覧の確認（別 session から）、`evidence schedule status` が `passed` であること、CI の `dotnet-offline-tests` の緑（AC7）、push、harvest（§0 の harvest to）、本書と決定記録の削除、`workflow-task.ps1 end`。判定 C と C' の所見の突き合わせは下の §7・§8 で行う。
+  - owner が Phase D で確認すること: DR-2（AC6 の「合格」を XML で読む）の結果として、`run-tests.ps1` の `step.json` は base と head で `failed`（Inconclusive 25 件）で、base と head 3 回目は XML 完成後に Unity を強制終了している。head の全 EditMode 回帰は 3 回実行し、1・2 回目は同じ 1 件が失敗している（§7）。
+  - 実装の読み方（C が照合に使う。凍結条件は変えていない）: §7 より前の版の票と同じ。commit `7aa249d` の本書 §0 を正とする。
+  - 引き継ぐ commit: この票を含む C' の記録 commit（SHA は tree の外、起動指示と PR #171 の状態ブロックで渡す）。
+  - 必要な権限: ローカルの Artifact Storage の `fetch`、`evidence schedule status`、`git push`、PR の更新。
+  - 停止規則: program §0 の停止規則を引き継ぐ。新しい worktree で Unity が import すると、`*.pdb` が git 管理外なので `unity/Assets/MobileDependencyResolver/Editor/` の `*.pdb.meta` 5 件を消す。base でも同じ。`git restore` で戻し、commit に入れない（AC2）。
+  - 引き渡さないもの: なし（C' は完了した）。
 
 ### PR 状態ブロック
 
@@ -445,9 +444,43 @@ owner の判断（2026-11-08）: R4 の反映をもって凍結する。「厳�
 - 未確認事項: Unity の import が `MobileDependencyResolver/Editor` の `*.pdb.meta` 5 件を消した（`*.pdb` が git 管理外のため。本スライスの差分ではない）。`git restore` で戻した。base で同じ事象が起きるかは確かめていない。
 - 担当・モデル: Claude Code（Anthropic、Claude Opus 5.5、ローカルの新規 session）。**`独立性制約あり`:** B と同じモデルで、「Phase C は Phase B と異なるモデル」を満たさない。owner が 2026-11-08 に、発見 C に限る例外として本 session での続行を裁定した。同じモデルの見落としの可能性が残るので、判定 C は B と別のモデルが担当する。
 
+### 判定 C（2026-11-08、GO）
+
+- 種別: 判定（implementation base `5f971da` / head `7aa249d`。local tag `evidence/generic-content-request-contract/1`）
+- 使用した evidence bundle の取得案内・状態: 判定 evidence bundle はローカル固定済み（未昇格）。取得案内は owner の手元。
+- 担当: 判断は Grok 4.7 High（cursor-agent、xAI、B と別ベンダー、新規 session 2 回）。実行は Claude Code（Opus 5.5、Anthropic、新規 session）で、凍結済みのコマンドと判断担当が書いた script だけを実行した。判断担当の環境で shell が起動しなかったので（理由の無い `Rejected:`）、P 検査の script（判定 C の offline 実行）と XML 比較 script は判断担当が書き、実行担当が無改変で実行して生の出力を判断担当へ返した。
+- 構造適合: 適合。§3 の配置・依存と実物が一致する。asmdef・既存の `Runtime/**`・`SampleGame/**`・`ProjectSettings/`・`Packages/` は変更集合に無い。
+- AC1〜AC9、I1・I2・I5・I7・I8・I10、S1〜S5: 全て PASS（判断担当の報告）。AC6 と S5 は DR-2 の読み方（下記）。
+- 現在の問いを阻害する findings: なし。
+- 後続へ移送する findings: DR-1（§7 上の発見 C の D-1）のまま。下の 1 件を追加する。
+
+| id | severity / category | 根拠 | 内容 | bucket・移送先 |
+|---|---|---|---|---|
+| J-1 | low / machine | 全 EditMode の head run 1・2、`BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` | 同じ 1 件が run 1 で `Directory.Move` の `IOException`（`BuildContentCoordinator.cs:97`）、run 2 で 360 秒の Timeout で失敗し、他の Unity が動いていない run 3 で Passed（112 秒）。S0-a の差分はこのテストにも Build 系にも触れていない。run 2 の実行中は別 session の Unity が同じ PC で動き、同じ worktree で `git restore` をした。run 1 が他の作業と重なったかは確認していない。原因は未確定。ASSET_CYCLE と BOOTSTRAP の Timeout と同じテストで、`Access denied` は今回初めて記録された | 後続の入力・BuildSystem 側（既存の Timeout の移送先と同じ）。未修正 |
+
+- 実行したテストコマンドと結果: `pwsh tools/run-tests.ps1`（空 filter、EditMode、Unity 6000.6.0f1、sandbox 外）。
+  - base `5f971da`: total 1655、passed 1630、failed 0、skipped 0、inconclusive 25、XML の root result `Passed`。
+  - head `7aa249d` run 3: total 1664、passed 1639、failed 0、skipped 0、inconclusive 25、root result `Passed`。
+  - 比較（引数を含む full name）: base のケースは全て head にあり（欠落 0）、base の Passed が head で Skipped / Failed になったものは 0、head の新規 9 件は全て `OneStarMaker.Tests.ContentResolution` で Passed。Inconclusive の 25 件は両方で同じケース（`SampleGame.Tests.Rendering.Vfx.*PlayTests`、`-nographics` による `Assume`）。`PublisherBackupPredicate_IsExactSuffix` の 1 件は XML に同じ full name が 2 件あり、base と head で同じ（Passed）。
+  - head run 1・2 は失敗した（J-1）。生結果は判定 evidence bundle と blind bundle に収録した。head run 3 の前に、fixture の残骸を退避し、他の Unity が動いていないことを確かめた。実行回数と順序は owner の了承による。
+  - offline suite: 28 passed、0 failed、exit 0。P 検査: `P-CHECK pass=True`、exit 0（既存 7 陽性集合と `RESOLVER-player` / `RESOLVER-editor` が exit 0、陰性対照 3 つが exit 1 で理由が期待どおり。script は判断担当が書いた派生で、凍結 script との差分は §5 の 3 集合と先頭の BOM だけ）。contract-audit: errors=0 warnings=0。AC3・AC9 の grep: 0 件（AC9 は `Cancel` の誤検知を除く）。
+- プロセス終了の記録（XML の結果は変わらない）: base と head run 1・3 は、結果 XML の完成後に Unity が終了せず、実行担当がその Unity だけを終了させた（既知の native 終了 stall。原因調査はしていない）。head run 2 は自然終了した（Unity の exit 2）。**`run-tests.ps1` の `step.json` は、base と head run 3 で `status=failed`、`exitCode=1`、理由は `Inconclusive のテストがあります`。** 強制終了が理由ではない。判定 C の入力には「強制終了のため exit 1」と誤って書いて渡し、判定 C は `step.json` を読んでいない。この点は C' の F-01 で明らかになり、DR-2 で裁定した。
+- 判定必須のうち未実行: なし。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: J-1 の原因。上の Unity の強制終了は規則上「成功証拠にしない」と書かれた事象で、受け入れは DR-2 による owner の裁定。
+- 決定記録: DR-1、DR-2（`GENERIC_CONTENT_REQUEST_CONTRACT_DECISIONS.md`）。
+
 ## 8. Phase C'
 
-（未到達）
+- 種別: 最終（高コスト証拠なし）。1 巡目（全体）と 2 巡目（F-01 の裁定と AC6・S5）。implementation base `5f971da` / head `7aa249d`。
+- 使用した blind audit bundle の取得案内・状態: C' blind bundle はローカル固定済み（未昇格）。担当の入力は、この bundle を `fetch` で検証して取り出した写しと、head の `git archive`。発見 C・判定 C の所見と裁定は入れていない。2 巡目に渡した裁定は DR-2 だけ。別 session からの取得確認は未実施（§0）。
+- 担当・モデル: Codex CLI（OpenAI、`gpt-6-luna`、reasoning high、巡ごとに新規 session）。OpenAI は Phase A・B・C に未関与で、B（Anthropic）・C の判断（xAI）と別ベンダー。独立性の制約なし。
+- 現在の問いを阻害する findings: 1 巡目に F-01 の 1 件（AC6・S5、`run-tests.ps1` の `step.json` が `failed`。上記）。owner の裁定 DR-2 により 2 巡目で解消（C' は「XML の読み方は凍結された確認手段に沿い、条件の意味・合否を変えない」と判断した）。2 巡目は `AUDIT: PASS`。
+- 後続スライスへ移送する findings: 新規なし（§2.3 の S0-b・S1・S3 の所有事項の確認のみ）。
+- 監査結果: 実装の契約違反・構造の劣化は指摘なし。
+- 残存リスク: Inconclusive の 25 件は Passed として実行されていない（DR-2 の範囲）。base と head run 3 は自然終了していない。XML に同じ full name が各 1 件重複している（比較には影響しない）。
+- 監査できなかった範囲: Unity の実行と再現（監査の規則どおり実施しない）。固定 bundle の外の実環境。
+- 判定 C と C' の突き合わせ: Phase D で行う。F-01 は判定 C が見落とした点（`step.json`）を C' が見つけたもの（入力の誤記を含む。§7）。実装に関する所見で両者の矛盾はない。
 
 ## 9. Phase D
 
