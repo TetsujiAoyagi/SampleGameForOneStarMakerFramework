@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `B 完了`（**§7.5 の差し戻しの修正が完了し、次は判定 C の `ac11-no-type-tree` だけの再実行（§6.10、決定記録 D-2）**、2026-11-08。C' の 2 巡目は未起動。Phase A revision 2 は commit `26aa48cc`、A3 凍結版は commit `3dd43790`）
+- status: `C' 完了`（**判定 C の `ac11-no-type-tree` だけの再実行（§7.6、決定記録 D-2）と C' の 2 巡目（§8）が完了。次は Phase D（owner の突き合わせとマージの判断）**、2026-11-08。Phase A revision 2 は commit `26aa48cc`、A3 凍結版は commit `3dd43790`）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: この票を含む commit
+- implementation head commit: `94b0c4a6`
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -17,18 +17,15 @@
 - 関連: program §2.4・§3・§5.2・§6・§8 S0-b 行・§9・§10（**本スライスの A0**。§0 の停止規則を本書 §2 に転記した）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。§5「判定 C の照合 script の方式」。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、担当は判定 C の進行役。head `a4b7a6e6` の判定入力で、新 head の判定には決定記録 D-2 の範囲（`ac11-no-type-tree` 以外の cell と Baseline）でだけ使う
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）・未使用（差し戻しで C' を起動しなかった。新 head では作り直す）
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）・引渡し未完了、担当は判定 C の進行役。head `94b0c4a6` の判定入力で、D-2 に従い `a4b7a6e6` の全件実行と `94b0c4a6` の `ac11-no-type-tree` の再実行を収録する。別プロセスの fetch で manifest 全件の一致を確かめた（別 session からの取得確認は未了）。取得案内はこの worktree の git 管理外の TestResults にある
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）・引渡し未完了、担当は判定 C の進行役。C' の 2 巡目で使った。別プロセスの fetch で manifest 全件の一致を確かめた（別 session からの取得確認は未了）。C' の担当は bundle の写しの packet を読み、fetch はしていない
 - 引継ぎ票:
-  - 次の Phase・役割: **判定 C（§2 の決定記録 D-2 により `ac11-no-type-tree` だけの再実行）**。実行担当は新しい session が務める。続けて C' の 2 巡目を行う。発見 C は、差分が no-type-tree の build の経路に閉じるので挟まない。動作確認は、残りの観測が Unity テストの中にしか無いので対象なし。
-  - 次の作業: §6.10 の修正の後の head で、`ac11-no-type-tree` の record を取り直す。判定 C の実行は、環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac11-no-type-tree` を設定し、`pwsh tools/run-tests.ps1 -Filter "<Matrix_* 4 件の完全名を ; で連結>"` を 1 回実行する（Baseline は含めない）。各 record の `harness.started` が `rounds=1`、`matrixScenarioFilter=ac11-no-type-tree` であることを確かめる。判断と C' の入力には `a4b7a6e6` の全件実行の証拠を合わせる。C' の入力には D-2 の証拠の組み立ての条件だけを渡し、理由は渡さない。
+  - 次の Phase・役割: **Phase D（owner）**。判定 C（§7.6）と C' の 2 巡目（§8）を初めて突き合わせ、マージを判断する。
+  - 次の作業: §7.6 と §8 を読む。§8 が「差分内の静的な残件」とした `FixtureFactory.BuildDirectoryWithoutTypeTree` の `report?.summary.result`（偽 null の常時契約に関わる）の扱いを決める。Evidence の保存・引渡し（判定入力、C' 入力、判定 C と C' の出力の 4 bundle。いずれもローカル固定で別 session からの取得確認は未了）を確かめ、harvest と HANDOFF の削除へ進む。PR は未作成で、この記録の commit は `claude/play-content-s0b-spike` に載っていない（detached の worktree）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: Unity テストの実行は判定 C の実行担当が、Unity Editor を閉じた状態から、Windows では最初の実行から sandbox 外の承認済み経路で行う。
-  - 実行する checkout: 短い path の detached worktree で行う。root 98 文字の worktree（`.claude/worktrees/` の下）では、依存の DLL があるのに `MessagePack` / `ZLogger` が解決されずコンパイルが失敗した（§6.10。原因は未調査）。
-  - 判定 C の実行担当への注意: 判断担当に Codex CLI を使う場合、read-only sandbox では集計手段が動かない（§7.5）。`$null` を stdin に渡し、書き込みを packet に限る設定で起動する。XML の完了後に Unity が終わらないのは既知の終了 stall で、起動した PID だけを止める。`Get-Process -Id` と `taskkill` は exit 中の PID を見つけられないことがある。
-  - 停止規則: §2 の停止規則、§4、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。C' の差し戻しの残りは 1 巡で、次に収束しなければ残る指摘と違反根拠を付けて owner に返す。
-  - 引き渡さないもの: §7・§8 の所見と結論を C' の入力へ転載しない（C' 自身の前巡の指摘への裁定を除く）。
-
+  - 必要な権限: Evidence の確認と取得は非仮想化の pwsh で行う。R2 への昇格は owner が指示した場合だけ行う。
+  - 停止規則: §2 の停止規則に従う。S1 以降は本スライスの Phase D より前に Phase B を始めない。
+  - 引き渡さないもの: なし（C' は完了した）。
 ### 実測の方法
 
 - 名前付き参照と行数は `grep` と `wc -l`（base `e0d020d7`）。program §2 の事実のうち本スライスに効く物（§1「現況」）は読み直して確認した。
@@ -659,6 +656,130 @@ S = 空。全4設定で AC11(ii) が `UNTESTED` のため、その設定は「�
 - 旧 Hybrid Play H1–H4の記述はHANDOFF §2.1にある履歴/code読解であり、旧実装の動作をこの判定で再現確認していない。
 - 全EditMode回帰はこのpacketの実行対象外。XMLが示すのは指定filterの5テストのみ。
 
+### 7.6 判定 C（`ac11-no-type-tree` だけの再実行、決定記録 D-2、2026-11-08）
+
+（判定担当の出力を、進行役が見出しのレベルだけ下げて文面を変えずに転記した。）
+
+- 種別: 判定 C の実行と判定。C' の 2 巡目は同じ head で §8 に記録した。
+- 対象: implementation base `e0d020d7`、implementation head `94b0c4a6`。引き継いだ commit `94b0c4a6`。worktree は親の `a976332f` の detached で clean だったので、起動指示の SHA へ detached のまま移してから照合した（HEAD と一致、clean、欄は「この票を含む commit」で、HEAD と親の差分に `docs/handoff/` 以外の file がある）。判定 evidence を取った head は軽量 tag `evidence/content-demand-routing-spike/4` で保つ（push しない）。
+- 担当・モデル: 実行担当と進行役は B ではない新しい session（Anthropic、Claude Code）で、cell の値と判定は書いていない。判断担当は OpenAI（Codex CLI 0.167.0、model 表示 `gpt-6-luna`、reasoning high、workspace-write、起動指示どおり 1 回）。
+- 実行: Windows の sandbox 外で、環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac11-no-type-tree` を設定し、`pwsh -NoProfile -File tools/run-tests.ps1 -Filter "<Matrix_* 4 件の完全名>"` を 1 回（21:46:01 開始、XML 完成 21:54:28）。Baseline は含めない。
+- Unity の終了: XML の完成後に既知の終了 stall になった。5 分待って `step.json` が出なかったので、進行役が起動した PID をコマンドラインで確かめ、`Win32_Process.Terminate` で止めた。`step.json` の status passed と process exit 0 はこの停止が渡した値で、自然終了の証拠ではない。原因は調査していない。
+- 使用した evidence bundle の取得案内・状態: ローカル固定済み（未昇格）・引渡し未完了。別プロセスの fetch で manifest 全件の一致を確かめた（別 session からの取得確認は未了）。判断担当の出力は別の bundle としてローカル固定済み（未昇格）。
+- 機械検査: `tools/contract-audit.ps1` は errors 0、warnings 0。`tools/docs-audit.ps1` は errors 0、warnings 2（§7・§8 が埋まっている、の harvest の警告）。
+- 副作用の記録: Unity の起動が作業範囲外の追跡 file 6 件（vendor の `.pdb.meta` 5 件、`EditorSettings.asset` の 1 行）を変えた。bundle に差分を保存し、`git restore` で戻した。
+### Phase C 判定 — S0-b CONTENT_DEMAND_ROUTING_SPIKE
+
+#### 範囲・入力の完全性
+
+判定はこの packet のみを使用し、Unity は起動していない。対象は凍結条件（HANDOFF §2、Phase A revision 2）と D-2 に従う `a4b7a6e6` の全件実行、および `94b0c4a6` の `ac11-no-type-tree` 再実行である。`MANIFEST.sha256` は記載 65 ファイルと packet 内の対象 65 ファイルが一致し、SHA-256 不一致 0、欠落 0、余分 0。
+
+証拠の略号（各表セルの `A#` / `B#` と seq 範囲はそのファイル内の一次記録を指す）。headA は `a4b7a6e69b210554143260f83cca064590e14d88`、headB は `94b0c4a675336622c542fea14611d92a1342e54e`。
+
+- A0: `evidence/headA-a4b7a6e6/records/20261108T095056Z-c3cadf/Baseline_DetectorAndControls.jsonl`
+- A1: `evidence/headA-a4b7a6e6/records/20261108T095210Z-c86e74/Matrix_DomainReload_NoSceneReload.jsonl`
+- A2: `evidence/headA-a4b7a6e6/records/20261108T102018Z-103a60/Matrix_DomainReload_SceneReload.jsonl`
+- A3: `evidence/headA-a4b7a6e6/records/20261108T104755Z-0cb075/Matrix_NoDomainReload_NoSceneReload.jsonl`
+- A4: `evidence/headA-a4b7a6e6/records/20261108T110218Z-95d89f/Matrix_NoDomainReload_SceneReload.jsonl`
+- B1: `evidence/headB-94b0c4a6/records/20261108T124741Z-fc186b/Matrix_DomainReload_NoSceneReload.jsonl`
+- B2: `evidence/headB-94b0c4a6/records/20261108T125038Z-7a61d2/Matrix_DomainReload_SceneReload.jsonl`
+- B3: `evidence/headB-94b0c4a6/records/20261108T125226Z-906708/Matrix_NoDomainReload_NoSceneReload.jsonl`
+- B4: `evidence/headB-94b0c4a6/records/20261108T125330Z-d25c3b/Matrix_NoDomainReload_SceneReload.jsonl`
+
+各 A1–A4 ファイルは行列全体 58 round を収録し、各 B1–B4 は AC11 だけの 1 round を収録する。下表の seq 範囲はその設定・scenario のレコード block 全体（`round.started` から終端観測を含む）である。ファイル名と完全な相対パスは上の索引で一意に定まる。
+
+#### 実行範囲・D-2
+
+D-2(1) は満たす。`diff/evidenceHead..head.patch` は `FixtureFactory.cs` の no-type-tree 用 build options を `DisableWriteTypeTree | SerializeUnityVersion` にし、`RoundRunner.Editor.cs` の options 記録を定数値に合わせる2箇所だけである。通常の `BuildDirectory`、scenario 列挙・順序、round 進行、観測処理には差がなく、no-type-tree builder 呼出しは `ac11-no-type-tree` のみ（HANDOFF §6.10、§2）。従って他の round の進行・観測への影響はない。
+
+D-2(2) に従い、AC11 機構(ii)の4セルは B1–B4、他の全セルと Baseline は A0–A4 から判定した。headA の AC11 no-type-tree round（各 A の seq 2335–2338、cause `no-type-tree-build`）はセル判定に使っていない。
+
+D-2(3) の実行照合:
+
+- `evidence/headA-a4b7a6e6/results.xml`: testcasecount/total 5、passed 5、failed/skipped/inconclusive 0。テスト名は `Baseline_DetectorAndControls` と4つの `Matrix_{DomainReload,NoDomainReload}_{SceneReload,NoSceneReload}`。A0 は `harness.started` seq 1 で rounds=7、matrixScenarioFilter=null、`harness.finished` seq 138 で 7/7・harnessErrors=[]。A1–A4 はそれぞれ seq 1 で rounds=58・filter=null、末尾 `harness.finished` seq 2339 で 58/58・harnessErrors=[]。
+- `evidence/headB-94b0c4a6/results.xml`: testcasecount/total 4、passed 4、failed/skipped/inconclusive 0。テストは上記4 Matrix 名。B1–B4 はそれぞれ `harness.started` seq 1 で rounds=1・matrixScenarioFilter=`ac11-no-type-tree`、`harness.finished` seq 33 で 1/1・harnessErrors=[]。
+
+`results.xml` の完全性・test名・件数を根拠にする。headA の `step.json` は Unity exit=-1/status failed、headB は status passed/exit=0 を記録するが、両方とも Unity の既知 native exit stall 後に executor が強制停止したことが `unity-exit-facts.txt` に記録されている。特に headB の exit 0 は Win32_Process.Terminate に渡した値で自然終了の証拠ではない。完全な XML と全 round の `harness.finished` が確認できるためテスト観測を採用し、exit code を成功根拠にしない。既知 stall の規則どおり原因調査・再実行はしていない（A/B の `step.json`、`unity-exit-facts.txt`、`rules/Harness-README.md`）。
+
+#### 全セル判定
+
+設定略号: DR=Domain Reload、SR=Scene Reload。`DR+SR`、`DR+noSR`、`noDR+SR`、`noDR+noSR` の順。各セルは `値(証拠ファイル:seq)`。
+
+| scenario / frozen 条件 | (i) DR+SR | (i) DR+noSR | (i) noDR+SR | (i) noDR+noSR | (ii) DR+SR | (ii) DR+noSR | (ii) noDR+SR | (ii) noDR+noSR |
+|---|---|---|---|---|---|---|---|---|
+| main-dirty: AC2、AC3 Dup、AC4 path/GUID | PASS(A2:84–148) | PASS(A1:84–148) | PASS(A4:84–148) | PASS(A3:84–148) | PASS(A2:1168–1243) | PASS(A1:1168–1243) | PASS(A4:1168–1243) | PASS(A3:1168–1243) |
+| ac2-new-unsaved: AC2 | N/A(A2:149–202) | N/A(A1:149–202) | N/A(A4:149–202) | N/A(A3:149–202) | N/A(A2:1244–1304) | N/A(A1:1244–1304) | N/A(A4:1244–1304) | N/A(A3:1244–1304) |
+| ac2-additive-two: AC2 | PASS(A2:203–267) | PASS(A1:203–267) | PASS(A4:203–267) | PASS(A3:203–267) | PASS(A2:1305–1380) | PASS(A1:1305–1380) | PASS(A4:1305–1380) | PASS(A3:1305–1380) |
+| ac2-prefab-override: AC2 | PASS(A2:268–320) | PASS(A1:268–320) | PASS(A4:268–320) | PASS(A3:268–320) | PASS(A2:1381–1440) | PASS(A1:1381–1440) | PASS(A4:1381–1440) | PASS(A3:1381–1440) |
+| ac2-ref-prefab-changed: AC2、G22 | PASS(A2:321–375) | PASS(A1:321–375) | PASS(A4:321–375) | PASS(A3:321–375) | PASS(A2:1441–1502) | PASS(A1:1441–1502) | PASS(A4:1441–1502) | PASS(A3:1441–1502) |
+| ac5-other-in-map: AC5 | PASS(A2:376–411) | PASS(A1:376–411) | PASS(A4:376–411) | PASS(A3:376–411) | PASS(A2:1503–1544) | PASS(A1:1503–1544) | PASS(A4:1503–1544) | PASS(A3:1503–1544) |
+| ac5-other-not-in-map: AC5 | PASS(A2:412–442) | PASS(A1:412–442) | PASS(A4:412–442) | PASS(A3:412–442) | PASS(A2:1545–1581) | PASS(A1:1545–1581) | PASS(A4:1545–1581) | PASS(A3:1545–1581) |
+| ac6-cancel-gate: AC6 | PASS(A2:443–481,653–691,863–901) | PASS(A1:443–481,653–691,863–901) | PASS(A4:443–481,653–691,863–901) | PASS(A3:443–481,653–691,863–901) | PASS(A2:1582–1631,1833–1882,2084–2133) | PASS(A1:1582–1631,1833–1882,2084–2133) | PASS(A4:1582–1631,1833–1882,2084–2133) | PASS(A3:1582–1631,1833–1882,2084–2133) |
+| ac7a-stop-without-next: AC7(a) | PASS(A2:482–507,692–717,902–927) | PASS(A1:482–507,692–717,902–927) | PASS(A4:482–507,692–717,902–927) | PASS(A3:482–507,692–717,902–927) | PASS(A2:1632–1663,1883–1914,2134–2165) | PASS(A1:1632–1663,1883–1914,2134–2165) | PASS(A4:1632–1663,1883–1914,2134–2165) | PASS(A3:1632–1663,1883–1914,2134–2165) |
+| ac7b-stop-during-gate: AC7(b) | PASS(A2:508–547,718–757,928–967) | PASS(A1:508–547,718–757,928–967) | PASS(A4:508–547,718–757,928–967) | PASS(A3:508–547,718–757,928–967) | PASS(A2:1664–1709,1915–1960,2166–2211) | PASS(A1:1664–1709,1915–1960,2166–2211) | PASS(A4:1664–1709,1915–1960,2166–2211) | PASS(A3:1664–1709,1915–1960,2166–2211) |
+| ac8-reentry: AC8 (3 repetitions × 3 plays) | PASS(A2:548–652,758–862,968–1072) | PASS(A1:548–652,758–862,968–1072) | PASS(A4:548–652,758–862,968–1072) | PASS(A3:548–652,758–862,968–1072) | PASS(A2:1710–1832,1961–2083,2212–2334) | PASS(A1:1710–1832,1961–2083,2212–2334) | PASS(A4:1710–1832,1961–2083,2212–2334) | PASS(A3:1710–1832,1961–2083,2212–2334) |
+| ac9a-fail-snapshot: AC9(a) | PASS(A2:12–16) | PASS(A1:12–16) | PASS(A4:12–16) | PASS(A3:12–16) | PASS(A2:1077–1081) | PASS(A1:1077–1081) | PASS(A4:1077–1081) | PASS(A3:1077–1081) |
+| ac9a-fail-build: AC9(a), (ii) のみ | — | — | — | — | PASS(A2:1082–1089) | PASS(A1:1082–1089) | PASS(A4:1082–1089) | PASS(A3:1082–1089) |
+| ac9b-stale-remnant: AC9(b) 模擬 | PASS(A2:17–83) | PASS(A1:17–83) | PASS(A4:17–83) | PASS(A3:17–83) | PASS(A2:1090–1167) | PASS(A1:1090–1167) | PASS(A4:1090–1167) | PASS(A3:1090–1167) |
+| ac10-lease-conflict: AC10 in-process 模擬 | PASS(A2:8–11) | PASS(A1:8–11) | PASS(A4:8–11) | PASS(A3:8–11) | PASS(A2:1073–1076) | PASS(A1:1073–1076) | PASS(A4:1073–1076) | PASS(A3:1073–1076) |
+| AC11: (i) snapshot load < seal、(ii) no-type-tree | PASS(A2:84–148) | PASS(A1:84–148) | PASS(A4:84–148) | PASS(A3:84–148) | PASS(B2:1–33) | PASS(B1:1–33) | PASS(B4:1–33) | PASS(B3:1–33) |
+| AC14: Next unload → reload | PASS(A2:84–148) | PASS(A1:84–148) | PASS(A4:84–148) | PASS(A3:84–148) | PASS(A2:1168–1243) | PASS(A1:1168–1243) | PASS(A4:1168–1243) | PASS(A3:1168–1243) |
+
+表の N/A は AC2 の新規未保存 Scene のみ。明示診断 `untitled-scene` があり、その Scene は t0 の状態で維持され、同じ round で有効 path の Entry は続行された。AC9(a) build-failure は機構(ii)だけに凍結された副条件で、機構(i)列の `—` は cell ではなく適用対象外。機構(i)の AC6 snapshot-load cancellation subcase は仕様上 N/A（`ac6.snapshotCancel` に `applicable=false`）だが、Next cancellation と unload/re-request を実測しているため scenario cell は PASS。
+
+##### 判定の根拠
+
+- AC2: 有効な5状態で t0/t2 の差分は空。`saveAsCopy` 単独の5対照も差分なし（A0 seq 14–25）。新規未保存のみ診断付きで拒否。`main-dirty` は AC3/AC4 も兼ねる: Dup は Editor target として snapshot 作成され、directory fixture にも同名 Dup が含まれる。`snapshot.request` と `e1.simultaneous` は各identityの loadedCount=1、snapshot origin marker、physical path を記録し、snapshot の path/GUID は元と異なる。
+- AC5: isolated 行列では全8設定・両機構とも `otherLoadedInPlayBeforeRequest=0`。要求時に map 有りは参加し、map 無しは要求が失敗として記録された。これは規定された欠落 map の拒否であり、harness の失敗や N5 違反ではない。
+- AC6: 3反復全て、native load完了をgateで止めた後のcancelは `canceled`、unload後にgateを開き、recovery後の未回収token・ledgerが0。AC7(b) は Play stop → gate解放 → 遅延完了 → abandoned recovery → unregister/drain の順で各3反復、早期unregisterなし。AC8 は4設定×両機構で3回の再入、各開始前の cleanup と今回の marker を確認。
+- AC9/10: AC9(a) は snapshot 注入失敗、機構(ii)では加えて build 後失敗。全て playEntered=false、snapshot/temp directory 残存0、元Scene差分0。AC9(b) は死PID・偽snapshotの模擬rootを回収し、残存なし・stale marker未採用。AC10 は in-process 模擬で第2予約を拒否し、先行folder/lock/所有を維持。いずれも実 Editor crash/実2 process は検証していない。
+- AC11(i): `snapshot.playLoad.completed` が `assets.sealed` より前、seal後のAddressables呼び出し0。AC11(ii): 新headで no-type-tree build は成功（options=`DisableWriteTypeTree, SerializeUnityVersion`）、Editorでのregisterは Unity の type-tree拒否を返し、source fallback/loadなし。要求後もSceneなし、sealed=true。N3に沿うfail-closed観測。
+- AC14/E1: snapshot Entry と directory Next を同じPlayで同時に観測し、Nextのunload後に再ロード。由来marker、SceneDirector lifecycle、native unload/token ledger の所有が記録される。AC3/4のDupも1実体のみでsnapshot由来。
+
+#### 機構別判定とスライス判定
+
+**機構(i) — 成立。** `S` は4設定全て。全scenario cellがPASSまたは定義済みN/A。既定設定（noDR+SR）も含む。AC11(i)の順序は混成roundの各設定で確認。
+
+**機構(ii) — 成立（native層での技術的候補）。** `S` は4設定全て。2つのnative directoryを直接登録する実験では全scenario cellがPASSまたは定義済みN/A。これは既存製品の `ContentDirectorySession` が2 directoryを安全に所有できる証明ではない。
+
+**スライス: GO。** 両機構が未判定でなく、少なくとも一方（実際は両方）が成立。AC0/1/12/13/15/16の必須観測も揃う。成立は採用候補の技術的実証であり、製品統合・本番bootstrap・実プロセス競合の証明ではない。現行project既定（noDR+SR）での観測を含む。
+
+#### AC0/1/12/13/15/16、E1–E5
+
+- **AC0 (A0): PASS。** 意図的なsave-rewrite後に SHA-256/mtime/Dirty/Hierarchy の差を検出し `detected=true`（seq 47–48）。Dirty clearも `isDirty` 差を `detected=true`（seq 69–70）。検出器は negative control に反応した。
+- **AC1 (A0): 合否対象外の基準観測。** snapshot無しでloaded Entryを名前で登録し、Play中のGameObject削除を記録。Unity標準Play後のN1 t0/t2差分は空（seq 72–93、特に destroy seq 85 と t2 seq 92）。これは標準の隔離で当該試験が復元された事実であり、snapshot要求を代替しない。
+- **AC12: PASS。** packetのgrep出力は `content:` config key の実験code一致なし（`machine/ac12-ac13-grep.txt`）。
+- **AC13: PASS。** base..head差分は実験folderとそれに属するUnity folder `.meta`（上位 `Spikes.meta` を含む）のみ、asmdef変更なし、実験codeにSampleGame参照なし（`diff/base..head.name-status.txt`、`machine/ac12-ac13-grep.txt`）。追加した親folder metadataはUnity folder assetのメタデータで、製品codeではない。contract auditはerrors=0、warnings=0（`machine/contract-audit.txt`）。docs auditは違反なし、handoff harvest時期の警告2件（`machine/docs-audit.txt`）。
+- **AC15 / E2: PASS。** A1–A4それぞれ58 round完了、headBは4件各1 round、harnessErrorsなし。上表はscenarioごとの全record blockを読み、由来/所有/順序と欠測を区別して値を付けた。AC9(b)・AC10は凍結定義どおり模擬観測を使った。
+- **AC16: 観測あり、合否なし。** 1 snapshot時（ac5-other-in-map）の(i) snapshot時間はA1–A4で約333–442 ms、2 snapshot時（main-dirty）は約653–927 ms。機構(ii)の対応する一時directory buildは1 snapshotで約21.5–24.5秒、2 snapshotで約21.3–24.1秒（各A fileの該当scenario block内 `snapshot.created` / `tempDirectory.built`）。性能閾値は凍結されていない。G22: `ac2-ref-prefab-changed` はScene資産のhashとは別に参照prefabのhash/mtime変化を記録し、Scene snapshot hashだけでは参照先assetの一致を保証しない（A1–A4の同scenario block）。参照先overlayは後続判断。
+- **E1: PASS**（AC14同時ロード・再試行記録）。
+- **E2: PASS**（各機構の判定と一次証拠は本書の表に記載）。
+- **E3: 観測済み。** 基準AC1とAC5の無隔離対照を記録。
+- **E4: PASS。** 4設定で両機構のcellを判定。制約条件なし。
+- **E5: H1–H4を照合。** 機構(i): H1の共有設定書換えなし。H2の参照asset overlayは対象外で、Scene snapshot自体は参照先を複製しない。H3のrevision mismatch自体はこの機構の行列で作っておらず、対象外のまま。H4の複数native directory探索は使わず、既ロードsnapshotのDupを1実体として観測。機構(ii): H1の共有設定書換えなし。H2は参照asset overlay自体が対象外で、同一dependencyを複数directoryへ入れた場合の一般的な解決/所有を未証明。H3はAC11でtype-tree登録失敗をsourceへ戻さず閉じた。H4は本fixtureでDupのsnapshot由来1実体を確認したが、native探索順の一般化はしていない。H2/H4の一般化はS2/S3の判断材料で、凍結違反ではない。
+
+#### Findings・後続slice・引継ぎ
+
+##### 現在の問いを止める defect
+
+なし。凍結条件違反を示す観測はない。AC5のmap欠落要求失敗、AC11(ii)のno-type-tree登録拒否、AC9/10の模擬結果は設計どおりの観測で、defectではない。機構(ii)の製品 `ContentDirectorySession` 2件目拒否も現行制約として記録され、native層のcell値とは区別する（A0 seq 8–11、`osm.secondRegistration` seq 11）。
+
+##### 後続sliceへの入力（いずれも現問のblockerではない）
+
+- **S0-c / S3:** harnessは `AbstractApplicationInitializer` を通さない。protected config（`content:runtimeMode`〜`probeToken`）を検証しない。実bootstrapの BeforeSceneLoad seal → AfterSceneLoad register の順に対し、harnessはPlay後にdirectory register → seal → already-loaded登録を再現する。SealもharnessのAssetManagementに直接呼ぶ。Game bootstrapは別にPlayごと起動し、recordにはaddressables mode、追加のUIScene等を観測（各run `environment.gameBootstrap`、`play.started`、`director.registerAlreadyLoaded`）。fixture Sceneを取り込む干渉は確認されないが、実bootstrap全体の証明ではない。UICommonもpanel無しの空component。実接続、protected config、bootstrap順はS3/S0-cで確認。
+- **S3 / S0-b直後の製品変更判断:** 機構(ii)を製品に統合するには、`AssetManagement.InstallContentDirectory` の単一install、`ContentRevisionGate` の単一process registration、revision lease、close/unregister順、token所有を別々に設計・証明する必要がある。A0 seq 11は既存sessionの2件目が `RevisionBusy`、AssetManagementも「already installed」で拒否することを示す。今回はnative層の2-directory routingであり、製品sessionの安全性は未証明。
+- **S3:** AC5の対照で、無隔離時にloadedなOtherはSceneResourceMapにOtherがあるとregister listへ入る（A0 seq 107–108、`registered=[Entry, Other]`、loadedBeforeRequest=1）。mapに無いとEntryだけが登録され、Otherはskipped（A0 seq 128–129）。隔離下ではOther未loadedのため要求前不参加は自明、mapありなら要求で参加、mapなしなら要求失敗。
+- **S2 / owner:** 参照先 prefab/material/ScriptableObject overlay と異なるbuild/共有依存の重複は対象外。G22はScene hashの限界を示す。必要ならsnapshot scopeをScene外へ拡張するかを別途決める。
+- **実環境への未証明引継ぎ (S0-c/S3):** AC9(b)は死PID rootのin-process模擬であり、実Unity Editor crash後のnative登録・asset残留回復を確認しない。AC10は同じprocess内のlease衝突模擬であり、実際の2 Editor processの競合/同じnative path共有を確認しない。これらはHANDOFF §2が判定対象外と定めたためcellにせず、判定を妨げない。
+
+#### 未確認・対象外
+
+- 実Editor異常終了後のnative状態・一時asset回収、実2 Editor process間の予約/登録競合。
+- production `ContentDirectorySession` で複数directoryを扱うことの可否、安全性、および本番initializerによるprotected configとbootstrap順。
+- 参照asset overlay、複数revision/異なるbuildの合成、Player挙動、性能合否、Playボタン入口/transactionは凍結範囲外。
+- Unity終了stallの原因・再現性は調査していない（既知停止規則に従った）。
+- manifest外の情報、packet以外のworktree/remote stateは確認していない。
+
 ## 8. Phase C'
 
 - 種別: C' 1 巡目（独立監査）。実行は進行役（Anthropic）が起動しただけで、下の本文は担当の出力を文面を変えずに転記した（見出しのレベルだけ下げた）。
@@ -817,6 +938,185 @@ S は「その設定の全 cell が PASS か定義済み N/A」である Enter P
 - `MANIFEST.sha256` と evidence file のハッシュ照合はしていない。
 - `diff/` は `docs/handoff` を除く、と provenance にある。handoff 以外に製品 file が無いかは `base..head.name-status.txt`（Spikes 配下だけ）で見た。live な作業 tree は無い。
 - 製品 Runtime の `RegisterAlreadyLoadedScenes` 現物と harness の再現の行単位の差分は、U-b2 として PHASE_B が列挙している範囲を超え、全 Runtime を読み直してはいない。Game bootstrap が fixture を取り込まないことは、見た record の `directorScenes` と `skipped: ["UIScene"]` の範囲である。
+
+### C' 2 巡目の記録（2026-11-08）
+
+（担当の出力を、進行役が見出しのレベルだけ下げて文面を変えずに転記した。）
+
+- 種別: C' 2 巡目（独立監査）。進行役（Anthropic）は起動だけを行った。
+- 担当・モデル: xAI（cursor-agent、Grok 4.7 256K High。§5 で予約済み）。新規 session、入力は blind audit bundle の写しだけ。Unity は再実行していない。
+- 対象: implementation base `e0d020d7`、implementation head `94b0c4a6`。前回の監査 head は `01ee19b4`。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）・引渡し未完了。別プロセスの fetch で manifest 全件の一致を確かめた（別 session からの取得確認は未了）。監査の出力は別の bundle としてローカル固定済み（未昇格）。
+- blind 化の処置: bundle の写しに限り、実験 code の comment 2 箇所と patch の該当行、Phase B 結果の §6.10 にあった Phase C の所見への参照と D-2 の理由を伏せた。D-2 は理由を除いて証拠の組み立ての条件だけを渡した。C' 用決定記録は AC5 の裁定だけを渡した。
+- 担当の環境の制約: Shell が拒否され、MANIFEST の再計算と書いた script の実行はできなかった（本文 §6）。manifest の一致は進行役が fetch の写しで確かめた。
+
+### Phase C' 独立監査（2 巡目）S0-b CONTENT_DEMAND_ROUTING_SPIKE
+
+担当モデル: Grok 4.7。新規セッション。この packet だけを読んだ。Unity は起動していない。
+
+判定: **スライスは GO。** 機構 (i) も (ii) も、Enter Play Mode の 4 設定すべてで cell が PASS か定義済み N/A であり、**成立**（技術的な採用候補。製品統合の証明ではない）。blocker は無い。
+
+#### 1. 証拠の固定と provenance の条件
+
+implementation base `e0d020d72e7a777b7de10ec544abe1853c768df8`（`machine/base-sha.txt`）。前回監査 head `01ee19b4a5cd74bade32c6919c19ecd863c2e9b1`。headA `a4b7a6e69b210554143260f83cca064590e14d88`。今回の implementation head（headB）`94b0c4a675336622c542fea14611d92a1342e54e`。
+
+`MANIFEST.sha256` の再計算はできなかった。この環境では shell が拒否され、ハッシュを自分で計算する手段が無かった。以下はファイルを直接読んだ結果である。
+
+##### 条件 1（headA から headB の差分は no-type-tree の build 経路だけ）
+
+`diff/evidenceHead..head.patch` は 2 file だけである。
+
+- `FixtureFactory.cs`: `NoTypeTreeOptions`（`DisableWriteTypeTree | SerializeUnityVersion`）を足し、`BuildDirectoryWithoutTypeTree` の option をそれに変えた。
+- `RoundRunner.Editor.cs`: `ac11.built` の `options` を固定文字列から `NoTypeTreeOptions.ToString()` にした。
+
+他の round の準備、Play、観測の分岐は変わっていない。headA の `ac11-no-type-tree` は各 `Matrix_*` の最後の round（seq 2338、`round.untested`、cause `no-type-tree-build`）で、Play に入る前に終わり、次の行 seq 2339 が `harness.finished`（58/58、`harnessErrors` 空）である。先の cell を壊していない。判定必須テストの全件再実行は要らない。
+
+`diff/prevHead..head.patch`（前回監査 head から今回の head）は実験 folder の 6 file だけである。`FixtureFactory.cs`、`MechanismTempDirectory.cs`、`RoundPlay.cs`、`RoundRunner.Editor.cs`、`RoundRunner.cs`、`Scenarios.cs`。中身は機構 (ii) の `ac11-no-type-tree` の追加と、上記の option 修正、`ac9b.staleReclaim` の note を「実 crash は cell にしない」に揃えたことである。製品 code、SampleGame、asmdef は含まれない。
+
+##### 条件 2（cell の出所）
+
+機構 (ii) の AC11 の 4 cell は headB。それ以外の行列 cell と Baseline は headA。下の表の「出所」列がそれである。
+
+##### 条件 3（XML の件数と名前、行列の穴）
+
+| head | XML | test 名（いずれも Passed） |
+|---|---|---|
+| headA | `testcasecount=5` `total=5` `passed=5` `failed=0` `skipped=0` `result=Passed` | `Baseline_DetectorAndControls`、`Matrix_DomainReload_NoSceneReload`、`Matrix_DomainReload_SceneReload`、`Matrix_NoDomainReload_NoSceneReload`、`Matrix_NoDomainReload_SceneReload` |
+| headB | `testcasecount=4` `total=4` `passed=4` `failed=0` `skipped=0` `result=Passed` | 上の `Matrix_*` 4 件。Baseline は無い（`COMMANDS.md` どおり） |
+
+class の `testcasecount` はどちらも 5（`[Explicit]` の fixture）で、headB は filter により 4 件だけ実行している。`step.json` の `counts` と一致する。両 `unity.log` に `error CS` は無い。
+
+headA の各 `Matrix_*` は `harness.started` の `rounds=58`、`matrixScenarioFilter=null`、`harness.finished` の `roundsCompleted=58` `roundsTotal=58` `harnessErrors=[]` `epmRestored=true` `leaseReleased=true`。headB の各 `Matrix_*` は `rounds=1`、`matrixScenarioFilter=ac11-no-type-tree`、`roundsCompleted=1` `roundsTotal=1`、同じ健全さ。Baseline は `rounds=7/7`。58 は機構 (i) 28 round と機構 (ii) 30 round（`ac9a-fail-build` と `ac11-no-type-tree` が (ii) だけ）で、`Scenarios.AllMatrixRounds` と一致する。headB は (ii) の `ac11-no-type-tree` 1 round だけなので、機構 (i) にその scenario が無いことは穴ではない。採用表に UNTESTED の穴は無い。
+
+record の場所:
+
+- headA Baseline: `evidence/headA-a4b7a6e6/records/20261108T095056Z-c3cadf/Baseline_DetectorAndControls.jsonl`
+- headA DR/NSR: `.../20261108T095210Z-c86e74/Matrix_DomainReload_NoSceneReload.jsonl`
+- headA DR/SR: `.../20261108T102018Z-103a60/Matrix_DomainReload_SceneReload.jsonl`
+- headA NDR/NSR: `.../20261108T104755Z-0cb075/Matrix_NoDomainReload_NoSceneReload.jsonl`
+- headA NDR/SR（project 既定）: `.../20261108T110218Z-95d89f/Matrix_NoDomainReload_SceneReload.jsonl`
+- headB は `evidence/headB-94b0c4a6/records/` の `20261108T124741Z-fc186b`（DR/NSR）、`20261108T125038Z-7a61d2`（DR/SR）、`20261108T125226Z-906708`（NDR/NSR）、`20261108T125330Z-d25c3b`（NDR/SR）
+
+引用する seq は、検索結果の行番号と一致している。4 本の headA 行列は、確認した事象（`assets.sealed` の main、`ac5.premise`、`snapshot.refused`、`round.untested`、`harness.finished`、`ac8.marker`）が同じ seq にある。全行の seq 欠番は shell が使えず走査していない。
+
+##### プロセス終了
+
+終了コードは自然終了の証明にしない。stall の原因は調べていない。
+
+- headA: XML は 2026-11-08T20:16:24+09:00 に完成。`step.json` は `status=failed`、`exitCode=1`、`process.exitCode=-1`。`unity-exit-facts.txt` は既知の native stall のあと強制停止扱いで、自然終了ではない。
+- headB: XML は 2026-11-08T21:54:28+09:00 に完成。`step.json` は `status=passed`、`exitCode=0`、`process.exitCode=0`。`unity-exit-facts.txt` は 21:59:59 の `Win32_Process.Terminate`（戻り値 0）で、この 0 は強制停止が渡した値であり自然終了ではない。
+
+どちらの `harness.finished` も XML 完成より前の record にある。cell は終了コードではなく JSONL から決めた。
+
+#### 2. cell 表
+
+定義は凍結 HANDOFF §2。値は PASS / FAIL / UNTESTED / N/A。N/A は定義済みの 2 つだけ（AC2 の新規未保存の拒否、AC6 の機構 (i) の snapshot 取消）。反復 cell（AC6、AC7、AC8）は 3 回のうち 1 回でも負なら FAIL。
+
+設定の略号: DR/SR = Domain Reload 有効・Scene Reload 有効、DR/NSR = Domain Reload 有効・Scene Reload 無効、NDR/SR = Domain Reload 無効・Scene Reload 有効（project 既定。headA の `epmBefore` は `DisableDomainReload` かつ Scene Reload 有効）、NDR/NSR = 両方無効。
+
+4 設定の採用値は同じである。表の値は 4 設定すべてに当てはまる。
+
+| cell | (i) | (ii) | 出所 | 根拠（代表 seq。4 設定で同型） |
+|---|---|---|---|---|
+| AC2 Dirty / additive / prefab override / 参照 prefab | PASS | PASS | headA | 各 file の `n1.t2` 52 行に対し `differencesFromT0:[]` が `n1.t1` と合わせて 104 件。行列側に空でない `differencesFromT0` は無い |
+| AC2 新規未保存 | N/A | N/A | headA | seq 153（(i)）と 1248（(ii)）。`snapshot.refused`、診断 `untitled-scene: the scene has no asset path...`。当該 round の `n1.t2` も空。他の 4 状態は同じ test の続きで実行されている |
+| AC3 | PASS | PASS | headA | main の `snapshot.playLoad.completed` seq 97。Dup は 1 件、marker `snapshot:r3:Dup`、path は `snap/r3/Dup.unity`。証拠全体に `loadedCount` が 2 以上の行は無い。`build:fixture` の Dup は無い |
+| AC4 | PASS | PASS | headA | `snapshot.created` 60 行すべて `guidDiffers:true`（`guidDiffers:false` は 0）。論理 identity は Entry / Dup のまま。例: DR/SR seq 87、Entry の original GUID と snapshot GUID が違う。同じ GUID は `saveAsCopy` では作れない、という観測である |
+| AC5 map あり | PASS | PASS | headA | `ac5.premise` seq 394（(i)）と 1525（(ii)）。`isolation=true`、`otherLoadedInPlayBeforeRequest=0`。`ac5.afterRequest`（NDR/SR seq 403 / 1534）で Other が初めて `directorParticipates=true`、`lifecycleState=Stable`、marker `build:fixture`、loadedCount 1 |
+| AC5 map なし | PASS | PASS | headA | premise seq 430 / 1567。loaded 0。要求は `play.step.failed` seq 434 / 1571、`SceneResource not found: Other`。afterRequest（NDR/SR seq 435 / 1572）は loadedCount 0、`directorParticipates=false`。この失敗記録が「map に無い場合の要求の失敗」である。行列の `play.step.failed` はこの 2 行だけ（headB の AC11 を除く） |
+| AC6 | PASS（snapshot の取消は N/A） | PASS | headA | (i) `ac6.snapshotCancel` は `applicable=false`（定義済み N/A）。Next は 3 反復とも `beforeCancel` の `nativeCompleted=true`（NDR/NSR seq 467, 677, 887。pending 1 のまま）、`callerOutcome=canceled`、`afterDrain` の live 0、pending 0、unrecovered 0、loadedCount 0、directory はまだ registered（解除は回収の後の停止側）。(ii) は Entry と Next の両方で同じ（DR/SR seq 1604–1623 が iteration 0。iteration 1 と 2 も canceled / unrecovered 0）。`routing.abandoned.recovered` は各 file 15 件で、AC6 の 9 取消と AC7 (b) の 6 停止と一致する。`abandoned.failed` と `unregister.failed` は 0 |
+| AC7 (a)(b) | PASS | PASS | headA | (b) `ac7b.afterStop.afterGate`（DR/SR (i) seq 545, 755, 965、(ii) seq 1707, 1958, 2209）。`closed=true`、live 0、pending 0、unrecovered 0、directories は `registered=false`。次 round の `n4.roundStart` に非空の `unclosedRouting` / snapshot / temp directory / Build Settings / Addressables は 4 file とも無い（非空パターン 0 件、`adapterGeneratedFolderLeft:true` も 0）。(a) は各 file に `ac7a.beforeStop` があり、Next を要求していない |
+| AC8 | PASS | PASS | headA | 各 file 18 行（機構 × 3 反復 × 3 play）。NDR/SR と DR/NSR の 18 行ずつを読み、`expected` の `snapshot:rN:Entry` と observed の marker・path（`snap/rN/Entry.unity`）が一致、loadedCount 1。残り 2 設定も同じ seq（566 から 2316）に 18 行ある。n4 の残留は空 |
+| AC9 (a) | PASS | PASS | headA | (i) seq 15、`failedAt=snapshot:after-marker`、残 file 0、temp directory 無し、`playEntered=false`、`originalDifferences=[]`。(ii) はそれに加え seq 1088、`failedAt=temp-directory:after-build`、同じ残量 0 |
+| AC9 (b) | PASS | PASS | headA | seq 19 / 1092。死んだ pid の lease を置き、`reclaimed` にその id、`seededFolderLeft=false`。その後の marker は `snapshot:r2:Entry` / `snapshot:r31:Entry` で、`stale` ではない（NDR/SR seq 51 / 1130）。実 crash は範囲外で cell にしない |
+| AC10 | PASS | PASS | headA | seq 10 / 1075。`second-reservation-rejected:<pid>`、`firstFolderKept=true`、`firstLockKept=true`、`firstStillOwned=true`。実 process 2 つは範囲外 |
+| AC11 | PASS | PASS | (i) headA、(ii) headB | 下に分けて書く |
+| AC14 | PASS | PASS | headA | NDR/SR main の `ac14.nextReloaded` seq 130（(i)）と 1220（(ii)）。Next loadedCount 1、marker `build:fixture`、`directorParticipates=true`、ledger は `Next|token=directory`。(i) の Entry は ledger に無く（(c) は必須でない）、(ii) の Entry は `token=directory`。同時 loaded は `e1.simultaneous`（DR/SR seq 116 / 1206）で Entry loadedCount 1、marker `snapshot:r3:Entry` / `snapshot:r32:Entry`、`directorScenes` に Entry と Next（main は Dup も） |
+
+AC11 (i)、4 設定、出所 headA。main-dirty で snapshot の `LoadSceneAsyncInPlayMode` 完了が封じより前である。Entry 完了 seq 94、Dup 完了 seq 97、`assets.sealed` seq 101、`addressablesCallsBeforeSeal=0`、`sealed=true`。封じ後の `observe` は各 file 86 行すべて `addressablesCallsAfterSeal=0`。`snapshot.playLoad.completed` は各 file 29 行で、すべて機構 (i)（(ii) は AssetDatabase の Play 中 load を書いていない）。`snapshot.playLoad.failed` は 0。4 設定とも同じ seq なので、Domain Reload の有無でこの順序は動いていない。
+
+AC11 (ii)、4 設定、出所 headB。各 file seq 10 `ac11.built`、`summary` は `Succeeded|StandaloneWindows64|...`、`options` は `DisableWriteTypeTree, SerializeUnityVersion`。seq 16 `ac11.registration` `outcome=failed`。例外文は `Cannot register a content directory in the Editor whose content was built without type trees`（`ContentLoadManager.RegisterContentDirectory`）。directory 一覧は空のまま。seq 24 `play.step.failed` `addScene:Next` は、登録が残っていないための `No routed directory has the scene`。seq 26 `ac11.afterRequest` は Next loadedCount 0、`directorParticipates=false`、`addressablesCallsAfterSeal=0`、`sealed=true`。loaded なのは Boot と UIScene だけで、source の Next は載っていない。`n1.t2`（seq 31）の `differencesFromT0` は空。失敗は記録され、source へ戻っていない。
+
+headA の同じ scenario は採用しない。4 file とも seq 2338 が `round.untested` cause `no-type-tree-build`、`Unity Content BuildReport failed: Failed`（当時の option は `DisableWriteTypeTree` だけ）。これは欠測であり、原因の区分は harness の不足（Unity が拒否する option の組み合わせで build が完了せず、登録と load の観測が無い）。機構の負の実測ではない。
+
+##### 行列の外（合否の前提と基準）
+
+- AC0、出所 headA Baseline。seq 48 `ac0-rewrite-save` は `expectedFields` の sha256 と hierarchy を `detected=true`。seq 47 の差は sha256、mtime、isDirty、hierarchy。seq 70 `ac0-clear-dirty` は isDirty を `detected=true`。seq 69 の差は sha256、mtime、isDirty。検出器は壊せたので、上の N1 の PASS を数える。
+- AC1、出所 headA Baseline seq 83–92。合否を付けない。隔離なしで `registerAlreadyLoaded` が `Entry` を登録し、marker は `original`、path は fixture の `Entry.unity`。Play 中に GameObject を消したあと seq 92 の `differencesFromT0` は空。Unity 標準の Play は disk を戻し、名前の再利用は開いている Entry を取り込む。
+- AC5 の基準（cell にしない）、出所 headA Baseline。隔離なし・map あり seq 107 は `registered:["Entry","Other"]`、premise seq 108 は `otherLoadedInPlayBeforeRequest=1`。map なし seq 128 は `registered:["Entry"]`、`skipped:["Other","UIScene"]`、premise seq 129 も loaded 1。S3 へ渡す拾い方は「隔離しないとき、map にある名前は既ロード登録が拾い、map に無い名前は loaded のままだが登録されない」。
+- AC12。packet の `source/*.cs` に `"content:` と `SampleGame` は無い。`machine/ac12-ac13-grep.txt` も同じ。
+- AC13。`diff/base..head.name-status.txt` は実験 folder とその `.meta`、親 `Spikes.meta` だけ。asmdef の差分は machine の記録では空。`#nullable enable` は実験の `.cs` 21 file の先頭にある。`Task.Delay` / `Thread.Sleep` / C# の `record` 型は無い。
+- AC15。上の cell はいずれも record と XML に一次証拠がある。欠測のまま PASS にしたものは無い。
+- AC16、合否なし。例は DR/SR の main。(i) の snapshot 作成は seq 87 で Entry 452 ms、seq 88 で Dup 375 ms。(ii) の一時 directory（snapshot 2 件）は seq 1173 で 24067 ms、`Succeeded`。headB の type tree 無し build は DR/NSR seq 10 で 34166 ms。G22 は DR/SR seq 373（(i)）と 1500（(ii)）。参照 prefab の sha256 と mtime は round 中に変わり、Scene 側の `differencesFromT0` は空。snapshot の hash は当該 Scene 資産の出所で、参照先 asset の一致は保証しない。
+- 製品の 2 件目拒否（cell にしない）。Baseline seq 11。`contentRevisionGate=rejected:RevisionBusy`、`assetManagementInstall=rejected:A content directory session is already installed.`
+
+##### 所有と由来（PASS に使った読み）
+
+- 由来は path ではなく marker。snapshot は `snapshot:rN:<名前>`、directory 側は `build:fixture`。Next の path が `buildsrc/Next.unity` でも、ledger は `token=directory` で、封じ後の Addressables 呼び出しは 0 である。
+- (i) の既ロード snapshot は (a) `directorParticipates` と (b) Scene の unload（directory token を持たない）で足りる。(c) は Entry の ledger に無く、必須にしない。
+- (ii) の Entry / Dup / Next は ledger が `token=directory`。main の `routing.resolve`（DR/SR seq 1193）は Dup を `chosen=snapshot`、`shadowed:["fixture"]` とし、同 identity を snapshot 優先で 1 つにしている。
+- 二重の loaded（同名 loadedCount 2 以上）、未回収 token、unregister 失敗は、検索した範囲に無い。
+
+#### 3. 機構の判定とスライスの判定
+
+S は「その設定の全 cell が PASS か定義済み N/A」の設定の集合。
+
+- 機構 (i): S は 4 設定すべて。**成立。**
+- 機構 (ii): S は 4 設定すべて。**成立。** これは native 層（`RoutingBackend` が 2 directory を直接持つ）の成立である。既存 `ContentDirectorySession` を 2 つ持てることの証明ではない。project 既定（NDR/SR）は S に入るので、既定の変更は要らない。
+
+旧 Hybrid の型（E5）:
+
+- H1（共有 Addressables 設定の書き換え）は、n4 の Build Settings と Addressables 参照が全 round で空なので、どちらの機構も持たない。
+- H2（閉包判定による同一 asset の 2 実体）は Scene 資産には出ていない。参照 prefab は G22 のとおり Scene hash の外で変わりうる。(ii) が参照 asset を一時 directory に複製して fixture directory と二重にロードするかは、この record では Scene 以外を数えていない。
+- H3（不一致を警告で通す）は、AC9 が Play に入らず残量 0、AC11 (ii) が登録失敗を記録して source に戻らないので、どちらの機構も持たない。
+- H4（catalog の後勝ち）は、(ii) が snapshot を先に解決し fixture を shadow するので、この実験の Scene identity には出ていない。
+
+スライス: 両機構が未判定でなく、少なくとも一方が成立。AC0、AC1、AC12、AC13、AC15、AC16 が揃う。**GO。** 成立は「機構が技術的な採用候補として残った」ことで、製品に統合できる証明ではない。
+
+機構 (ii) を製品へ足すときに別スライスが要る変更（本スライスでは実装しない）:
+
+- `AssetManagement.InstallContentDirectory` の 2 件目拒否。
+- `ContentRevisionGate` の process 単位の単一登録（`RevisionBusy`）。
+- revision の lease、close の順序、token の所有。ここでの成功は session のそれらを証明しない。AC7 (b) では実験 backend が drain のあとまで unregister を遅らせている。製品の `CompleteContentDirectoryPlayStop` は待たない、と §6.3 にある。
+
+#### 4. 前巡の指摘
+
+##### AC5（隔離下で未要求の Other が loaded の状態を測っていない、という指摘）
+
+裁定（`handoff/C_PRIME_DECISION_RECORD.md`、Phase A revision 2）は、cell を「隔離の下で `otherLoadedInPlayBeforeRequest` が 0 であることと、要求で初めて参加すること」に改め、loaded のまま登録が拾うかは cell にしない基準とした。この packet の凍結本文はその文言である。
+
+異議の条件は、裁定が不変条件を破るか、凍結条件の意味・合否を変えていることを示せる場合だけである。隔離（U-b1、Play の起点が Boot）の下では Editor の additive な Other は Play に載らない。その状態で未要求の所有が無いかは `otherLoadedInPlayBeforeRequest=0` と、要求前の非参加、要求後の参加または要求失敗の記録で測れている。N5 / G23（未要求の Scene を所有しない）は、この観測で破れていない。map ありの Other を強制ロードして必ず拾わせる試験は、裁定の言う「実際の経路に現れない状態」であり、この record には無い。裁定への blocker は出さない。
+
+一次証拠で、改定後の cell は 4 設定 × 両機構で PASS。基準の対照は Baseline seq 107–129 に残っている。**解消している。** コード差分は無い（§6.9 のとおり。`prevHead..head` にも AC5 の scenario 変更は無い）。
+
+##### AC11 の機構 (ii)
+
+前巡の時点では、type tree 無し directory の登録失敗を測れていなかった。headA では build 自体が `Failed` で `round.untested`（cause `no-type-tree-build`）だった。今回の差分は、Unity が要求する `SerializeUnityVersion` を足して build を通し、登録を試み、失敗を record に残す経路である。headB の 4 設定は、Unity が type tree 無し directory の Editor 登録を拒否し、harness が source に戻さず失敗を記録した。**解消している。PASS。** 定義は AC11 の「type tree の無い directory を Editor Play で登録した場合に、source へ戻らず失敗を記録する」。
+
+#### 5. 指摘の分類
+
+blocker（凍結条件または常時契約の違反で、現在の問いを止めるもの）: **無し。**
+
+後続へ渡すもの:
+
+- S0-c / S3。U-b2 の差。protected config を通らない。Bootstrap の段の順序ではなく、Play 後に harness が「(i) は snapshot の AssetDatabase load → directory 登録 → 封じ → 既ロード登録」を行う。同じ Play で Game の bootstrap が動き、`UIScene`（`Assets/OneStarMaker/Scenes/UISystem/UIScene.unity`）が loaded になる（headB seq 14、headA の playLoad 完了時の scenes も同じ）。fixture 名は map に無く `skipped` される。SceneDirector の取消は Unity Scene load に届かないので、AC6 は `IAssetManagement.LoadContentSceneAsync` に直接掛けている。
+- S3。上の AC5 基準。隔離しないときの名前登録の拾い方。
+- program §10 U1 (2) と、上の (ii) の製品変更の列。2 件 install と `ContentRevisionGate` は未変更のまま拒否される。
+- 参照先 asset の overlay は対象外。G22 の観測だけを残す。
+- 実 Editor の異常終了と、実 process 2 つの一時 path 衝突は範囲外。AC9 (b) と AC10 は模擬の PASS で、未証明の引継ぎとして S0-c / S3 へ残す。
+
+差分内の静的な残件（cell も不変条件も動かさないので blocker にしない）: `FixtureFactory.BuildDirectoryWithoutTypeTree` の失敗メッセージが `report?.summary.result` である（`source/FixtureFactory.cs` 155 行目）。`BuildReport` は `UnityEngine.Object` で、常時契約は破棄されうる object に `?.` を使わない。直前の条件は `report == null` で、headB の build は `Succeeded` なのでこの分岐は実行されていない。意味判定の flag であり、機械検査の hard gate ではない。`machine/contract-audit.txt` は errors 0、warnings 0 で、偽 null は検査対象外と書いてある。
+
+#### 6. 残るリスクと、監査できなかったこと
+
+- shell が拒否されたため、`MANIFEST.sha256` の再計算、JSONL 全行の seq 連続性、`contract-audit` / `docs-audit` の再実行はしていない。machine ファイルの docs-audit は warnings 2（`CONTENT_DEMAND_ROUTING_SPIKE.md` と `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7 / §8 が埋まっている、という harvest の警告）で、この packet の HANDOFF 抜粋だけでは §7 本文を再確認できない。
+- `BuildDirectoryWithoutTypeTree` は製品 adapter の経路の写しである。製品の `UnityContentDirectoryAdapter.Build` はこの packet に無く、写しとの差分は照合していない。headB では Unity 自身が type tree 無しと判定して登録を拒否したので、AC11 (ii) の観測としては足りる。写しが adapter からずれると、別の失敗を type tree の失敗と取り違えうる。
+- 両 head とも Unity プロセスは自然終了していない。record と XML は完成後に止まっている。stall は既知リスクとして調べていない。
+- headB 実行中に Unity が vendor の `.pdb.meta` 5 件の削除と `EditorSettings.asset` の serialized field の増減を作業ツリーに出した（`machine/unity-side-effects.*`）。Enter Play Mode の option そのものは変わっていない。実行担当が `git restore` し、head には含めない、と `COMMANDS.md` にある。この packet の diff には入っていない。
+- (ii) の成立は、fixture 1 revision と snapshot の一時 directory の 2 登録に限る。異なる build の合成（S2）や互換（S1）は見ていない。
+- バッチの EditMode が Play ボタンと同じ Scene 退避をするかは、この実行がバッチであるという記録（`batchMode=true`、Unity `6000.6.0f1`）以上には分けていない。N1 の t0 と t2 が空であることは、この実行経路では観測されている。
+
+監査できなかった計算: manifest の sha256、全 JSONL 行の seq 走査、機械検査の再実行、adapter 本体との突合。
 
 ## 9. Phase D
 
