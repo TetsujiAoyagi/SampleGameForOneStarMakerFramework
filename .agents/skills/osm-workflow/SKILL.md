@@ -18,7 +18,7 @@ description: >-
 4. PR の base は `develop` とする。
 5. 前の Phase から引き継ぐときは、起動時に渡された引き継ぐ commit の SHA と自分の worktree の HEAD、§0 の implementation head 欄を [引継ぎ票](references/phases-and-handoff.md#引継ぎ票) の手順で照合し、食い違えば引き継がずに停止する。C' は PR を読まない。
 
-Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。
+Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。cursor-agent CLI へジョブを投げる場合は [cursor-agent](references/cursor-agent.md) を先に読む。規則を緩める・消すかを判断するときは [導入理由の実測記録](references/workflow-rationale.md) を確認する。
 
 ## 公開点とGit履歴
 
