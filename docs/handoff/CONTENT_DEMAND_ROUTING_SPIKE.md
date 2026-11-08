@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `A`（**A3 凍結**、2026-11-08。owner が凍結を承認した。A2 入力版は commit `e5b3ca50`、A3 凍結版はこの票を含む commit。次は Phase B）
+- status: `B`（**B 完了**、2026-11-08。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`。次は発見 C）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順序（手順 0 の asmdef の確認から）で、§3 の実験 folder に fixture と harness と実験 test を書き、Editor のコンパイル確認と `pwsh tools/contract-audit.ps1` まで行う。Unity テストと Content Directory build は実行しない（Phase C）。§6 に実装、HANDOFF との差、未実行、U-b1〜U-b4 の確認結果を書く。判定表と判定は書かない。B の出口で commit し、implementation head 欄と本票を次の担当（動作確認は対象なしなので発見 C）へ更新する。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示で渡す）。
-  - 必要な権限: Unity Editor の起動とコンパイル確認（対象を限定した Editor 操作）。Unity テストの実行権限は不要。
-  - 停止規則: §2 の停止規則と §4「Phase B から Phase A へ差し戻す条件」に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。
+  - 次の Phase・役割: 発見 C（Phase C の欠陥発見）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、Phase C の実行担当が持つ）。
+  - 次の作業: implementation head の差分（§3 の実験 folder と本書）を構造・契約・凍結済みの失敗経路で見る。B は Unity テスト・Content Directory build・Play を一度も実行していない（§6「未実行」）。§5 の未知の経路（batch の EditMode test での Play の往復と Domain Reload からの再開、`[Explicit]` が namespace の filter で選ばれるか、test の中からの directory の build）は Phase C の最初の実行で確かめる。差し戻しの往復の起点 filter は §5 のとおり。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
+  - 必要な権限: 発見 C のレビューは読むだけ。Unity テストを限定実行する場合は Unity Editor（閉じた状態から）と、Windows では最初の実行から sandbox 外の承認済み経路での `pwsh tools/run-tests.ps1`。
+  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。
   - 引き渡さないもの: なし。
 
 ### 実測の方法
@@ -297,7 +297,73 @@
 
 ## 6. Phase B 実装結果
 
-未着手。B は実験を実行しないので、判定表と判定を書かない（AC15、§2 の E2〜E5 の注）。B が書くのは実装、HANDOFF との差、未実行（Unity テストと build の全て）と、U-b1〜U-b4 の確認結果である。
+B は実験を実行していないので、判定表と判定を書かない（AC15、§2 の E2〜E5 の注）。以下は実装、HANDOFF との差、未実行と、U-b1〜U-b4 の確認結果である（2026-11-08、base `e0d020d7`、引き継いだ commit `3dd43790`）。
+
+### 6.1 手順 0・1 の確認
+
+- 手順 0: 着手時の head（`3dd43790`）で `OneStarMaker.Tests.Editor.asmdef` の references を読んだ。A3 の記録（N6）と同じ 9 件で、SampleGame を含まない。差し戻し条件に当たらない。
+- 手順 1: `AssetManagement.InstallContentDirectory`・`SealAddressables`・`CompleteContentDirectoryPlayStop`、`IContentDirectoryBackend`・`IContentNativeDirectory`・`ContentDirectoryIndex`・`UnityContentDirectoryBackend`、`ContentDirectorySession.Register`、`UnityContentDirectoryAdapter`・`ProjectedContent`・`BuildContentProjectionResult`（Build.Content の internal）、`EditorSceneManager.playModeStartScene`・`SaveScene(saveAsCopy)`・`LoadSceneAsyncInPlayMode` に、この asmdef から届くことをコンパイルで確かめた。
+
+### 6.2 実装
+
+全て `unity/Assets/OneStarMaker/Tests/Editor/Spikes/ContentDemandRouting/` の 21 file（各 `.meta` と、上位 `Spikes` folder の `.meta`）。製品 code・SampleGame・asmdef の差分は無い。
+
+| file | 責務 | §3 との対応 |
+|---|---|---|
+| `ContentDemandRoutingExperiments.cs` | `[UnityTest]` 5 件。`Baseline_DetectorAndControls`（設定を変えない基準: 製品の 2 件目の登録の拒否、AC2 の saveAsCopy 単独の対照、AC0 の負の対照 2 件、AC1、AC5 の隔離なしの対照）と、Enter Play Mode の 4 通りを 1 件ずつ受け持つ `Matrix_*` 4 件。assert は harness の健全さだけ（record、設定の復元、一時 root の回収、行列の完走、harness 自身の失敗 0、AC0 の検出） | 同じ |
+| `Scenarios.cs` | シナリオ名（record の `scenario`）と round の並び。行列は機構ごとに AC10・AC9 (a)・AC9 (b)・main（AC3/AC4/AC11/AC14 と AC2 の Dirty）・AC2 の残り 4 状態・AC5 の 2 通り・AC6/AC7 (a)/AC7 (b) を各 3 回・AC8（Play を 3 回続ける組を 3 回） | 新規（B 適応: file の分割） |
+| `RoundRunner.cs` / `.Editor.cs` / `.WithoutPlay.cs` | round を Edit の準備（前の round の残りの検出 N4、Scene setup、t0、snapshot、(ii) の build、t1、Play の初期 Scene）→ Play → Edit の検証（停止の経路、AC7 (b) の gate の解放、AC0 の改ざん、t2、後始末）の順に進める。Play を伴わない観測（AC2 の対照、AC9 (a)、AC10） | 新規（B 適応。`ContentDemandRoutingExperiments.cs` の見込みを分けた。1 file 653 行になったので partial で 3 つに分けた） |
+| `RoundPlay.cs` | Play 中の各シナリオの操作と観測。各操作の例外は `play.step.failed` として record に移し、Play を最後まで進める | 新規（同上） |
+| `HarnessState.cs` | test 1 件の状態の file（round の位置、round の途中結果、前の round の痕跡、健全さの観測）。場所は SessionState | 新規（B 適応: Domain Reload を跨ぐため） |
+| `RoutingBackend.cs` | 実験専用の `IContentDirectoryBackend`。§3 の責務どおり（native directory を直接持つ、先に足した snapshot を優先して解決、token の計数、gate、drain、片方の失敗で止めない unregister） | 同じ |
+| `DirectorHarness.cs` | 製品の `SceneDirector`（internal constructor、`useContentDirectory`）と `AssetManagement` を fixture の `SceneResourceMap` と `RoutingBackend` で組む。`RegisterAlreadyLoadedScenes` の再現、封じ（U-b4）、所有 (a)(c) の観測、製品と同じ順序の Play 停止（`ReleaseAll` → `CompleteContentDirectoryPlayStop`、`Application.quitting` から） | 新規（B 適応。§3 では機構 file に含めていた OSM 層の構成を、両機構と基準で共有するため分けた） |
+| `MechanismAlreadyLoaded.cs` / `MechanismTempDirectory.cs` | 機構 (i) の Play の構成（封じより前に snapshot を `LoadSceneAsyncInPlayMode` で additive に読む → fixture の directory 1 件 → 封じ → 既ロードの登録）、機構 (ii) の Edit の build と Play の構成（snapshot の directory → fixture の directory の順に 2 件登録） | 同じ |
+| `FixtureFactory.cs` | `Boot`・`Entry`・`Other`・`Dup` と build 用の写し `Next`・`Other`・`Dup`、共有の prefab と material を一時 root に作る。directory の build | 同じ |
+| `SnapshotWriter.cs` | snapshot の作成（`saveAsCopy` → マーカーの書き換え → import）、失敗時の削除、AC9 (a) の注入点 | 同じ |
+| `SceneStateProbe.cs` | N1 の観測項目（disk の SHA-256・mtime、Dirty、loaded、path / GUID、GameObject ごとの名前・active・位置・scale・prefab override の数・component の型）と Editor の Scene setup、比較 | 新規（B 適応: §3 では `SnapshotWriter` に含めていた） |
+| `OriginMarker.cs` | 由来マーカー | 同じ（形は下の B 適応 1） |
+| `TempRootLease.cs` / `EnterPlayModeMatrix.cs` / `ExperimentRecord.cs` | 一時 root の予約・回収・衝突の拒否、Enter Play Mode の退避・設定・復元、record（JSON Lines） | 同じ |
+| `PlayEnvironment.cs` | Play の初期 Scene（U-b1）、project の Game の bootstrap の静穏化、Unity のエラーのログの record への転記 | 新規（B 適応 7） |
+| `PlayObserver.cs` | Play 中の Scene の列挙（名前・path・handle・マーカー）、同名の Scene の数と `GetSceneByName` の返す実体、load / unload の通知 | 新規 |
+| `GateConstraint.cs` | 現行製品の制約の観測（`ContentDirectorySession.Register` の 2 件目が `ContentRevisionGate` に拒否される、`InstallContentDirectory` の 2 件目が拒否される）。cell の値に使わない | §4 手順 3 の「1 件置く」 |
+
+record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観測。`seq`・`utc`・`frame`・`playing`・`kind` と cell の識別子 `mechanism`・`epm`・`scenario`・`iteration`・`play`）。判断担当が読む主な `kind`: `n1.t0` / `n1.t1` / `n1.t2`（差の項目名）、`snapshot.created`（論理 identity と物理 path / GUID の写像、作成時間）、`tempDirectory.built`（build 時間、snapshot の件数）、`assets.sealed` と `snapshot.playLoad.*`（AC11 の順序）、`observe`（同名の Scene の数・マーカー・`GetSceneByName`・所有 (a)(c)・routing の状態）、`routing.*`（native の完了と gate の区間を別の行、token、unregister とその理由）、`unity.sceneUnloaded`（(b) の判定に routing の unload の行と組で使う）、`n4.roundStart`、`ac6.*`、`ac7b.*`、`ac8.marker`、`ac9a.result`、`ac9b.*`、`ac10.leaseConflict`、`ac0.detector`、`osm.secondRegistration`、`play.step.failed`、`unity.log`、`round.untested`。
+
+### 6.3 HANDOFF との差（B 適応、根拠つき）
+
+1. **由来マーカーは component ではなく root GameObject の名前**（`OriginMarker|<値>`）。この asmdef は Editor 専用で、Editor の MonoBehaviour は Scene の GameObject に付けられず directory にも入らない。asmdef は足せない（N6）。snapshot 側の値は、snapshot を Editor で開かず file の該当行を書き換えて import する（開くと Scene setup が変わり N1 の経路 (g) を自分で起こすため）。名前・path を由来の証拠にしない方針（§2 用語）は保つ。マーカーは fixture の作成時と snapshot の作成時に harness が書く値で、Scene の名前・path とは別。
+2. **fixture の ScriptableObject は material で代えた。** Editor asmdef の ScriptableObject 型は build に入らない。G22 の観測は共有 prefab の変更（`ac2-ref-prefab-changed`）で行う。
+3. **directory の build は `BuildContentCoordinator` ではなく製品の `UnityContentDirectoryAdapter` を直接呼ぶ。** coordinator は BuildPlan と materialization snapshot（選択の経路）を要し、出力先も `artifacts/bs2b` と `TestResults/bs3-fixture` に限る。adapter は internal で届き、圧縮と `BuildContentOptions` は製品と同じ物が使われる（type tree の扱いは製品のまま。Editor Play で読めるかは C の観測）。active build target が StandaloneWindows64 Player でなければ adapter が拒否し、directory を要する round は `round.untested`（cause `fixture-directory`）になる。
+4. **SceneDirector は reflection で組み・呼ぶ。** この asmdef は Foundation と R3 を参照せず、`AddScene` / `UnloadScene` の既定引数（Foundation の `TelemetryLevel`）に直接束縛できない。`TestableSceneDirector` は別の test asmdef（`OneStarMaker.Tests`）にあり使えない。製品の `SceneDirector` を internal constructor で組み、`ISceneQuery` と internal の `Lifecycle` で (a) を、AssetManagement の private な registry で (c) を読む。製品の型の private field（`SceneResource._sceneAssetDescription`、`SceneResourceMap._sceneResources`、`SceneDirector._currentScenes`、`AssetManagement._registry`）を reflection で読み書きする。製品の field 名が変わると harness が動かない（その場合は `play.step.failed` / `round.prepareFailed`）。
+5. **file の分割**（6.2 の表）。
+6. **一時 root は `unity/Assets/OsmSpikeCdr/<p{pid}-{8hex}>/`**（§3 の folder の外。git 管理外で、test の終了と次回の開始で回収する）。snapshot は import された asset である必要があり、`Editor` folder の下の asset は build に入らないので §3 の folder の下に置けない。build した directory と lock file は同じ root の `disk~`（AssetDatabase の対象外）に置く。adapter は自分の一時 asset を `Assets/OneStarMakerGenerated/BS2b/<identity>` に作って消す（`n4.roundStart` の `adapterGeneratedFolderLeft` で残りを見る）。
+7. **project の Game の bootstrap が Play ごとに起動する。** この project では Play に入ると Game の initializer が必ず走り、content mode の config が無いと fail-closed のエラーで止まる。harness はそれを使わない（U-b2）ので、`ObservationReloadTests` の前例に倣い Process の環境変数で addressables mode を与える（Game の名前は書かず、`AbstractApplicationInitializer` の派生から prefix を発見する）。Game の bootstrap は同じ Play の中で自分の AssetManagement と SceneDirector を持って動き、`RegisterAlreadyLoadedScenes` も走らせる（fixture の Scene 名は Game の map に無いので取り込まれない見込み。C で `unity.log` と `observe` で確かめる）。実験の観測はこの干渉を含む。
+8. **N1〜N5 の破れを test の失敗にしないため、`LogAssert.ignoreFailingMessages = true` にし、Unity のエラー・例外のログは `unity.log` として record に移す。**
+9. **AC6 の取消は SceneDirector ではなく `IAssetManagement.LoadContentSceneAsync` に直接掛ける。** SceneDirector の取消は PreLoad の窓に限られ、Unity Scene の load は `CancellationToken.None` で走るため届かない（S3 の「SceneDirector 経由と直接経由」の入力）。
+10. **`RoutingBackend.CompletePlayStop` は、load の terminal を待つ operation があれば unregister をその drain の後へ遅らせる。** 製品の session は待たずに解除する。AC7 (b) の「登録の解除が回収より先に起きない」を backend の責務として持たせた。遅らせた解除が起きなければ次の round の開始時に `n4.roundStart` の `unclosedRouting` として検出・回収する。Domain Reload 有効の設定でも、検出は Play に入る前（Edit の準備）に行うので static の一覧で見える。
+11. **新規未保存の Scene は snapshot を拒否する**（`snapshot.refused`、AC2 が許す唯一の拒否。元を黙って使わない）。
+12. **AC4 の「path / GUID が元と同じ場合」**: `saveAsCopy` は常に新しい GUID を割り当てるので、この機構では作れない。`snapshot.created` の `guidDiffers` に残す。
+13. **AC9 (a) の機構 (i) は snapshot の作成の失敗だけ**（一時 directory の build が無い）。(ii) は snapshot の失敗（`ac9a-fail-snapshot`）と build の失敗（`ac9a-fail-build`）の両方。失敗した round は作った snapshot と directory を全て消し、Play に入らない。
+14. **Domain Reload を跨ぐ再開。** UTF が Domain Reload の後に test の enumerator をどう再開するか（局所変数が戻るか、先頭から再実行か）に依らないよう、round の位置は state file、phase（prepared / played / verified）は SessionState に置き、yield の後は file から読み直す。
+
+### 6.4 U-b1〜U-b4 の確認結果
+
+- **U-b1（Play の初期 Scene の隔離）:** `EditorSceneManager.playModeStartScene` を fixture の空の `Boot` にする形を採った（コンパイル確認済み、挙動は未観測）。両機構の全 round と AC0 の round で使い、基準（AC1、AC5 の隔離なしの対照）だけ外す。退避した元の値は SessionState に置き、test の終了で戻して読み直す。Play 前に Editor の Scene 構成を差し替える形は使わない。
+- **U-b2（SceneDirector の既登録をどこまで実物で見るか）:** 製品の `SceneDirector` を internal constructor で組めることはコンパイルで確かめた（B 適応 4）。`AbstractApplicationInitializer` は使わず、`RegisterAlreadyLoadedScenes` を同じ順序で再現する。実物との差: (1) protected config（`content:runtimeMode`〜`probeToken`）を通らない。(2) Bootstrap の段の順序（BeforeSceneLoad の封じ → AfterSceneLoad の登録）ではなく、Play に入った後に harness が「（(i) は snapshot の読み込み →）directory の登録 → 封じ → 既ロードの登録」の順で行う。(3) 封じは harness が自分の AssetManagement に呼ぶ（U-b4）。(4) 同じ Play で Game の bootstrap が別に動く（B 適応 7）。(5) UICommon は panel の無い空の component。判定 C はこれらを §7 に書き S3 へ引き継ぐ。
+- **U-b3（通常の全件回帰から外す方法）:** test class に `[Explicit]` を付けた。`run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting` で選ばれるかは未確認（C の最初の実行で確かめる。0 件なら完全名の列挙を filter に使う）。
+- **U-b4（封じの時点）:** `DirectorHarness.Seal()` を、routing の install の後・最初の Scene の要求より前に呼び、`assets.sealed`（seq・frame、封じの前の Addressables の呼び出し回数）を record に残す。機構 (i) では snapshot の `snapshot.playLoad.completed` が必ずその前の行になる。Domain Reload の有無で順序が動かないかは各設定の record で比べる。
+
+### 6.5 機械検査と Editor 操作
+
+- Editor のコンパイル確認: Unity `6000.6.0f1`、2026-11-08。最初の起動で 1 件のコンパイルエラー（`AsyncOperation` を UniTask で直接 await できない）が出て Editor が Safe Mode の確認で止まった。自分で起動した Editor だけを終了し、frame ごとの完了確認に直して起動し直し、`OneStarMaker.Tests.Editor.dll` がエラー・警告なしで再生成されたことを `unity/Logs/Editor.log` で確かめた後、Editor を正常終了した。その後の変更はコメントの言い換え 2 か所だけ。
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
+- AC12: 実験 code に `"content:` の文字列は無い（grep）。AC13: 実験 code に `SampleGame` の文字列は無い（grep）。asmdef の差分は無い。最長の repo 相対 path は 106 文字（予算 150）。
+
+### 6.6 未実行（全て Phase C）
+
+- Unity テスト、Content Directory の build、Play の往復を一度も実行していない。record は 1 行も生成していない。
+- C の最初の実行で確かめること（§5 の未知の経路を含む）: (1) `[Explicit]` の test が namespace の filter で選ばれるか。(2) batch の EditMode test で `EnterPlayMode` / `ExitPlayMode` が往復でき、Domain Reload の後に state file から続きを再開できるか（再開できなければ §5 の承認済みの対話的な実行へ移す）。(3) test の中から adapter の build が通り、Editor Play で directory の Scene を読めるか（type tree）。(4) Game の bootstrap が静かに起動し、実験の Scene を取り込まないか。(5) 行列の所要時間。1 件の `Matrix_*` で Play の往復が 52 回、(ii) の build が 27 回あり、4 件で数時間になりうる（test の timeout は 4 時間）。
+- 実際の Editor の異常終了と実 process 2 つの衝突は本スライスの範囲外（§2）。record では AC9 (b) と AC10 を模擬と明記している。
 
 ## 7. Phase C
 
