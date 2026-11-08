@@ -5,28 +5,28 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（**Phase B 完了（2026-11-08）。次は発見 C（動作確認は対象なし）。** Phase A は A3 凍結版（revision 0、owner の指示で 2026-11-08 に凍結）のまま変えていない。A2 入力版は commit `d5f15d3`。本版は A2（§5）、外部の計画レビュー R1（対象 `d5f15d3`）・R2・R3（対象 `a2c6efe`）・R4（対象 `3734f91`）の採用分と、owner の Q1〜Q7 の裁定（R1 の推奨どおり）を反映した版。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。Phase A の commit は A2 入力版 `d5f15d3`、A3 整理版（`15c2469`〜`3734f91`。外部レビューの入力に使うための owner 指示による逸脱）、A3 凍結版（本版を含む commit）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
+- status: `C`（**発見 C 完了（2026-11-08）。現在の問いを阻害する指摘なし。次は判定 C（§7）。** Phase A は A3 凍結版（revision 0、owner の指示で 2026-11-08 に凍結）のまま変えていない。A2 入力版は commit `d5f15d3`。本版は A2（§5）、外部の計画レビュー R1（対象 `d5f15d3`）・R2・R3（対象 `a2c6efe`）・R4（対象 `3734f91`）の採用分と、owner の Q1〜Q7 の裁定（R1 の推奨どおり）を反映した版。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。Phase A の commit は A2 入力版 `d5f15d3`、A3 整理版（`15c2469`〜`3734f91`。外部レビューの入力に使うための owner 指示による逸脱）、A3 凍結版（本版を含む commit）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
 - branch: `claude/adoring-galileo-4afnfa`（S0-a のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `5f971da`（`develop` の head、2026-11-08。本書の実測は全てこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `7aa249d`
 - risk: `normal`（program §8 のとおり。既存の公開 API・asmdef・所有者・寿命・`SceneState`・Addressables・起動順序を変えず、任意の層に新しい型を足すだけ。新しい公開面を足すことを「公開 API を変える」高リスクには数えない。owner 裁定 2026-11-08（§5 Q1、R1 の推奨どおり））
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-11-08
 - expires: 2026-12-31、または Phase D で harvest・削除した時点。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md`（要求時解決の任意の層と所有の契約。§2 決定事項サマリと §5 Interface 設計に節を足す。`IAssetManagement` に member を足さなかった理由、規則の製品実装が S1 にある理由、ロード元の同一性が S3 まで未検証であることを含める）、`27-folder-structure.md` §2.2（`Runtime/ContentResolution/` の依存位置: AssetManagement の公開面と共通契約だけに依存し、BuildSystem 本体・SceneSystem・Bootstrap を参照しない、AssetManagement の上の任意の層）、`unity/Assets/README.md`（プロジェクト構造の木と AssetManagement の節）。program の harvest（§18 §4 等）は program の完了時
 - 関連: [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（**所有境界の正本。** resolver は AssetManagement の上の任意の層で、BuildSystem 本体を参照しない。同書 §2.1 の「連携部分（両方を知る）」とは別の分類として扱い、U-A / U-B の P 検査の集合に参照を増やさない。境界を本書で定義し直さない）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本スライスは起動コードに触れないので順序制約の対象外。§2.4）、S0-b `CONTENT_DEMAND_ROUTING_SPIKE`（ブランチ `claude/play-content-s0b-spike`、判定 C の再実行待ち。本書は S0-b の 2 機構に中立な形にしてある。§5「S0-b ブランチの確認」）
-- Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。owner（ローカルの担当）が A3 凍結版の本書を同じ PC の Artifact Storage に `evidence stage` で固定した（locality local。取得案内の reference と期待 packageSha256 は owner の手元にあり、本書には転記しない）。Phase B の session は Cloud で、local の staged artifact を取得できない（Cloud・別 host からの取得経路は [Artifacts README](../../tools/Artifacts/README.md) で後続）ので、**B は取得を確認していない。** B は §0 の規定どおり A3 凍結 commit の本書を正として実装した。取得の確認は、次のローカルの担当（発見 C）が開始時に `evidence fetch` で行う
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成。B の session（Cloud）は stage できない。B の出口の観測（下の票の「B の出口で確認したこと」）は commit の外に保存していない。発見 C 以降の bundle はローカルの担当が作る
+- Phase A snapshot の取得案内・状態: 確認済み（ローカル固定、未昇格）。発見 C の session が同じ PC から `evidence fetch` で取得し、収録された本書の内容 hash が A3 凍結 commit `30c98a7` の本書と一致することを確かめた。取得案内の reference と期待 packageSha256 は owner の手元と起動指示にあり、本書には転記しない。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成。発見 C は commit `7aa249d` で対象を固定し、差し戻しが無かったので stage snapshot を作っていない。発見 C の生結果（XML・log・step.json）はローカルの worktree にだけあり未保存で、判定の入力にしない。判定 evidence bundle と C' blind bundle は判定 C の担当が GO 候補 head から作る。
 - 引継ぎ票:
-  - 次の Phase・役割: **発見 C（Phase C の欠陥発見）。** §5「操作・実行時・目視条件の検証経路」が対象なしなので、動作確認は `対象なし` で飛ばす。新しいローカルの session で、C のモデルは B と別にする（C' 用に OpenAI か Google を未関与で残す。Phase A の票のとおり）。
-  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file が出る）。Phase A snapshot を `evidence fetch` で取得し、凍結版の本書と一致することを確かめる（B は未確認）。続いて §5 の起点 filter（`OneStarMaker.Tests.ContentResolution`、`OneStarMaker.Tests.AssetManagement`）と offline suite で発見レビューを行う。最初に Unity Editor でのコンパイル（下の未確認 1）と `.meta` の import（未確認 2）を確かめる。
-  - B の出口で確認したこと（B の session の観測。判定の入力にしない）: (1) `dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` が exit 0、`ContentResolution offline: 28 passed, 0 failed, 28 executed`、§5 の 28 件の名前が全て `PASS` 行に出た（.NET SDK 8.0.133、Linux）。(2) core の 20 file を `netstandard2.1`・`LangVersion` 9・警告をエラー扱いで別にビルドして警告 0・エラー 0（net8 にだけある API の混入の確認。scratch の project で、commit していない）。(3) `pwsh tools/contract-audit.ps1`（PowerShell 7.4.6）が errors=0 warnings=0（検査 1〜9、検査 8 は not-applicable）。(4) AC3 の 2 つの grep が 0 件。AC9 の grep は `Cancel` を含む行（`CancellationToken`・`IsCancellationRequested`・`Cancelled` 等）だけが当たり、`cancel` を除くと 0 件。
-  - B の未確認: (1) **Unity Editor でのコンパイル確認は未実施。** B の session（Cloud）に Unity が無い。Unity 側の新規 file は `Runtime/ContentResolution/ContentRequestLoader.cs`、`ContentLoadOutcomes.cs`、`Tests/ContentResolution/ContentRequestLoaderTests.cs` の 3 つで、どれも Unity でコンパイルしていない。core は netstandard 2.1 で上の (2) を通した。(2) **新規の `.meta`（folder 3 つ、`.cs` 23 個）は Unity が生成したものではなく、B が既存の形（`.cs.meta` は `fileFormatVersion` と乱数の `guid` の 2 行、folder は `DefaultImporter`）で手で作った**（§4 の手順 (5) からの B 適応。設計判断は変えていない）。Unity が import 時に書き換えたら、その差分が本スライスの `.meta` だけに限られることを確かめて取り込む（AC2）。他の file の書き換えは取り込まない。(3) P 検査（AC4）と EditMode テスト（AC5・AC6）は計画どおり Phase C。
+  - 次の Phase・役割: **判定 C（GO 候補 head `7aa249d`）。** 発見 C に現在の問いを阻害する指摘が無く、B への差し戻しは 0 巡。新しいローカルの session で、判断担当のモデルは B と別にする（発見 C を B と同じモデルで行った例外は発見 C に限る。§7）。C' 用に OpenAI を未関与で残す。
+  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は SHA で、そこから HEAD までの差分は `docs/handoff/` の本書だけ）。§5 の判定必須を実行する: base と head の全 EditMode 回帰（AC6）→ P 検査（AC4。script は判定 C が用意する）→ offline suite（AC1・AC8）→ AC3・AC9 の grep → `pwsh tools/contract-audit.ps1`、AC2・AC7 の照合。判定 evidence bundle と C' blind bundle は同じ head から作って stage する。
+  - 発見 C で確認したこと（判定の入力にしない）: §7。Unity コンパイルと `.meta` の import は head `7aa249d` で問題なし。
+  - B の未確認の状態: (1) Unity のコンパイルと (2) 手書きの `.meta` の import は発見 C で解消した（§7）。(3) P 検査（AC4）と全 EditMode 回帰（AC6）は計画どおり判定 C。
   - 実装の読み方（C が照合に使う。凍結条件は変えていない）: I5 の `FailureCode` の優先順位は、探索の途中で止めた場合（`Fault`、identity の無い `Rejected`、pin の食い違い）にも、それまでの probe 全体に同じ優先順位を当てて 1 つに決める（例: `PinMismatch` の後の `Fault` は `IntegrityRejected`）。I5 の (1) が止める事象（identity の無い `Rejected`・pin の食い違い）を含むことに合わせた読み。`ContentAvailability` の状態の enum は `ContentAvailabilityStatus`（§3 の「public readonly struct + enum」）。`ContentTraceability` は 0 を未定義にした（`Traceable = 1`、`Reproducible = 2`）。T13 は §5 の文字列に加えて AC1 の file 先頭の `#nullable enable`・禁止 `using`・`record`・`init` も見る。T13 の禁止語は AC9 の grep に自分自身が当たらないよう文字列を分割して組み立てている。
-  - 引き継ぐ commit: この票を含む commit（tree の外、起動指示と PR #171 の状態ブロックで渡す）。
-  - 必要な権限: Unity Editor の起動とコンパイル確認、`pwsh tools/run-tests.ps1`（Windows では最初から sandbox 外の承認済み経路）、ローカルの Artifact Storage の `evidence fetch`。
-  - 停止規則: program §0 の停止規則と §4 の差し戻し条件を引き継ぐ。B は差し戻し条件に当たる事実（§3 に無い型・member の必要、core の禁止参照、`ValueTask` の `await` 不可、internal の利用、既存テストの変更）に当たっていない。
-  - 引き渡さないもの: なし。
+  - 引き継ぐ commit: この票を含む発見 C の記録 commit（SHA は tree の外、起動指示と PR #171 の状態ブロックで渡す）。
+  - 必要な権限: `pwsh tools/run-tests.ps1`（Windows では最初から sandbox 外の承認済み経路）、ローカルの Artifact Storage の `fetch`（ASSET_CYCLE の `p-check.ps1`）と `evidence stage`。
+  - 停止規則: program §0 の停止規則を引き継ぐ。新しい worktree で Unity が import すると、`*.pdb` が git 管理外なので `unity/Assets/MobileDependencyResolver/Editor/` の `*.pdb.meta` 5 件を消す。本スライスの変更ではないので `git restore` で戻し、commit に入れない（AC2）。
+  - 引き渡さないもの: C' に発見 C・判定 C の所見（§7）を渡さない。
 
 ### PR 状態ブロック
 
@@ -426,7 +426,24 @@ owner の判断（2026-11-08）: R4 の反映をもって凍結する。「厳�
 
 ## 7. Phase C
 
-（未到達）
+- 種別: 発見（implementation base `5f971da` / head `7aa249d`。GO 判定はしていない）
+- 使用したevidence bundle の取得案内・状態: 未生成（§0）。入力は commit `7aa249d` と、確認済みの Phase A snapshot。
+- 構造適合: 適合。§3 の責務マップと実物を照合した。`Core/` 20 file は表と 1 対 1 で、loader と outcomes は `Core/` の外の 2 file。asmdef の追加・`IAssetManagement` の member 追加・解放 API の追加は無い。AC2 は `git diff --name-status` の全 54 行が許可リストの種類に収まる。行数は `ContentResolver.cs` 318 行（予想 170）、offline の `Program.cs` 693 行（予想 480）で予想を超えるが、前者は探索の 1 責務で 500 行未満、後者は T ごとの method が並ぶテスト harness なので、分割は不要と判断した。XML doc の要求（`IContentCompatibilityRule`・`ContentRequestLoader`・`ContentLoadRecord`）は満たしている。§0 の「実装の読み方」の I5（途中で止めた場合も同じ優先順位）は、I5 の優先順位 (2) が `Fault` を含むことと整合する。
+- 現在の問いを阻害する findings（違反する凍結済み条件 / 常時契約を併記）: なし。
+- 後続スライスへ移送する findings:
+
+| id | severity / category | 根拠 | 内容 | bucket・移送先 |
+|---|---|---|---|---|
+| D-1 | low / semantic | `Core/ContentResolver.cs` 50〜51 行目、`Core/ResolutionPolicy.cs` 33 行目のコメント | `provider.Id` / `SourceKind` は `try` の外で読む。getter が例外を投げる、または `Id` が null を返す adapter では、`ContentResolutionResult` も probe も作られずに例外が抜ける。policy のコメントは id を「1 回だけ読む」と書くが、resolver が読み直す。I5 と T20 の対象を `FindAsync` と `Accepts` と読み、宣言値の getter は adapter の契約とした（I5 の文言の隙間で、凍結条件の違反とはしない）。owner が I5 に getter を含めると読むなら B 適応で閉じられる | 後続の入力・S4（adapter の契約）。unique。未修正 |
+| D-2 | low / semantic | `Core/ProviderProbe.cs`、T19・T26 | `ProviderProbe` は `Rejected` の `ExpectedIdentity` を持たないので、pin の食い違いの相手（X'）は `Reason` に書かれない限り record に残らない。§3 の凍結した欄のとおりで違反ではない | 後続の入力・S3 / S5（record の観測）。unique。未修正 |
+| D-3 | info / semantic | T25、§0「実装の読み方」 | 「pin が未充足のまま `Fault`」→ `IntegrityRejected` の組み合わせを固定する T が無い。実装は I5 の優先順位どおり | 後続の入力・S1 以降でテストを足す場合。unique。未修正 |
+
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/run-tests.ps1 -Filter "OneStarMaker.Tests.ContentResolution;OneStarMaker.Tests.AssetManagement"`（§5 の起点 filter。Unity コンパイルと `.meta` の import の確認を兼ねる。`Library` は同じ Unity 版の別 worktree から複製）。`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj`。`pwsh tools/contract-audit.ps1`。AC3 の grep 2 本と AC9 の grep。
+- テスト結果（XML 上の実行テスト名と件数）: EditMode total 57、passed 57、failed 0、skipped 0、compile error 0。内訳は `OneStarMaker.Tests.AssetManagement` 48 件、`OneStarMaker.Tests.ContentResolution` 9 件（E1〜E6 の `ContentRequestLoaderTests`。E6 は 2 case と対照 1 件、E2 は入口の取り違えの 1 件を含む）。Unity 6000.6.0f1。offline suite は 28 passed、0 failed、§5 の 28 件の名前が全て `PASS` 行にある（exit 0、.NET SDK 10.0.401 で net8.0 を実行）。contract-audit は errors=0 warnings=0。AC3 の 2 本は 0 件、AC9 は `Cancel` を含む行を除いて 0 件。新規 `.meta` は import で書き換わらなかった（差分 0。folder の `.meta` は既存の形と同じ）。
+- 判定必須のうち未実行: 全 EditMode 回帰の base / head 比較（AC6）、P 検査（AC4）。判定 C が GO 候補 head で実行する。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし（起点 filter だけ）。
+- 未確認事項: Unity の import が `MobileDependencyResolver/Editor` の `*.pdb.meta` 5 件を消した（`*.pdb` が git 管理外のため。本スライスの差分ではない）。`git restore` で戻した。base で同じ事象が起きるかは確かめていない。
+- 担当・モデル: Claude Code（Anthropic、Claude Opus 5.5、ローカルの新規 session）。**`独立性制約あり`:** B と同じモデルで、「Phase C は Phase B と異なるモデル」を満たさない。owner が 2026-11-08 に、発見 C に限る例外として本 session での続行を裁定した。同じモデルの見落としの可能性が残るので、判定 C は B と別のモデルが担当する。
 
 ## 8. Phase C'
 
