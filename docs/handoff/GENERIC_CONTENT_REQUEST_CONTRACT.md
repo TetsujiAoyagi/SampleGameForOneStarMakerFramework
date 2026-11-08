@@ -316,7 +316,7 @@ path は `unity/Assets/OneStarMaker/Scripts/` からの相対。型名は A3 で
 | (a) アーキテクチャゲート | Claude Code の新規 agent（Anthropic、Claude Opus。静的レビューで、build・テスト・P 検査は実行していない） | 判定「修正後に凍結可」。blocker-for-freeze 5（A-01〜A-05）、should 6（A-06〜A-11）、note 4（A-12〜A-15）。配置・依存の向き・`IAssetManagement` を変えない判断・`Core/` と loader の分離・`ValueTask` の選択・S3 への移送・§2.3 の移送先・path 予算・常時契約は問題なしとした |
 | (b) 目的レビュー | Claude Code の新規 agent（Anthropic、Claude Sonnet） | 保証すべきこと 8 件（供給元の非露出、要求時の評価、同じ所有・解放の契約、規則の明示と決定性、成功・失敗・候補なしで残る記録、fake だけでの完走、必須依存にしない、後続実装者が始められる粒度）。作らないべきこと 8 件（実在の adapter、SceneSystem adapter と Play 入口、host 固有の参照、既存 API の変更、独自の所有の仕組み、UI、record の保存・可視化・送信、候補選択の高度化）。文言への指摘 5 件（「同じ契約」の範囲、「妥当な候補」の決め手、「何が失敗したか」の粒度、Scene と Asset で契約が共通か、「併用」の対象） |
 
-### A3 採否（主担当の整理、2026-11-08。owner の裁定待ち。凍結していない）
+### A3 採否（主担当の整理、2026-11-08。Q1〜Q7 は owner が裁定済み（下の節）。凍結していない）
 
 | 指摘 | 採否 | 反映 |
 |---|---|---|
