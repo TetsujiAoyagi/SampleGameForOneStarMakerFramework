@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `C`（**判定 C の再実行待ち**、2026-11-08。B が §7.3 の C-08 を直した（§6.8）。決定記録 D-1 により、再実行は AC6 の cell だけ。B と C の往復は 2 巡目で、残りは 2 巡。直前の状態: 判定 C の 1 回目で B へ差し戻し（§7.3）。前の B 完了の head は `c45a37b8`、その前は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
+- status: `C' 開始可（CONDITIONAL ACCEPT）`、2026-11-08。§7.4 参照。implementation base `e0d020d7`、implementation head `01ee19b4`。C' は予約済みの xAI Grok via cursor-agent が担当する。C' には Phase C の所見・結論・疑念候補を渡さず、blind audit bundle の規則に従う。
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
-- implementation head commit: この票を含む commit
+- implementation head commit: `01ee19b4`（判定 C の対象。§7.4 以降の HANDOFF だけの commit は implementation head を動かさない）
 - risk: `high`（Editor Play の Scene 所有・寿命、Content Directory の native 登録、Enter Play Mode の設定に跨る初回実機の実証）
 - owner: root（依頼者）
 - created: 2026-11-08
@@ -17,15 +17,15 @@
 - 関連: program §2.4・§3・§5.2・§6・§8 S0-b 行・§9・§10（**本スライスの A0**。§0 の停止規則を本書 §2 に転記した）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。§5「判定 C の照合 script の方式」。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）（判定 C の実行担当が固定。Artifact Storage への保存は未了）
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: **判定 C（再実行、AC6 だけ）。** B が C-08 を直した（§6.8）。発見 C は挟まない（発見 C の 2 巡目で他の欠陥は無いと確認済み、§7.3 は AC6 以外の cell の record に harness 起因の異常が無いことを確かめた）。判定 C は B と異なるモデル系列の担当を選ぶ（前回の判定 C は B と同じ Anthropic 系列で `独立性制約あり`。§7.3）。
-  - 次の作業: 決定記録 D-1 に従う。(1) `git diff c45a37b8 <implementation head>` を読み、再利用の条件 (1) を確かめる。差分は `RoutingBackend.cs`（C-08 の修正、取消・回収の経路だけ）と、D-1 が B に許した AC6 の round を選ぶ手段（`Scenarios.cs` の環境変数による行列の絞り込みと、`RoundRunner.cs` の `harness.started` への 1 項目）の 3 file で、他の round の進行・観測には触れていない（§6.8）。後者を条件 (1) の違反と読むなら全件を再実行する。(2) Process の環境変数 `OSM_CDR_MATRIX_SCENARIOS=ac6-cancel-gate` を設定した shell から、`Matrix_*` 4 件だけを選ぶ `-Filter`（例: 4 件の完全名を `;` で区切る。`Baseline_DetectorAndControls` は絞り込みが効かず全 round を走らせるので含めない）で `pwsh tools/run-tests.ps1` を 1 回実行する。各 record の `harness.started` の `matrixScenarioFilter` が `ac6-cancel-gate`、`rounds` が 6（2 機構 × 3 反復）であることで、絞った実行だったことを確かめる。(3) AC6 の record で、各 identity について `routing.load.canceled` → `routing.gate.opened` → `routing.abandoned.recovered`（`how=unloaded` の見込み）の順になり、`routing.abandoned.failed` が無く、`ac6.afterDrain` の `routing` が `pendingOperations=0`・`unrecoveredAbandoned=0`・`abandonedRecoveryFailed=0`、`routing.unregistered` がその後（Play 停止の `play-stop`、`liveTokens=0`）に来ることを確かめる。(4) 旧 head の evidence（tag `evidence/content-demand-routing-spike/1`）と合わせて cell ごとの出所を §7 に書き、XML の件数・test 名を突き合わせて判定を出す。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head も同じ commit（§0 の欄）。判定 C の 1 回目の evidence を取った head（`c45a37b8`）は軽量 tag `evidence/content-demand-routing-spike/1` で到達可能に保っている（push しない）。
-  - 必要な権限: Unity Editor（閉じた状態から。`unity/Temp/UnityLockfile` が無いこと）と、Windows では最初の実行から sandbox 外の承認済み経路での `pwsh tools/run-tests.ps1`。evidence bundle の保存は Artifact Storage の事前承認の範囲。
-  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。判定 C で欠陥が出て B へ戻す時は、B と C の往復の残り 2 巡に数える。判定 C の担当は B と異なるモデルを選ぶ（発見 C の `独立性制約あり` を引き継がない）。C' の起動は判定 C の完了後。
-  - 引き渡さないもの: §7 の発見 C の所見を Phase B result・C' 用の入力へ転載しない（C' 完了まで隔離）。
+  - 次の Phase・役割: **Phase C'、独立監査**。C と異なるモチーフ系列の xAI Grok via cursor-agent を新規 session で起動する。C' 入力から Phase C の findings・結論・懸念候補を除く。
+  - 次の作業: HANDOFF §2・凍結 A3 snapshot・Phase B result と、同じ判定入力から作る blind audit bundle を用意する。C' 用 bundle には判定証拠を含めるが、C の所見を含めない。C' 前に必要な evidence 保存・引渡し確認を完了する。
+  - 引き継ぐ commit: implementation head `01ee19b4`。起動時に完全な SHA を別途渡し、HEAD と照合する。HEAD や対象 diff が変わっていた場合は、レビュー証拠の「判定後の head 変更」に従い停止して再判定する。
+  - 必要な権限: 固定 bundle の読取、承認済み Artifact Storage の保存・取得手順。Unity 再実行は予定しない。強制終了後の既知 native stall 調査を再開しない。
+  - 停止規則: implementation head / diff 不一致、bundle の完全性不一致、AC6 record の欠落・矛盾があれば開始せず owner に返す。C' が新たな blocker を確認した場合は根拠と凍結条件を記録し、C' の差し戻し規則に従う。
+  - 引き渡さないもの: Phase C の結論、所見、懸念候補、今回の強制終了を原因究明した仮説、誘導的な探索先。これらを blind audit input に転載しない。
 
 ### 実測の方法
 
@@ -472,6 +472,42 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 - 判定必須のうち未実行: なし（5 test 実行済み）。ただし C-08 のため、この XML・record は最終判定の evidence にしない。
 - 副作用の記録: Unity の起動が作業範囲外の追跡 file 7 件（vendor の `.pdb.meta` 5 件、`UniversalRenderPipelineGlobalSettings.asset`、`EditorSettings.asset` の自動移行 1 行）を書き換えた。この commit には含めず、元に戻す（前回の B と同じ扱い）。
 - B と C の往復: 発見 C の差し戻し 1 巡、判定 C の差し戻しで 2 巡目。上限 4 巡のうち残り 2 巡。
+
+### 7.4 判定Cの再実行、AC6だけ、2026-11-08
+（判定担当 OpenAI Codex CLI の出力を、実行担当が文面を変えずに転記した。）
+
+
+- 種別: 判定Cの再実行と判定。
+- 対象: implementation base `e0d020d7`、implementation head `01ee19b4`。B・前回の判定Cとは異なるモチーフの担当（OpenAI Codex CLI。B の Anthropic から独立）。HEAD と引き継ぐ commit の照合、および作業 tree の状態確認は、この読み取り専用の判定では行っていない。
+- 使用した evidence bundle の取得案内・状態: **ローカル固定済み・未昇格**。bundle manifest の全 35 項目は一致。path と hash の実値は省略する。
+- D-1 の条件 (1): `c45a37b8..01ee19b4` の差分を確認。変更は `RoutingBackend.cs` の AC6 回収経路、`Scenarios.cs` の AC6 scenario filter、`RoundRunner.cs` の `harness.started` 記録に限られ、他の round の進行・観測範囲を変更していない。したがって、D-1 の再利用条件 (1) を満たす。旧 head の AC6 以外の記録を再利用し、AC6 のみ再実行した。
+- 実行したコマンドと `-Filter`: 実行担当の記録によると、`OSM_CDR_MATRIX_SCENARIOS=ac6-cancel-gate pwsh -NoProfile -File tools/run-tests.ps1 -Filter "<step.json に記録された Matrix_* 4 件の完全名>"` を一度実行。filter は4つの `Matrix_*` 完全名。Baseline は含まない。
+- 結果: 新旧 XML はそれぞれ新 head 4/4、旧 head 5/5 が Passed。旧 head の4つの `Matrix_*` 完全名は新 head の4件と一致し、旧 head だけに Baseline がある。XML 件数と名前に穴はない。新 head の4 record はすべて `matrixScenarioFilter=ac6-cancel-gate`、`rounds=6`。AC6 は各 record の各 identity について `routing.load.canceled → routing.gate.opened → routing.abandoned.recovered` の順で記録され、`routing.abandoned.failed` はなく、`ac6.afterDrain` の `pendingOperations=0`、`unrecoveredAbandoned=0`、`abandonedRecoveryFailed=0` を確認。対応する `routing.unregistered` は同じ routing ID で `reason=play-stop`、`liveTokens=0` の状態で記録されている。
+- 強制終了の扱い: Unity は XML 完了後に既知の native exit stall で停止し、実行担当がプロセスを強制終了した。従って `step.json` の `exitCode=0` と `status=passed` は自然終了や Unity の正常 exit を示さず、exit code を成功根拠には採用しない。一方、XML は全4件の完全な Passed 結果で、各試験の record も存在し、ログはテスト完了後に停止している。Phase C の「XML が完全なら XML とログ末尾を基に判定する」規則、および Harness README の既知 stall の停止規則に基づき、これらをテスト実行の観測証拠として採用する。強制終了そのものは正常終了の証明ではなく、既知 stall の原因調査も再開しない。ログ・XML・record 以外の正常終了条件を満たしたとは扱わない。
+- 機械検査: bundle の記録では contract-audit は exit 0、docs-audit は exit 0（warnings 2）。AC12/AC13 grep と副作用差分も bundle 内にある。Unity 実行時の範囲外 tracked file 変更は実行担当が復元済みと記録している。
+- 判定 cell 表: AC0〜AC15 のうち、設定・機構別 cell に適用される AC を次表に示す。各セルの出所は、AC6 が新 head `01ee19b4`、その他が D-1 で再利用した旧 head `c45a37b8`。AC0 は共通の検出器観測、AC1 は Unity 標準隔離の基準観測として全セルに適用する。AC12・AC13 は全体検査であり個別 cell の判定対象外。AC16 は比較資料であり、合否 cell ではない。
+
+| AC | 機構 (i): DR有効/SR無効 | (i): DR有効/SR有効 | (i): DR無効/SR無効 | (i): DR無効/SR有効 | 機構 (ii): DR有効/SR無効 | (ii): DR有効/SR有効 | (ii): DR無効/SR無効 | (ii): DR無効/SR有効 |
+|---|---|---|---|---|---|---|---|---|
+| AC2 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC3 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC4 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC5 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC6 | N/A | N/A | N/A | N/A | PASS | PASS | PASS | PASS |
+| AC7 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC8 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC9(a) | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC9(b) | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
+| AC10 | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED | UNTESTED |
+| AC11 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC14 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| AC15 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+
+- AC6 の機構 (i) は HANDOFF の定義どおり N/A（snapshot load は対象外）。機構 (ii) は各設定で取消・回収・drain 後の unregister が確認でき、PASS。
+- AC0・AC1 の共通観測は全設定で成立。AC12・AC13 は全体検査の結果を適用し、個別 cell は N/A。AC9(b) の Editor 異常終了後の残留・再起動挙動、AC10 の別 Editor process 間衝突は範囲外の未観測条件であり、UNTESTED とする。
+- 機構ごとの判定: 機構 (i) は AC6 が N/A で、他の適用 cell は PASS。機構 (ii) は AC6 を含む適用 cell が PASS。両機構とも適用 cell に FAIL はないが、AC9(b) と AC10 が未観測。
+- スライス判定: **CONDITIONAL ACCEPT**。両機構に未解決の blocker は認めない。AC9(b) と AC10 は凍結済みの最低条件を阻害する失敗を示す証拠ではなく、HANDOFF の範囲外実証・後続スライス送りの規則に従い未観測として残す。GO として扱わない。
+- 未確認・制限: Unity の自然終了は確認できていない。AC9(b)・AC10 は未実施。bundle の外部保存、別 session からの fetch・閲覧、C' blind bundle の準備は未完了。実装 head は `01ee19b4`。
 
 ## 8. Phase C'
 
