@@ -19,7 +19,7 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成。発見 C は commit `7aa249d` で対象を固定し、差し戻しが無かったので stage snapshot を作っていない。発見 C の生結果（XML・log・step.json）はローカルの worktree にだけあり未保存で、判定の入力にしない。判定 evidence bundle と C' blind bundle は判定 C の担当が GO 候補 head から作る。
 - 引継ぎ票:
   - 次の Phase・役割: **判定 C（GO 候補 head `7aa249d`）。** 発見 C に現在の問いを阻害する指摘が無く、B への差し戻しは 0 巡。新しいローカルの session で、判断担当のモデルは B と別にする（発見 C を B と同じモデルで行った例外は発見 C に限る。§7）。C' 用に OpenAI を未関与で残す。
-  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は SHA で、そこから HEAD までの差分は `docs/handoff/` の本書だけ）。§5 の判定必須を実行する: base と head の全 EditMode 回帰（AC6）→ P 検査（AC4。script は判定 C が用意する）→ offline suite（AC1・AC8）→ AC3・AC9 の grep → `pwsh tools/contract-audit.ps1`、AC2・AC7 の照合。判定 evidence bundle と C' blind bundle は同じ head から作って stage する。
+  - 次の作業: 開始時に、渡された SHA と HEAD を照合する（implementation head 欄は SHA で、そこから HEAD までの差分は `docs/handoff/` の本書と決定記録だけ）。§5 の判定必須を実行する: base と head の全 EditMode 回帰（AC6）→ P 検査（AC4。script は判定 C が用意する）→ offline suite（AC1・AC8）→ AC3・AC9 の grep → `pwsh tools/contract-audit.ps1`、AC2・AC7 の照合。判定 evidence bundle と C' blind bundle は同じ head から作って stage する。
   - 発見 C で確認したこと（判定の入力にしない）: §7。Unity コンパイルと `.meta` の import は head `7aa249d` で問題なし。
   - B の未確認の状態: (1) Unity のコンパイルと (2) 手書きの `.meta` の import は発見 C で解消した（§7）。(3) P 検査（AC4）と全 EditMode 回帰（AC6）は計画どおり判定 C。
   - 実装の読み方（C が照合に使う。凍結条件は変えていない）: I5 の `FailureCode` の優先順位は、探索の途中で止めた場合（`Fault`、identity の無い `Rejected`、pin の食い違い）にも、それまでの probe 全体に同じ優先順位を当てて 1 つに決める（例: `PinMismatch` の後の `Fault` は `IntegrityRejected`）。I5 の (1) が止める事象（identity の無い `Rejected`・pin の食い違い）を含むことに合わせた読み。`ContentAvailability` の状態の enum は `ContentAvailabilityStatus`（§3 の「public readonly struct + enum」）。`ContentTraceability` は 0 を未定義にした（`Traceable = 1`、`Reproducible = 2`）。T13 は §5 の文字列に加えて AC1 の file 先頭の `#nullable enable`・禁止 `using`・`record`・`init` も見る。T13 の禁止語は AC9 の grep に自分自身が当たらないよう文字列を分割して組み立てている。
@@ -76,7 +76,7 @@ PR を作る前は本 §0 を唯一の正本とする。PR 作成時にテンプ
 - このスライスの成果の範囲: GO は「要求・候補・規則・記録・所有の契約が、AssetManagement の必須依存にならずに、fake の供給元と既存の AssetManagement の上で成立した」ことだけを意味する。実際の供給元（installed cache、LAN、Editor snapshot）からの解決、SceneDirector との接続、採用した候補と実ロード元の同一性、Play 入口の成立は主張しない。program §8 の「誤った合格を除外する」の列をそのまま引き継ぐ。**record が保証するのは選択結果まで**（どの要求に、どの供給元に何と答えられ、どの候補をどの受け入れ根拠で採用したか）で、実ロード元を確認した証拠ではない（`SourceBindingVerified=false`）。要求・候補・採用結果・実ロード・ロード失敗は別の事実として扱い、S0-a が証明するのは前 3 つの対応だけ。採用後のロード失敗（`ContentDirectoryException` 等）で `Probes` と採用候補の対応を呼び手に残すことは S0-a の非保証で、S3 の入力（§2.3。R1 の 5）。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: なし（A3 後に作る場合は本書と別の記録にする）
+- 決定記録: [版 1](GENERIC_CONTENT_REQUEST_CONTRACT_DECISIONS.md)（2026-11-08、implementation head `7aa249d` に適用。発見 C の D-1 の移送と I5 の読み方の確定）
 
 ### 2.1 進める最低条件
 
@@ -434,7 +434,7 @@ owner の判断（2026-11-08）: R4 の反映をもって凍結する。「厳�
 
 | id | severity / category | 根拠 | 内容 | bucket・移送先 |
 |---|---|---|---|---|
-| D-1 | low / semantic | `Core/ContentResolver.cs` 50〜51 行目、`Core/ResolutionPolicy.cs` 33 行目のコメント | `provider.Id` / `SourceKind` は `try` の外で読む。getter が例外を投げる、または `Id` が null を返す adapter では、`ContentResolutionResult` も probe も作られずに例外が抜ける。policy のコメントは id を「1 回だけ読む」と書くが、resolver が読み直す。I5 と T20 の対象を `FindAsync` と `Accepts` と読み、宣言値の getter は adapter の契約とした（I5 の文言の隙間で、凍結条件の違反とはしない）。owner が I5 に getter を含めると読むなら B 適応で閉じられる | 後続の入力・S4（adapter の契約）。unique。未修正 |
+| D-1 | low / semantic | `Core/ContentResolver.cs` 50〜51 行目、`Core/ResolutionPolicy.cs` 33 行目のコメント | `provider.Id` / `SourceKind` は `try` の外で読む。getter が例外を投げる、または `Id` が null を返す adapter では、`ContentResolutionResult` も probe も作られずに例外が抜ける。policy のコメントは id を「1 回だけ読む」と書くが、resolver が読み直す。I5 と T20 の対象を `FindAsync` と `Accepts` と読み、宣言値の getter は adapter の契約とした（I5 の文言の隙間で、凍結条件の違反とはしない）。owner が S4 への移送を裁定した（決定記録 DR-1） | 後続の入力・S4（adapter の契約）。unique。未修正 |
 | D-2 | low / semantic | `Core/ProviderProbe.cs`、T19・T26 | `ProviderProbe` は `Rejected` の `ExpectedIdentity` を持たないので、pin の食い違いの相手（X'）は `Reason` に書かれない限り record に残らない。§3 の凍結した欄のとおりで違反ではない | 後続の入力・S3 / S5（record の観測）。unique。未修正 |
 | D-3 | info / semantic | T25、§0「実装の読み方」 | 「pin が未充足のまま `Fault`」→ `IntegrityRejected` の組み合わせを固定する T が無い。実装は I5 の優先順位どおり | 後続の入力・S1 以降でテストを足す場合。unique。未修正 |
 
