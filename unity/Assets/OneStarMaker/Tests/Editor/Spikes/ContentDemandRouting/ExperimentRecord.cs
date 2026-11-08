@@ -27,11 +27,17 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
     /// <summary>
     /// 実験の record。1 行 1 観測の JSON Lines を test の出力 folder（repo の TestResults）に追記する。
     /// Domain Reload で managed の状態が消えても観測を失わないよう、行ごとに file へ書いて閉じる。
-    /// 時刻順は file の行順と seq で表す。seq は開くたびに既存の行数から再開する。
+    /// 時刻順は file の行順と seq で表す。
+    /// seq を file の行番号と一致させるため、同じ domain の中では path ごとに 1 つの instance を共有する。
+    /// Play 中に作った instance（RoutingBackend・DirectorHarness が持つ）と Edit で開き直した instance が別々に seq を持つと、
+    /// 同じ file へ交互に書いた時に seq が重複・逆転する（AC11・U-b4 は seq で順序を読む）。Domain Reload で共有が消えた後は、
+    /// 最初に開いた時に既存の行数から再開する。
     /// cell の値（PASS / FAIL / UNTESTED / N/A）はここで決めない。判断担当が行を読んで決める（HANDOFF §5）。
     /// </summary>
     internal sealed class ExperimentRecord
     {
+        private static readonly Dictionary<string, ExperimentRecord> Shared = new(StringComparer.OrdinalIgnoreCase);
+
         private long _seq;
 
         private ExperimentRecord(string path)
@@ -48,8 +54,12 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
 
         internal static ExperimentRecord Open(string path)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            return new ExperimentRecord(path);
+            var fullPath = Path.GetFullPath(path);
+            if (Shared.TryGetValue(fullPath, out var shared)) return shared;
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+            var record = new ExperimentRecord(fullPath);
+            Shared[fullPath] = record;
+            return record;
         }
 
         internal void Write(Cell? cell, string kind, params (string Key, object? Value)[] fields)

@@ -13,10 +13,28 @@ using UnityEngine.TestTools;
 
 namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
 {
+    /// <summary>次に test method が行う 1 歩。<see cref="RoundRunner.Next"/> が決め、<see cref="RoundRunner.Instruction"/> が yield の値にする。</summary>
+    internal enum RoundStep
+    {
+        Done,
+        EnterPlay,
+        Play,
+        ExitPlay,
+        Verify,
+    }
+
     /// <summary>
     /// 1 件の test が受け持つ round の列を、Edit の準備 → Play → Edit の検証の順に進める。
-    /// 状態は全て <see cref="HarnessState"/> の file にあり、Domain Reload で enumerator の局所変数が消えても、
-    /// test の enumerator が先頭から再実行されても、file の phase から続きを決める。
+    /// 状態は全て <see cref="HarnessState"/> の file と SessionState の phase にあり、yield の後は必ずそこから読み直す。
+    ///
+    /// **`EnterPlayMode` / `ExitPlayMode` は test method 自身の enumerator から yield させる。** UTF は Domain Reload を跨ぐ時、
+    /// test method の enumerator の位置（`&lt;&gt;1__state`）だけを退避して戻し、入れ子の enumerator の位置と全ての局所変数は戻さない
+    /// （`EditModeRunner.PrepareForDomainReload`、`EnumeratorStepHelper`）。入れ子の中で `EnterPlayMode` を yield すると、
+    /// reload の後は test method が入れ子の yield の次から再開し、行列の残りを飛ばしてしまう。そこで test method は
+    /// `for (step = Next(); step != Done; step = Next()) yield return Instruction(step);` だけを持ち、reload の後は
+    /// 「yield の次」= `Next()` から再開して、phase から続きを決める。Domain Reload を伴わない Play 中の観測（<see cref="RoundStep.Play"/>）と
+    /// Edit の検証（<see cref="RoundStep.Verify"/>）は入れ子の enumerator のままでよい（その中で reload は起きない）。
+    ///
     /// N1〜N5 の破れは test の失敗にせず record に残す。test の失敗は harness 自身の健全さに限る（HANDOFF §5）。
     /// </summary>
     internal static partial class RoundRunner
@@ -25,43 +43,111 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         private const string InitialSetupKey = "OsmSpikeCdr.InitialSetup";
         private const int GateDrainFrameLimit = 600;
 
-        internal static IEnumerator Run(string testName, EpmSetting epm, Func<List<RoundSpec>> rounds)
+        // phase の値。round の始めは空。
+        private const string PhaseEntering = "entering";   // EnterPlayMode を yield させた
+        private const string PhasePlaying = "playing";     // Play 中の観測（入れ子）を yield させた
+        private const string PhasePlayed = "played";       // Play 中の観測が終わった（または Play に入れなかった）
+        private const string PhaseExiting = "exiting";     // ExitPlayMode を yield させた
+        private const string PhaseVerifying = "verifying"; // Edit の検証（入れ子）を yield させた
+
+        /// <summary>test の開始。同じ test の未完了の状態があれば何もしない（Domain Reload の後の再呼び出しに備えて冪等にする）。</summary>
+        internal static void Start(string testName, EpmSetting epm, Func<List<RoundSpec>> rounds)
         {
-            // Unity のエラーのログは record へ移すので、test の失敗にしない（Domain Reload の後も毎回立て直す）。
+            // Unity のエラーのログは record へ移すので、test の失敗にしない（Domain Reload の後も Next で毎回立て直す）。
             LogAssert.ignoreFailingMessages = true;
             if (HarnessState.TryLoad(testName) == null) Begin(testName, epm, rounds());
+        }
+
+        /// <summary>
+        /// phase から次の 1 歩を決める。Play を伴わない round と、Edit の準備はこの中で同期に済ませ、
+        /// test method に yield させる必要がある歩（Play の出入り、Play 中の観測、Edit の検証）か <see cref="RoundStep.Done"/> を返す。
+        /// </summary>
+        internal static RoundStep Next()
+        {
             while (true)
             {
                 LogAssert.ignoreFailingMessages = true;
                 var state = HarnessState.Load();
-                if (state.Done) break;
+                if (state.Done) return RoundStep.Done;
                 var phase = SessionState.GetString(PhaseKey, string.Empty);
-                if (phase.Length == 0)
+                switch (phase)
                 {
-                    Prepare(state);
-                    phase = HarnessState.Load().roundPlays ? "prepared" : "verified";
-                    SessionState.SetString(PhaseKey, phase);
+                    case "":
+                        Prepare(state);
+                        if (!HarnessState.Load().roundPlays) { Advance(); continue; }
+                        SetPhase(PhaseEntering);
+                        return RoundStep.EnterPlay;
+                    case PhaseEntering:
+                        if (EditorApplication.isPlaying) { SetPhase(PhasePlaying); return RoundStep.Play; }
+                        HarnessError("EnterPlayMode returned without entering Play");
+                        SetPhase(PhasePlayed);
+                        continue;
+                    case PhasePlaying:
+                        // 入れ子の Play 中の観測が最後まで進まずにここへ来た（その途中で test の位置が失われた）。
+                        HarnessError("the Play step did not finish");
+                        SetPhase(PhasePlayed);
+                        continue;
+                    case PhasePlayed:
+                        if (EditorApplication.isPlaying) { SetPhase(PhaseExiting); return RoundStep.ExitPlay; }
+                        SetPhase(PhaseVerifying);
+                        return RoundStep.Verify;
+                    case PhaseExiting:
+                        if (EditorApplication.isPlaying) HarnessError("ExitPlayMode returned while still playing");
+                        SetPhase(PhaseVerifying);
+                        return RoundStep.Verify;
+                    case PhaseVerifying:
+                        HarnessError("the Verify step did not finish");
+                        Advance();
+                        continue;
+                    default:
+                        HarnessError("unknown phase: " + phase);
+                        Advance();
+                        continue;
                 }
-                if (phase == "prepared")
-                {
-                    if (!EditorApplication.isPlaying) yield return new EnterPlayMode(EnterPlayModeMatrix.CurrentExpectsDomainReload());
-                    LogAssert.ignoreFailingMessages = true;
-                    yield return RoundPlay.Run();
-                    SessionState.SetString(PhaseKey, "played");
-                    phase = "played";
-                }
-                if (phase == "played")
-                {
-                    if (EditorApplication.isPlaying) yield return new ExitPlayMode();
-                    LogAssert.ignoreFailingMessages = true;
-                    yield return Verify();
-                    SessionState.SetString(PhaseKey, "verified");
-                }
-                var advanced = HarnessState.Load();
-                advanced.index++;
-                advanced.Save();
-                SessionState.EraseString(PhaseKey);
             }
+        }
+
+        /// <summary>1 歩を test method が yield する値にする。Play の出入りは UTF の yield instruction そのものを返す。</summary>
+        internal static object Instruction(RoundStep step) => step switch
+        {
+            RoundStep.EnterPlay => new EnterPlayMode(EnterPlayModeMatrix.CurrentExpectsDomainReload()),
+            RoundStep.ExitPlay => new ExitPlayMode(),
+            RoundStep.Play => PlayStep(),
+            RoundStep.Verify => VerifyStep(),
+            _ => throw new ArgumentOutOfRangeException(nameof(step), step, "Done has no instruction."),
+        };
+
+        private static IEnumerator PlayStep()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            yield return RoundPlay.Run();
+            SetPhase(PhasePlayed);
+        }
+
+        private static IEnumerator VerifyStep()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            yield return Verify();
+            Advance();
+        }
+
+        private static void SetPhase(string phase) => SessionState.SetString(PhaseKey, phase);
+
+        private static void Advance()
+        {
+            var advanced = HarnessState.Load();
+            advanced.index++;
+            advanced.Save();
+            SessionState.EraseString(PhaseKey);
+        }
+
+        private static void HarnessError(string message)
+        {
+            var state = HarnessState.Load();
+            var cell = state.Cell;
+            state.harnessErrors.Add(cell.scenario + "#" + state.index + ": " + message);
+            state.OpenRecord().Write(cell, "harness.stepError", ("message", message), ("playing", EditorApplication.isPlaying));
+            state.Save();
         }
 
         // ───────────────────────── test の開始と終了 ─────────────────────────
@@ -198,7 +284,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 if (scenario == Scenarios.StaleRemnant) SeedAndReclaimStale(state, record, cell);
                 var targets = SetUpEditor(state, scenario);
                 state.mapIdentities = MapIdentities(scenario);
-                state.isolation = scenario is not (Scenarios.Baseline or Scenarios.BaselineOtherNoIsolation);
+                state.isolation = !Scenarios.IsUnisolatedBaseline(scenario);
                 var t0 = SceneStateProbe.CaptureSetup();
                 state.t0 = JsonUtility.ToJson(t0);
                 record.Write(cell, "n1.t0", ("setup", t0.scenes), ("active", t0.activeScene));

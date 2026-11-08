@@ -87,6 +87,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 case Scenarios.OtherInMap:
                 case Scenarios.OtherNotInMap:
                 case Scenarios.BaselineOtherNoIsolation:
+                case Scenarios.BaselineOtherNotInMapNoIsolation:
                     await UnrequestedSceneAsync(state, harness, record, cell);
                     break;
                 case Scenarios.CancelGate:
@@ -144,8 +145,15 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         private static async UniTask UnrequestedSceneAsync(HarnessState state, DirectorHarness harness, ExperimentRecord record, Cell cell)
         {
             await RequestSnapshotsAsync(state, harness, record, cell);
+            // 前提の行。隔離あり（Play の起点が Boot）では Editor の additive な Other が Play に載らず、
+            // 「要求前に参加しない」が自明に満たされる。判定担当がその自明な PASS を区別できるよう、Play 中の Other の数を残す。
+            var otherLoaded = 0;
+            foreach (var scene in FixtureFactory.LoadedScenesNamed("Other")) if (scene.isLoaded) otherLoaded++;
+            record.Write(cell, "ac5.premise", ("isolation", state.isolation), ("otherInMap", state.mapIdentities.Contains("Other")),
+                ("otherLoadedInPlayBeforeRequest", otherLoaded),
+                ("note", "otherLoadedInPlayBeforeRequest = 0 makes non-participation before the request trivial"));
             Observe(record, cell, harness, "ac5.beforeRequest", "Other", "Entry");
-            if (state.Round.scenario == Scenarios.BaselineOtherNoIsolation) return;
+            if (Scenarios.IsUnisolatedBaseline(state.Round.scenario)) return;
             await Step(record, cell, "addScene:Other", () => harness.AddSceneAsync("Other", "request"));
             Observe(record, cell, harness, "ac5.afterRequest", "Other");
         }
@@ -179,7 +187,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 record.Write(cell, "ac6.callerOutcome", ("identity", identity), ("outcome", outcome), ("ledger", harness.AssetLedgerScenes()));
                 await Step(record, cell, "assets.unload:" + identity, () => harness.Assets.UnloadSceneAsync(identity));
                 routing.OpenGate(identity);
-                var drainFrames = await WaitFrames(() => routing.PendingOperations == 0 && routing.UnrecoveredAbandoned == 0);
+                // 計数が 0 に戻ることを待ちの条件にしない。回収の失敗は未回収として残り続けるので、待ちは operation の終端だけを見て、
+                // 未回収と回収失敗の数は下の行で判定担当が読む。
+                var drainFrames = await WaitFrames(() => routing.PendingOperations == 0);
                 record.Write(cell, "ac6.afterDrain", ("identity", identity), ("framesWaited", drainFrames), ("routing", routing.Describe()),
                     ("sameName", PlayObserver.SameName(identity)), ("ledger", harness.AssetLedgerScenes()));
             }

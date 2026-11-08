@@ -13,6 +13,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         // 基準の test（Enter Play Mode の設定に依らない）
         internal const string Baseline = "ac1-baseline";
         internal const string BaselineOtherNoIsolation = "ac5-control-no-isolation";
+        // 隔離なしで Other が map に無い対照（AC5 の「map に無い場合」）。行列の round は Play の起点が Boot なので
+        // Editor の additive な Other が Play に載らず、map の有無の差をここでしか観測できない。
+        internal const string BaselineOtherNotInMapNoIsolation = "ac5-control-no-isolation-not-in-map";
         internal const string DetectorRewriteSave = "ac0-rewrite-save";
         internal const string DetectorClearDirty = "ac0-clear-dirty";
         internal const string SaveAsCopyControl = "ac2-saveascopy-control";
@@ -49,6 +52,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             Add(rounds, NoMechanism, DetectorClearDirty);
             Add(rounds, NoMechanism, Baseline);
             Add(rounds, NoMechanism, BaselineOtherNoIsolation);
+            Add(rounds, NoMechanism, BaselineOtherNotInMapNoIsolation);
             return rounds;
         }
 
@@ -79,6 +83,14 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             }
             return rounds;
         }
+
+        /// <summary>Play の初期 Scene を隔離しない（Unity 標準の Play で元の Scene を開いたまま入る）基準の round か。</summary>
+        internal static bool IsUnisolatedBaseline(string scenario)
+            => scenario is Baseline or BaselineOtherNoIsolation or BaselineOtherNotInMapNoIsolation;
+
+        /// <summary>Other を fixture の SceneResourceMap に載せない round か（AC5 の「map に無い場合」）。</summary>
+        internal static bool OtherOutsideMap(string scenario)
+            => scenario is OtherNotInMap or BaselineOtherNotInMapNoIsolation;
 
         internal static bool Plays(string scenario)
             => scenario is not (SaveAsCopyControl or OsmGateConstraint or LeaseConflict or FailSnapshot or FailBuild);

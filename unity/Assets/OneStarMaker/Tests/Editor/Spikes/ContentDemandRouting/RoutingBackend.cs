@@ -43,6 +43,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         private int _pendingOperations;
         private int _abandonedIssued;
         private int _abandonedRecovered;
+        private int _abandonedRecoveryFailed;
         private UniTaskCompletionSource? _drained;
         private bool _accepting = true;
         private bool _deferredUnregister;
@@ -62,8 +63,13 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
 
         internal int LiveTokens => Volatile.Read(ref _liveTokens);
         internal int PendingOperations => Volatile.Read(ref _pendingOperations);
-        /// <summary>取消で caller が受け取らなかった native の Scene のうち、まだ unload で回収していない数（AC6 の未回収 token）。</summary>
+        /// <summary>
+        /// caller が受け取らなかった native の Scene（取消、または停止の後に完了した load）のうち、回収に成功していない数（AC6 の未回収 token）。
+        /// 回収を試みて失敗した物もここに残る。失敗を回収済みに数えると、未回収 0 の観測が回収の失敗を隠すため。
+        /// </summary>
         internal int UnrecoveredAbandoned => Volatile.Read(ref _abandonedIssued) - Volatile.Read(ref _abandonedRecovered);
+        /// <summary>回収を試みて失敗した数。<see cref="UnrecoveredAbandoned"/> の内訳で、record で区別して読むために別に持つ。</summary>
+        internal int AbandonedRecoveryFailed => Volatile.Read(ref _abandonedRecoveryFailed);
         internal bool IsClosed { get; private set; }
         internal string InstanceId => _instanceId;
 
@@ -150,6 +156,19 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                     Write("routing.load.canceled", ("identity", sceneIdentity), ("directory", directory.Name));
                     DrainAbandoned(directory, operation, sceneIdentity).Forget();
                     throw;
+                }
+                if (!_accepting || IsClosed)
+                {
+                    // Play の停止（または close）の後に完了した load。token を発行すると、停止で台帳を空にした後の
+                    // AssetManagement へ誰も返さない token が載り、遅らせた unregister が live token を残したまま走る（AC7 (b)）。
+                    // 製品の session が取消の後に完了した Scene を unload して返す扱いに倣い、caller に渡さず回収する。
+                    // 回収はこの operation の計数を持ったまま行うので、遅らせた unregister は回収の後に起きる。
+                    Interlocked.Increment(ref _abandonedIssued);
+                    Write("routing.load.completedAfterStop", ("identity", sceneIdentity), ("directory", directory.Name),
+                        ("accepting", _accepting), ("closed", IsClosed));
+                    await RecoverAbandoned(directory, scene, sceneIdentity);
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.DirectoryNotRegistered,
+                        "Routing backend stopped before the scene load completed.", BuildIdentity, Target, sceneIdentity, representation);
                 }
                 Interlocked.Increment(ref _liveTokens);
                 Write("routing.token.issued", ("identity", sceneIdentity), ("directory", directory.Name), ("origin", directory.Origin),
@@ -247,6 +266,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
             {
                 ["instance"] = _instanceId, ["closed"] = IsClosed, ["accepting"] = _accepting, ["liveTokens"] = LiveTokens,
                 ["pendingOperations"] = PendingOperations, ["unrecoveredAbandoned"] = UnrecoveredAbandoned,
+                ["abandonedRecoveryFailed"] = AbandonedRecoveryFailed,
                 ["deferredUnregister"] = _deferredUnregister, ["directories"] = directories,
             };
         }
@@ -287,18 +307,39 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         {
             try
             {
-                var scene = await operation;
-                await directory.Native.UnloadSceneAsync(scene);
-                Write("routing.abandoned.recovered", ("identity", identity), ("directory", directory.Name));
+                IBackendScene scene;
+                try { scene = await operation; }
+                catch (Exception ex)
+                {
+                    // native の load 自体が失敗した。回収する Scene は無いが、回収に成功したとは数えない。
+                    Interlocked.Increment(ref _abandonedRecoveryFailed);
+                    Write("routing.abandoned.failed", ("identity", identity), ("directory", directory.Name), ("stage", "load"), ("error", ex));
+                    return;
+                }
+                await RecoverAbandoned(directory, scene, identity);
+            }
+            finally { CompleteOperation(); }
+        }
+
+        // caller に渡さなかった Scene を unload して回収する。成功と失敗を別の計数にする（AC6 の未回収 token が失敗を隠さない）。
+        // Play の停止で Unity が既に Scene を unload していれば、native の unload は呼ばず、その事実を行に残して回収済みに数える
+        // （製品の ReleaseSceneTokenAfterPlayStop と同じく、Unity の停止が Scene を片付けた後は token だけを返す扱い）。
+        private async UniTask RecoverAbandoned(NativeDirectory directory, IBackendScene scene, string identity)
+        {
+            try
+            {
+                var how = "unloaded";
+                if (scene.IsLoaded) await directory.Native.UnloadSceneAsync(scene);
+                else how = "already-unloaded-by-unity";
+                Interlocked.Increment(ref _abandonedRecovered);
+                Write("routing.abandoned.recovered", ("identity", identity), ("directory", directory.Name), ("how", how),
+                    ("unrecoveredAbandoned", UnrecoveredAbandoned));
             }
             catch (Exception ex)
             {
-                Write("routing.abandoned.failed", ("identity", identity), ("directory", directory.Name), ("error", ex));
-            }
-            finally
-            {
-                Interlocked.Increment(ref _abandonedRecovered);
-                CompleteOperation();
+                Interlocked.Increment(ref _abandonedRecoveryFailed);
+                Write("routing.abandoned.failed", ("identity", identity), ("directory", directory.Name), ("stage", "unload"), ("error", ex),
+                    ("unrecoveredAbandoned", UnrecoveredAbandoned));
             }
         }
 

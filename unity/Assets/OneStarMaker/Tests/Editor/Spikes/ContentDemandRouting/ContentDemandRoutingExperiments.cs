@@ -19,6 +19,10 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
     /// assert は harness 自身の健全さ（record を書けた、設定を復元した、一時 root を回収した、AC0 の検出器が壊れを検出した）に限る。
     /// N1〜N5 の破れは assert にせず record の行として残し、cell の値と機構の判定は判断担当が決める（HANDOFF §5）。
     ///
+    /// 各 test の `for (step = Next(); ...) yield return Instruction(step);` は helper へまとめない。`EnterPlayMode` を
+    /// test method 自身の enumerator から yield しないと、Domain Reload の後に UTF が位置を戻せず行列の残りを飛ばす
+    /// （<see cref="RoundRunner"/> の説明）。この loop の外に局所変数の状態を置かない（reload で消える）。
+    ///
     /// 通常の全 EditMode 回帰から外すため `[Explicit]` にする（U-b3）。`run-tests.ps1` は `-testFilter` だけを渡すので、
     /// namespace の filter で明示に選ばれた時に実行されるかは Phase C の最初の実行で確かめる。
     /// この folder は製品に残さない。マージ前の Phase D で消す（N6）。
@@ -39,7 +43,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         [UnityTest, Timeout(Timeout)]
         public IEnumerator Baseline_DetectorAndControls()
         {
-            yield return RoundRunner.Run(nameof(Baseline_DetectorAndControls), EpmSetting.ProjectDefault, Scenarios.BaselineRounds);
+            RoundRunner.Start(nameof(Baseline_DetectorAndControls), EpmSetting.ProjectDefault, Scenarios.BaselineRounds);
+            for (var step = RoundRunner.Next(); step != RoundStep.Done; step = RoundRunner.Next())
+                yield return RoundRunner.Instruction(step);
             var result = RoundRunner.Finish();
             AssertHealthy(result);
             Assert.That(result.detectorResults, Has.Count.EqualTo(2), "AC0 の負の対照が 2 件とも実行されていない");
@@ -49,28 +55,36 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         [UnityTest, Timeout(Timeout)]
         public IEnumerator Matrix_DomainReload_SceneReload()
         {
-            yield return RoundRunner.Run(nameof(Matrix_DomainReload_SceneReload), EpmSetting.DomainReloadSceneReload, Scenarios.MatrixRounds);
+            RoundRunner.Start(nameof(Matrix_DomainReload_SceneReload), EpmSetting.DomainReloadSceneReload, Scenarios.MatrixRounds);
+            for (var step = RoundRunner.Next(); step != RoundStep.Done; step = RoundRunner.Next())
+                yield return RoundRunner.Instruction(step);
             AssertHealthy(RoundRunner.Finish());
         }
 
         [UnityTest, Timeout(Timeout)]
         public IEnumerator Matrix_DomainReload_NoSceneReload()
         {
-            yield return RoundRunner.Run(nameof(Matrix_DomainReload_NoSceneReload), EpmSetting.DomainReloadNoSceneReload, Scenarios.MatrixRounds);
+            RoundRunner.Start(nameof(Matrix_DomainReload_NoSceneReload), EpmSetting.DomainReloadNoSceneReload, Scenarios.MatrixRounds);
+            for (var step = RoundRunner.Next(); step != RoundStep.Done; step = RoundRunner.Next())
+                yield return RoundRunner.Instruction(step);
             AssertHealthy(RoundRunner.Finish());
         }
 
         [UnityTest, Timeout(Timeout)]
         public IEnumerator Matrix_NoDomainReload_SceneReload()
         {
-            yield return RoundRunner.Run(nameof(Matrix_NoDomainReload_SceneReload), EpmSetting.NoDomainReloadSceneReload, Scenarios.MatrixRounds);
+            RoundRunner.Start(nameof(Matrix_NoDomainReload_SceneReload), EpmSetting.NoDomainReloadSceneReload, Scenarios.MatrixRounds);
+            for (var step = RoundRunner.Next(); step != RoundStep.Done; step = RoundRunner.Next())
+                yield return RoundRunner.Instruction(step);
             AssertHealthy(RoundRunner.Finish());
         }
 
         [UnityTest, Timeout(Timeout)]
         public IEnumerator Matrix_NoDomainReload_NoSceneReload()
         {
-            yield return RoundRunner.Run(nameof(Matrix_NoDomainReload_NoSceneReload), EpmSetting.NoDomainReloadNoSceneReload, Scenarios.MatrixRounds);
+            RoundRunner.Start(nameof(Matrix_NoDomainReload_NoSceneReload), EpmSetting.NoDomainReloadNoSceneReload, Scenarios.MatrixRounds);
+            for (var step = RoundRunner.Next(); step != RoundStep.Done; step = RoundRunner.Next())
+                yield return RoundRunner.Instruction(step);
             AssertHealthy(RoundRunner.Finish());
         }
 

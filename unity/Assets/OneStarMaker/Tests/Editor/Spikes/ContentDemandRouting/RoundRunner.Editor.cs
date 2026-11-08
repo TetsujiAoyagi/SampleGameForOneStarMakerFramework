@@ -102,6 +102,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
                 case Scenarios.OtherInMap:
                 case Scenarios.OtherNotInMap:
                 case Scenarios.BaselineOtherNoIsolation:
+                case Scenarios.BaselineOtherNotInMapNoIsolation:
                     EditorSceneManager.OpenScene(fixture.other, OpenSceneMode.Additive);
                     break;
             }
@@ -112,7 +113,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting
         private static List<string> MapIdentities(string scenario)
         {
             var ids = new List<string> { "Entry", "Next", "Dup" };
-            if (scenario != Scenarios.OtherNotInMap) ids.Add("Other");
+            if (!Scenarios.OtherOutsideMap(scenario)) ids.Add("Other");
             return ids;
         }
 
