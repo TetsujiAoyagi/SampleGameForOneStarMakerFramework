@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`（スパイク）
-- status: `C`（発見 C の 2 巡目待ち、2026-11-08。発見 C の 1 回目の差し戻し（§7.1 の C-01〜C-06）を B が修正した（§6.7）。B と発見 C の往復の 1 巡目。前の B 完了の head は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
+- status: `C`（**発見 C 収束、判定 C 待ち**、2026-11-08。発見 C の 2 巡目で、1 回目の C-01〜C-06 の解消を確かめ、新しい指摘は無い（§7.2）。B と発見 C の往復は 1 巡で収束。前の B 完了の head は `9a606dac`。A2 入力版は commit `e5b3ca50`、A3 凍結版は commit `3dd43790`）
 - branch: `claude/play-content-s0b-spike`（PR の base は `develop`）
 - implementation base commit: `e0d020d7`（`develop` の head、2026-11-08。A0 の実測 base `e022934` から `unity/` 以下の差分は無い）
 - implementation head commit: `c45a37b8`
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（2 巡目。B と発見 C の往復の 1 巡目の再レビュー）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、Phase C の実行担当が持つ）。
-  - 次の作業: §6.7 の修正が §7.1 の C-01〜C-06 を解消したかを、implementation head の差分（前の head `9a606dac` から）で確かめる。2 巡目は前巡の指摘の解消と修正差分を中心に見る。C-01 の record の順序と C-02 の DR 有効の設定で round が 2 件以上進むことは、Unity テストの実行で初めて観測できる（B は未実行）。差し戻し中に限定実行するなら §5 の起点 filter で理由と範囲を記録する。
+  - 次の Phase・役割: 判定 C（Phase C の最終判定）。判定必須テストの実行は実行担当、判定は判断担当（同じ担当でもよい）。動作確認は対象なし（§5 の操作・実行時の条件は全て Unity テストと Content Directory build を伴い、判定 C の実行担当が持つ）。
+  - 次の作業: GO 候補 implementation head は §0 の欄の `c45a37b8`（発見 C の判断で履歴を整理しない。§7.2）。実行担当は §5 の操作（`pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentDemandRouting`）を実行する。最初に §7.2「判定 C の最初の実行で確かめること」の smoke（`[Explicit]` が filter で選ばれる、DR 有効の設定で round が 2 件以上進む）を見て、成り立たなければ行列に入らず §5 の承認済みの代替（対話的な実行）か B への差し戻しを判断する。行列を完走したら、XML・record の JSON・Unity のログを evidence bundle にして §5「対象版・保存証拠」に従って保存し、判定 evidence を取った head を軽量 tag `evidence/<taskId>/<n>` で到達可能に保つ。判断担当は record から §2 の判定定義で cell の値・機構ごとの判定・スライスの判定を決め、§7 に判定表と各 cell の一次証拠への対応、§2 が §7 に書くとした事項（E2〜E5、AC16 の G22、(ii) の必要な製品変更の候補、U-b2 の実物との差、範囲外の実環境検証の未証明の引継ぎ、C-07 の裁定による Game の bootstrap との干渉）を書く。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。implementation head は §0 の欄の値で、この commit との差分は本書だけ。
-  - 必要な権限: 差し戻しの判断だけなら無し。Unity テストを限定実行するなら Unity（Editor が閉じていること）と sandbox 外の承認済み経路（SKILL の Phase C）。
-  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。B と発見 C の往復は 4 巡まで（SKILL。この修正で 1 巡を使った）。
+  - 必要な権限: Unity Editor（閉じた状態から。`unity/Temp/UnityLockfile` が無いこと）と、Windows では最初の実行から sandbox 外の承認済み経路での `pwsh tools/run-tests.ps1`。evidence bundle の保存は Artifact Storage の事前承認の範囲。
+  - 停止規則: §2 の停止規則、§4「Phase B から Phase A へ差し戻す条件」、§5 に従う。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。製品 code・SampleGame・asmdef を変えない。判定 C で欠陥が出て B へ戻す時は、B と発見 C の往復の残り 3 巡に数える。判定 C の担当は B と異なるモデルを選ぶ（発見 C の `独立性制約あり` を引き継がない）。C' の起動は判定 C の完了後。
   - 引き渡さないもの: §7 の発見 C の所見を Phase B result・C' 用の入力へ転載しない（C' 完了まで隔離）。
 
 ### 実測の方法
@@ -411,6 +411,30 @@ record は `TestResults/ContentDemandRouting/<run>/<test>.jsonl`（1 行 1 観�
 - テスト結果: なし。
 - 判定必須のうち未実行: 判定必須テストの全て（§5 の filter の 5 test）。
 - 未確認事項: §6.6 の (1)〜(5)（`[Explicit]` が namespace の filter で選ばれるか、batch での Play の往復、test の中からの adapter の build と type tree、Game の bootstrap の静穏、所要時間）。C-02 の予測の実機確認。
+
+### 7.2 発見 C（2 巡目、2026-11-08）
+
+- 種別: 発見（2 巡目。前巡の指摘の解消と修正差分を中心に見た。GO 判定はしない。C' を起動しない）。
+- 対象: implementation base `e0d020d7`、implementation head `c45a37b8`、引き継いだ commit `3381676d`。HEAD と渡された SHA の一致、作業ツリーが clean、`c45a37b8` が HEAD の祖先で差分が本書だけであることを確かめた。PR は無い。修正差分は `git diff 9a606dac c45a37b8`（§3 の folder の 7 file と本書）。
+- 使用した evidence bundle の取得案内・状態: 該当なし（テスト未実行の発見レビュー）。
+- 担当・モデル: 1 回目と同じ担当（Anthropic、Claude Code）。`独立性制約あり`（B と同じモデル系列）を owner が 2026-11-08 に改めて受け入れた。
+- 構造適合: 変更は §3 の folder と `docs/handoff/` だけ（AC13）。asmdef の差分なし。実験 code に `"content:` と `SampleGame` の文字列なし（AC12・AC13）。全 `.cs` の先頭に `#nullable enable`。最大は `RoutingBackend.cs` の 472 行。`pwsh tools/contract-audit.ps1` errors 0・warnings 0、`pwsh tools/docs-audit.ps1` errors 0（警告 2 件は検査 3 の既存の誤検知）。
+- 前巡の指摘の解消:
+  - **C-01 解消。** `LoadSceneAsync` は native の完了と gate の解放の後に `!_accepting || IsClosed` を見て、token を発行せずに `RecoverAbandoned` で回収し、`ContentDirectoryException` を投げる。例外は `catch (ContentDirectoryException) { throw; }` を通り、その operation の計数は `finally` の `CompleteOperation` で返るので、遅らせた `UnregisterAll` は回収の行の後に起きる。製品の `AssetManagement.LoadContentSceneAsync` は例外で台帳へ足さない。Play の停止で Unity が Scene を片付けた後は native の unload を呼ばず `how=already-unloaded-by-unity` で回収済みに数える扱いは、製品の `ReleaseSceneTokenAfterPlayStop` と同じ考え方で妥当。record の順序の実測は判定 C の実行で見る。
+  - **C-02 解消（source 上）。** 各 test method が `for (step = Next(); step != Done; step = Next()) yield return Instruction(step);` を持ち、`EnterPlayMode` / `ExitPlayMode` の instruction を test method 自身の enumerator から yield する。UTF 1.8.0 が reload の後に戻す位置はこの yield で、再開は for の更新式 `Next()` からになり、失われた局所変数 `step` は条件の評価より前に代入し直される。`Start` は再実行されないが状態は file と SessionState にある。入れ子に残る Play 中の観測と Edit の検証は reload を伴わない。歩が失われた時は `harness.stepError` と harness の失敗になり、偽の PASS にならない。実機の確認は判定 C の最初の実行。
+  - **C-03 解消。** 基準に `ac5-control-no-isolation-not-in-map` を足し（基準の round は 7）、AC5 の各 round に前提の行 `ac5.premise`（隔離、map の有無、要求前の Play 中の `Other` の loaded 数）を残す。
+  - **C-04 解消。** `ExperimentRecord.Open` が同じ domain の中で path ごとに 1 つの instance を共有する。Domain Reload の後は既存の行数から再開する。
+  - **C-05 解消。** 回収の失敗は `abandonedRecoveryFailed` に数え、`unrecoveredAbandoned` から引かない。AC6 の drain の待ちは operation の終端だけを見る。
+  - **C-06 解消。** §6.3 の 15 に B 適応として記録された。
+- 現在の問いを阻害する findings: なし。
+- 現在の問いを阻害しないが直すべき findings: なし。
+- 後続スライスへ移送する findings: なし（§7.1 の C-07 の見直しは移送済みのまま）。
+- 履歴の整理: 行わない。未公開の commit は B の実装（`9a606dac`）、その修正（`c45a37b8`）と HANDOFF だけの記録 commit で、実験 folder は Phase D で消えるので、整理して implementation head を動かす利益が無い。GO 候補 implementation head は `c45a37b8`。
+- 判定 C の最初の実行で確かめること: (1) `[Explicit]` の test が namespace の filter で選ばれる（0 件なら完全名の列挙を filter にする）。(2) DR 有効の 2 設定で round が 2 件以上進み、`harness.stepError` が無い（C-02）。(3) AC7 (b) の record で `routing.load.completedAfterStop` → `routing.abandoned.recovered` → `routing.unregistered`（`deferred-after-drain`）の順になり、unregister の時点の `liveTokens` が 0（C-01）。(4) §6.6 の (3)〜(5)（test の中からの adapter の build と type tree、Game の bootstrap の静穏、所要時間）。
+- 実行したテストコマンドと `-Filter`: なし（前巡の指摘は全て code の読みで解消を確かめられ、残りは判定必須テストの実行そのもので観測する）。
+- テスト結果: なし。
+- 判定必須のうち未実行: 判定必須テストの全て（§5 の filter の 5 test）。
+- 未確認事項: 上の「判定 C の最初の実行で確かめること」の全て。
 
 ## 8. Phase C'
 
