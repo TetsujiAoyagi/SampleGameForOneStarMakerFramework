@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>9.0</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>OneStarMaker.ContentResolutionOfflineTests</RootNamespace>
+    <AssemblyName>ContentResolutionOfflineTests</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentAcceptanceBasis.cs" Link="Linked/ContentAcceptanceBasis.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentAvailability.cs" Link="Linked/ContentAvailability.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCandidate.cs" Link="Linked/ContentCandidate.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentIdentity.cs" Link="Linked/ContentIdentity.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentKind.cs" Link="Linked/ContentKind.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentLoadPath.cs" Link="Linked/ContentLoadPath.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentLoadRecord.cs" Link="Linked/ContentLoadRecord.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentLoadRejection.cs" Link="Linked/ContentLoadRejection.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentRequest.cs" Link="Linked/ContentRequest.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentResolutionException.cs" Link="Linked/ContentResolutionException.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentResolutionFailureCode.cs" Link="Linked/ContentResolutionFailureCode.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentResolutionResult.cs" Link="Linked/ContentResolutionResult.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentResolver.cs" Link="Linked/ContentResolver.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentSourceKind.cs" Link="Linked/ContentSourceKind.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentTraceability.cs" Link="Linked/ContentTraceability.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/IContentCompatibilityRule.cs" Link="Linked/IContentCompatibilityRule.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/IContentProvider.cs" Link="Linked/IContentProvider.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ProbeOutcome.cs" Link="Linked/ProbeOutcome.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ProviderProbe.cs" Link="Linked/ProviderProbe.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ResolutionPolicy.cs" Link="Linked/ResolutionPolicy.cs" />
+  </ItemGroup>
+</Project>
