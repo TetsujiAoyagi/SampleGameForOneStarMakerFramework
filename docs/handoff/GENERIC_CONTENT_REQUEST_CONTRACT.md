@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（**A2 と外部の計画レビュー R1 を反映した A3 の整理版。凍結していない。実装キューではない。** A2 入力版は commit `d5f15d3`。本版は A2（§5）と R1（PR #171 のレビュー、owner 経由、対象 `d5f15d3`）の採用分を反映した整理版で、owner の Q1〜Q7（§5）への回答の後に A3 凍結版として commit する。整理版を commit するのは owner の指示（2026-11-08。外部レビューの入力に A3 版を使うため）で、Phase A の commit を A2 入力版と A3 凍結版の 2 点に限る規則からの明示的な逸脱として記録する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
+- status: `A`（**A2 と外部の計画レビュー R1 を反映した A3 の整理版。凍結していない。実装キューではない。** A2 入力版は commit `d5f15d3`。本版は A2（§5）と R1（PR #171 のレビュー、owner 経由、対象 `d5f15d3`）の採用分を反映した整理版。owner は 2026-11-08 に Q1〜Q7 を R1 の推奨どおりに裁定した（§5）。**凍結は次の外部レビュー（R2、対象は本版の commit）の後**で、owner の指示があるまで行わない。整理版を commit するのは owner の指示（2026-11-08。外部レビューの入力に A3 版を使うため）で、Phase A の commit を A2 入力版と A3 凍結版の 2 点に限る規則からの明示的な逸脱として記録する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S0-a。A0 の入力は同書 §3〜§6・§9・§10 U1・M-03・M-06。S0-b（`CONTENT_DEMAND_ROUTING_SPIKE`、別ブランチで判定 C 中）と S0-c とは独立で並行（同書 D11））
 - branch: `claude/adoring-galileo-4afnfa`（S0-a のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `5f971da`（`develop` の head、2026-11-08。本書の実測は全てこの base）
 - implementation head commit: 未固定
-- risk: `normal`（program §8 のとおり。既存の公開 API・asmdef・所有者・寿命・`SceneState`・Addressables・起動順序を変えず、任意の層に新しい型を足すだけ。新しい公開面を足すことを「公開 API を変える」高リスクに数えるかは A3 で owner が確認する（§5 Q1））
+- risk: `normal`（program §8 のとおり。既存の公開 API・asmdef・所有者・寿命・`SceneState`・Addressables・起動順序を変えず、任意の層に新しい型を足すだけ。新しい公開面を足すことを「公開 API を変える」高リスクには数えない。owner 裁定 2026-11-08（§5 Q1、R1 の推奨どおり））
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-11-08
 - expires: 2026-12-31、または Phase D で harvest・削除した時点。期限時は owner が更新・廃止を判断する
@@ -18,8 +18,8 @@
 - Phase A snapshot の取得案内・状態: 未生成。A1 / A2 / A3 整理の主担当の環境（Cloud の session。Unity・pwsh・dotnet・Artifact Storage なし）では stage できない。A2 入力版は commit `d5f15d3` と本書の内容 sha256（§5 A2 記録）で固定した。A3 凍結時に、凍結版の本書をローカルの担当が `evidence stage` で固定する
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（未到達）
 - 引継ぎ票:
-  - 次の Phase・役割: A3 の凍結（owner + ローカルの担当）。owner が §5「A3 の確認事項」Q1〜Q7 に答え、必要なら文言を直して、A3 凍結版として commit する。目的・利用者の 2 欄（§1）を変えるなら、変えた 2 欄の原文だけで目的レビューを 1 回やり直してから凍結する。
-  - 次の作業: 凍結版の本書を Phase A snapshot として `evidence stage` で固定し、Phase B の起動指示に凍結 commit の SHA と取得案内を渡す。
+  - 次の Phase・役割: 外部の計画レビュー R2（owner が依頼。対象は本版を含む commit）。その後に A3 の凍結（owner + ローカルの担当）。
+  - 次の作業: R2 の指摘を §5 に記録して採否を分類し、owner の凍結指示を待つ。凍結時は、凍結版の本書を Phase A snapshot として `evidence stage` で固定し、Phase B の起動指示に凍結 commit の SHA と取得案内を渡す。目的・利用者の 2 欄（§1）は Q6 で据え置きと裁定したので、R2 で変えない限り目的レビューのやり直しは要らない。
   - 引き継ぐ commit: 本版（A3 整理版）を含む commit は PR #171 の状態ブロックに書く。A2 入力版は `d5f15d3`。凍結版の commit は凍結時に tree の外で渡す。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: program §0 の停止規則を引き継ぐ。S0-b の結論が出るまで、`IAssetManagement` / `IContentDirectoryBackend` / `InstallContentDirectory` の変更、配布粒度、複数 directory の合成を凍結しない（本書はこれらを変えない。§2.3）。製品 code への統合（S3）は本書の契約凍結後（program M-01）。**owner の明示指示（2026-11-08）: A3 まで進め、まだ凍結しない。**
@@ -33,8 +33,8 @@ PR を作る前は本 §0 を唯一の正本とする。PR 作成時にテンプ
 
 - 目的: Scene や Asset のロード要求に対して、供給元の種類・所在・取得手順を知らない呼び出し側が、要求時に妥当な候補を得て、既存の AssetManagement と同じ契約で所有・解放でき、何をどの供給元から得て何が失敗したかを説明できるようにするための、汎用の要求・候補・規則・記録の契約を定義する。SceneDirector、SampleGame、BuildPurpose を知らない fake の供給元だけでこの契約が成り立つことを示す。契約は AssetManagement の必須依存にせず、この契約を使わない既存の AssetManagement と BuildSystem の単独利用と併用を変えない。
 - 利用者: OSMFramework の開発者（この契約の上に、供給元の adapter、SceneSystem adapter、Editor の Play 入口を後続スライスで実装する人）。このスライスに利用者の操作は無い。
-- 目的・利用者の文言の改訂（A1）: A0（program §1・§8 S0-a 行）から A1 で書き起こした初出の文言。A2 の目的レビューはこの原文を見た（§5 A2 記録）。A2 の目的レビューは文言への指摘 5 点を出し、その採否は owner が裁定する（§5 Q6）。本版では文言を変えていない。
-- 目的の文言の読み方（A3 整理。文言は変えず、曖昧と指摘された点の本書での意味を固定する。owner が Q6 で文言の改訂を選べばここを文言へ移す）:
+- 目的・利用者の文言の改訂（A1）: A0（program §1・§8 S0-a 行）から A1 で書き起こした初出の文言。A2 の目的レビューはこの原文を見た（§5 A2 記録）。A2 の目的レビューは文言への指摘 5 点を出した。owner は 2026-11-08 に「文言は据え置き、意味は下の『読み方』で固定する」と裁定した（§5 Q6）。文言を変えていないので目的レビューのやり直しは要らない。
+- 目的の文言の読み方（A3 整理。文言は変えず、曖昧と指摘された点の本書での意味を固定する。owner 裁定 Q6）:
   - 「同じ契約で所有・解放」= `AssetOwner` の 4 スコープ（App / Manual / Scene(id) / Bind(go)）と、`IAssetManagement` の既存の解放 API（`Release`、`UnloadSceneAsync` → `ReleaseScene`、`ReleaseAll`）とその既存の失敗契約。本スライスはこれらに新しい意味・API・例外を足さない。
   - 「妥当な候補」= 供給元が「ある」と答え（利用可能）、かつ規則（`IContentCompatibilityRule`。製品実装は S1）が「採ってよい」と答え、かつ要求の logical key・kind・表現・expected identity と矛盾しない候補。妥当さを決めるのは規則で、供給元は候補を申告するだけ、要求は制約を与えるだけ。
   - 「何が失敗したか」の粒度 = 供給元（provider）単位の probe の結果（不在・不達・整合性拒否・規則で不採用・不一致・fault）と、採用後のロード失敗（AssetManagement の既存の reason code）。取得手順の段階（download / verify / install）は S4 の adapter の内側で、本スライスの record は provider 単位。
@@ -112,7 +112,7 @@ PR を作る前は本 §0 を唯一の正本とする。PR 作成時にテンプ
 
 - **AC1（S1）core の純粋さ:** `Runtime/ContentResolution/Core/*.cs` の各 file が `#nullable enable` で始まり、`using UnityEngine`、`using Cysharp`、`using OneStarMaker.Runtime.AssetManagement`、`using OneStarMaker.Runtime.BuildContent`、`using OneStarMaker.Runtime.SceneSystem` のどれも持たず、`record` 宣言と `init` accessor が無い。`tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` が core の file だけを `<Compile Include>` で link し、`PackageReference` を持たず、`<LangVersion>9.0</LangVersion>` を持ち、`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` が exit 0 で、出力の末尾の件数行が `failed 0` を示す（件数の下限は AC8 のテスト名の照合で見る）。
   - 確認手段: file の先頭と `using` を読む。`dotnet run` の出力。
-  - 不合格の例: core が `UniTask` を使い、csproj に UniTask の `PackageReference` を足して通す（A3 の Q2 で UniTask を選んだ場合は、この例は不合格でなくなり、AC1 の「`PackageReference` を持たず」を UniTask 1 件の許可に改める）。
+  - 不合格の例: core が `UniTask` を使い、csproj に UniTask の `PackageReference` を足して通す（Q2 で `ValueTask<T>` に決めた）。
 - **AC2（I8, I10）変更集合の許可リスト:** base から head までの変更（全 path）が次の 7 種類だけである。これ以外の追加・変更・削除が 1 件でもあれば不合格。
   1. 新規 `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/**`（`.cs` と `.meta`、`Core/` の folder `.meta`）と、その兄弟の folder `.meta` `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution.meta`。
   2. 新規 `unity/Assets/OneStarMaker/Tests/ContentResolution/**`（`.cs` と `.meta`）と、兄弟の folder `.meta` `unity/Assets/OneStarMaker/Tests/ContentResolution.meta`。
@@ -168,8 +168,7 @@ PR を作る前は本 §0 を唯一の正本とする。PR 作成時にテンプ
 
 ### 2.5 未決事項
 
-- U-a1 core の非同期型: `System.Threading.Tasks.ValueTask<T>`（初稿の案。UnityEngine・UniTask を参照しない core を .NET 8 で素のままビルドできる。A2 のアーキテクチャゲートは netstandard 2.1 と UniTask 側からの `await` の整合を問題なしとした）か、UniTask（repo の Runtime の慣習。offline project に UniTask の NuGet 参照が要り、UniTask の .NET 実行を前提にする）か。A3 で owner が決める（Q2）。
-- U-a2 P 検査の方式: 初稿は「判定 C の offline 実行」（§5）。A1 の主担当が script を書いて A2 で読ませる「A3 凍結 script」方式は、主担当の環境に Unity・pwsh が無く dry run できないので採らなかった。owner がローカルで script の改変と dry run を A3 前に行えるなら「A3 凍結 script」へ変えてよい（Q4）。
+なし（設計上の未決）。A2 入力版の U-a1（core の非同期型）と U-a2（P 検査の方式）は owner が 2026-11-08 に裁定した: U-a1 は `System.Threading.Tasks.ValueTask<T>`（UnityEngine・UniTask を参照しない core を .NET 8 で素のままビルドできる。A2 のアーキテクチャゲートが netstandard 2.1 と UniTask 側からの `await` の整合を問題なしとした）、U-a2 は「判定 C の offline 実行」（§5「P 検査」。A1 の主担当の環境に Unity・pwsh が無く「A3 凍結 script」の dry run ができないため）。
 
 ### 2.6 スライスの分割の検討
 
@@ -211,7 +210,7 @@ path は `unity/Assets/OneStarMaker/Scripts/` からの相対。型名は A3 で
 
 - **folder `Runtime/ContentResolution/`（`OneStarMaker.Runtime.asmdef` の配下、namespace `OneStarMaker.Runtime.ContentResolution`）:** フォルダ境界の基準（architecture-gates）の「依存方向」と「所有者」が既存 folder と違う。AssetManagement の公開面と共通契約だけに依存し、AssetManagement・BuildSystem 本体・SceneSystem・Bootstrap のどれからも参照されない、AssetManagement の上の任意の層である。[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §2.1 の「連携部分（両方を知る）」とは別の分類で、BuildSystem を参照しない。asmdef 分割スライスへは「`ContentDirectorySession` と同じ assembly に寄せる理由は無い」と渡す。既存の連携部分（`Runtime/BuildContent/ContentDirectorySession.cs` 等）と同じ folder に置かないのは、(a) U-B の P 検査の集合から file 名で除外する一覧を増やさずに folder 単位で外せること、(b) 変更理由（要求・候補・規則の契約）が directory session（native handle と token の寿命）と独立なこと、の 2 つが違うため。asmdef は分けない（asmdef の追加は設計判断で、所有は asmdef 分割スライス）。同じ assembly に居ることで internal が見える問題は AC3・AC4 で機械的に塞ぐ。
 - **`Core/` sub-folder:** UnityEngine・UniTask を参照しない file だけを置き、offline の .NET project がこの folder の file だけを link する。「Unity 非依存」を folder の境界で見えるようにし、Unity 側の接続（loader）を同じ folder の外の 1 file に限る。
-- **core の非同期型に `ValueTask<T>`（U-a1）:** 探索は本質的に非同期（LAN の probe、S4）だが、core は Unity に依存しないので UniTask を使わない。netstandard 2.1 の `ValueTask` は Unity の Runtime asmdef でコンパイルでき、UniTask 側の loader は `await` できる。代替（UniTask + offline project への NuGet 参照）は A3 で owner が選ぶ。
+- **core の非同期型に `ValueTask<T>`（U-a1）:** 探索は本質的に非同期（LAN の probe、S4）だが、core は Unity に依存しないので UniTask を使わない。netstandard 2.1 の `ValueTask` は Unity の Runtime asmdef でコンパイルでき、UniTask 側の loader は `await` できる。代替（UniTask + offline project への NuGet 参照）は owner が Q2 で採らなかった。
 - **`IAssetManagement` に member を足さない:** 由来（どの directory か）を handle に持たせると `IAssetManagement` の変更になり I8 と program の停止規則（Runtime の新 API を S0-b 前に凍結しない）に当たる。record は loader が、採用した候補から作る。実ロード元との同一性の検証は S3（§2.3）で、record の `SourceBindingVerified=false` がその未検証を明示する。
 - **`IContentCompatibilityRule` を差込口だけにする:** 互換の判定内容は S1 の問い。S0-a が「identity 等値」のような既定実装を置くと、S1 の判定の既定値を先に凍結してしまう。製品実装が無い間は policy を組めないが、S0-a は契約の成立だけを示す（§2 成果の範囲）。
 - **失敗の表現:** 解決できないこと（候補なし、互換なし、整合性拒否、fault、未対応の種別）は `ContentResolutionResult` の結果で返し、loader の公開入口だけが `ContentResolutionException` に変える（呼び出し側の `try` が 1 つで済む）。AssetManagement のロード失敗（`ContentDirectoryException` 等）は包まずにそのまま通す（reason code の所有を変えない。[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) G5）。
@@ -353,15 +352,17 @@ path は `unity/Assets/OneStarMaker/Scripts/` からの相対。型名は A3 で
 | R1-5 [中] resolve 成功後の load 失敗で `Probes`・採用候補との対応が呼び手から失われないか。失敗試行の記録を S3 に送るなら非保証として明記 | 採用（S3 へ移送、非保証を明記） | §2「成果の範囲」に S0-a の非保証として明記し、§2.3 の S3 行に「loader の resolve と load を 2 段の公開入口に分ける案を含む」と書いた。本スライスでは loader の公開面を増やさない |
 | R1 の Q1〜Q7 への提案（Q1 normal 支持、Q2 `ValueTask` 支持、Q3 支持、Q4 許容、Q5 S1 へ、Q6 概ね支持（「何を得たか」の保証と候補選択記録の区別を反映）、Q7 S4 への委譲は可。ただし同一要求内の fail-closed と pin を保持・渡す主体の契約は S0-a に残す） | 記録（裁定は owner） | レビュー担当の提案として記録する。owner の回答ではない。Q7 の「pin を保持・渡す主体」は `ContentResolutionResult.PinnedIdentity` として呼び手に渡す形で I2 に明記した。Q6 の「何を得たかの保証と候補選択記録の区別」は上の R1-1 の反映で §2 に入った |
 
-### A3 の確認事項（owner へ。凍結前に回答を得る。R1 の提案は上の表に記録したが、裁定は owner が行う）
+### A3 の確認事項と owner の裁定（2026-11-08。owner は「R1 の推奨どおり」と裁定した。凍結はまだで、次の外部レビュー R2 の後）
 
-- **Q1 risk:** `normal` のままでよいか。新しい公開面（任意の層の型）を足すが、既存の公開 API・asmdef・所有者・寿命は変えない。A2 のアーキテクチャゲートは配置と依存を問題なしとした。
-- **Q2 core の非同期型:** `ValueTask<T>`（初稿。A2 で整合を確認）か UniTask（offline project に NuGet 参照）か。主担当の推奨は `ValueTask<T>`。
-- **Q3 offline project と CI:** `tools/ContentResolutionOfflineTests/` を判定必須（AC1・AC8）に含め、CI の matrix に足してよいか。
-- **Q4 P 検査の方式:** 「判定 C の offline 実行」でよいか。owner がローカルで `p-check.ps1` の `$Sets` の改変（U-A の library を参照する `RESOLVER-*`）と dry run を A3 前に行えるなら「A3 凍結 script」に変える。
-- **Q5 `IContentCompatibilityRule` の製品実装を S0-a で作らない**（S1 に送る）でよいか。製品実装が無い間は製品の policy を組めない。
-- **Q6 目的・利用者の文言:** §1 の原文のまま確定し、目的レビューの 5 件の指摘は §1「目的の文言の読み方」で意味を固定する（主担当の案）か、文言を改めて目的レビューを 1 回やり直すか。
-- **Q7 要求をまたぐ pin を S4 へ送ること**（A-02 (3)。同じ要求の再試行で別 revision へ切り替わりうる既知の制約を S0-a では受け入れる）でよいか。
+- **Q1 risk:** `normal` のまま。新しい公開面（任意の層の型）を足すが、既存の公開 API・asmdef・所有者・寿命は変えない（§0）。
+- **Q2 core の非同期型:** `ValueTask<T>`。UniTask と offline project への NuGet 参照は採らない（§2.5、§3、AC1）。
+- **Q3 offline project と CI:** `tools/ContentResolutionOfflineTests/` を判定必須（AC1・AC8）に含め、CI の matrix に足す（AC7）。
+- **Q4 P 検査の方式:** 「判定 C の offline 実行」。script・入力・結果は判定 evidence bundle に固定する（§5「P 検査」）。
+- **Q5 `IContentCompatibilityRule` の製品実装:** S0-a では作らず S1 に送る（§2.3）。
+- **Q6 目的・利用者の文言:** §1 の原文のまま据え置き、目的レビューの 5 件は §1「目的の文言の読み方」で意味を固定する。「何を得たかの保証」と「候補選択の記録」の区別は §2「成果の範囲」に反映済み（R1-1）。目的レビューのやり直しは要らない。
+- **Q7 要求をまたぐ pin:** S4 へ送る。同一要求内の fail-closed（基準の無い `Rejected` と pin の食い違いで即停止）と、pin を `ContentResolutionResult.PinnedIdentity` として呼び手へ渡す契約は S0-a に残す（I2）。
+
+主担当への owner の指示（2026-11-08）: 推奨が決まっている問いは主担当が答えを出し、owner に渡すのは裁定が本当に要るもの（目的・利用者の文言、受け入れ境界の変更、risk、常時契約に関わるもの）に限る。
 
 ## 6. Phase B 実装結果
 
