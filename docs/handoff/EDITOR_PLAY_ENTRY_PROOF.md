@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（A2 完了、**外部レビュー待ち。A3 は凍結していない**。A2 入力版は commit `6164626b`。本書は A2 の指摘と owner の §6 の判断を反映した A3 候補版で、owner の指示で外部レビュー用にドラフト PR へ公開する。Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `B`（**A3 凍結済み、revision 1、実装待ち**。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
 - implementation head commit: `未固定`
@@ -20,12 +20,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 外部レビュー（owner 経由）の後に A3（主担当と owner が採否を確定し、凍結版を commit する）。
-  - 次の作業: 外部レビュー（§7、E-01〜E-08）は作業ツリーに反映済み。owner の判断で A3 凍結版を commit する。
+  - 次の Phase・役割: Phase B（実装）。凍結した Phase A は revision 1。
+  - 次の作業: §3 の責務マップと §4 の順序のとおりに実装し、§5 の単体テストを書く。出口で `pwsh tools/contract-audit.ps1` と Editor のコンパイル確認を行い、§5 の検証経路の条件のうち Unity テストと Build を要しないものを各 1 回動作確認する（Toolbar 要素の既定の見え方を含む）。AC9・AC10 の準備の Build と AC12 は Phase C が行う。AC14 の実クリックは §6 D-4。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: §2 の停止規則に従う。A3 の凍結と Phase B は owner の判断の後。
-  - 引き渡さないもの: 目的レビューへ本書（§1 の「目的」「利用者」の原文以外）を渡さない。A2 の担当どうしの指摘を渡さない。
+  - 必要な権限: ローカルの Unity Editor の起動・`eval`・menu 操作（`osm-unity-editor` に従う）。資格情報は不要。
+  - 停止規則: §2 の停止規則に従う。Unity バッチテストと Build は実行しない。asmdef の参照、Runtime、`ContentDeliveryPlayBridge` は変更しない。凍結済みの条件を満たすのに計画外の状態・依存・所有者・寿命・公開 API が要るなら止めて Phase A の新 revision を諮る。
+  - 引き渡さないもの: なし（Phase A の A2 の入力はレビューが終わっている）。
 
 ### 実測の方法
 
@@ -120,7 +120,7 @@
   - 依存は Game → Framework。`SampleGame.DependOnAll.Editor` に閉じ、asmdef の参照を足さない。新規・編集する `.cs` の先頭に `#nullable enable`。`record` を使わない。Unity の偽 null に注意する。
   - `ApplyForOnePlay` は `isPlayingOrWillChangePlaymode` の間に呼ばない。取り消しの後の `EditorApplication.update` の tick で呼ぶ。`EnterPlaymode` は呼び出しの中で `ExitingEditMode` を同期で発火するので、ledger を置いてから呼ぶ。
   - テストで `Task.Delay` / `Thread.Sleep` を使わない。tick と状態は注入する。
-- 未決事項: §6（A3 判断候補）。
+- 未決事項: なし（§6 は A3 で確定）。
 
 ## 3. 責務マップ
 
@@ -218,13 +218,13 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - A0/A1 主担当・モデル・ベンダー: A0 は program（複数担当）。A1 は Claude Opus 5.5（Anthropic）。
 - A2 独立レビュー: §7 に記録する。
-- A3 統合担当・モデル・採否: 未実施。
+- A3 統合担当・モデル・採否: Claude Opus 5.5（Anthropic）と owner。採否は §6 と §7。owner が 2026-11-09 に凍結を指示した。
 - C' 用に予約した担当・モデル・ベンダー: なし。A2 で Grok 系を予約したが、PR の外部レビューで cursor[bot] がその予約を使ったと報告した（担当のモデルは本書の作成者からは確認できない）。normal risk で強化条件は必須でないので、C' の開始時に B / C と異なるモデルの新規 session を選ぶ。PR の外部レビューは C' に数えない。
 - 独立性の強化条件を満たせない場合の理由: 該当なし（normal）。
 
-## 6. A3 判断候補
+## 6. A3 判断
 
-**D-1 と D-2〜D-5 は owner が判断した（2026-11-09。D-2〜D-5 は下の推奨どおり）。** 凍結は外部レビューの反映の後に行うので、外部レビューの結果で見直す余地を残す。
+**D-1〜D-7 は owner が判断し、A3 で凍結した（2026-11-09。D-2、D-4、D-5 は下の推奨どおり）。**
 
 - **D-1 snapshot の実 initializer の gate と機構 (i) / (ii) の選定（S0-b の移送）。決定済み（owner、2026-11-09）: S0-c の直後の別スライス S0-d へ送る。** 「Runtime を変えない」は常時契約でも owner 決定でもなく、revision 2 で「採否を戻せる粒度で前進する」ために置かれた範囲の選択である。S0-c がこれを維持する理由は、snapshot の起動順序が Play 入口とは独立に失敗しうる未知で、S3 は既に high で Runtime 接続・Player 非退行・移送分を抱えているため。S0-d は S0-c の取り消し → 再 Play の経路を使う。
 - **D-2 Play 入口の置き場所。** 推奨: **SampleGame の Editor asmdef**（§3）。再利用する検査と宣言がすべて SampleGame にあり host は 1 つなので、今は port と asmdef を作らない。program D2 は resolver の配置の決定と読む。代案: `OneStarMaker` の Editor に新設し host の interface を切る。
@@ -234,7 +234,7 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 - **D-6 Play Mode Script の自動切替（E-04）。決定済み（owner、2026-11-09）: 永続の変更を仕様にする。** program §4.3 が黙って直してよい前提条件に挙げている。切り替えるのは tick の再判定を通った直後だけで、拒否の時は変えない。切り替える property は `ActivePlayModeDataBuilderIndex` で、保存先は `Library/AddressablesConfig.dat` で追跡 file ではない（`ActivePlayerDataBuilderIndex` は設定 asset を dirty にするので使わない）。Console に 1 行出す。元に戻さない（`EnterPlaymode` の例外の時も Fast Mode のまま）。AC16。
 - **D-7 明示 `addressables` + 非 Fast Mode（E-06）。決定済み（owner、2026-11-09）: 拒否せず記録する。** Use Existing Build を意図した明示設定を止めない。record と Warning に「既存 build を読みうる」を出す。Script も変えない。AC6。
 
-主担当の判断で進めた事項（異論があれば A3 で覆す）: 経路 Built の候補は検証を通った最新の install を使う（known-good の pin は呼び手が無い。複数なら Warning。S1 で互換判定に置き換える）。既定の RunPurpose は `spring-full`。§7 F-03 の不採用。§1 の利用者の欄の例示（S1、S3、S4、S5）は S0-d を足さない（文言の変更は目的レビューのやり直しになり、S0-d の A1 担当は本書の結果を program §8 から受け取れる）。
+主担当の判断で進めた事項（A3 で異論なし）: 経路 Built の候補は検証を通った最新の install を使う（known-good の pin は呼び手が無い。複数なら Warning。S1 で互換判定に置き換える）。既定の RunPurpose は `spring-full`。§7 F-03 の不採用。§1 の利用者の欄の例示（S1、S3、S4、S5）は S0-d を足さない（文言の変更は目的レビューのやり直しになり、S0-d の A1 担当は本書の結果を program §8 から受け取れる）。
 
 ## 7. A2 記録
 
@@ -292,3 +292,7 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 | E-09 | 重要 | 行 2 の拒否で ledger を戻す手段が未固定（`Reset` は移行中に例外、手動 ledger も消す） | 採用 | §4「ledger の戻し方」、AC2 |
 | E-10 | 確認 | AC12 の検出漏れの反例が実質ない、行 2 と N4 の関係 | 採用。調査で D-3 の `ICallbacks` の代替が PlayMode テストに効かないと判明し、owner が Scene 名の判定だけに決定 | §6 D-3、N4、§4 行 1・行 2、§5、AC12 |
 | E-11 | 確認 | N1 の括弧が D-7 と矛盾、切り替える property | 採用 | N1、§6 D-6 |
+
+### PR の最終確認（2026-11-09、owner 経由、PR #175、対象 commit `f6808f6d`）
+
+判定は A3 凍結 GO、追加の blocker なし。計画の凍結可であり機能の成立ではない、AC12・AC14・AC16 を含む証拠は Phase B / C で採る、という留保が付いた。本文の変更なし。目的と利用者の欄は A2 入力版から変えていないので、目的レビューのやり直しは要らない。
