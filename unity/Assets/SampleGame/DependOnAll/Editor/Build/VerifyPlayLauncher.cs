@@ -260,7 +260,7 @@ namespace SampleGame.DependOnAll.Editor.Build
             return found;
         }
 
-        private static IReadOnlyList<string> FindReusableLoadedScenes()
+        internal static IReadOnlyList<string> FindReusableLoadedScenes()
         {
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SampleGameBootstrapContentComposer.SceneResourceMapPath);
             if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + SampleGameBootstrapContentComposer.SceneResourceMapPath);

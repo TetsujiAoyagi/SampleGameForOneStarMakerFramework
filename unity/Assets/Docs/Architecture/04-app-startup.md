@@ -217,6 +217,7 @@ Editorでは開いているSceneを初期登録の入力にする。通常direct
 - `AddScene` は冪等（既に登録済みならスキップ）。
 - `PerformUnitySceneLoad` が `SceneManager.GetSceneByName` でロード済みシーンを検出し、再ロードしない。
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
+- Editor の Play ボタンで始める Play は、§4.7 の key がどの層にも無い時、入口が `content:runtimeMode` などを 1 回の Play の間だけ補う（[§18](18-asset-description.md)「宣言からの Play 経路」）。経路 Built で再利用しうる Scene が開いていれば Play に入らない。
 - BS4 Playerは生成済みbootstrap Sceneと、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。
 - Editor の directory Play で `content:firstScene` があれば、directory の登録の後にその Scene をロードし、Play の間ロードしたままにする（stage `load-editor-first-scene:<Scene 名>`、ロード後に `[AppInit] Editor content directory first scene: scene=… identity=… stable=…` の 1 行）。空 Scene から始める検証 Play（[§18](18-asset-description.md)）がこれを使う。Player の smoke の段（初回 Scene の unload、directory close、receipt）と失敗時の初回 Scene の unload は Player だけが行い、Editor では失敗しても別の Scene へ逃がさない。値を決めるのは App で、Framework は Scene 名の意味を知らない。
 
@@ -279,7 +280,7 @@ protected override string GetEnvironmentVariablePrefix() => "MYAPP_";
 
 ### Content Directory の起動時選択
 
-`content:runtimeMode` 未指定の Editor Play は Delivery「Use For Next Play」の verified installed pair が無ければ BeforeSceneLoad で失敗する。pair があれば directory。明示 `addressables` だけが Addressables 互換口。未知 mode は失敗する。known-good の自動適用はしない。app-config の未指定を directory に書き換えない。
+`content:runtimeMode` 未指定の Editor Play は Delivery「Use For Next Play」の verified installed pair が無ければ BeforeSceneLoad で失敗する。pair があれば directory。明示 `addressables` だけが Addressables 互換口。未知 mode は失敗する。known-good の自動適用はしない。app-config の未指定を directory に書き換えない。これは Runtime の判定で、Editor の Play ボタンの入口が Play の前に環境変数を補う経路との境界は [§18](18-asset-description.md)「宣言からの Play 経路」にある。
 `directory` は Editor Play（verified pair または明示 directoryPath）と、専用 runtime config を組み込んだ directory Player の経路である。
 未知 mode、必須値の欠損、不一致は起動失敗とし、Addressables へ暗黙 fallback しない。
 BeforeSceneLoad で失敗した起動回は AfterSceneLoad を開始しない。
