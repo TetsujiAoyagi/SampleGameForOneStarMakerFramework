@@ -12,6 +12,10 @@
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentAcceptanceBasis.cs" Link="Linked/ContentAcceptanceBasis.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentAvailability.cs" Link="Linked/ContentAvailability.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCandidate.cs" Link="Linked/ContentCandidate.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibilityEnvelope.cs" Link="Linked/ContentCompatibilityEnvelope.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibilityFactKeys.cs" Link="Linked/ContentCompatibilityFactKeys.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibilityMismatch.cs" Link="Linked/ContentCompatibilityMismatch.cs" />
+    <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibilityRule.cs" Link="Linked/ContentCompatibilityRule.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentIdentity.cs" Link="Linked/ContentIdentity.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentKind.cs" Link="Linked/ContentKind.cs" />
     <Compile Include="../../unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentLoadPath.cs" Link="Linked/ContentLoadPath.cs" />

@@ -13,7 +13,7 @@ namespace OneStarMaker.ContentResolutionOfflineTests
 {
     // Dependency-free harness for the content resolution core. All production types are linked sources
     // from Runtime/ContentResolution/Core. Each test prints "PASS <name>" so the handoff can match names.
-    internal static class Program
+    internal static partial class Program
     {
         private static int _passed;
         private static int _failed;
@@ -52,6 +52,8 @@ namespace OneStarMaker.ContentResolutionOfflineTests
             Run(nameof(Repair_DoesNotDependOnProviderOrder), Repair_DoesNotDependOnProviderOrder);
             Run(nameof(FailureCode_Precedence), FailureCode_Precedence);
             Run(nameof(RequestPin_ConflictingRejected_StopsImmediately), RequestPin_ConflictingRejected_StopsImmediately);
+            Run(nameof(UnmetPin_ThenFault_IsIntegrityRejected), UnmetPin_ThenFault_IsIntegrityRejected);
+            RunCompatibilityTests();
             Console.WriteLine($"ContentResolution offline: {_passed} passed, {_failed} failed, {_passed + _failed} executed");
             return _failed == 0 && _passed > 0 ? 0 : 1;
         }
@@ -501,6 +503,17 @@ namespace OneStarMaker.ContentResolutionOfflineTests
             Outcomes(result, ProbeOutcome.Rejected);
             Equal(0, b.Calls, "B is not probed");
             Equal(X, result.PinnedIdentity!.Value, "request pin is kept");
+        }
+
+        // C24: an unmet request pin followed by a fault ends as IntegrityRejected (pin precedence over the fault).
+        private static void UnmetPin_ThenFault_IsIntegrityRejected()
+        {
+            var c = Provider.Available("C", Cand("C", identity: X));
+            var result = Resolve(Req(expected: X), Policy(Rule.All, Provider.Available("A", Cand("A", identity: Y)), Provider.Throwing("B", new IOException("disk")), c));
+            Outcomes(result, ProbeOutcome.PinMismatch, ProbeOutcome.Fault);
+            Equal(ContentResolutionFailureCode.IntegrityRejected, result.FailureCode, "unmet pin wins over the fault");
+            Equal(0, c.Calls, "the fault stops the search");
+            Equal(X, result.PinnedIdentity!.Value, "request pin is reported");
         }
 
         // ---- fixtures ----
