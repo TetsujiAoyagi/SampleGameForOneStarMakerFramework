@@ -71,10 +71,10 @@
   - **由来:** 本スライスでは Play 全体の経路（source / directory と revision）。Scene ごとの由来は S3。
   - **policy / record:** policy は Play の前に決めた規則と計画（RunPurpose、経路、書いた key、理由）。record はその Play で起きた事実（Play に入ったか、起動の失敗、directory の封じの log、revision）。別の型にする（program §3.1 の 7）。
 - 不変条件:
-  - **N1 明示設定を書き換えない。** 明示設定があるとき、入口は環境変数・JSON・ledger・Variant profile を変えず、Play 後もその値が残る。崩しうる経路: `ApplyValues` が一回の ledger を `ResetCore` で消す経路、`--content.runtimeMode` のコマンドライン層、環境変数名の大文字小文字、空文字の値（`ContainsKey` は真）、mode 無しで pair だけある暗黙の directory（`AbstractApplicationInitializer.cs:856`）。JSON の検査は disk を読むが、起動が読む bytes の一致は保証しない（`PlayAsLauncher.cs:165` の既存の注意。Script は Fast Mode に揃える）。
+  - **N1 明示設定を書き換えない。** 明示設定があるとき、入口は環境変数・JSON・ledger・Variant profile を変えず、Play 後もその値が残る。崩しうる経路: `ApplyValues` が一回の ledger を `ResetCore` で消す経路、`--content.runtimeMode` のコマンドライン層、環境変数名の大文字小文字、空文字の値（`ContainsKey` は真）、mode 無しで pair だけある暗黙の directory（`AbstractApplicationInitializer.cs:856`）。JSON の検査は disk を読むが、起動が読む bytes の一致は保証しない（`PlayAsLauncher.cs:165` の既存の注意。明示 `addressables` では Script を変えず、§6 D-7 のとおり record と Warning に出す）。
   - **N2 未検証の content で directory Play を始めない。** Built の経路は、その Play の介入の中で `ValidateInstalled` を通った revision だけを使い、候補が無い・検証に失敗した時に別の revision や Source へ黙って切り替えない。崩しうる経路: `Inspect` の snapshot と検証の間の削除、receipt 破損、manifest の declaration が宣言と違う cache の entry（`CompareDeclaration`）。検証の後から起動までの差し替えは入口では防がない。起動は渡された pair を `InstalledRevisionVerifier.Verify` で再検証し（`AbstractApplicationInitializer.cs:888`）、一致しなければ fail-closed になるので、本条件の保証は「検証した pair だけを渡す」までとする。
   - **N3 directory-only Play に Editor の Scene を混ぜない（G18）。** 実効 mode が directory になる Play で、起動が再利用しうる Scene が開いていれば、Play を始めない。崩しうる経路: `RegisterAlreadyLoadedScenes` と `PerformUnitySceneLoad` の名前再利用、手動 ledger + `Title` を開いた Play（現行は無検査）、環境変数・コマンドラインだけの directory、pair だけの暗黙 directory、検査と再 Play の間に Scene を開く、Verify Play 以外の一回 ledger。
-  - **N4 別の仕組みの Play に割り込まない・無限に割り込まない。** バッチ実行、Test Runner の Play、`Play As` / `Verify Play` が ledger を置いた Play を取り消さない。再 Play は 1 回で、2 回押しても計画は 1 つ。崩しうる経路: `EnterPlaymode` が `ExitingEditMode` を**同期で**発火する（疎通で確認）ので ledger を置く前の呼び出し順、対話の Test Runner（`TestRunnerApi` に static の実行中判定が無い）、`TestObservationBootstrap`、`eval` の Play。
+  - **N4 別の仕組みの Play に割り込まない・無限に割り込まない。** バッチ実行、Test Runner の PlayMode テストの Play、`Play As` / `Verify Play` が ledger を置いた Play を取り消さない。EditMode テストの `EnterPlayMode` は通常の Play と同じ判定に通す（§6 D-3）。再 Play は 1 回で、2 回押しても計画は 1 つ。崩しうる経路: `EnterPlaymode` が `ExitingEditMode` を**同期で**発火する（疎通で確認）ので ledger を置く前の呼び出し順、対話の Test Runner（`TestRunnerApi` に public の実行中判定が無い）、`TestObservationBootstrap`、`eval` の Play。
   - **N5 置いた値が残らない。** 介入で置いた値は、Play の終了、Play に至らなかった時のどちらでも元へ戻る。崩しうる経路: 取り消しでは `EnteredEditMode` が来ない（疎通で確認）ので `HandleIdle` の経路に頼る点、`EnterPlaymode` の例外、Play 中の再 compile の domain reload。Editor の異常終了は値が process と共に消えるので残らない（現況）。
   - **N6 開いている Scene と追跡 file を変えない。** 取り消し・再 Play で Scene の保存・閉じる・Dirty の変更をしない。利用者が回復操作を選んだ時だけ Scene を置き換え、未保存の内容は Unity の保存確認を通し、拒まれたら置き換えず Play もしない。設定の永続は git 管理外だけに置く。崩しうる経路: `EditorSceneManager.NewScene` は確認なしで未保存を捨てる。Play Mode Script の変更先は `Library/AddressablesConfig.dat`（`ProjectConfigData`）で追跡 file ではない（§6 D-6）。`EditorUserSettings` の保存先。
   - **N7 Runtime と Player を変えない。** `Scripts/Runtime/` と Player の経路に差分が無く、新しい code は Editor asmdef に閉じる（program I10）。
@@ -87,7 +87,7 @@
   - **P6** program §4.2 の use case と予防の一覧（§4 に載せる）と、U4 の境界の文言（§4）が揃う。
 - 受け入れ条件（単体。詳細は §5）:
   - **AC1**（N1, N3, N4, P1, P2, P3）判定表の全行を `PlayEntryDecisionTests` が実データで確かめる。行は §4「判定の順序」。失敗経路: コマンドライン層だけの明示、空文字、pair だけ、手動 ledger + 再利用 Scene、**一回の ledger（directory）+ 再利用 Scene**、Variant profile、外の環境変数、候補なし、検証失敗、明示 `addressables` + 非 Fast Mode（拒否せず Warning）。
-  - **AC2**（N4, N5）`PlayEntryTransactionTests` が状態機械を実時間なしで確かめる。失敗経路: 取り消し中の 2 度目の `ExitingEditMode`、再 Play の同期発火（再入で計画が増えず、再入の時点で再利用 Scene があれば拒否して ledger が戻る）、`EnterPlaymode` の例外で ledger を戻す、計画の適用中の例外。回復操作の保存確認は注入し、保存を拒まれた時に Scene を置き換えず Play しないことを確かめる。
+  - **AC2**（N4, N5）`PlayEntryTransactionTests` が状態機械を実時間なしで確かめる。失敗経路: 取り消し中の 2 度目の `ExitingEditMode`、再 Play の同期発火（再入で計画が増えず、再入の時点で再利用 Scene があれば拒否する）、`EnterPlaymode` の例外、計画の適用中の例外。どの経路でも入口は `ContentDeliveryPlayBridge.Reset` を呼ばず、次の idle tick の `HandleIdle` が一回 ledger だけを戻し、手動 ledger は変わらない（§4「ledger の戻し方」）。回復操作の保存確認は注入し、保存を拒まれた時に Scene を置き換えず Play しないことを確かめる。
   - **AC3**（N2）候補の選択を一時 cache root の実 file で確かめる（宣言違い・target 違い・破損・最新の選択）。
 - 受け入れ条件（実 Editor。経路は §5。各 1 回）:
   - **AC4**（P1, N5, N6）初見: 保存値なし・key なし・`Title` を開いた Editor で Play。合格: record が `EnteredPlay` になり、`EnteredPlayMode` から 15 秒の観測窓で起動の Error / Exception が 0 件（`StartupFailed` にならない）、Play 後の環境変数が Play 前と同じ、`git status` が空。不合格の例: Play に入ったが `content:runtimeMode` の例外が出た。
@@ -98,7 +98,7 @@
   - **AC9**（N2, P2, N5）経路 Built・候補あり・空 Scene。合格: AC4 と同じ観測窓で `StartupFailed` にならず、封じの log と install 済み revision が record に出て、停止後の環境変数が Play 前と同じ。
   - **AC10**（N3）経路 Built・候補あり・`Title` を開いた状態。合格: Play に入らず、`Title` を閉じない。回復操作「空 Scene で Play」を明示して選ぶと AC9 と同じになる。`Title` が Dirty の時は保存確認が出て、保存を拒むと `Title` が Dirty のまま開いていて Play に入らない（保存確認は modal で `eval` から答えられないので、拒否の経路は AC2 の注入テストで確かめ、実 UI は §6 D-4 の担当が行う）。
   - **AC11**（N1）Variant profile を選択して Play。合格: Play に入らず profile が変わらない。
-  - **AC12**（N4）`Play As` の menu で Play。合格: 再 Play が起きず 1 回で入る。対話の Test Runner の window と `TestRunnerApi.Execute` の 2 経路で PlayMode テストを各 1 件実行。合格: どちらも取り消されない（検出漏れの反例）。`InitTestScene` で始まらない通常の Scene の Play は介入され、`InitTestScene` で始まる利用者の Scene は素通りして record に判定の理由が出る（誤除外の反例。D-3 で受け入れた範囲）。1 経路の成功で一般化しない。
+  - **AC12**（N4）`Play As` の menu で Play。合格: 再 Play が起きず 1 回で入る。対話の Test Runner の window と `TestRunnerApi.Execute` の 2 経路で PlayMode テストを各 1 件実行。合格: どちらも取り消されない。EditMode の `[UnityTest]` で `runtimeMode` を明示して `yield return new EnterPlayMode()` を実行（既存のテストでよい）。合格: Scene 名では Test Runner と判定されないが、行 4 で素通りして取り消されない（検出漏れの反例。§6 D-3）。`InitTestScene` で始まらない通常の Scene の Play は介入され、`InitTestScene` で始まる利用者の Scene は素通りして record に判定の理由が出る（誤除外の反例。D-3 で受け入れた範囲）。1 経路の成功で一般化しない。
   - **AC13**（P1）Domain Reload を有効にした設定で AC4 を繰り返し、設定を元に戻す。合格: AC4 と同じ。
   - **AC14**（P1, P4）**実際の Toolbar の Play ボタン**を 1 回クリックして AC4 の結果になり、Game view を見ている状態で観測 UI の表示が見える。Toolbar の要素が非表示の状態から始めた成功の Play でも、詳細窓で policy / record が見える（§5）。
   - **AC16**（N6, D-6）Play Mode Script を Fast Mode 以外にして、拒否になる条件で Play する。合格: Script が変わらない。経路 Source で Play する。合格: Fast Mode に揃い 1 行出て、起動の Error / Exception が 0 件で、`git status` が空。
@@ -149,8 +149,8 @@
 
 | # | 条件 | 結果 |
 |---|---|---|
-| 1 | バッチ実行、Test Runner の Play | 素通り（バッチは record なし。Scene 名で Test Runner と判定した時は誤除外を説明できるよう record に理由を残す） |
-| 2 | 実効 mode が directory（一回 / 手動の ledger、mode `directory`、pair だけ）で、再利用しうる Scene が開いている | 拒否（G18、回復: 空 Scene で Play）。一回の ledger より先に見るので、どの経路の directory Play にも同じ保証が掛かる |
+| 1 | バッチ実行、Test Runner の PlayMode テストの Play | 素通り（バッチは record なし。Scene 名で Test Runner と判定した時は誤除外を説明できるよう record に理由を残す） |
+| 2 | 実効 mode が directory（一回 / 手動の ledger、mode `directory`、pair だけ）で、再利用しうる Scene が開いている | 拒否（G18、回復: 空 Scene で Play）。一回の ledger より先に見るので、行 1 を除くどの経路の directory Play にも同じ保証が掛かる |
 | 3 | 一回の ledger がある（`Play As` / `Verify Play` / 入口自身の再 Play） | 素通り |
 | 4 | 明示設定がある | 素通り。値は書かない。record に「明示」と出す。値の妥当性は Runtime の fail-closed に任せる。実効 mode が addressables で Play Mode Script が Fast Mode でなければ、拒否せず record と Warning に「既存 build を読みうる」と出す（§6 D-7） |
 | 5 | Variant profile、外の環境変数、コマンドラインの制御 key、下位層の非空（`CheckLaunchConflicts` / `CheckEmptyLowerLayer`） | 拒否（理由をそのまま出す） |
@@ -168,6 +168,8 @@
 ### 介入の順序（Play 疎通の観測に基づく）
 
 `ExitingEditMode` で計画を作る → 素通り以外は `isPlaying = false`（Unity は `ExitingPlayMode` を同期で出し `EnteredEditMode` は来ない）→ 次の `update` の tick（idle を確認）→ 拒否なら表示して終わり / 介入なら `ApplyForOnePlay` → `EnterPlaymode`（同期で次の `ExitingEditMode`。行 2 を通らなければ行 3 で素通り）。tick の時点で同じ `PlayEntryFacts` を取り直して判定し直し、**その結果を最終の判断とする**（`ExitingEditMode` の判定は取り消すかどうかにだけ使う）。再判定、`ApplyForOnePlay`、`EnterPlaymode` は 1 つの同期呼び出しの中で続けて行い、間に他の Editor callback を挟まない。
+
+ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない。`Reset` は移行中に例外を投げ、手動 ledger も消すので、行 2 の拒否（手動 ledger + 開いた Scene を含む）には使えない。拒否、`EnterPlaymode` の例外、適用中の例外のどれでも、`isPlaying = false` または失敗のあと、次の idle tick で既存の `HandleIdle` が一回 ledger だけを戻す。Bridge は変更しない。
 
 ### use case と予防（program §4.2。M-08 に従い汎用の例から。host の例は括弧）
 
@@ -209,7 +211,7 @@
   - **取り消しの次の tick の `EnterPlaymode` で Play に入れる。** `EnterPlaymode` の中で `ExitingEditMode` が同期で発火した。`SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables` を tick で置いた `Title` の Play は約 9 秒で `EnteredPlayMode` に至り、12 秒の間に Error / Exception 0 件、停止後に Dirty は false のまま。**実 Runtime と同じ流れで、取り消しを挟んでも key の補完が効く。**
   - **`Edit/Play Mode/Play` の menu も同じ取り消し可能な `ExitingEditMode` を出す**（`Edit/Play` は無効）。
   - `UnityEditor.Toolbars.MainToolbar` と `MainToolbarElementAttribute` は public で存在する。既定で見えるかは未確認（初回確認は B の動作確認）。
-  - `TestRunnerApi` に static の実行中判定は無い。対話の Test Runner の検出は未確認。Unity テストの実行を伴うので、初回確認は Phase C、担当は判定 C の実行担当、確認地点は AC12。不成立時の対応は §6 D-3 を A3 で合意する。
+  - `TestRunnerApi` に public の実行中判定は無い（`IsRunActive` は internal）。PlayMode テストの Scene が `InitTestScene` で始まることは Test Framework の code で確認した（`CreateBootstrapSceneTask`）が、対話の Test Runner での実行は未確認。Unity テストの実行を伴うので、初回確認は Phase C、担当は判定 C の実行担当、確認地点は AC12。不成立時の対応は §6 D-3。
 - 人間の判断が必要な条件: AC14（実クリックと表示の確認）と AC10 の保存確認の実 UI。§6 D-4。
 - 高コスト証拠: なし（AC9・AC10 の準備の Content Directory build は Phase C の通常の Build として 1 回行う）。
 - 判定 C の照合 script の方式: なし（テスト XML と観測 file を判定 C の担当が読む）。
@@ -217,7 +219,7 @@
 - A0/A1 主担当・モデル・ベンダー: A0 は program（複数担当）。A1 は Claude Opus 5.5（Anthropic）。
 - A2 独立レビュー: §7 に記録する。
 - A3 統合担当・モデル・採否: 未実施。
-- C' 用に予約した担当・モデル・ベンダー: なし。A2 で Grok 系を予約したが、PR の外部レビューで cursor[bot] がその予約を使ったと報告した（担当のモデルは本書の作成者からは確認できない）。normal risk で強化条件は必須でないので、C' の開始時に B / C と異なるモデルの新規 session を選ぶ。
+- C' 用に予約した担当・モデル・ベンダー: なし。A2 で Grok 系を予約したが、PR の外部レビューで cursor[bot] がその予約を使ったと報告した（担当のモデルは本書の作成者からは確認できない）。normal risk で強化条件は必須でないので、C' の開始時に B / C と異なるモデルの新規 session を選ぶ。PR の外部レビューは C' に数えない。
 - 独立性の強化条件を満たせない場合の理由: 該当なし（normal）。
 
 ## 6. A3 判断候補
@@ -226,10 +228,10 @@
 
 - **D-1 snapshot の実 initializer の gate と機構 (i) / (ii) の選定（S0-b の移送）。決定済み（owner、2026-11-09）: S0-c の直後の別スライス S0-d へ送る。** 「Runtime を変えない」は常時契約でも owner 決定でもなく、revision 2 で「採否を戻せる粒度で前進する」ために置かれた範囲の選択である。S0-c がこれを維持する理由は、snapshot の起動順序が Play 入口とは独立に失敗しうる未知で、S3 は既に high で Runtime 接続・Player 非退行・移送分を抱えているため。S0-d は S0-c の取り消し → 再 Play の経路を使う。
 - **D-2 Play 入口の置き場所。** 推奨: **SampleGame の Editor asmdef**（§3）。再利用する検査と宣言がすべて SampleGame にあり host は 1 つなので、今は port と asmdef を作らない。program D2 は resolver の配置の決定と読む。代案: `OneStarMaker` の Editor に新設し host の interface を切る。
-- **D-3 対話の Test Runner の除外（A2 F-05、E-02）。** 推奨: **第一案は開いている Scene 名 `InitTestScene` の前方一致**で asmdef を増やさない。AC12 で両方向の反例を初回確認し、**不成立なら `SampleGame.DependOnAll.Editor` に `UnityEditor.TestRunner` の参照を足して `ICallbacks` で判定することを B 適応として事前承認する**。それでも検出できなければ Phase A の新 revision にする。誤検知（同じ接頭辞の利用者の Scene）は素通りになり、従来の Play と同じ失敗をするだけなので受け入れる。
+- **D-3 対話の Test Runner の除外（A2 F-05、E-02、E-10）。決定済み（owner、2026-11-09）: 開いている Scene 名 `InitTestScene` の前方一致だけで判定し、asmdef を増やさない。** 対象は PlayMode テストで、これは必ず `Assets/InitTestScene<guid>.unity` で始まる。`ICallbacks` は採らない。PlayMode テストの `RunStarted` は Play に入った後に発火するので `ExitingEditMode` の判定に使えず、EditMode の検出のためだけに参照と domain reload をまたぐ実行中フラグを増やさない。EditMode テストの `EnterPlayMode` は Scene 名で検出できないので通常の Play と同じ判定に通す。既存の 8 箇所はどれも `runtimeMode` を明示しており、取り消されない。key を置かない EditMode テストは介入されるが、batch では fail-closed で落ちる形である。directory と再利用 Scene が揃えば行 2 で拒否する。AC12 で不成立なら Phase A の新 revision にする。誤検知（同じ接頭辞の利用者の Scene）は素通りになり、従来の Play と同じ失敗をするだけなので受け入れる。
 - **D-4 AC14（実 Toolbar の Play のクリックと観測 UI の表示）と AC10 の保存確認の実 UI の担当。** 推奨: **判定 C の実行担当が画面操作で行い、できなければ owner が 1 回確認して観察記録を受理する**。画像の独立再評価までは求めない。
 - **D-5 目的レビューの「Play 前の割り込み・設定の自動補完・新しい観測 UI を作らない」の扱い（§7 P-2）。** 推奨: **不採用**。program §4.3 と U4 (a)（owner の A10 と R3 採用）が Play ボタンでの介入と key の補完と観測 UI を必須にしている。目的と利用者の文言は変えない（曖昧と指摘された語は §2 の用語と §1 の表で定義済み）。文言を変える場合は目的レビューのやり直しが要る。
-- **D-6 Play Mode Script の自動切替（E-04）。決定済み（owner、2026-11-09）: 永続の変更を仕様にする。** program §4.3 が黙って直してよい前提条件に挙げている。切り替えるのは tick の再判定を通った直後だけで、拒否の時は変えない。保存先は `Library/AddressablesConfig.dat` で追跡 file ではない。Console に 1 行出す。元に戻さない（`EnterPlaymode` の例外の時も Fast Mode のまま）。AC16。
+- **D-6 Play Mode Script の自動切替（E-04）。決定済み（owner、2026-11-09）: 永続の変更を仕様にする。** program §4.3 が黙って直してよい前提条件に挙げている。切り替えるのは tick の再判定を通った直後だけで、拒否の時は変えない。切り替える property は `ActivePlayModeDataBuilderIndex` で、保存先は `Library/AddressablesConfig.dat` で追跡 file ではない（`ActivePlayerDataBuilderIndex` は設定 asset を dirty にするので使わない）。Console に 1 行出す。元に戻さない（`EnterPlaymode` の例外の時も Fast Mode のまま）。AC16。
 - **D-7 明示 `addressables` + 非 Fast Mode（E-06）。決定済み（owner、2026-11-09）: 拒否せず記録する。** Use Existing Build を意図した明示設定を止めない。record と Warning に「既存 build を読みうる」を出す。Script も変えない。AC6。
 
 主担当の判断で進めた事項（異論があれば A3 で覆す）: 経路 Built の候補は検証を通った最新の install を使う（known-good の pin は呼び手が無い。複数なら Warning。S1 で互換判定に置き換える）。既定の RunPurpose は `spring-full`。§7 F-03 の不採用。§1 の利用者の欄の例示（S1、S3、S4、S5）は S0-d を足さない（文言の変更は目的レビューのやり直しになり、S0-d の A1 担当は本書の結果を program §8 から受け取れる）。
@@ -282,3 +284,11 @@
 | E-06 | 重要 | 明示 `addressables` が Play Mode Script を見ない | 採用 | §4 行 4、§6 D-7、AC6 |
 | E-07 | 重要 | 回復操作で未保存の Scene を失う | 採用 | §4 回復操作、N6、AC2、AC10 |
 | E-08 | 確認 | 行 6 は `PlacedEnvironment` | 採用 | §4 行 6 |
+
+### PR の外部レビュー 2 巡目（2026-11-09、cursor[bot]、PR #175、対象 commit `47f40315`）
+
+| ID | 重大度 | 要旨 | 採否 | 反映 |
+|---|---|---|---|---|
+| E-09 | 重要 | 行 2 の拒否で ledger を戻す手段が未固定（`Reset` は移行中に例外、手動 ledger も消す） | 採用 | §4「ledger の戻し方」、AC2 |
+| E-10 | 確認 | AC12 の検出漏れの反例が実質ない、行 2 と N4 の関係 | 採用。調査で D-3 の `ICallbacks` の代替が PlayMode テストに効かないと判明し、owner が Scene 名の判定だけに決定 | §6 D-3、N4、§4 行 1・行 2、§5、AC12 |
+| E-11 | 確認 | N1 の括弧が D-7 と矛盾、切り替える property | 採用 | N1、§6 D-6 |
