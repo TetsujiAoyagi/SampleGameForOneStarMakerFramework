@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（**A3 凍結版（revision 0）、2026-11-09。次は Phase B。** owner（root）が外部レビュー 3 巡目の「blocker なし」を受けて凍結を指示した。A2 入力版は commit `50d6ff2e`。A3 統合版は commit `09ac3df7` → `b4793e99` → `1b885fb5` → `c0842527`（外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外。S0-a の「A3 整理版」と同じ扱い）。A3 凍結版は本書を含む commit。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
+- status: `動作確認`（**Phase B 完了、2026-11-09。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）。次は発見 C。** 以下は A3 凍結時の記録。A3 凍結版（revision 0）、2026-11-09。 owner（root）が外部レビュー 3 巡目の「blocker なし」を受けて凍結を指示した。A2 入力版は commit `50d6ff2e`。A3 統合版は commit `09ac3df7` → `b4793e99` → `1b885fb5` → `c0842527`（外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外。S0-a の「A3 整理版」と同じ扱い）。A3 凍結版は本書を含む commit。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
 - branch: `claude/loving-lamport-7lbluf`（S1 のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `7b28eba`（`develop` の head、2026-11-08。本書の実測は全てこの base。Phase B の担当は着手時に `develop` の head と比べ、`Runtime/ContentResolution/` か `tools/ContentResolutionOfflineTests/` に差分があれば実装せずに止めて owner に返す。差分が無ければ base は `7b28eba` のままでよい）
-- implementation head commit: `未固定`
+- implementation head commit: `336dbbdc3dab0565861fc72a82c1a2f50c23aa7b`
 - risk: `normal`（program §8 のとおり。既存の公開型・asmdef・所有者・寿命・`SceneState`・Addressables・起動順序を変えず、`Runtime/ContentResolution/Core/` に新しい型を足すだけ。新しい公開面の追加は、S0-a の owner 裁定（同スライスの Q1）と同じく「公開 API を変える」高リスクに数えない。A2 のアーキテクチャゲートはこの分類を妥当とした（§5.1 G-総合）。ただし理由の形式 `compat:<種別>:` と予約 key `osm.compat.*` は S3 / S4 / S5 が依存する事実上の契約になるので、A3 で名前を凍結し、harvest 文書に載せる）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
 - created: 2026-11-08
@@ -16,16 +16,16 @@
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md` の「要求時の Content 解決」節（`IContentCompatibilityRule` の製品実装、互換 envelope、host 述語の合成規則と snapshot の扱い、由来ごとの汎用判定、互換の不採用が `RuleRejected` + 理由 code で残ること、終わり方が既存の優先順に従うこと、予約 key、まだ保証しないこと）。program の harvest（§18 §4 等）は program の完了時
 - 関連: [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（**所有境界の正本。** 本スライスの型は S0-a と同じく AssetManagement の上の任意の層 `Runtime/ContentResolution/Core/` に置き、BuildSystem 本体を参照しない。境界を本書で定義し直さない）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本スライスは起動コードに触れないので、Phase B の同時実行制約の対象外）、S0-c `EDITOR_PLAY_ENTRY_PROOF`（owner のローカルで進行中。本スライスは S0-c の入口・ledger・config に触れない。§2.3）
 - Phase A snapshot の取得案内・状態: 未生成（Cloud に Artifact Storage が無いため、A3 凍結版は snapshot ではなく commit と PR #174 で渡す。機械向けの期待値・照合 script は無い（§5「判定 C の照合 script の方式」が `なし`）。C / C' の入力の固定は判定 C の担当が evidence bundle で行う）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（Phase B は Cloud で行い、Artifact Storage が無い。実装は implementation head の commit と PR #174 で渡す。dotnet の出力の末尾は §6 に転記した）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。担当は owner が選ぶ。Cloud（Unity の無い環境）で行ってよい（§2.4）。
-  - 次の作業: §4 の順序で §3 の 4 file と offline テスト（C1〜C30）を実装し、`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` を exit 0（58 件）にする。AC2 の許可リストを `git diff -M --name-status 7b28eba HEAD` で自分で照合する。出口で §6 を書き、実装 commit と記録 commit を分けて切る（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。Unity の compile と `contract-audit` を実行できなければ「未確認」と §6 に書く（PR の CI の `audit` ジョブが contract-audit を走らせる）。
-  - 引き継ぐ commit: 本書を含む A3 凍結版の commit（SHA は tree の外、起動指示と PR #174 の状態ブロックで渡す）。開始時に HEAD と照合し、implementation head 欄が `未固定` であることを確かめる。
-  - 必要な権限: リポジトリへの push（Cloud の担当は Phase 境界で push し、PR #174 の状態ブロックを更新する）。dotnet SDK 8 の install（Cloud の環境に無ければ）。Unity・実操作・資格情報は不要。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて owner に返す。既存の公開型（`Runtime/ContentResolution/` の既存 22 file）、resolver、S0-c の file、Bootstrap、Distribution、SampleGame を変えない。Unity テスト・`run-tests.ps1`・Build を実行しない（Phase C の責任）。判定 C の照合や C' の起動をしない。
-  - 引き渡さないもの: なし。
+  - 次の Phase・役割: 発見 C（Phase C の欠陥発見。GO 判定はしない）。担当は owner が選ぶ。動作確認は対象なし（§5 の検証経路に操作・実行時・目視の条件が無い）なので、Phase B の次は発見 C。
+  - 次の作業: implementation base `7b28eba` から implementation head（§0 の欄）までの差分を、§2.2 の AC、§3 の責務マップ、§4 の判定順、§5 の C1〜C30、§2.1 の反例（a）〜（p）で構造レビューする。Phase B が未確認のもの（§6「未実行のもの」: Unity の compile、`contract-audit`、全 EditMode 回帰）は Phase B の結果に依らず、C の側で確認する。差し戻しが要れば B へ返す（B と発見 C の往復は 4 巡まで）。
+  - 引き継ぐ commit: 本票を含む記録 commit（SHA は tree の外、起動指示と PR #174 の状態ブロックで渡す）。開始時に HEAD と照合し、implementation head 欄の SHA が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` の本書だけであることを確かめる。
+  - 必要な権限: リポジトリの読み取り。offline テストは dotnet SDK 8。Unity のコンパイル確認と全 EditMode 回帰（判定 C）には Unity Editor `6000.6.0f1` と `pwsh`。実操作・資格情報は不要。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる指摘は Phase A の再開として owner に返す。それ以外の後続の入力は §2.3 の所有スライスへ送り、現スライスの受け入れ条件を広げない。発見 C は C' を起動しない。
+  - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない。osm-workflow の「Phase C': 独立監査」の規則）。
 ### PR 状態ブロック
 
 PR が存在する間は PR 本文先頭の状態ブロックを更新する。値は本 §0 を正とする。
@@ -392,7 +392,58 @@ owner の依頼で、凍結前に主担当が本書を Phase C / C' の目で読
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 担当: Claude Code（Cloud、Unity の無い環境）、2026-11-09。引き継いだ commit は A3 凍結版 `d60658b`。着手時の確認: HEAD が同 SHA で作業ツリーは clean、implementation head 欄は `未固定`、`develop` の head は `7b28eba` のままで、`Runtime/ContentResolution/` と `tools/ContentResolutionOfflineTests/` に差分は無かった（implementation base は `7b28eba` のまま）。
+- implementation head: `336dbbd`（実装 commit。本節と §0 は別の記録 commit。phases-and-handoff.md「引継ぎ票」の (a)）。
+- **Unity 実機では何も検証していない。** Unity Editor のコンパイル、`pwsh tools/contract-audit.ps1`、全 EditMode 回帰はこの環境で実行していない（下の「未実行のもの」）。
+
+### 実装の要約
+
+- 製品の新規 file は `Runtime/ContentResolution/Core/` 直下の 4 つ（§3）。namespace は既存の `OneStarMaker.Runtime.ContentResolution`。既存の型・asmdef は変えていない。
+  - `ContentCompatibilityMismatch.cs`（58 行）: §3 の 14 値を、§3 の順で `Unset = 0` から `HostPredicateRejected = 13` に置いた。
+  - `ContentCompatibilityFactKeys.cs`（29 行）: `ReservedPrefix = "osm.compat."`、`EngineVersion`、`RootSchemaVersion`。宣言に当たる key は定義していない。
+  - `ContentCompatibilityEnvelope.cs`（77 行）: `ContentSet`・`Target`・`EngineVersion`（null・空・空白だけを `ArgumentException`）、`RootSchemaVersion`（1〜999,999,999 の外は `ArgumentOutOfRangeException`）、`Revision`（null は固定しない、空・空白だけは `ArgumentException`）。比較は持たない。
+  - `ContentCompatibilityRule.cs`（228 行）: `Evaluate(request, candidate, out reason)` と、`Compatible` の時だけ true を返す `Accepts`。§4 の判定順のとおり、private の `EvaluateGeneric`（判定順 1〜4）と `EvaluateHostPredicates`（5〜6）の 2 段に分けた。schema は手書きの `TryParseSchemaVersion`（`int.TryParse` を使わない）。述語の一覧は constructor で配列に複製し、null の要素を拒む。述語の例外は捕まえない。理由は `compat:<値の名前>:<説明>`。採用時は `compat:Compatible:EditorSnapshot` / `compat:Compatible:ContentDirectory` と完全一致させ、述語の理由は連結しない。
+- テスト: `tools/ContentResolutionOfflineTests/CompatibilityTests.cs`（新規、755 行、`Program` の partial）に C1〜C23・C25〜C30 と host 述語の fixture（宣言名・宣言の表現・graph の version を host 固有の key で比べる 3 種と、受理・拒否・例外・取消の fixture）を置いた。`Program.cs` の変更は `partial` の付加、`Main` の 2 行（C24 の `Run` と `RunCompatibilityTests()`）、C24 `UnmetPin_ThenFault_IsIntegrityRejected` の 1 件だけ（693 → 706 行）。既存の 28 件の名前・assertion・本文は変えていない。csproj に新規 4 file の `<Compile Include>` を足した（33 → 37 行）。
+- `.meta` は既存の Core の `.meta` と同じ 2 行（`fileFormatVersion: 2` と新しく生成した 32 桁の 16 進の `guid`）を手で書いた（§2.4）。4 つの guid が repository 内で各 1 file にしか現れないことを `git grep -l` で確かめた。
+- 自分で照合した機械検査:
+  - AC2: `git diff -M --name-status 7b28eba HEAD` の全 13 行が許可リストの 1〜5 に当たる（`A` の Core 4 file と各 `.meta`、`M` の csproj と `Program.cs`、`A` の `CompatibilityTests.cs`、Phase A の `A` 本書と `M` program）。
+  - AC3: `git diff -M --name-status 7b28eba HEAD -- unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution` は 8 行が全て `A` で、AC2 の 1 に当たる。AC3 の `git grep -n "ContentCompatibility" -- <AssetManagement・BuildContent・Bootstrap・SceneSystem・Editor・SampleGame>` は 0 件。
+  - AC4: §5 の表の 30 個のテスト名について、出力に `PASS <名前>` の行が全てあり、`FAIL` の行は無い（既存 28 件の `PASS` 行も全てある）。
+  - AC6: 新規 Core の 4 file を、各行を小文字にし `cancel` を取り除いてから語の一覧で検査し 0 件（C29 も同じ検査を行う）。`CompatibilityTests.cs` を `declaration` を除いた一覧で `grep -n -i` して 0 件（C29 の語は断片をつないで組み立てている）。
+  - 新規 Core の file に `ThrowIfNull`、`init;`、`record ` は無く、5 つの新規 `.cs` は全て `#nullable enable` で始まる。
+
+### HANDOFF との差（設計判断は足していない）
+
+- 行数: `ContentCompatibilityRule.cs` は予想 180 に対し 228、`CompatibilityTests.cs` は予想 580 に対し 755、`Program.cs` は予想 740 に対し 706。Rule の増分は XML doc と理由のコメント、tests の増分は C14 の (i)〜(v) と C17 の 12 通りの組を個別に書いたことによる。変更理由・依存・helper は §3 のとおりで、分割していない。
+- 述語が採らなかった時の理由の説明部分は `host predicate <0 起点の番号> rejected: <述語の理由>` とした（§4 の判定順 5 は「番号と述語が返した理由を含める」だけを定める）。
+- envelope の schema の範囲外の例外は `ArgumentOutOfRangeException`（`ArgumentException` の派生）にした。`Revision` は §3 の「空白だけは `ArgumentException`」を空文字にも当てた（null 以外で `string.IsNullOrWhiteSpace` が true の値）。
+- テストの helper `Verdict` は `Evaluate` と `Accepts` の両方を呼び、結果と理由が一致することを毎回確かめる。そのため C12 の述語の呼び出し回数は 2（`Evaluate` と `Accepts` に各 1 回）を期待する。C15 は `Evaluate` を 1 回だけ呼んで回数を数える。
+- §4 の順序の 4（Unity Editor でのコンパイル）と 5（`contract-audit`）は、この環境に Unity と `pwsh` が無いので行っていない（下）。
+- dotnet SDK は `dot.net` の install script が proxy に拒まれたので、Ubuntu 24.04 の apt の `dotnet-sdk-8.0`（8.0.133）を使った。
+
+### 未実行のもの
+
+- **Unity Editor のコンパイル: 未確認。** この環境に Unity が無い。.NET Standard 2.1 に無い API を使っていないことは目視で確かめただけで、Unity では確かめていない。Phase C の全 EditMode 回帰（コンパイルを含む）で代える（§2.4）。
+- **`pwsh tools/contract-audit.ps1`: 未確認。** この環境に `pwsh` が無い。push 後の PR #174 の CI の `audit` ジョブ（contract-audit と docs-audit）の結果は PR の状態ブロックと報告で示す。
+- **`pwsh tools/docs-audit.ps1`: 未確認**（同上。CI の `audit` ジョブで走る）。
+- **全 EditMode 回帰（AC7）: 未実行。** Phase C の責任。Unity テスト・`run-tests.ps1`・Build は実行していない。
+- **`.meta` の Unity import 後の不変: 未確認。** 手書きの `.meta` を Unity が書き換えないことは Phase C の import の後に `git status` で確かめる（§2.4）。
+- Unity 実機での動作確認: 本スライスの合格条件に無く、行っていない（§5「統合・Unity テスト」）。
+
+### 実行した dotnet の出力の末尾
+
+`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` を implementation head の tree で実行し、exit 0。
+
+```text
+PASS Compat_NoHostPredicate_SameCandidateSameVerdict_AcrossSourceOrder
+PASS Compat_RepairAfterRejected_RequiresCompatibleCopy
+PASS Compat_HostPredicate_DoesNotDisplaceSnapshot
+PASS Compat_NewCoreFiles_AreDirectlyUnderCore_AndGeneric
+PASS Compat_UnspecifiedRepresentation_MayAdoptOtherRepresentation
+ContentResolution offline: 58 passed, 0 failed, 58 executed
+```
+
+この出力は Phase B の自己確認で、判定 C の判定の入力にしない（§5.2「C / C' への読み方」）。
 
 ### 動作確認
 
