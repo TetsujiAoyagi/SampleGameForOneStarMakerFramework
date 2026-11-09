@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（**Phase B 完了、発見 C の開始待ち**。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `C`（**発見 C 1 巡目完了。阻害する指摘 1 件（B 適応）を B へ差し戻し**。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
 - implementation head commit: `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`
@@ -20,8 +20,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（実装差分の構造・契約・凍結済み失敗経路のレビュー）。凍結した Phase A は revision 1。
-  - 次の作業: §8 の実装結果と implementation head の差分を、§2 の不変条件・AC と §3 の責務マップに照らしてレビューする。差し戻し中のテストは §5 の起点 `-Filter`。単体テストは B では未実行で、最初の実行は C になる。
+  - 次の Phase・役割: Phase B（発見 C 1 巡目の差し戻し。B と発見 C の差し戻しの 1 巡目）。修正後は新しい implementation head で発見 C の 2 巡目。凍結した Phase A は revision 1。
+  - 次の作業: §9 の指摘 C-1（`AlignFastMode` の偽 null の契約違反、B 適応）を直す。直すのは `PlayEntryInterceptor.cs` の 1 箇所で、Runtime・asmdef・契約・責務配置は変えない。直したら §8 に B 適応として 1 行記録し、implementation head 欄を新しい commit に更新する。
+  - 発見 C が済んだ範囲: 構造・契約・失敗経路の読解、起点 `-Filter` の単体テスト実行（113 件 passed、§9）。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）。
   - 動作確認の `未実施`（判定 C の完了前に解消）: AC9、AC10、AC12、AC14。理由と担当は §8「動作確認」。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
   - 必要な権限: Unity Editor の起動・`eval`、Windows の Phase C バッチテストの sandbox 外実行（`osm-workflow`）。資格情報は不要。Editor は B の session が終了済み。
@@ -341,3 +342,18 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 - 検証経路の期待と違う観測と、B への差し戻し: なし。AC6 非 Fast は Addressables の前提で Play に入らなかった点だけが §5 の想定より手前で止まった。AC13 の Editor 設定の保存で `unity/ProjectSettings/EditorSettings.asset` が再シリアライズされて差分が出たので（値の変更ではなく欄の増減）、`git restore` で戻した。実行担当は AC13 の後に同じ確認が要る。
 - 保存先・状態: 未保存（B の session の観測で判定の入力にしない。生の出力は session の一時領域のみ）。
 - `未実施` の条件と理由・担当: AC9・AC10（Content Directory の Build が要る。判定 C の実行担当）、AC12（Unity テストの実行が要る。判定 C の実行担当）、AC14（実クリックと表示の確認。§6 D-4 の判定 C の実行担当、できなければ owner）。
+
+## 9. 発見 C 記録（1 巡目）
+
+- 種別: 発見 C（GO 判定ではない。C' は起動しない）。対象: implementation base `7b28ebad`、implementation head `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`。
+- 担当・モデル・ベンダー: Claude Sonnet 5.5（Anthropic）。B の担当（Claude Opus 5.5）と別モデル。
+- 構造適合（§3 の責務マップと照合）: 7 file は表どおりの責務・配置・依存で、各 500 行未満（B の説明のとおり +42〜+122 の超過は Record の 2 型と観測の遷移など）。`PlayEntryDecision` は `UnityEditor` を持たず、副作用は `PlayEntryInterceptor` だけが持つ。asmdef、Runtime、`SceneState`、`ContentDeliveryPlayBridge` に差分はない。`git diff --name-only 7b28ebad 9bcbb3f4` に `Scripts/Runtime/`、`.asmdef`、`SceneState` を含まない（AC15 の差分条件）。
+- 失敗経路の読解（不変条件）: N1〜N5 は、判定表（行 1〜9）、状態機械（取り消し中の 2 度目、再入、一回 ledger + 再利用 Scene の即時確定、`EnterPlaymode` と適用の例外、`Reset` を呼ばず `HandleIdle` に任せる）が §4 のとおり実装されている。経路ごとに対応する単体テストがある。N6 は取り消しで Scene に触れず、回復操作だけが保存確認を通す。
+- 実行したテスト: `pwsh tools/run-tests.ps1 -Filter` に §5 の起点 7 class（`PlayEntryDecisionTests`、`PlayEntryTransactionTests`、`PlayEntryCandidatesTests`、`PlayEntryRecordTests`、`ContentDeliveryPlayBridgeTests`、`PurposeLaunchSettingsTests`、`VerifyPlaySequenceTests`）を指定した。結果は XML で 113 件 passed、failed 0、inconclusive 0（`PlayEntry*` 4 class は計 75 件。§8 の「71 件」は実測と違う）。`contract-audit` は errors=0 / warnings=0、`docs-audit` は errors=0。
+- 違反根拠を伴う現在の問いを阻害する指摘（B 適応）:
+  - **C-1 `AlignFastMode` が `UnityEngine.Object` に `??` を使っている。** `PlayEntryInterceptor.AlignFastMode` の `AddressableAssetSettingsDefaultObject.Settings ?? throw new InvalidOperationException(...)`。違反する契約は `AGENTS.md`「Unity の偽 null を忘れない」（破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` を使わず `== null` で判定する）で、静的な契約違反なので失敗した条件と一次証拠で足りる。`Settings` は `ScriptableObject` で、`PlayEntryInterceptor.CollectFacts` や `PlayAsLauncher.CheckAddressablesPlayMode` は `== null` で判定しており、同じ型の扱いが揃っていない。実害は小さい（破棄された `Settings` では次行の `DataBuilders` が例外になり、`OnTick` の `catch` で `Blocked` になる）。修正は `var settings = ...Settings; if (settings == null) throw ...;` の 1 箇所。B 適応で足り、Phase A は再開しない。
+- 後続・判断へ移送する確認事項（blocker にしない。凍結済みのどの条件にも違反しないため）:
+  - **C-2 観測が閉じないまま残る経路。** `BeginPlanned` で `observing=true` にした後、`EnteredPlayMode` に至らず `EnteredEditMode` も来ない失敗（例: 取り消しが効いて Play が始まらない）では、観測が開いたままになり、後の無関係な Error が前の Play の record を `StartupFailed` に書き換えうる（`enteredPlayTime` が 0 の間は観測窓の上限が掛からない）。P4 の「観測した事実だけを書く」に照らすと弱いが、AC4・AC6 の合否と、B の動作確認で得た観測には影響しない。次の Play の `BeginPlanned` で record は置き換わる。直すかは owner の判断（直すなら B 適応で `Planned` のまま idle へ戻った時に観測を閉じる）。
+  - **C-3 N2 の読み方。** 新しい revision の検証に失敗した時、B は次に新しい検証済み revision を使い、Warning に飛ばした revision を出す（§8）。N2 は「黙って別の revision へ切り替えない」で、Warning と record の revision で黙ってはいないので、現行の読みは凍結条件に反しない。ただし「失敗した時は拒否する」という厳しい読みもありうるので、判定 C の担当が AC3 の観測と照らして確認する。
+- 発見 C で未確認（判定 C の範囲）: 全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認（§8 動作確認）、Toolbar と詳細窓の見え方。
+- 動作確認の `未実施`（判定 C の完了前に解消）: 変更なし（AC9、AC10、AC12、AC14）。
