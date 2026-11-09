@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（**差し戻し 1 巡目の B 適応（C-1）を commit `f87e7806` で修正。Editor のコンパイル確認は未了（§8）。発見 C 2 巡目は未実施**。発見 C 1 巡目の結論は §9。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `B`（**差し戻し 1 巡目の B 適応（C-1）を commit `f87e7806` で修正。Editor のコンパイルは `f87e7806` で成功を確認（§8、§9）。発見 C 2 巡目は実施済みで、現在の問いを阻害する指摘は無い。判定 C は未実施**。発見 C 1 巡目の結論は §9。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
 - implementation head commit: `f87e7806e50edf47eeb43fbbe3b615f42d9cd50a`（B 適応 C-1 の修正後。前の head は `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`）
@@ -20,9 +20,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C 2 巡目（B 適応の確認）。凍結した Phase A は revision 1。
-  - 次の作業: §9 の指摘 C-1（`AlignFastMode` の偽 null）は commit `f87e7806` で修正済み（`PlayEntryInterceptor.cs` の 1 箇所、Runtime・asmdef・契約・責務配置は不変）。発見 C 2 巡目は implementation head `f87e7806` の差分（C-1 の修正）と、その修正の前後で影響する経路を確認する。**Editor のコンパイル確認は未了**（§8。起動した Editor が応答しなかった）。未了のまま発見 C を通す場合は、発見 C の記録にその旨を残す。
-  - 発見 C が済んだ範囲: 1 巡目は構造・契約・失敗経路の読解、起点 `-Filter` の単体テスト実行（113 件 passed、§9）。2 巡目は未実施。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）と、B 適応の修正後のコンパイル確認。
+  - 次の Phase・役割: 判定 C の準備（GO 候補 head は `f87e7806`。未解決の blocker は無い）。GO / NO-GO は未判定で、C' は起動しない。凍結した Phase A は revision 1。
+  - 次の作業: 判定 C。全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認。§9 の C-2・C-3 は判定 C の担当が確認する移送事項（blocker ではない）。
+  - 発見 C が済んだ範囲: 1 巡目は構造・契約・失敗経路の読解と起点 `-Filter` の単体テスト（113 件 passed、`9bcbb3f4` の結果）。2 巡目は C-1 の修正の確認と `f87e7806` のコンパイル確認（成功、§9）。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）。
   - 動作確認の `未実施`（判定 C の完了前に解消）: AC9、AC10、AC12、AC14。理由と担当は §8「動作確認」。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
   - 必要な権限: Unity Editor の起動・`eval`、Windows の Phase C バッチテストの sandbox 外実行（`osm-workflow`）。資格情報は不要。Editor は B の session が終了済み。
@@ -311,7 +311,7 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 - B 適応（発見 C 1 巡目の C-1、commit `f87e7806`）: `AlignFastMode` で `AddressableAssetSettingsDefaultObject.Settings ?? throw` を `Settings` の取得と `== null` の判定に変えた。`Settings` は `UnityEngine.Object` で、`??` は破棄された object を null と見なさないため、AGENTS.md の偽 null 規則に違反していた。契約・責務・Runtime は変えない。
 - 未実行: Unity の単体テストと全 EditMode 回帰（Phase C）。Build（AC9・AC10 の準備）も未実行。
 - 機械検査: `pwsh tools/contract-audit.ps1` は `f87e7806` で errors=0 / warnings=0。`git diff --name-only 7b28ebad HEAD` に `Scripts/Runtime/`、`.asmdef`、`SceneState` を含まない（修正前の確認。修正は `PlayEntryInterceptor.cs` の 1 箇所）。
-- 実 Editor のコンパイル: `9bcbb3f4` の時点では成功（`scriptCompilationFailed=false`）。**`f87e7806` の修正後は未確認。** 修正後の確認を試みたが、`tools/unity-editor.cmd` の起動（`unity open` の Unity 6000.6.0f1）で Editor が起動し、ライセンス接続までは進んだものの、以後 8 分以上ログが進まず、メインウィンドウも出ず、`status` の接続も得られなかった。起動したこの Editor（PID 12992）は、Scene を編集していないため強制停止した。原因は未調査（既知の終了 stall とは別の起動の停止。再調査は 1 回に限る方針で、本記録では原因を特定しない）。次の担当は、Editor の起動が正常に進む時にだけ compile 確認を行い、結果を §8 に追記する。
+- 実 Editor のコンパイル: `9bcbb3f4` の時点では成功（`scriptCompilationFailed=false`）。**`f87e7806` の修正後は、B の session では未確認だった（発見 C 2 巡目で成功を確認。§9）。** B の session の確認では、`tools/unity-editor.cmd` の起動（`unity open` の Unity 6000.6.0f1）で Editor が起動し、ライセンス接続までは進んだものの、以後 8 分以上ログが進まず、メインウィンドウも出ず、`status` の接続も得られなかった。起動したこの Editor（PID 12992）は、Scene を編集していないため強制停止した。原因は未調査（既知の終了 stall とは別の起動の停止。再調査は 1 回に限る方針で、本記録では原因を特定しない）。次の担当は、Editor の起動が正常に進む時にだけ compile 確認を行い、結果を §8 に追記する。
 - implementation head commit: §0 の欄
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）
 
@@ -358,3 +358,17 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
   - **C-3 N2 の読み方。** 新しい revision の検証に失敗した時、B は次に新しい検証済み revision を使い、Warning に飛ばした revision を出す（§8）。N2 は「黙って別の revision へ切り替えない」で、Warning と record の revision で黙ってはいないので、現行の読みは凍結条件に反しない。ただし「失敗した時は拒否する」という厳しい読みもありうるので、判定 C の担当が AC3 の観測と照らして確認する。
 - 発見 C で未確認（判定 C の範囲）: 全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認（§8 動作確認）、Toolbar と詳細窓の見え方。
 - 動作確認の `未実施`（判定 C の完了前に解消）: 変更なし（AC9、AC10、AC12、AC14）。
+
+## 9. 発見 C 記録（2 巡目）
+
+- 種別: 発見 C（GO 判定ではない。C' は起動しない）。対象: implementation base `7b28ebad`、implementation head `f87e7806e50edf47eeb43fbbe3b615f42d9cd50a`。引き継ぎ commit `73fcc6bb6b6976257d3aa0473ce5b32ac221da4f`（worktree の HEAD と一致を確認。`f87e7806` から HEAD までの差分は本書だけ）。
+- 担当・モデル・ベンダー: Claude Sonnet 5.5（Anthropic）。1 巡目と同じ。B の担当（Claude Opus 5.5）と別モデル。
+- **Editor のコンパイル確認（§8 の未了の解消）。** `unity open` でこの project の Editor を起動し（Unity 6000.6.0f1、PID 33520。起動時のアセットのインポートと 2 回の Domain Reload に数分かかったが進行した）、ready 後に `eval` で確認した: `scriptCompilationFailed=False`、`isCompiling=False`、`SampleGame.DependOnAll` と `SampleGame.DependOnAll.Editor` がロード済み。`unity/Logs/Editor.log` に `error CS` は 0 件。**コンパイルは `f87e7806` で成功。** 開いていた Scene は無題で Dirty なし。Editor は `EditorApplication.Exit` で終了を確認した（自分で起動した Editor のみ）。起動時に Editor が書き換えた `UniversalRenderPipelineGlobalSettings.asset` は本スライスと無関係の再シリアライズなので `git restore` で戻した。
+- C-1 の修正の確認: `AlignFastMode` は `Settings` を変数に取り、`settings == null` で判定して例外にする形になった。違反していた AGENTS.md「Unity の偽 null」の指摘は解消。差分は `PlayEntryInterceptor.cs` の 1 箇所（+3 / -2）で、Runtime、asmdef、`SceneState`、`ContentDeliveryPlayBridge` に差分はない。`PlayEntry*.cs` 全 file の `??` / `?.` / `is null` を洗い直し、残りはすべて `UnityEngine.Object` でない型（string、delegate、自前の class）で、偽 null の違反は無い。`CollectFacts` の `addressables == null` / `!= null` は元から正しい。
+- 影響経路: `AlignFastMode` は `PlayEntryPorts` から注入され、単体テストは fake で置き換えるため、この修正は単体テストの対象外。実経路は AC16 の Source（§8 動作確認、`9bcbb3f4` で観測済み）で、`Settings` が破棄されていない通常の値では結果が変わらない。破棄された値の時は「`DataBuilders` の例外」から「明示の `InvalidOperationException`」になっただけで、`OnTick` の `catch` による `Blocked` の経路は同じ。
+- 実行した検査: `pwsh tools/contract-audit.ps1` は違反なし。`pwsh tools/docs-audit.ps1` は errors=0（警告 2 件は `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7(C)・§8(C') の harvest に関する既存の警告で、本スライスの変更によらない）。**単体テストは再実行していない**: 修正は注入された port の中の 1 箇所で、起点 7 class のどれも通らない。1 巡目の 113 件 passed は `9bcbb3f4` の結果で、`f87e7806` で再取得した値ではない。
+- 現在の問いを阻害する指摘: **なし。** 新しい blocker も、凍結条件への違反も見つからなかった。
+- 引き続き移送する確認事項（1 巡目から変更なし。blocker ではない）: C-2（観測が閉じないまま残る経路。直すかは owner の判断）、C-3（N2 の読み方。判定 C が AC3 の観測と照らす）。
+- 発見 C で未確認（判定 C の範囲）: 全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認、Toolbar と詳細窓の見え方。
+- 動作確認の `未実施`（判定 C の完了前に解消）: 変更なし（AC9、AC10、AC12、AC14）。
+- 巡の数え方: 1 巡目の差し戻し（C-1）が B と発見 C の間の 1 巡。2 巡目で阻害する指摘が無くなり、往復は収束した（上限 4 巡のうち 1 巡）。
