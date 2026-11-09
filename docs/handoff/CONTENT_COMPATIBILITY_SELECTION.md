@@ -5,9 +5,9 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（**A3 統合版（外部レビュー 2 巡と owner の裁定を反映）。まだ凍結していない。** A2 の独立レビュー 3 件と、owner が依頼した外部レビュー（PR #174 のコメントと 2 件の行コメント。§5.1）の採否を本文に反映した。owner は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を全て推奨どおりに裁定し、目的の文言を改め（§1）、未関与の担当による目的レビューのやり直しも済んだ（§5.1）。凍結は owner の指示を待つ（A3 凍結版の commit で status を凍結にする）。Phase B は未着手。A2 入力版は commit `50d6ff2e`、A3 統合版の最初の commit は `09ac3df7`。本版を commit にして push したのは、外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外である（S0-a の「A3 整理版」と同じ扱い）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
+- status: `A`（**A3 凍結版（revision 0）、2026-11-09。次は Phase B。** owner（root）が外部レビュー 3 巡目の「blocker なし」を受けて凍結を指示した。A2 入力版は commit `50d6ff2e`。A3 統合版は commit `09ac3df7` → `b4793e99` → `1b885fb5` → `c0842527`（外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外。S0-a の「A3 整理版」と同じ扱い）。A3 凍結版は本書を含む commit。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
 - branch: `claude/loving-lamport-7lbluf`（S1 のスライスブランチ。PR の base は `develop`）
-- implementation base commit: `7b28eba`（`develop` の head、2026-11-08。本書の実測は全てこの base。Phase B の着手時に head を取り直し、`Runtime/ContentResolution/` に差分があれば §1 現況を読み直す）
+- implementation base commit: `7b28eba`（`develop` の head、2026-11-08。本書の実測は全てこの base。Phase B の担当は着手時に `develop` の head と比べ、`Runtime/ContentResolution/` か `tools/ContentResolutionOfflineTests/` に差分があれば実装せずに止めて owner に返す。差分が無ければ base は `7b28eba` のままでよい）
 - implementation head commit: `未固定`
 - risk: `normal`（program §8 のとおり。既存の公開型・asmdef・所有者・寿命・`SceneState`・Addressables・起動順序を変えず、`Runtime/ContentResolution/Core/` に新しい型を足すだけ。新しい公開面の追加は、S0-a の owner 裁定（同スライスの Q1）と同じく「公開 API を変える」高リスクに数えない。A2 のアーキテクチャゲートはこの分類を妥当とした（§5.1 G-総合）。ただし理由の形式 `compat:<種別>:` と予約 key `osm.compat.*` は S3 / S4 / S5 が依存する事実上の契約になるので、A3 で名前を凍結し、harvest 文書に載せる）
 - owner: root（依頼者）。A2 / B / C / C' の担当は Phase ごとに選ぶ
@@ -15,18 +15,17 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点。期限時は owner が更新・廃止を判断する
 - harvest to: `unity/Assets/Docs/Architecture/13-resource-system.md` の「要求時の Content 解決」節（`IContentCompatibilityRule` の製品実装、互換 envelope、host 述語の合成規則と snapshot の扱い、由来ごとの汎用判定、互換の不採用が `RuleRejected` + 理由 code で残ること、終わり方が既存の優先順に従うこと、予約 key、まだ保証しないこと）。program の harvest（§18 §4 等）は program の完了時
 - 関連: [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（**所有境界の正本。** 本スライスの型は S0-a と同じく AssetManagement の上の任意の層 `Runtime/ContentResolution/Core/` に置き、BuildSystem 本体を参照しない。境界を本書で定義し直さない）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本スライスは起動コードに触れないので、Phase B の同時実行制約の対象外）、S0-c `EDITOR_PLAY_ENTRY_PROOF`（owner のローカルで進行中。本スライスは S0-c の入口・ledger・config に触れない。§2.3）
-- Phase A snapshot の取得案内・状態: 未生成（Cloud に Artifact Storage が無いため、A3 統合版は snapshot ではなく owner の指示で commit と draft PR で渡す。機械向けの期待値・照合 script は無い（§5「判定 C の照合 script の方式」が `なし`））
+- Phase A snapshot の取得案内・状態: 未生成（Cloud に Artifact Storage が無いため、A3 凍結版は snapshot ではなく commit と PR #174 で渡す。機械向けの期待値・照合 script は無い（§5「判定 C の照合 script の方式」が `なし`）。C / C' の入力の固定は判定 C の担当が evidence bundle で行う）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3 の凍結（owner の指示で主担当が行う）。
-  - 次の作業: owner の凍結の指示を受けたら、§5.2 の自己点検の結果を確認し、owner の環境で `pwsh tools/docs-audit.ps1` を通してから、A3 凍結版を commit する（その commit の §0 は status を凍結に、本票を Phase B 向けに書き換える。implementation base は Phase B の着手時に取り直す）。外部レビューの追加の巡があれば、先に §5.1 と同じ形式で採否に分類する。
-  - 引き継ぐ commit: 本書を含む A3 統合版の commit（SHA は tree の外、PR の状態ブロックで渡す）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: A3 凍結まで Phase B を始めない。S0-c の入口・Bootstrap・既存 Runtime の公開型（S0-a の 20 file と resolver を含む）を変える提案は、本スライスでは採らず、§2.3 の所有先へ送るか owner に返す。U-S1-6 を (b)（問いの差し戻し）と裁定された場合は、本書を凍結せず program の A0 へ戻す。S0-c の計画（PR #175）が先にマージされた場合は、本書の program の変更（§8 の S1 行）を S0-c が足した S0-d の行の後に合わせて rebase する（同じ表の隣り合う行を両方が変えるので、後からマージする側に衝突が出る）。
-  - 引き渡さないもの: 目的レビューのやり直しでは §1 の 2 欄の原文以外を渡さない（A2 の指摘、本書の他の欄、初稿を渡さない）。
-
+  - 次の Phase・役割: Phase B（実装）。担当は owner が選ぶ。Cloud（Unity の無い環境）で行ってよい（§2.4）。
+  - 次の作業: §4 の順序で §3 の 4 file と offline テスト（C1〜C30）を実装し、`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` を exit 0（58 件）にする。AC2 の許可リストを `git diff -M --name-status 7b28eba HEAD` で自分で照合する。出口で §6 を書き、実装 commit と記録 commit を分けて切る（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。Unity の compile と `contract-audit` を実行できなければ「未確認」と §6 に書く（PR の CI の `audit` ジョブが contract-audit を走らせる）。
+  - 引き継ぐ commit: 本書を含む A3 凍結版の commit（SHA は tree の外、起動指示と PR #174 の状態ブロックで渡す）。開始時に HEAD と照合し、implementation head 欄が `未固定` であることを確かめる。
+  - 必要な権限: リポジトリへの push（Cloud の担当は Phase 境界で push し、PR #174 の状態ブロックを更新する）。dotnet SDK 8 の install（Cloud の環境に無ければ）。Unity・実操作・資格情報は不要。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて owner に返す。既存の公開型（`Runtime/ContentResolution/` の既存 22 file）、resolver、S0-c の file、Bootstrap、Distribution、SampleGame を変えない。Unity テスト・`run-tests.ps1`・Build を実行しない（Phase C の責任）。判定 C の照合や C' の起動をしない。
+  - 引き渡さないもの: なし。
 ### PR 状態ブロック
 
 PR が存在する間は PR 本文先頭の状態ブロックを更新する。値は本 §0 を正とする。
@@ -71,7 +70,7 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 ## 2. 意思決定と受け入れ境界
 
 - このスライスが答える問い: 特定の host 宣言無しで、expected identity / digest / target / schema の汎用の互換判定ができるか。`declaration` の内容・表現・graph は、host が登録した時だけ比べる述語として、汎用の判定を緩めずに追加できるか（program §8 S1、U5）。
-- 問いへの答え（A3 統合版の仮説。owner の裁定を反映、凍結前）: **できる。既存の公開型と resolver を変えずに、`IContentCompatibilityRule` の製品実装 1 つと、それが読む不変の基準（envelope）と、事実の予約 key と、判定結果の種別の enum で。** 規則はまず由来と受け入れ根拠の組を確かめ、次に要求の expected identity を由来に関係なく全欄で比べる。その後は由来で分岐する。`ContentDirectory`（`VerifiedDigest`）の候補には、identity の 4 欄がそろうこと、envelope の content set・target・engine の version・root schema の version と一致すること、envelope が revision を固定していればそれとも一致することを要求し、事実が欠けた・形が壊れた候補は採らない。`EditorSnapshot`（`OpenSceneSnapshot`）の候補には digest・revision・target・engine・schema の比較も host 述語もしない（受け入れ理由が digest ではなく、利用者が開いている Scene を最優先にする owner 決定 A1 を host 述語で崩さないため）。それ以外の由来は採らない。host 述語は既存の `IContentCompatibilityRule` をそのまま使い、directory の候補が汎用の判定を通った後に登録順に評価して、全てが採ると答えた時だけ採る（AND だけ）。
+- 問いへの答え（A3 で凍結した仮説。Phase B〜C で検証する）: **できる。既存の公開型と resolver を変えずに、`IContentCompatibilityRule` の製品実装 1 つと、それが読む不変の基準（envelope）と、事実の予約 key と、判定結果の種別の enum で。** 規則はまず由来と受け入れ根拠の組を確かめ、次に要求の expected identity を由来に関係なく全欄で比べる。その後は由来で分岐する。`ContentDirectory`（`VerifiedDigest`）の候補には、identity の 4 欄がそろうこと、envelope の content set・target・engine の version・root schema の version と一致すること、envelope が revision を固定していればそれとも一致することを要求し、事実が欠けた・形が壊れた候補は採らない。`EditorSnapshot`（`OpenSceneSnapshot`）の候補には digest・revision・target・engine・schema の比較も host 述語もしない（受け入れ理由が digest ではなく、利用者が開いている Scene を最優先にする owner 決定 A1 を host 述語で崩さないため）。それ以外の由来は採らない。host 述語は既存の `IContentCompatibilityRule` をそのまま使い、directory の候補が汎用の判定を通った後に登録順に評価して、全てが採ると答えた時だけ採る（AND だけ）。
 - どうすればこの問いに誤って YES を出せるか（反例。C と C' はこれを探す）:
   - (a) 欠けた事実を「比べられないので一致」と扱う（engine の version の無い候補、schema の無い候補が通る）。壊れた manifest を誤採用する（I-C1、C5）。
   - (b) 寛容な解析で「一致」を作る: `" 2"`、`"+2"`、`"02"`、`"2.0"`、全角数字、大文字小文字の違う target を一致とする（I-C1、C6・C10）。
@@ -292,14 +291,14 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 - C' 用に予約した担当・モデル・ベンダー: 未定。Phase A では Anthropic の 4 系列（A1、A2 の 3 件、目的レビューのやり直し）と、外部レビューの Grok 系を使った。C' には Phase A・B・C のどれにも関与しないベンダー（例: OpenAI 系）を予約することを推奨する（risk `normal` なので強化条件ではないが、Anthropic と Grok は使い切っている）。
 - 独立性の強化条件を満たせない場合の理由: 該当なし（risk `normal`）。
 
-### 5.1 A2 記録と A3 の採否（統合版。凍結前）
+### 5.1 A2 記録と A3 の採否
 
 - 入力版: A2 入力版 commit `50d6ff2e` の本書（内容 sha256 `14fa0a4f8900912669c34b02193c6a18afa70d6ecd5f4a7b850fcc8f4bfe0757`）。目的レビューの入力は §1 の 2 欄の原文だけ（sha256 `dbe366046a32fbaaedb8c8df434965fda998e2c9c92ca4d78f7481833fcb9cba`。UTF-8、LF、末尾改行なし、ラベルと直後の空白を除いた本文）。3 件は互いの指摘を見ていない。
 - 担当（2026-11-08、Claude Code の subagent。主担当の session から起動し、同じ session の会話は渡していない。いずれも Anthropic）:
   - 目的レビュー: Claude Sonnet 系。repository を読まず、2 欄の原文だけ。
   - アーキテクチャゲート: Claude Fable 系。本書全体、`AGENTS.md`、architecture-gates.md、Core と offline テスト、関連文書。
   - 反例レビュー: Claude Opus 系（主担当と同じ系列。独立性は「別 session・会話なし」まで）。本書全体、Core、offline テスト、program。
-- A3 統合担当: 主担当（Claude Code、Cloud）。owner（root）は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を推奨どおりに裁定した。
+- A3 統合担当: 主担当（Claude Code、Cloud）。A3 凍結は owner の指示（2026-11-09）。owner（root）は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を推奨どおりに裁定した。
 - 総合判定: 目的レビューは判定を出さない形式。アーキテクチャゲートは「blocker なし、条件付きで A3 へ進めてよい」。反例レビューは「このままでは凍結できない（X-01・X-04 は owner の裁定が要る、X-02 は文言の修正が必須、X-03 は推奨の見直しが要る）」。
 
 | 指摘 | 要旨 | 採否 | 理由と反映先 |
@@ -370,9 +369,11 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | 外 2-2 | program §8 の S1 行が裁定前のまま、gate に条件が無い。§5.1 に「裁定は未了」が残る | 採用 | program §8 の S1 行の注記を裁定済みにし、gate を「同名異内容（expected identity がある時）」「別表現（要求が表現を指定した時）」に直した（AC2 の 5）。§5.1 の文を直した |
 | 外 2-実装 | C14 (iii) は `ResolveAsync` と同じ source を取消す | 採用 | C14 (iii) に明記 |
 
+- 外部レビュー 3 巡（2026-11-09、入力は commit `c0842527`）: owner の報告で blocker なし。追加の指摘は無い。owner はこれを受けて A3 凍結を指示した。
+- A3 凍結（2026-11-09）: owner（root）の指示。PR #174 の CI（commit `c0842527`）で `audit`（contract-audit と docs-audit）と `dotnet-offline-tests` が緑で、§5.2 の「docs-audit を一度も通していない」は解消した。
 - S0-c の計画（PR #175、別ブランチで A3 の前）との突き合わせ（主担当、2026-11-09）: (1) #175 は snapshot の機構の選定と実 initializer の gate を新スライス S0-d へ切り出す。本書の該当の参照（対象外、§2.3）を S0-d に直した（#175 のマージ前は program 上 S0-c / S3）。(2) #175 は Built の候補を「検証を通った最新の install」とし「S1 で互換判定に置き換える」とする。置き換えは S0-c の Phase D の後の接続で、本書は入口に触れない（§2.3 の S0-c の行に引継ぎ条件を書いた）。(3) #175 と本書はどちらも program §8 の表の隣り合う行を変えるので、後からマージする側に衝突が出る（§0 の停止規則）。
 
-### 5.2 Phase C / C' で突かれそうな点の自己点検（主担当、2026-11-09。凍結前）
+### 5.2 Phase C / C' で突かれそうな点の自己点検（主担当、2026-11-09、凍結の前に実施）
 
 owner の依頼で、凍結前に主担当が本書を Phase C / C' の目で読み直した。独立レビューではない。直したものと、C / C' に先回りで渡す読み方を分ける。
 
@@ -387,7 +388,7 @@ owner の依頼で、凍結前に主担当が本書を Phase C / C' の目で読
   - `Evaluate` と `Accepts` の理由が `compat:Compatible:<由来>` で採用時の probe にも残ることは仕様で、「採用時に理由が付く」ことを欠陥にしない（§4 の 3・6）。
   - 要求の表現が空の時に別表現の候補が採られること（C30）、expected identity の無い要求で別 revision・別 digest の互換な候補が採られること（I-C1 の読み方）は、owner の裁定（U-S1-4・U-S1-6）による仕様で、blocker の根拠にならない。違反を言うなら、裁定で直した program の文言（§3.1 の 10、§4.1、U5）との食い違いを示す必要がある。
   - 本スライスは Unity 実機の動作確認を持たない（§5「統合・Unity テスト」）。Unity で確かめるのは compile と全 EditMode 回帰の非退行だけで、実在の manifest・実ロードの未検証は §2「成果の範囲」に書いた既知の範囲であり、C' の「監査できなかった範囲」に書けば足りる。
-- **残る点（凍結の前に owner 側で行う）:** 本書の作成環境に pwsh が無く、`pwsh tools/docs-audit.ps1` を一度も通していない（program の変更を含む）。凍結の commit の前に owner の環境で通す。
+- **残っていた点（解消）:** 本書の作成環境に pwsh が無く docs-audit を通していなかったが、PR #174 の CI の `audit` ジョブ（commit `c0842527`）で docs-audit と contract-audit が通った。
 
 ## 6. Phase B 実装結果
 
