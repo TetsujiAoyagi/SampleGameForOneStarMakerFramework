@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（**A3 統合版（外部レビュー 1 巡を反映）。まだ凍結していない。** A2 の独立レビュー 3 件と、owner が依頼した外部レビュー（PR #174 のコメントと 2 件の行コメント。§5.1）の採否を本文に反映した。凍結の前に、owner の裁定（§2.5 の U-S1-1〜U-S1-7）と、目的の文言を変えた場合の目的レビューのやり直しが要る。Phase B は未着手。A2 入力版は commit `50d6ff2e`、A3 統合版の最初の commit は `09ac3df7`。本版を commit にして push したのは、外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外である（S0-a の「A3 整理版」と同じ扱い）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
+- status: `A`（**A3 統合版（外部レビュー 1 巡と owner の裁定を反映）。まだ凍結していない。** A2 の独立レビュー 3 件と、owner が依頼した外部レビュー（PR #174 のコメントと 2 件の行コメント。§5.1）の採否を本文に反映した。owner は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を全て推奨どおりに裁定し、目的の文言を改め（§1）、未関与の担当による目的レビューのやり直しも済んだ（§5.1）。凍結は owner の指示を待つ（A3 凍結版の commit で status を凍結にする）。Phase B は未着手。A2 入力版は commit `50d6ff2e`、A3 統合版の最初の commit は `09ac3df7`。本版を commit にして push したのは、外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外である（S0-a の「A3 整理版」と同じ扱い）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
 - branch: `claude/loving-lamport-7lbluf`（S1 のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `7b28eba`（`develop` の head、2026-11-08。本書の実測は全てこの base。Phase B の着手時に head を取り直し、`Runtime/ContentResolution/` に差分があれば §1 現況を読み直す）
 - implementation head commit: `未固定`
@@ -20,8 +20,8 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3 の続き（owner）。外部レビューを並行で受ける。
-  - 次の作業: (1) owner が §2.5 の U-S1-1〜U-S1-7 を裁定する。(2) 外部レビューの追加の巡があれば、その指摘を §5.1 と同じ形式で採否に分類する。(3) U-S1-7 で目的の文言を変えるなら、本書にも初稿にも関与していない担当で目的レビューを 1 回やり直す（§5.1 の手順。やり直しは 1 回まで）。(4) 以上を本文に反映し、A3 凍結版を commit する（その commit の §0 は status を凍結に、本票を Phase B 向けに書き換える）。
+  - 次の Phase・役割: Phase A の A3 の凍結（owner の指示で主担当が行う）。
+  - 次の作業: owner の凍結の指示を受けたら、§5.2 の自己点検の結果を確認し、owner の環境で `pwsh tools/docs-audit.ps1` を通してから、A3 凍結版を commit する（その commit の §0 は status を凍結に、本票を Phase B 向けに書き換える。implementation base は Phase B の着手時に取り直す）。外部レビューの追加の巡があれば、先に §5.1 と同じ形式で採否に分類する。
   - 引き継ぐ commit: 本書を含む A3 統合版の commit（SHA は tree の外、PR の状態ブロックで渡す）。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: A3 凍結まで Phase B を始めない。S0-c の入口・Bootstrap・既存 Runtime の公開型（S0-a の 20 file と resolver を含む）を変える提案は、本スライスでは採らず、§2.3 の所有先へ送るか owner に返す。U-S1-6 を (b)（問いの差し戻し）と裁定された場合は、本書を凍結せず program の A0 へ戻す。S0-c の計画（PR #175）が先にマージされた場合は、本書の program の変更（§8 の S1 行）を S0-c が足した S0-d の行の後に合わせて rebase する（同じ表の隣り合う行を両方が変えるので、後からマージする側に衝突が出る）。
@@ -33,10 +33,10 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 
 ## 1. 目的と対象外
 
-- 目的: 要求時の Content 解決で、供給元が申告した候補を採ってよいかを、特定の host の宣言（宣言名・Scene 名・RunPurpose 等）を知らずに、Play 前に固定した互換の基準（target・engine の version・root schema、必要なら content set と revision）と、要求が与えた expected identity（digest を含む全欄）だけで判定できるようにする。host 固有の比較（宣言の名前・表現・graph の version 等）は、host が登録した時だけ汎用の判定に追加の条件として加わり、汎用の判定を緩めない。判定できない・合わない候補は採用せず、なぜ採らなかったかを供給元ごとに機械で区別できる理由として残す。
+- 目的: 要求時の Content 解決で、供給元が申告した候補を採ってよいかを、特定の host の宣言（宣言名・Scene 名・RunPurpose 等）を知らずに、Play 前に固定した互換の基準（content set・target・engine の version・root schema と、host が固定を宣言した時だけ revision）と、要求が与えた expected identity（digest を含む全欄）だけで判定できるようにする。host 固有の比較（宣言の名前・表現・graph の version 等）は、host が登録した時だけ汎用の判定に追加の条件として加わり、汎用の判定を緩めない。判定できない・合わない候補は採用せず、なぜ採らなかったかを供給元ごとに機械で区別できる理由として残す。
 - 利用者: OSMFramework の開発者（供給元の adapter、Editor の Play 入口、SceneSystem adapter を後続スライスで書き、本スライスの規則を `ResolutionPolicy` に渡す人）と、OSM を使う host application の開発者（Play 前の互換の基準を宣言し、必要なら自分の述語を登録する人）。本スライスに実行時の利用者の操作は無い。
 - 目的・利用者の文言の改訂（A1）: A0（program §1・§8 S1 行・§10 U5）から A1 で書き起こした初出の文言。A2 の目的レビューはこの原文を見た（§5.1。原文の sha256 `dbe366046a32fbaaedb8c8df434965fda998e2c9c92ca4d78f7481833fcb9cba`）。
-- **目的の文言の改訂案（A3、owner 裁定待ち。§2.5 U-S1-7）:** 目的レビュー P-07 と反例レビュー X-04 を受け、「互換の基準（target・engine の version・root schema、必要なら content set と revision）」を「互換の基準（content set・target・engine の version・root schema と、host が固定を宣言した時だけ revision）」に改める案。本文の設計（§2.1 I-C1 (6)、§3 envelope）はこの案に合わせてある。owner が採れば、上の目的の欄をこの文言に置き換え、未関与の担当で目的レビューをやり直してから凍結する。採らなければ設計を content set 任意に戻す。文言は owner の裁定前に書き換えない（目的の欄の文言を問う指摘は人間が裁定する）。
+- **目的の文言の改訂（A3、2026-11-09）:** 元の文言は「Play 前に固定した互換の基準（target・engine の version・root schema、必要なら content set と revision）」。目的レビュー P-07（「必要なら」の判断主体が曖昧）と反例レビュー X-04（content set を任意にすると別の content set の候補を採る）を受け、「互換の基準（content set・target・engine の version・root schema と、host が固定を宣言した時だけ revision）」に改めた。人間の承認: owner（root）が 2026-11-09 に U-S1-7 の推奨を採った。利用者の欄は変えていない。改めた 2 欄の原文（sha256 `de6f3a5c2db2699696f62cf449217d9365fc879c640a53639763c795a98b7831`）で、本書・初稿・A2 の指摘を読んでいない担当が目的レビューを 1 回やり直した（§5.1。やり直しは 1 回までで、これ以上 2 欄は変えない）。
 - 対象外（所有する後続。§2.3 に一覧）:
   - 既存の公開型（`ContentRequest`、`ContentCandidate`、`ContentIdentity`、`ContentAvailability`、`IContentProvider`、`IContentCompatibilityRule`、`ResolutionPolicy`、`ContentResolver`、`ProbeOutcome`、`ContentResolutionFailureCode` 等）の宣言と、`ContentResolver` の判定順序・終わり方の変更。**依頼者の指示で変えない。** 互換の不採用は既存の `ProbeOutcome.RuleRejected` と `Reason` の文字列で表す（§2.1 I-C6）。要求の終わり方は既存の `DecideFailureCode` の優先順に従う。
   - S0-c の Editor Play 入口、`ExitingEditMode` の transaction、ledger、`content:` の config の書き込み（program §10 U4）: S0-c。本スライスの規則を S0-c の入口から呼ぶ接続も S0-c の後（§2.3）。
@@ -62,16 +62,16 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 
 | UC | 利用者が選ぶ・入れるもの | 機械が決めるもの | 誰がいつ決めるか | 目的からの正当化 |
 |---|---|---|---|---|
-| host が Play 前の互換の基準を作る | content set、target、engine の version、root schema の version（必須の 4 つ。content set を必須にするのは A3 案で U-S1-7 の裁定待ち） | なし（汎用の既定値を持たない） | host の開発者が開発時に宣言し、Play 前に policy を作る時に渡す。値の出所（Player の baked 値、Editor の build target、Distribution の定数等）は host / 後続 adapter が決める | 目的の「Play 前に固定した互換の基準」そのもの。content set は program U5 の汎用の最小集合に入り、install 時の検査も必ず見る（X-04）。既定値を core に置くと core が特定の engine・target を知ることになり、I7 と S0-a の「既定を先に凍結しない」に反する |
+| host が Play 前の互換の基準を作る | content set、target、engine の version、root schema の version（必須の 4 つ。content set の必須は U-S1-7 の裁定） | なし（汎用の既定値を持たない） | host の開発者が開発時に宣言し、Play 前に policy を作る時に渡す。値の出所（Player の baked 値、Editor の build target、Distribution の定数等）は host / 後続 adapter が決める | 目的の「Play 前に固定した互換の基準」そのもの。content set は program U5 の汎用の最小集合に入り、install 時の検査も必ず見る（X-04）。既定値を core に置くと core が特定の engine・target を知ることになり、I7 と S0-a の「既定を先に凍結しない」に反する |
 | 同上（任意） | revision（任意。与えれば完全一致を要求） | 与えなければ比べない | host の開発者が開発時に宣言 | program §4.1「同じ revision から取るのが標準」を host が Play 前に固定したい場合の手段。固定しない host は要求時に互換な任意の revision を受ける（§2.1 I-C1 の読み方、U-S1-6） |
 | 要求ごとに特定の内容を期待する | expected identity（任意。既存の `ContentRequest.ExpectedIdentity`） | 与えれば digest を含む全欄一致を要求。4 欄がそろわない値は既存の constructor が拒む | 呼び出し側が要求時に | 目的の「要求が与えた expected identity」。新しい入力ではなく S0-a の既存の欄 |
-| host 固有の比較を足す | 述語の一覧（任意。既存の `IContentCompatibilityRule` を実装した host の型） | 汎用の判定を通った directory の候補にだけ、登録順に全てが採ると答えた時だけ採る。snapshot の候補には当てない（A3 案、U-S1-3） | host の開発者が開発時に宣言 | 目的の「host が登録した時だけ追加の条件として加わる」。宣言名・表現・graph を汎用の最小集合に入れない（program U5） |
+| host 固有の比較を足す | 述語の一覧（任意。既存の `IContentCompatibilityRule` を実装した host の型） | 汎用の判定を通った directory の候補にだけ、登録順に全てが採ると答えた時だけ採る。snapshot の候補には当てない（U-S1-3 の裁定） | host の開発者が開発時に宣言 | 目的の「host が登録した時だけ追加の条件として加わる」。宣言名・表現・graph を汎用の最小集合に入れない（program U5） |
 | 供給元の adapter が事実を申告する | engine の version と root schema の version を `Facts` の予約 key に書く | key の名前は core が定数で決める | adapter の開発者（S3 / S4）が実装時に | 汎用の判定に必要な事実の入れ物。既存の `ContentCandidate` の宣言を変えずに渡す唯一の経路（§2.5 U-S1-2） |
 
 ## 2. 意思決定と受け入れ境界
 
 - このスライスが答える問い: 特定の host 宣言無しで、expected identity / digest / target / schema の汎用の互換判定ができるか。`declaration` の内容・表現・graph は、host が登録した時だけ比べる述語として、汎用の判定を緩めずに追加できるか（program §8 S1、U5）。
-- 問いへの答え（A3 統合版の仮説。凍結前）: **できる。既存の公開型と resolver を変えずに、`IContentCompatibilityRule` の製品実装 1 つと、それが読む不変の基準（envelope）と、事実の予約 key と、判定結果の種別の enum で。** 規則はまず由来と受け入れ根拠の組を確かめ、次に要求の expected identity を由来に関係なく全欄で比べる。その後は由来で分岐する。`ContentDirectory`（`VerifiedDigest`）の候補には、identity の 4 欄がそろうこと、envelope の content set・target・engine の version・root schema の version と一致すること、envelope が revision を固定していればそれとも一致することを要求し、事実が欠けた・形が壊れた候補は採らない。`EditorSnapshot`（`OpenSceneSnapshot`）の候補には digest・revision・target・engine・schema の比較も host 述語もしない（受け入れ理由が digest ではなく、利用者が開いている Scene を最優先にする owner 決定 A1 を host 述語で崩さないため）。それ以外の由来は採らない。host 述語は既存の `IContentCompatibilityRule` をそのまま使い、directory の候補が汎用の判定を通った後に登録順に評価して、全てが採ると答えた時だけ採る（AND だけ）。
+- 問いへの答え（A3 統合版の仮説。owner の裁定を反映、凍結前）: **できる。既存の公開型と resolver を変えずに、`IContentCompatibilityRule` の製品実装 1 つと、それが読む不変の基準（envelope）と、事実の予約 key と、判定結果の種別の enum で。** 規則はまず由来と受け入れ根拠の組を確かめ、次に要求の expected identity を由来に関係なく全欄で比べる。その後は由来で分岐する。`ContentDirectory`（`VerifiedDigest`）の候補には、identity の 4 欄がそろうこと、envelope の content set・target・engine の version・root schema の version と一致すること、envelope が revision を固定していればそれとも一致することを要求し、事実が欠けた・形が壊れた候補は採らない。`EditorSnapshot`（`OpenSceneSnapshot`）の候補には digest・revision・target・engine・schema の比較も host 述語もしない（受け入れ理由が digest ではなく、利用者が開いている Scene を最優先にする owner 決定 A1 を host 述語で崩さないため）。それ以外の由来は採らない。host 述語は既存の `IContentCompatibilityRule` をそのまま使い、directory の候補が汎用の判定を通った後に登録順に評価して、全てが採ると答えた時だけ採る（AND だけ）。
 - どうすればこの問いに誤って YES を出せるか（反例。C と C' はこれを探す）:
   - (a) 欠けた事実を「比べられないので一致」と扱う（engine の version の無い候補、schema の無い候補が通る）。壊れた manifest を誤採用する（I-C1、C5）。
   - (b) 寛容な解析で「一致」を作る: `" 2"`、`"+2"`、`"02"`、`"2.0"`、全角数字、大文字小文字の違う target を一致とする（I-C1、C6・C10）。
@@ -99,8 +99,8 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 
 **不変条件（起きてはいけないこと）**
 
-- **I-C1 非互換の directory 候補を採らない（program I1・I5、G08）:** `ContentCompatibilityRule` を規則に持つ policy で、由来 `ContentDirectory` の候補が次のどれかに当たれば採用されない。(1) identity の 4 欄のどれかが空（空白だけを含む）。(2) 要求に expected identity があり、候補の identity と全欄一致しない（この比較は由来に関係なく行う。I-C4）。(3) envelope の target と候補の `Identity.Target` が ordinal で一致しない。(4) 候補の `Facts` に engine の version の予約 key が無い・値が空白だけ・envelope の値と ordinal で一致しない。(5) root schema の version の予約 key が無い・値が空白だけ・正規の 10 進表記（ASCII の `1`〜`9` で始まり ASCII の数字だけ、9 桁以内）でない・envelope の値と一致しない。理由 code の対応は engine と schema で揃える: key が無い、または値が空文字・空白だけ → `…Missing`（`CopyFacts` は null の値を空文字にするので、null もここに入る）。値に空白以外の文字があり正規の表記でない → `SchemaVersionMalformed`。表記が正しく値が違う → `…Mismatch`（外部レビュー 7）。(6) envelope の content set と候補の `Identity.ContentSet` が ordinal で一致しない、または envelope が revision を固定していて候補の値と ordinal で一致しない。
-  - 読み方（U-S1-6 の裁定で確定する）: **expected identity も envelope の revision も無い要求では、互換の基準を満たす候補はどの revision・digest でも採ってよい**（供給元の順で最初に互換と判定された候補）。この時、上位の供給元が非互換で落ち、下位の供給元の別 revision が採られることを、本書は program §3.1 の 10「非互換 revision への暗黙 fallback」にも §4.1 第 3 項「version 不整合は同じ expected digest の正規コピーで修復できる時だけ下位 tier へ進む」にも当たらないと読む。§4.1 第 3 項の「hash 不正・version 不整合・権限拒否」は、供給元が自分の申告と bytes の食い違いを検出した**整合性の失敗**で、既存の契約では供給元が `Rejected` で返し、resolver が pin と修復だけの状態で守る。規則の不採用は、正しく作られた候補が今回の基準に合わないという**互換の不一致**で、上位の不採用は理由付きで probe に残る。この読み方は、program U5 の汎用の一致の列（revision と file digest を含む）を「content set・target・engine・schema は常に、revision は host が envelope で固定した時だけ、digest は要求の expected identity がある時だけ」と読み替えることでもある（外部レビュー 1。U-S1-6 の裁定の範囲に含める）。要求が表現を指定しない時に下位の別表現の候補が採られることも、同じ読み方の下で切替に数えない（外部レビュー 2）。反例レビュー X-01 はこの読み方が §4.1 第 3 項の文言と食い違うと指摘した。既存の resolver は `RuleRejected` の後に必ず次の供給元へ進むので、文言どおりに読むと resolver を変えずには満たせない。合格例（この読み方の下で）: envelope（content set S、target T、engine E、schema 2）、Local が schema 1 の候補、LAN が schema 2 の別 revision の候補 → LAN を採り、Local は `RuleRejected`（理由 `compat:SchemaVersionMismatch:`）。不合格例: 同じ条件で要求の expected identity が Local の identity → LAN の候補は `PinMismatch`、Local は `RuleRejected`、採用なし（終わり方は `IntegrityRejected`。I-C6）。同名異内容（同じ content set・revision で digest が違う）を見分けるのは expected identity が与えられた時だけで、無ければ採った digest が record に残る（Traceable）だけである（U-S1-4）。
+- **I-C1 非互換の directory 候補を採らない（program I1・I5、G08）:** `ContentCompatibilityRule` を規則に持つ policy で、由来 `ContentDirectory` の候補が次のどれかに当たれば採用されない。(1) identity の 4 欄のどれかが空（空白だけを含む）。(2) 要求に expected identity があり、候補の identity と全欄一致しない（この比較は由来に関係なく行う。I-C4。digest を含む全欄を ordinal で比べ、大文字小文字の同一視・正規化をしない。digest の形式（長さ・16 進）は検査しない。形式の検証は bytes を見る供給元の adapter の責任）。要求が revision だけ・digest だけの部分の期待値を持つことは無い（S0-a の constructor が 4 欄のそろわない expected identity を拒む）。(3) envelope の target と候補の `Identity.Target` が ordinal で一致しない。(4) 候補の `Facts` に engine の version の予約 key が無い・値が空白だけ・envelope の値と ordinal で一致しない。(5) root schema の version の予約 key が無い・値が空白だけ・正規の 10 進表記（ASCII の `1`〜`9` で始まり ASCII の数字だけ、9 桁以内）でない・envelope の値と一致しない。理由 code の対応は engine と schema で揃える: key が無い、または値が空文字・空白だけ → `…Missing`（`CopyFacts` は null の値を空文字にするので、null もここに入る）。値に空白以外の文字があり正規の表記でない → `SchemaVersionMalformed`。表記が正しく値が違う → `…Mismatch`（外部レビュー 7）。(6) envelope の content set と候補の `Identity.ContentSet` が ordinal で一致しない、または envelope が revision を固定していて候補の値と ordinal で一致しない。
+  - 読み方（U-S1-6 の裁定で確定、owner 2026-11-09。program §3.1 の 10・§4.1・U5 の文言もこの読み方に直した）: **expected identity も envelope の revision も無い要求では、互換の基準を満たす候補はどの revision・digest でも採ってよい**（供給元の順で最初に互換と判定された候補）。この時、上位の供給元が非互換で落ち、下位の供給元の別 revision が採られることを、本書は program §3.1 の 10「非互換 revision への暗黙 fallback」にも §4.1 第 3 項「version 不整合は同じ expected digest の正規コピーで修復できる時だけ下位 tier へ進む」にも当たらないと読む。§4.1 第 3 項の「hash 不正・version 不整合・権限拒否」は、供給元が自分の申告と bytes の食い違いを検出した**整合性の失敗**で、既存の契約では供給元が `Rejected` で返し、resolver が pin と修復だけの状態で守る。規則の不採用は、正しく作られた候補が今回の基準に合わないという**互換の不一致**で、上位の不採用は理由付きで probe に残る。この読み方は、program U5 の汎用の一致の列（revision と file digest を含む）を「content set・target・engine・schema は常に、revision は host が envelope で固定した時だけ、digest は要求の expected identity がある時だけ」と読み替えることでもある（外部レビュー 1。U-S1-6 の裁定の範囲に含める）。要求が表現を指定しない時に下位の別表現の候補が採られることも、同じ読み方の下で切替に数えない（外部レビュー 2）。反例レビュー X-01 はこの読み方が §4.1 第 3 項の文言と食い違うと指摘した。既存の resolver は `RuleRejected` の後に必ず次の供給元へ進むので、文言どおりに読むと resolver を変えずには満たせない。合格例（この読み方の下で）: envelope（content set S、target T、engine E、schema 2）、Local が schema 1 の候補、LAN が schema 2 の別 revision の候補 → LAN を採り、Local は `RuleRejected`（理由 `compat:SchemaVersionMismatch:`）。不合格例: 同じ条件で要求の expected identity が Local の identity → LAN の候補は `PinMismatch`、Local は `RuleRejected`、採用なし（終わり方は `IntegrityRejected`。I-C6）。同名異内容（同じ content set・revision で digest が違う）を見分けるのは expected identity が与えられた時だけで、無ければ採った digest が record に残る（Traceable）だけである（U-S1-4）。
   - 崩しうる経路: (a) 規則が `Facts` を `TryGetValue` で読み、無い時に既定値や「比べない」に倒す。(b) schema を `int.TryParse`（culture・符号・空白・先頭 0 を許す）で読む。(c) 文字列の比較に `StringComparison.OrdinalIgnoreCase` や culture 依存の比較を使う。(d) envelope を可変にして、policy を作った後に値が変わる。(e) resolver の判定順で規則より先に採用される経路: 無い（規則は採用の直前に必ず呼ばれる。`ContentResolver.cs` 119〜142 行目）。(f) `ContentCandidate.Facts` を候補を作った後に変える: constructor が複製するので無い（`ContentCandidate.cs` 27〜74 行目、`CopyFacts` は 96〜115 行目）。(g) 修復（identity 付きの `Rejected`）の後の候補: resolver が pin と根拠を先に見るが、規則は修復中の候補にも同じ判定をする（C27）。(h) envelope の schema と事実の schema を別々の規則で解析し、両者の表記の範囲が食い違う（アーキテクチャゲート G-01。envelope は 1〜999,999,999 に制限し、事実は同じ 1 つの解析関数で int にしてから比べる）。
   - 探索した境界: `ContentResolver.ResolveAsync` の 1 経路、`ContentCandidate` の constructor、`ContentIdentity` の等値、`ContentManifestValidation.Validate`（比較の対象と粒度の参考。変えない）、program §3.1・§4.1。未確認: 実在の provider adapter が manifest の値を `Facts` へ正しく写すか（S3 / S4。本スライスに実在の adapter は無い）。
 - **I-C2 host 述語は汎用の判定を緩めない:** host が登録した述語は、汎用の判定が採ると答えた `ContentDirectory` の候補にだけ評価され、登録順に全てが採ると答えた時だけ採用される。最初に false を返した述語の後の述語は呼ばない。述語が true を返しても汎用の不採用は覆らない。述語が投げた例外は、規則が捕まえず、包み直さず、そのまま伝える。resolver は、取消済みの token による `OperationCanceledException` なら取消として投げ直し、それ以外は `Fault` を記録して探索を止める（S0-a の既存の契約）。その要求の終わり方は既存の `DecideFailureCode` の優先順に従う（pin が未充足なら `IntegrityRejected`、そうでなければ `ProviderFault`）。述語の一覧に null は入れられず、規則を作った後に元の一覧を変えても影響しない。
@@ -109,7 +109,7 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 - **I-C3 汎用の判定は host の宣言を必要としない（program I7、U5）:** 本スライスの製品の型（`Runtime/ContentResolution/Core/` の新規 file）は、宣言名・表現の中身・graph の version を読まず、比べず、`declaration` に当たる予約 key を定義しない。host 述語を登録しない policy では、候補の `Facts` に宣言に当たる事実があってもなくても判定は変わらない。予約の接頭辞 `osm.compat.` の下の未知の key は判定に使わず、無視する。新規 file は `Core/` 直下に置き（`CoreSources_DoNotNameUnityOrHosts` の走査の対象）、SampleGame の Scene 名・Season・Cell・RunPurpose・宣言名・VCS・SceneResourceMap・UICommon・Workset の語と UnityEngine を含まない。表現は既存の resolver が要求との一致を見るだけで、規則はその中身を解釈しない。
   - 崩しうる経路: (a) 「便利だから」と `declaration.name` の比較を汎用の判定に入れる（空の name 同士が一致する。U5）。(b) host の例に使う宣言名（`Spring` 等）を core のテストや既定値に書く。(c) 新規 file を `Core/Compatibility/` 等の子 folder に置き、走査の対象から外れる（反例 (l)）。
   - 探索した境界: 新規 file の全部（`CoreSources_DoNotNameUnityOrHosts`、C29、AC6 の grep）。未確認: なし。
-- **I-C4 由来ごとの受け入れ理由を混ぜず、snapshot の優先を host 述語で崩さない（program I2、owner 決定 A1、S0-b の結論）:** 由来 `EditorSnapshot`（受け入れ根拠 `OpenSceneSnapshot`）の候補に、規則は identity の欄・engine・schema・envelope の content set / revision を要求せず、digest が無いことを不採用の理由にせず、host 述語を当てない（A3 案、U-S1-3）。要求に expected identity があれば由来に関係なく全欄で比べる（resolver の pin と同じ答えになる。反例レビュー X-05）。snapshot の候補を採った時の規則の理由は `compat:Compatible:EditorSnapshot` で、host 述語の理由を連結せず、「digest」「verified」に当たる語を含まない。由来が `ContentDirectory` でも `EditorSnapshot` でもない候補（`Addressables`、将来足される値）と、由来と受け入れ根拠の組が resolver の固定表と合わない候補は、規則を直接呼んでも採ると答えない。判定は由来と受け入れ根拠で分岐し、snapshot の機構 (i) / (ii) では分岐しない。
+- **I-C4 由来ごとの受け入れ理由を混ぜず、snapshot の優先を host 述語で崩さない（program I2、owner 決定 A1、S0-b の結論）:** 由来 `EditorSnapshot`（受け入れ根拠 `OpenSceneSnapshot`）の候補に、規則は identity の欄・engine・schema・envelope の content set / revision を要求せず、digest が無いことを不採用の理由にせず、host 述語を当てない（U-S1-3 の裁定）。要求に expected identity があれば由来に関係なく全欄で比べる（resolver の pin と同じ答えになる。反例レビュー X-05）。snapshot の候補を採った時の規則の理由は `compat:Compatible:EditorSnapshot` で、host 述語の理由を連結せず、「digest」「verified」に当たる語を含まない。由来が `ContentDirectory` でも `EditorSnapshot` でもない候補（`Addressables`、将来足される値）と、由来と受け入れ根拠の組が resolver の固定表と合わない候補は、規則を直接呼んでも採ると答えない。判定は由来と受け入れ根拠で分岐し、snapshot の機構 (i) / (ii) では分岐しない。
   - 崩しうる経路: (a0) 要求の expected identity に directory の identity を載せた要求では、identity の空な snapshot は pin と一致せず（resolver 経由なら規則の前に `PinMismatch`）、pin に合う下位の directory が成功する。反例 (m) の述語ではなく pin からの再入で、規則では防げない（外部レビュー 3。§2.3 の S0-c の行で、snapshot を優先する policy は要求に directory の expected identity を載せないことを引継ぎ条件にする）。(a) 汎用の判定を由来に関係なく全候補に当て、identity の空な snapshot が落ちる。(b) `switch` の `default` を「採る」にして、将来の由来を素通りさせる。(c) 規則が resolver の固定表を信じて根拠の検査を省き、規則を単独で呼ぶ利用者（S0-c の入口が候補を検査する等）に固定表外の組を採らせる。(d) host 述語を snapshot にも当て、宣言の事実の無い snapshot が落ちて下位の directory 版が成功する（反例 (m)）。(e) 採用理由に host 述語の理由を連結する（反例レビュー X-06）。(f) 規則の受け入れ根拠の表が resolver の private な表（`ContentResolver.cs` 214〜225 行目）と将来食い違う（アーキテクチャゲート G-02。C17 の横断 assertion で検出し、表の共有は §2.3 の負債）。
   - 探索した境界: `ContentSourceKind`（4 値）、`ContentAcceptanceBasis`（3 値）、`ContentResolver.RequiredBasis`。未確認: なし。
 - **I-C5 既存の公開契約と既存の挙動を変えない（依頼者の指示、program I8・I10）:** base に在る `Runtime/ContentResolution/**` の file（`Core/` の 20 file、`ContentRequestLoader.cs`、`ContentLoadOutcomes.cs`）と、`Runtime/Bootstrap/**`、`Runtime/AssetManagement/**`、`Runtime/BuildContent/**`（`ContentManifestValidation` を含む）、`Runtime/SceneSystem/**`、`SampleGame/**`、`Editor/**`、`.asmdef`、`ProjectSettings/`、`Packages/` を変えない。既存の offline テスト（28 件）の名前・assertion・本文と、既存の EditMode テストを変えない。
@@ -132,7 +132,7 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 合否は各 AC の本文で決める。「確認手段」は合否を見る手段で、同じ意味を別の手段で示してもよい。
 
 - **AC1（E5, I-C3）core の純粋さ:** 新規の `.cs` が全て `Runtime/ContentResolution/Core/` の**直下**にあり、`#nullable enable` で始まり、`CoreSources_DoNotNameUnityOrHosts` が拒む `using` と語、`record` 宣言、`init` accessor を持たない。`tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` が新規の Core の file を `<Compile Include>` で link し、`PackageReference` を持たない。`dotnet run -c Release --project tools/ContentResolutionOfflineTests/ContentResolutionOfflineTests.csproj` が exit 0 で、最後の行が `ContentResolution offline: <n> passed, 0 failed, <n> executed`（n = 58。既存 28 件 + C1〜C30）。
-  - 確認手段: `git diff --name-status` で新規 file の置き場所を見る。C29 が、新規 4 file が `Core/` 直下にあり、`Core/*.cs` が 24 件であることを確かめる（既存のテストの file 数の assertion は失敗時しか出力しないため。アーキテクチャゲート G-04、反例レビュー X-08）。`dotnet run` の出力。
+  - 確認手段: `git diff --name-status` で新規 file の置き場所を見る。C29 が、新規 4 file が `Core/` 直下にあり、`Core/` の子 folder に `*.cs` が無いことを確かめる（既存のテストの file 数の assertion は失敗時しか出力しないため。アーキテクチャゲート G-04、反例レビュー X-08）。`dotnet run` の出力。
   - 不合格の例: `Core/Compatibility/ContentCompatibilityRule.cs` に置き、走査の対象外になる。
 - **AC2（I-C5）変更集合の許可リスト:** base から head までの変更（全 path）が次だけである。これ以外の追加・変更・削除が 1 件でもあれば不合格。
   1. 新規 `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibility*.cs` と各 `.meta`（§3 の 4 file）。
@@ -185,17 +185,20 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 - 参照 0 を削除理由にしない。`ContentTraceability.Reproducible` 等の先行宣言に触れない。`Evaluate` は resolver からは呼ばれない先行の公開面で、消費者は S0-c の入口の候補検査と S5 の観測（§3）。
 - path は `tools/path-budget.json` の予算（150 文字）に従う。最長の新 path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/ContentCompatibilityEnvelope.cs.meta`（101 文字）。
 - Unity Editor でのコンパイル確認は Phase B が行ってよい。Unity テストの実行・判定は Phase C。offline テスト（`dotnet run`）は Unity でも Build でもないので Phase B が B exit で実行してよい。Phase B を Cloud（Unity の無い環境）で行う場合、Unity のコンパイルは「未確認」と §6 に書き、Phase C の全 EditMode 回帰（コンパイルを含む）で代える。
+- 新規 `.cs` の `.meta`: Unity の無い環境（Cloud）で Phase B を行う場合は、既存の Core の `.meta` と同じ 2 行（`fileFormatVersion: 2` と、新しく生成した 32 桁の 16 進の `guid`）を手で書く。repository 内の既存の guid と重複しないことを `git grep` で確かめる。Phase C の Unity の import の後に、これらの `.meta` が書き換わらないこと（`git status` が clean）を確かめる。書き換わった場合は B 適応（Unity が書いた内容を commit し直す）で、Phase A は再開しない。
 - 本スライスは `AbstractApplicationInitializer` と S0-c の file に触れないので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` との Phase B の同時実行制約と、S0-c との衝突の対象外。
 
-### 2.5 未決事項（A3 で owner が裁定する。凍結の前提）
+### 2.5 未決事項と owner の裁定
 
-- **U-S1-1 program §4.1 の「S1 が定める互換 envelope」の範囲。** program は package の合成可否を「S1 が定める互換 envelope（共同の immutable build plan / dependency graph の出所、target / engine / schema、表現、shared asset の所有と重複の方針、同一 logical identity の衝突規則、package 索引の hash 関係）」で判定するとしている。推奨: **本スライスは 1 候補の採否の envelope（content set / target / engine / schema、任意の revision）だけを定め、合成の欄（build plan・graph・shared asset・索引の hash）は S2 へ送る。** 理由: resolver は 1 要求に 1 候補を採る構造で、複数候補の関係を比べる場所が無い。合成の欄に値を書く producer（manifest の欄）が今は無く、先に型を置くと検証できない先行宣言になる。G24 の実証は S2 の gate。採るなら program §4.1 の文言を owner が直す（AC2 の 5 で許す）。
-- **U-S1-2 engine / schema の事実の渡し方。** 推奨: `ContentCandidate.Facts` の予約 key（`osm.compat.engineVersion`、`osm.compat.rootSchemaVersion`。core の定数 `ContentCompatibilityFactKeys`）。アーキテクチャゲートは、依頼者の制約の下で唯一の経路として妥当とした。代替: `ContentCandidate` か `ContentIdentity` に欄を足す（型で強制できるが、依頼者の指示「既存 Runtime の公開契約を変えない」に反するので本スライスでは採らない）。key の取り違えは adapter の責任で、欠けた key は I-C1 で不採用になる（fail-closed）。
-- **U-S1-3 snapshot の候補に host 述語を当てるか（A1 の推奨を A3 で反転）。** A1 は「当てる」を推奨したが、反例レビュー X-03 が、宣言名を比べる述語を登録しただけで、利用者が編集中の Scene が黙って directory 版に置き換わる成功経路（反例 (m)）を示した。program §3 の「snapshot を最優先で採用する」（owner 決定 A1）を host の述語の書き方次第で崩すので、**推奨を「当てない」に変える**。本文（I-C2・I-C4・E3・C28）はこの推奨に合わせてある。代償: host は snapshot に条件を課せない（要る host が現れたら、明示の選択を足す後続。§2.3）。
-- **U-S1-4 同名異内容の主張の範囲。** program §8 S1 の gate「同名異内容を誤採用しない」を、本書は「expected identity が与えられた時に採らない」と読む。expected identity の無い要求で同名異内容を見分けるには「どの digest が正しいか」の外部の知識が要り、汎用の判定の外にある。owner がこの読み方を認めるか、要求をまたぐ一貫（S4）まで gate を持ち越すかを決める。
-- **U-S1-5 `IContentCompatibilityRule` の XML doc。** base の doc は「製品実装が入るまでは、ホストは自前の規則を渡さない限り `ResolutionPolicy` を組めない」と書いており、本スライスの後は事実でなくなる。推奨: 本スライスでは file を変えず（AC2・依頼者の指示）、Phase D の harvest で 13-resource-system.md 側を現況に直す。doc の 1 文の修正は、owner の承認を得て Phase D の harvest commit に含める（宣言は変えない）。owner が「doc comment も公開契約に含める」と判断するなら、後続のどこかで直すまで doc の古さを残す。
-- **U-S1-6（A2 で新設。反例レビュー X-01）program §4.1 第 3 項と、互換の不採用の後に下位の別 revision を採ること。** §4.1 第 3 項は「hash 不正・version 不整合・権限拒否は記録し、同じ expected digest の正規コピーで修復できる時だけ下位 tier へ進む。別 revision へ黙って切り替えない」と定める。既存の resolver は `RuleRejected` の後に必ず次の供給元へ進むので、規則の不採用（例: Local の schema が古い）をこの「version 不整合」に含めると、resolver を変えずには満たせない。選択肢: **(a)（推奨）** 第 3 項の「hash 不正・version 不整合・権限拒否」を、供給元が自分の申告と bytes の食い違いとして検出し、`Rejected` で返す整合性の失敗に限ると読み、program の文言をそう直す。規則の互換の不一致は理由付きで probe に残り、下位の互換な候補へ進む。別 revision へ切り替えたくない host は envelope の revision か要求の expected identity で固定する。(a) を採る場合、program の次の 2 文も同じ裁定で直す（外部レビュー 1）: U5 の汎用の一致の列を「content set・target・engine・schema は常に、revision は host が固定した時だけ、digest は要求の expected identity がある時だけ」へ。§3.1 の 10「非互換 revision への暗黙 fallback」に、規則の不採用の後に下位の互換な候補へ進むことを含めない、と書く。あわせて §4.1 の「別表現へ黙って切り替えない」は、要求が表現を指定した時だけに数える（外部レビュー 2）。AC2 の 5 はこの裁定の範囲の program の本文を許す。外部レビューは (a) を、出荷済みの resolver の remarks（`ContentResolver.cs` 22〜24 行目。別 revision は pin の比較が防ぐ）と一致するとして支持した。(b) S1 は第 3 項を満たせないと認め、問いを program の A0 へ差し戻す（resolver の変更を伴う別の revision が要る）。(c) 規則の不採用でも探索を止める手段を作る: 既存の契約では規則の例外（`Fault`）しかなく、互換の不採用を fault として記録するので I-C6 に反する。採らない。
-- **U-S1-7（A2 で新設。反例レビュー X-04、目的レビュー P-07）content set を envelope の必須にすること。** program U5 は汎用の一致に content set を含め、install 時の検査も要求との content set の一致を必ず見る。content set を任意にすると、expected identity の無い要求で別の content set（旧い DLC 等）の候補を採る（反例 (n)、program §3.1 の 5）。推奨: 必須にする。本文の設計はこの推奨に合わせてある。目的の欄の文言「必要なら content set と revision」と食い違うので、§1 の改訂案の文言への置き換えを owner が裁定する。置き換えるなら、未関与の担当で目的レビューを 1 回やり直してから凍結する。
+**owner（root）が 2026-11-09 に U-S1-1〜U-S1-7 の全てを推奨どおりに裁定した。** 以下は各項の論点と推奨（＝裁定）の記録。U-S1-1・U-S1-6 に伴う program の文言の修正（§3.1 の 10、§4.1 の第 3 項と envelope の文、U5）は本スライスの計画 PR に含めた（AC2 の 5）。
+
+- **U-S1-1 program §4.1 の「S1 が定める互換 envelope」の範囲。裁定: 合成の欄は S2。** program は package の合成可否を「S1 が定める互換 envelope（共同の immutable build plan / dependency graph の出所、target / engine / schema、表現、shared asset の所有と重複の方針、同一 logical identity の衝突規則、package 索引の hash 関係）」で判定するとしている。推奨: **本スライスは 1 候補の採否の envelope（content set / target / engine / schema、任意の revision）だけを定め、合成の欄（build plan・graph・shared asset・索引の hash）は S2 へ送る。** 理由: resolver は 1 要求に 1 候補を採る構造で、複数候補の関係を比べる場所が無い。合成の欄に値を書く producer（manifest の欄）が今は無く、先に型を置くと検証できない先行宣言になる。G24 の実証は S2 の gate。採るなら program §4.1 の文言を owner が直す（AC2 の 5 で許す）。
+- **U-S1-2 engine / schema の事実の渡し方。裁定: 予約 key。** 推奨: `ContentCandidate.Facts` の予約 key（`osm.compat.engineVersion`、`osm.compat.rootSchemaVersion`。core の定数 `ContentCompatibilityFactKeys`）。アーキテクチャゲートは、依頼者の制約の下で唯一の経路として妥当とした。代替: `ContentCandidate` か `ContentIdentity` に欄を足す（型で強制できるが、依頼者の指示「既存 Runtime の公開契約を変えない」に反するので本スライスでは採らない）。key の取り違えは adapter の責任で、欠けた key は I-C1 で不採用になる（fail-closed）。
+- **U-S1-3 snapshot の候補に host 述語を当てるか（A1 の推奨を A3 で反転）。裁定: 当てない。** A1 は「当てる」を推奨したが、反例レビュー X-03 が、宣言名を比べる述語を登録しただけで、利用者が編集中の Scene が黙って directory 版に置き換わる成功経路（反例 (m)）を示した。program §3 の「snapshot を最優先で採用する」（owner 決定 A1）を host の述語の書き方次第で崩すので、**推奨を「当てない」に変える**。本文（I-C2・I-C4・E3・C28）はこの推奨に合わせてある。代償: host は snapshot に条件を課せない（要る host が現れたら、明示の選択を足す後続。§2.3）。
+- **U-S1-4 同名異内容の主張の範囲。裁定: expected identity がある時に限る。** program §8 S1 の gate「同名異内容を誤採用しない」を、本書は「expected identity が与えられた時に採らない」と読む。expected identity の無い要求で同名異内容を見分けるには「どの digest が正しいか」の外部の知識が要り、汎用の判定の外にある。owner がこの読み方を認めるか、要求をまたぐ一貫（S4）まで gate を持ち越すかを決める。
+- **U-S1-5 `IContentCompatibilityRule` の XML doc。裁定: 本スライスでは変えない。** base の doc は「製品実装が入るまでは、ホストは自前の規則を渡さない限り `ResolutionPolicy` を組めない」と書いており、本スライスの後は事実でなくなる。推奨: 本スライスでは file を変えず（AC2・依頼者の指示）、Phase D の harvest で 13-resource-system.md 側を現況に直す。doc の 1 文の修正は、owner の承認を得て Phase D の harvest commit に含める（宣言は変えない）。owner が「doc comment も公開契約に含める」と判断するなら、後続のどこかで直すまで doc の古さを残す。
+- **U-S1-6（A2 で新設。反例レビュー X-01）program §4.1 第 3 項と、互換の不採用の後に下位の別 revision を採ること。裁定: (a)。** §4.1 第 3 項は「hash 不正・version 不整合・権限拒否は記録し、同じ expected digest の正規コピーで修復できる時だけ下位 tier へ進む。別 revision へ黙って切り替えない」と定める。既存の resolver は `RuleRejected` の後に必ず次の供給元へ進むので、規則の不採用（例: Local の schema が古い）をこの「version 不整合」に含めると、resolver を変えずには満たせない。選択肢: **(a)（推奨）** 第 3 項の「hash 不正・version 不整合・権限拒否」を、供給元が自分の申告と bytes の食い違いとして検出し、`Rejected` で返す整合性の失敗に限ると読み、program の文言をそう直す。規則の互換の不一致は理由付きで probe に残り、下位の互換な候補へ進む。別 revision へ切り替えたくない host は envelope の revision か要求の expected identity で固定する。(a) を採る場合、program の次の 2 文も同じ裁定で直す（外部レビュー 1）: U5 の汎用の一致の列を「content set・target・engine・schema は常に、revision は host が固定した時だけ、digest は要求の expected identity がある時だけ」へ。§3.1 の 10「非互換 revision への暗黙 fallback」に、規則の不採用の後に下位の互換な候補へ進むことを含めない、と書く。あわせて §4.1 の「別表現へ黙って切り替えない」は、要求が表現を指定した時だけに数える（外部レビュー 2）。AC2 の 5 はこの裁定の範囲の program の本文を許す。外部レビューは (a) を、出荷済みの resolver の remarks（`ContentResolver.cs` 22〜24 行目。別 revision は pin の比較が防ぐ）と一致するとして支持した。(b) S1 は第 3 項を満たせないと認め、問いを program の A0 へ差し戻す（resolver の変更を伴う別の revision が要る）。(c) 規則の不採用でも探索を止める手段を作る: 既存の契約では規則の例外（`Fault`）しかなく、互換の不採用を fault として記録するので I-C6 に反する。採らない。
+- **U-S1-7（A2 で新設。反例レビュー X-04、目的レビュー P-07）content set を envelope の必須にすること。裁定: 必須にし、目的の文言を改める（§1）。** program U5 は汎用の一致に content set を含め、install 時の検査も要求との content set の一致を必ず見る。content set を任意にすると、expected identity の無い要求で別の content set（旧い DLC 等）の候補を採る（反例 (n)、program §3.1 の 5）。推奨: 必須にする。本文の設計はこの推奨に合わせてある。目的の欄の文言「必要なら content set と revision」と食い違うので、§1 の改訂案の文言への置き換えを owner が裁定する。置き換えるなら、未関与の担当で目的レビューを 1 回やり直してから凍結する。
 
 ### 2.6 スライスの分割の検討
 
@@ -257,10 +260,10 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | C11 | `Compat_WithoutHostPredicate_DeclarationFactsAreIgnored`（`osm.compat.` の下の未知の key も無視） | E2、I-C3、反例 (f) |
 | C12 | `Compat_HostPredicates_DeclarationNameRepresentationAndGraph`（一致で採用、不一致で `HostPredicateRejected`、空の期待値・空の事実は一致にしない、宣言の表現の不一致は「別表現」。理由に `digest verified` を返して採る述語を登録した directory の採用時の理由が `compat:Compatible:ContentDirectory` と完全一致する） | E2、E4（別表現）、AC5、反例 (f)、外部レビュー 6 |
 | C13 | `Compat_HostPredicate_CannotLoosenGenericRejection` | I-C2、反例 (d) |
-| C14 | `Compat_HostPredicateException_PropagatesUnchanged`（(i) pin の無い要求で `Fault` → `ProviderFault`、後続を probe しない。(ii) 要求の expected identity と違う候補の後に述語が例外 → `IntegrityRejected`。(iii) 取消済みの token で述語が `OperationCanceledException` → resolver が取消として投げ、`Fault` にならない。(iv) 規則の直接呼び出しで、述語が投げた例外の型と instance がそのまま出る） | I-C2、反例 (e)、X-02、X-07 |
+| C14 | `Compat_HostPredicateException_PropagatesUnchanged`（(i) pin の無い要求で `Fault` → `ProviderFault`、後続を probe しない。(ii) 要求の expected identity と違う候補の後に述語が例外 → `IntegrityRejected`。(iii) 述語が自分の中で `CancellationTokenSource.Cancel()` を呼んでから、その token の `OperationCanceledException` を投げる → resolver が取消として投げ、`Fault` にならない（resolver は規則の前に token を見るので、取消済みの token を最初から渡すと規則まで届かない）。(iv) token が取消されていないのに述語が `OperationCanceledException` を投げる → `Fault`（S0-a の既存の契約）。(v) 規則の直接呼び出しで、述語が投げた例外の型と instance がそのまま出る） | I-C2、反例 (e)、X-02、X-07 |
 | C15 | `Compat_HostPredicates_AllMustAccept_InOrder`（2 番目が拒むと 3 番目は呼ばれず、理由に番号 1） | I-C2 |
 | C16 | `Compat_SnapshotWithEmptyIdentity_IsAdopted_WithoutDigestClaim`（要求の expected identity は無し、要求と候補の表現は同じ。理由が `compat:Compatible:EditorSnapshot` と完全一致。理由に `digest verified` を返す述語を登録しても同じ） | E3、I-C4、AC5、反例 (g)、X-06 |
-| C17 | `Compat_UnsupportedSourceOrBasis_MatchesResolverTable`（候補の constructor が受け付ける `ContentSourceKind` × `ContentAcceptanceBasis` の全ての組について、規則の直接呼び出しの `UnsupportedSource` と、全件採用の規則での resolver の `NoAcceptanceBasis` が一致する。未定義の値・`None` は候補を作れないので対象外） | I-C4、反例 (h)、G-02 |
+| C17 | `Compat_UnsupportedSourceOrBasis_MatchesResolverTable`（候補の constructor が受け付ける `ContentSourceKind` × `ContentAcceptanceBasis` の全ての組について、規則の直接呼び出しの `UnsupportedSource` と、全件採用の規則での resolver の `NoAcceptanceBasis` が一致する。未定義の値・`None` は候補を作れないので対象外。候補の logical key・kind・表現・provider は要求と probe した供給元に揃え、根拠の表だけで差が出るようにする） | I-C4、反例 (h)、G-02 |
 | C18 | `Compat_UnsetIsNotCompatible`（`default(ContentCompatibilityMismatch)` は `Unset` で `Compatible` でない。`Accepts` が true を返すのは `Evaluate` が `Compatible` のときだけ） | I-C6、反例 (c) |
 | C19 | `Compat_Envelope_Validation`（空白の content set / target / engine、schema 0・負・1,000,000,000、空白だけの revision、revision の null は許す） | I-C1、G-01 |
 | C20 | `Compat_HostPredicateList_Validation_AndDefensiveCopy` | I-C2 |
@@ -272,7 +275,7 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | C26 | `Compat_NoHostPredicate_SameCandidateSameVerdict_AcrossSourceOrder`（供給元の順を入れ替えても、各候補の判定は同じ） | I-C1 の読み方 |
 | C27 | `Compat_RepairAfterRejected_RequiresCompatibleCopy`（識別子付き `Rejected` の後、同じ identity でも schema が違えば採らず `IntegrityRejected`、互換なら採る） | I-C1 (g)、I-C6 の非対称、program §4.1 |
 | C28 | `Compat_HostPredicate_DoesNotDisplaceSnapshot`（供給元は [EditorSnapshot, Local]、要求の expected identity は無し、要求と両候補の表現は同じ、宣言名を比べる述語を登録、snapshot は宣言の事実を持たない → snapshot が採られ、Local は probe されない） | E3、I-C4、反例 (m)、X-03、外部レビュー 3 |
-| C29 | `Compat_NewCoreFiles_AreDirectlyUnderCore_AndGeneric`（新規 4 file が `Core/` 直下に在り、`Core/*.cs` が 24 件。新規 file に AC6 の語の検査を行う） | AC1、AC6、I-C3、反例 (l)、X-08、G-04 |
+| C29 | `Compat_NewCoreFiles_AreDirectlyUnderCore_AndGeneric`（新規 4 file が `Core/` 直下に在り、`Core/` の子 folder に `*.cs` が 1 つも無い（後続のスライスが `Core/` 直下に file を足しても壊れないよう、件数の固定はしない）。新規 file に AC6 の語の検査を行う） | AC1、AC6、I-C3、反例 (l)、X-08、G-04 |
 | C30 | `Compat_UnspecifiedRepresentation_MayAdoptOtherRepresentation`（要求の表現は空、Local は表現 `Full` で schema 不一致、LAN は表現 `Low` で互換 → LAN を採り、Local は `RuleRejected`。要求が `Full` を指定すると LAN は `RepresentationMismatch` で `NoCompatibleCandidate`） | §2「成果の範囲」と I-C1 の読み方（外部レビュー 2） |
 
 - 差し戻し中の起点 `-Filter`: Unity テストは不要（offline の `dotnet run` が起点）。Unity の差し戻し確認が要る場合だけ `OneStarMaker.Tests.ContentResolution`（既存の `ContentRequestLoaderTests`。本スライスの型を使わないが同じ assembly の compile を見る）。C は凍結済み条件の確認に必要な範囲を根拠付きで変えてよい。
@@ -286,7 +289,7 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 - 判定 C の照合 script の方式: なし（offline の出力の `PASS` 行と §5 の表の照合、2 つの XML の比較は、判定 C が凍結済みの手順として手で行う。機械向けの期待値 file は作らない）。
 - 機械検査: `dotnet run`（offline）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC2・AC3 の `git diff` / `git grep`。
 - A0/A1 主担当・モデル・ベンダー: A0 は program（revision 3.2）。A1 は Claude Code（Cloud）、Anthropic。
-- C' 用に予約した担当・モデル・ベンダー: 未定。A2 では Anthropic の 3 系列（下記）を使った。C' には Anthropic 以外のベンダー（owner の外部レビューと別の担当）を予約することを推奨する。
+- C' 用に予約した担当・モデル・ベンダー: 未定。Phase A では Anthropic の 4 系列（A1、A2 の 3 件、目的レビューのやり直し）と、外部レビューの Grok 系を使った。C' には Phase A・B・C のどれにも関与しないベンダー（例: OpenAI 系）を予約することを推奨する（risk `normal` なので強化条件ではないが、Anthropic と Grok は使い切っている）。
 - 独立性の強化条件を満たせない場合の理由: 該当なし（risk `normal`）。
 
 ### 5.1 A2 記録と A3 の採否（統合版。凍結前）
@@ -307,7 +310,7 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | P-04 | host 述語は AND だけ、例外は不採用側、述語の有無で汎用の結果が変わらない | 採用（例外の扱いは読み替え） | I-C2。例外は「不採用」ではなく resolver の `Fault`（探索の停止）に倒す。こちらの方が強い fail-closed で、S0-a の契約 |
 | P-05 | 理由は供給元ごとに機械で区別でき、決定的 | 採用（既に満たす） | I-C6、C21、C25 |
 | P-06 | 基準は Play 前に固定し変更できない | 採用（既に満たす） | envelope は不変の値（§3） |
-| P-07 | 「必要なら content set と revision」の判断主体が曖昧 | 採用 | content set を必須、revision は host が envelope で固定した時だけ（U-S1-7、§1 の文言の改訂案は owner 裁定待ち） |
+| P-07 | 「必要なら content set と revision」の判断主体が曖昧 | 採用 | content set を必須、revision は host が envelope で固定した時だけ（U-S1-7。owner の裁定で §1 の文言を改めた） |
 | P-08 | 供給元の申告は未検証の主張 | 採用 | §1 対象外と §2「成果の範囲」に明記 |
 | P-09 | 規則を policy に渡せる形で提供するまで | 採用（既に満たす） | §2.3 |
 | P-10〜P-14 | 作らないもの（host 語彙、緩和の仕組み、自動修復・fallback、実行時の操作、後続の実装） | 採用（既に満たす） | I-C3、§2.3（緩和は program の外）、対象外 |
@@ -320,10 +323,10 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | G-07 | 行番号・テスト番号のずれ | 採用 | §1 現況と §2.1 の行番号を直し、テストは名前で照合すると明記 |
 | G-08 | 予約の接頭辞の下の未知の key の扱い | 採用 | 無視する（§3、I-C3、C11） |
 | G-総合 | 規則を `Core/` 直下、予約 key、既存 interface の再利用、非分割、risk normal は妥当。汎用の判定と述語の合成を private の 2 段に | 採用 | §2.6、§3 |
-| X-01 | I-C1 の読み方が program §4.1 第 3 項と矛盾 | 保留（owner 裁定） | U-S1-6 を新設。推奨は (a) 第 3 項を整合性の失敗に限る読み方と program の文言の修正。AC2 の 5 に program の修正を許す |
+| X-01 | I-C1 の読み方が program §4.1 第 3 項と矛盾 | 採用（owner 裁定 2026-11-09: U-S1-6 (a)） | U-S1-6 を新設。推奨は (a) 第 3 項を整合性の失敗に限る読み方と program の文言の修正。AC2 の 5 に program の修正を許す |
 | X-02 | 終わり方が既存の `DecideFailureCode` と合わず、C27 と矛盾 | 採用 | I-C2・I-C6 を既存の優先順に従う形に書き直し、非対称を既存挙動の読み方として固定。C14 に pin 未充足の場合、C22 の条件を限定、C23 は供給元 1 つ |
-| X-03 | host 述語を snapshot に当てると編集中の Scene が黙って置き換わる | 採用（U-S1-3 の推奨を反転、owner 確認） | 反例 (m)、I-C4、C28 |
-| X-04 | content set を固定しない envelope が U5 と食い違う | 採用（owner 確認） | U-S1-7、反例 (n)、C9。目的の文言の改訂案（§1） |
+| X-03 | host 述語を snapshot に当てると編集中の Scene が黙って置き換わる | 採用（U-S1-3 の推奨を反転、owner 裁定 2026-11-09） | 反例 (m)、I-C4、C28 |
+| X-04 | content set を固定しない envelope が U5 と食い違う | 採用（owner 裁定 2026-11-09: U-S1-7） | U-S1-7、反例 (n)、C9。目的の文言の改訂案（§1） |
 | X-05 | 単独呼び出しの検査の方針がぶれる | 採用 | expected identity は由来に関係なく比べる（§4 判定順 2、C8） |
 | X-06 | 述語の理由の連結で snapshot の理由に digest の語が残る | 採用 | 採用理由に述語の理由を連結しない（§4、C16）。U-S1-3 で snapshot に述語を当てなくなるが、規則として凍結する |
 | X-07 | 例外を包み直すと取消が `Fault` に化ける | 採用 | I-C2「包み直さない」、C14 (iii)(iv) |
@@ -331,7 +334,19 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | X-09 | テスト番号（T13）と `RequiredBasis` の行番号 | 採用 | G-07 と同じ |
 | X-10 | AC6 の `Cancel` の除外、G08 の宣言の範囲、C25 の決定性の前提 | 採用 | AC6 を走査の扱いに揃えた、§2「成果の範囲」、C25 の名前の注記 |
 
-- 目的レビューのやり直し: U-S1-7 で owner が §1 の文言の置き換えを採った場合だけ行う。担当は本書・初稿・A2 の指摘を読んでいない担当とし、置き換え後の 2 欄の原文だけを渡す（やり直しは 1 回まで）。
+- 目的レビューのやり直し（2026-11-09）: U-S1-7 の裁定で目的の欄を改めたので、改めた 2 欄の原文だけ（sha256 `de6f3a5c2db2699696f62cf449217d9365fc879c640a53639763c795a98b7831`）を、本書・初稿・A2 の指摘を読んでいない担当（Claude Code の subagent、Claude Haiku 系、Anthropic。repository を読まない）に渡した。やり直しは 1 回までで、これ以上 2 欄は変えない。回答は 2 欄の文言の変更を求めず、指摘は全て本文の保証・作らないものとして分類した。
+
+| 指摘 | 要旨 | 採否 | 理由と反映先 |
+|---|---|---|---|
+| Q-01・Q-05・Q-10・Q-13 | 入力を基準と expected identity に閉じる、述語は AND で例外は fail-closed、判定不能の列挙、OR 合成や無効化フラグを作らない | 採用（既に満たす） | I-C2・I-C3・I-C1 (4)(5)・§4 の判定順 |
+| Q-02 | 比べられない欄は不採用。「expected identity の全欄」の意味 | 採用（既に満たす） | 4 欄がそろわない期待値は S0-a の constructor が拒むので、要求が一部の欄だけを与える状態は無い。I-C1 (2) に明記 |
+| Q-03 | 要求が revision を指定し基準が固定していない時 | 採用（既に満たす） | 要求は revision だけの部分の期待値を持てない（同上）。revision を含む期待値は全欄の pin として比べる。I-C1 (2) に明記 |
+| Q-04 | digest の比較方式と形式の検査 | 採用 | ordinal の全欄一致、正規化しない、形式は検査しない（adapter の責任）を I-C1 (2) に明記 |
+| Q-06 | version は完全一致 | 採用（既に満たす） | ordinal の完全一致。範囲一致は program の外（§2.3） |
+| Q-07 | 決定性と複数候補の選択規則 | 採用（既に満たす） | 供給元の順で最初に採れた候補（既存の resolver）。C25・C26 |
+| Q-08 | 理由は安定した code、複数の理由の扱い | 採用（既に満たす） | `ContentCompatibilityMismatch` の名前の前置。§4 の判定順で最初に当たった 1 つだけを残す |
+| Q-09 | 述語の登録は基準の固定の前 | 採用（既に満たす） | 述語は規則の constructor で渡し、不変（§3） |
+| Q-11・Q-12・Q-14〜Q-17 | 実行時の操作、近い候補の採用・自動変換、汎用の解決 engine、永続化、実体の再 hash、暗黙の登録を作らない | 採用（既に満たす） | 対象外、§2.3 |
 - 外部レビュー（owner が依頼、2026-11-09）: 入力は A3 統合版 commit `09ac3df7`。PR #174 の Cursor の review コメント 2 件（同じ担当の要約と本文。本文は Grok 系の別 session と明記）と、PR #174 の行コメント 2 件（P1・P2）。目的レビューのやり直しではない。総合は「骨格はこのまま凍結できる。1 を裁定に含め、2〜7 を本文に直してから凍結」。U-S1-1・2・3・5・7 の推奨はそのままでよい、U-S1-6 は (a) を支持。
 
 | 指摘 | 要旨 | 採否 | 理由と反映先 |
@@ -348,6 +363,23 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | P2（行） | AC3 の「folder に変更 0 件」は AC2 と両立しない | 採用 | AC3 を base に存在した file の変更・削除・改名 0 件に限定 |
 
 - S0-c の計画（PR #175、別ブランチで A3 の前）との突き合わせ（主担当、2026-11-09）: (1) #175 は snapshot の機構の選定と実 initializer の gate を新スライス S0-d へ切り出す。本書の該当の参照（対象外、§2.3）を S0-d に直した（#175 のマージ前は program 上 S0-c / S3）。(2) #175 は Built の候補を「検証を通った最新の install」とし「S1 で互換判定に置き換える」とする。置き換えは S0-c の Phase D の後の接続で、本書は入口に触れない（§2.3 の S0-c の行に引継ぎ条件を書いた）。(3) #175 と本書はどちらも program §8 の表の隣り合う行を変えるので、後からマージする側に衝突が出る（§0 の停止規則）。
+
+### 5.2 Phase C / C' で突かれそうな点の自己点検（主担当、2026-11-09。凍結前）
+
+owner の依頼で、凍結前に主担当が本書を Phase C / C' の目で読み直した。独立レビューではない。直したものと、C / C' に先回りで渡す読み方を分ける。
+
+- **直した（本文に反映済み）:**
+  - C14 (iii) は書かれたとおりには実行できなかった。resolver は provider の回答の後、規則の前に token を見る（`ContentResolver.cs` 68〜69 行目）ので、取消済みの token を渡すと規則まで届かない。述語の中で取消してから投げる手順に直し、取消されていない token の `OperationCanceledException` が `Fault` になる場合 (iv) を足した。
+  - C29 の「`Core/*.cs` が 24 件」は、後続のスライスが `Core/` に file を足すと壊れる。子 folder に `*.cs` が無いことの検査に替えた。
+  - Cloud で Phase B を行うと、Unity が `.meta` を作らない。AC2 は `.meta` を求めているので、手書きの規則と Phase C での確認を §2.4 に書いた。
+  - C17 の候補が要求の不変で先に落ちると、根拠の表の比較にならない。候補を要求に揃えると書いた。
+- **C / C' への読み方（変更なし）:**
+  - offline テストの判定入力は、判定 C の担当が GO 候補 head で自分で実行した `dotnet run` の出力とする。Phase B の出口の実行結果（Cloud を含む）は判定の入力にしない（phases-and-handoff.md「実行担当と判断担当」）。出力と 2 つの XML は判定 evidence bundle に入れる。
+  - AC7 の base は、§0 の implementation base commit（Phase B の着手時に取り直した値）とする。
+  - `Evaluate` と `Accepts` の理由が `compat:Compatible:<由来>` で採用時の probe にも残ることは仕様で、「採用時に理由が付く」ことを欠陥にしない（§4 の 3・6）。
+  - 要求の表現が空の時に別表現の候補が採られること（C30）、expected identity の無い要求で別 revision・別 digest の互換な候補が採られること（I-C1 の読み方）は、owner の裁定（U-S1-4・U-S1-6）による仕様で、blocker の根拠にならない。違反を言うなら、裁定で直した program の文言（§3.1 の 10、§4.1、U5）との食い違いを示す必要がある。
+  - 本スライスは Unity 実機の動作確認を持たない（§5「統合・Unity テスト」）。Unity で確かめるのは compile と全 EditMode 回帰の非退行だけで、実在の manifest・実ロードの未検証は §2「成果の範囲」に書いた既知の範囲であり、C' の「監査できなかった範囲」に書けば足りる。
+- **残る点（凍結の前に owner 側で行う）:** 本書の作成環境に pwsh が無く、`pwsh tools/docs-audit.ps1` を一度も通していない（program の変更を含む）。凍結の commit の前に owner の環境で通す。
 
 ## 6. Phase B 実装結果
 

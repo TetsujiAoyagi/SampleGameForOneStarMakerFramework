@@ -132,7 +132,7 @@ Rev4 の最小の汎用モデルを採る。**既存の `IAssetManagement`、`IC
 7. ResolutionPolicy（規則）と LoadRecord（実行事実）。
 8. 供給元の tier と、その Scene が今どこに cache されているか。
 9. manifest の `sourceFiles` と、Runtime が持つ package / dependency の索引。
-10. ネットワーク失敗による次 tier への探索と、非互換 revision への暗黙 fallback。
+10. ネットワーク失敗による次 tier への探索と、非互換 revision への暗黙 fallback。後者は整合性の失敗（hash 不正等）の後に別 revision を採ることを指し、互換の規則が上位の候補を理由付きで採らず、下位の互換な候補へ進むことは含めない（S1 の U-S1-6、owner 裁定 2026-11-09）。
 
 ## 4. 要求（A1 の入力）
 
@@ -140,9 +140,9 @@ Rev4 の最小の汎用モデルを採る。**既存の `IAssetManagement`、`IC
 
 - 供給元の選択は**ロード要求時**に行う。Play 前は RunPurpose 相当の互換基準と policy と、bootstrap が必須とする graph / config / UICommon の取得可能性だけを確定する。
 - **物理的な Scene ロードと OSM lifecycle は別契約。** Editor で開いている Scene は resolver の供給候補であって、その事実だけで `SceneDirector.AddScene` を要求したことにはしない。`SceneBase` の初期化・進行は SceneDirector への明示的な要求（必要な bootstrap Scene も明示要求に含む）を起点とする。Unity の `Awake` / `Start` が実行されないことは保証せず、ゲーム進行・初期化をそれらに依存させない。現行 `RegisterAlreadyLoadedScenes()` は開いている map 登録済み Scene に `AddScene` を呼ぶため、この分離の成立と移行方法は S0-b で実証する。
-- `not found`・未接続・timeout は次 tier を試す。hash 不正・version 不整合・権限拒否は記録し、**同じ expected digest の正規コピーで修復できる時だけ**下位 tier へ進む。別 revision・別表現へ黙って切り替えない。
+- `not found`・未接続・timeout は次 tier を試す。hash 不正・version 不整合・権限拒否は記録し、**同じ expected digest の正規コピーで修復できる時だけ**下位 tier へ進む。別 revision・別表現へ黙って切り替えない。ここでの「hash 不正・version 不整合・権限拒否」は、供給元が自分の申告と bytes の食い違いとして検出し `Rejected` で返す整合性の失敗を指す。正しく作られた候補が互換の基準に合わないことは互換の不一致で、理由付きで記録して次の供給元へ進む。別 revision へ切り替えたくない host は基準の revision か要求の expected identity で固定する。「別表現」は要求が表現を指定した時だけ数える（S1 の U-S1-6、owner 裁定 2026-11-09）。
 - 必須 Scene の失敗は fail-closed。任意 Scene（距離 streaming 等）の失敗の扱いは呼び出し側の policy が決め、resolver は欠損を成功にしない。
-- この段落の revision 規則は、**検証済み package 同士の合成**に限る（R3 F-01）。異なる logical key について Editor snapshot と directory を併用することは revision の寄せ集めではなく、§3 の標準連鎖であり S0-b が実機で見る。同一 logical key は snapshot を 1 つだけ実行し、directory 側は実行しない（G21）。複数供給元の**同じ revision**から必要な物を取るのが標準。異なる revision の寄せ集めは、versioned composition の契約を別に実証するまで拒否する。**revision 名の一致は必要条件の一部に過ぎない**（R2 F-04）。独立に build した package は同じ名前でも依存 graph や shared asset の構成が違い得るので、package の合成可否は S1 が定める互換 envelope（共同の immutable build plan / dependency graph の出所、target / engine / schema、表現、shared asset の所有と重複の方針、同一 logical identity の衝突規則、package 索引の hash 関係）で判定し、名前と個々の digest だけで採用しない。
+- この段落の revision 規則は、**検証済み package 同士の合成**に限る（R3 F-01）。異なる logical key について Editor snapshot と directory を併用することは revision の寄せ集めではなく、§3 の標準連鎖であり S0-b が実機で見る。同一 logical key は snapshot を 1 つだけ実行し、directory 側は実行しない（G21）。複数供給元の**同じ revision**から必要な物を取るのが標準。異なる revision の寄せ集めは、versioned composition の契約を別に実証するまで拒否する。**revision 名の一致は必要条件の一部に過ぎない**（R2 F-04）。独立に build した package は同じ名前でも依存 graph や shared asset の構成が違い得るので、package の合成可否は互換 envelope（1 候補の採否の基準（content set / target / engine / schema、任意の revision）は S1 が定め、合成の欄は S2 が定める。S1 の U-S1-1、owner 裁定 2026-11-09。共同の immutable build plan / dependency graph の出所、target / engine / schema、表現、shared asset の所有と重複の方針、同一 logical identity の衝突規則、package 索引の hash 関係）で判定し、名前と個々の digest だけで採用しない。
 - resolver は暗黙に Build を始めない。Build は「互換な候補が全供給元に無い」時の**明示された回復操作**で、Scene ロードの裏で Unity の build を走らせない。
 - Editor API を Runtime asmdef に持ち込まない。Editor snapshot tier は Editor 専用 adapter で、Player には無い。
 
@@ -308,7 +308,7 @@ R3 の推奨を各項に併記した。推奨は owner 決定の置き換えで�
 - **U2（S0-b）:** snapshot の機構 (i) / (ii)。勝者は選ばない。脱落条件: (i) が封じの後に AssetDatabase / Addressables で読むなら脱落（§5.2）。(ii) は複数 directory 登録が前提で U1 (2) と結び付き、publisher の `Full` 限定も比較のコストに入れる。**S0-b の結果:** どちらも脱落しなかった（§5.2）。選定は S0-c / S3 の A1 へ送る。
 - **U3（S0-b）:** snapshot を Runtime に渡す形。推奨は Editor 専用 bridge。`content:` の予約 key には入れない。protected 照合が `content:runtimeMode` から `probeToken` までを Player の baked 値と突き合わせるので、snapshot の path をこの名前空間に置くと I10 の保護 key と同じ形になる。Player にこの bridge は無い。**S0-b の結果:** 実験は `content:` の key を使わず harness の中で渡した（AC12）。bridge の形は未決定で S0-c / S3 が決める。
 - **U4（S0-c、S1）:** §4.7「known-good の自動適用はしない」と Editor adapter が config を書く行為の境界。二つの行為に分ける。(a) key がどの層にも無い時、Editor の transaction が `content:runtimeMode=addressables` をそのセッションに書くことは verified pair の自動適用ではない。`addressables` は既存の mode で directory を選ばない。Console に 1 行残す。D1 とは別で、コミットされた既定値にはしない（R3 採用）。(b) adapter が `content:installedRevisionPath` と `content:manifestSha256` の pair を書くこと。R3 は「§4.7 が拒んだ自動適用そのもの。書かない」と推奨したが、**本書は採らない**。現行の Verify Play の `Bridge` 段と Delivery の「Use For Next Play」は、install と verify を済ませた pair を 1 回の Play の ledger で書く既存の経路で、これを禁じると directory Play に入る手段が無くなる。§4.7 が拒むのは Runtime が未指定時に known-good を見ることで、Editor adapter が利用者の policy の下で候補を選び、その transaction で再検証し、1 回の Play の ledger で書き、record に残す行為は別。この境界の文言を S0-c の A1 が §18 §4 向けに書き、S1 が互換判定と接続する。
-- **U5（S1）:** 互換 fingerprint。汎用の一致は contentSet、target、revision の identity（名前の一致だけでは不可）、file digest、Unity version、root schema。`declaration` は optional で validation が見ず、空の name 同士が一致してしまうので汎用の最小集合に入れない。`declaration.name`、表現、graph は host が登録した時だけ比べる述語にする。表現は要求元の data なので汎用側は中身を解釈しない。graph version の追加は反例で判定。
+- **U5（S1）:** 互換 fingerprint。汎用の一致は contentSet、target、Unity version、root schema を常に比べ、revision は host が Play 前の基準で固定した時だけ、file digest は要求の expected identity がある時だけ全欄で比べる（S1 の U-S1-6、owner 裁定 2026-11-09。当初は revision と digest も常に比べる列だった）。`declaration` は optional で validation が見ず、空の name 同士が一致してしまうので汎用の最小集合に入れない。`declaration.name`、表現、graph は host が登録した時だけ比べる述語にする。表現は要求元の data なので汎用側は中身を解釈しない。graph version の追加は反例で判定。
 - **U6（S2）:** Stage II の索引の置き場。答えるのは早い。制約: 索引は BuildSystem が正規 directory と一緒に出す bytes にする。Runtime が成果物を走査して作らない。Editor にしか無い sidecar にしない。Local と LAN が同じ bytes を見る。
 - **U7（S4）:** checkout hook の形。VCS adapter は resolver の内部を参照しない。`tools/` の script か host が prefetch の公開入口を呼び、手動 checkout も同じ入口。SVN の型は OSM に入れない（D8）。
 - **U8（S5）:** menu root と観測 UI。契約ではない。観測の置き場は Editor adapter。二重 root の統合を S0 の gate にしない。
