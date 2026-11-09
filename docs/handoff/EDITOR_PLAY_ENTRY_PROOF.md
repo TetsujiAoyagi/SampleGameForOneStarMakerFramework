@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（**差し戻し 1 巡目の B 適応（C-1）を commit `f87e7806` で修正。Editor のコンパイルは `f87e7806` で成功を確認（§8、§9）。発見 C 2 巡目は実施済みで、現在の問いを阻害する指摘は無い。判定 C は未実施**。発見 C 1 巡目の結論は §9。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `D`（**head `f87e7806` で判定 C は GO、C' は 2 巡目で指摘なし。マージ判断と Phase D は未実施**。経緯は §9。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
 - implementation head commit: `f87e7806e50edf47eeb43fbbe3b615f42d9cd50a`（B 適応 C-1 の修正後。前の head は `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`）
@@ -17,17 +17,16 @@
 - 関連: program §2・§3.1・§4.1〜§4.4・§6・§8 S0-c 行・§9 G18・§10 U3・U4・M-04・M-08（**本スライスの A0**）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定用 bundle と C / C' の所見の bundle の 2 つ。取得案内は同一 PC のローカルの担当が持つ
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。取得案内は同一 PC のローカルの担当が持つ
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C の準備（GO 候補 head は `f87e7806`。未解決の blocker は無い）。GO / NO-GO は未判定で、C' は起動しない。凍結した Phase A は revision 1。
-  - 次の作業: 判定 C。全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認。§9 の C-2・C-3 は判定 C の担当が確認する移送事項（blocker ではない）。
-  - 発見 C が済んだ範囲: 1 巡目は構造・契約・失敗経路の読解と起点 `-Filter` の単体テスト（113 件 passed、`9bcbb3f4` の結果）。2 巡目は C-1 の修正の確認と `f87e7806` のコンパイル確認（成功、§9）。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）。
-  - 動作確認の `未実施`（判定 C の完了前に解消）: AC9、AC10、AC12、AC14。理由と担当は §8「動作確認」。
+  - 次の Phase・役割: Phase D（owner のマージ判断）。判定 C と C' は head `f87e7806` で完了。凍結した Phase A は revision 1。
+  - 次の作業: `review-evidence.md` の保存・引渡し確認、harvest（§0 の harvest to）、§2 決定記録の移送事項（C-2 は S0-d、Warning の文言は S1）を program へ書く、HANDOFF の削除、`workflow-task.ps1 end`。
+  - 動作確認の `未実施`: なし（AC9、AC10、AC12、AC14 は判定 C の実行担当が取得した。§9）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: Unity Editor の起動・`eval`、Windows の Phase C バッチテストの sandbox 外実行（`osm-workflow`）。資格情報は不要。Editor は B の session が終了済み。
-  - 停止規則: §2 の停止規則に従う。Phase C の指摘は `osm-workflow` の分類に従う。asmdef の参照、Runtime、`ContentDeliveryPlayBridge` を変える修正が必要なら Phase A の新 revision を諮る。
-  - 引き渡さないもの: 判定 C と C' に B の session の観測（§8「動作確認」）を判定の入力として渡さない。
+  - 必要な権限: Artifact Storage の取得（同一 PC）。Unity Editor は不要。
+  - 停止規則: implementation head を変える修正が必要になったら、`review-evidence.md` の「判定後の head 変更」に従い、判定必須テストと C / C' をやり直す。
+  - 引き渡さないもの: なし（C' は完了）。
 
 ### 実測の方法
 
@@ -117,7 +116,7 @@
 - どうすれば誤って YES を出せるか（反例）: (1) `eval` の `EnterPlaymode` だけを見て Play ボタンの経路とする（AC14 で塞ぐ）。(2) Fast Mode と key が既に揃った Editor で試す（AC4 は保存値なし・key なし）。(3) 「Play に入った」だけで見て、起動の例外を数えない（AC4 は Error 0 件）。(4) 判定表の単体だけで G18 を確かめる（AC7、AC10 は実 Editor）。(5) directory Play で `Title` が開いたまま入り、封じの log だけを見る（AC9 は空 Scene、AC10 で混入を見る）。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` は Runtime を触るスライスとの同時実行を禁じるが、本スライスは Runtime を触らず、同スライスは A1 未着手である。
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: v1（owner、2026-11-10、head `f87e7806` に適用。どの条件の意味・合否も変えない）。(1) `PlayEntryDecision` の「Several verified revisions ... using the latest」の Warning の文言（C' の指摘 3）は現スライスで直さず S1 へ移送する。文言は policy の warnings にあり P4 の record の規定の対象ではなく、`record.revision` は実際に使う検証済み revision を示し、飛ばした revision は別の Warning に出るので N2 に反しない。候補の選択は S1 で互換判定に置き換える。(2) §9 の C-2（観測が閉じないまま残る経路）は S0-d へ移送する。発火する順序の実測が無く、AC の合否を変えない。S0-d は同じ取り消しと再 Play の経路を使う。
 - 本文へ転記した実装制約:
   - 依存は Game → Framework。`SampleGame.DependOnAll.Editor` に閉じ、asmdef の参照を足さない。新規・編集する `.cs` の先頭に `#nullable enable`。`record` を使わない。Unity の偽 null に注意する。
   - `ApplyForOnePlay` は `isPlayingOrWillChangePlaymode` の間に呼ばない。取り消しの後の `EditorApplication.update` の tick で呼ぶ。`EnterPlaymode` は呼び出しの中で `ExitingEditMode` を同期で発火するので、ledger を置いてから呼ぶ。
@@ -372,3 +371,35 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 - 発見 C で未確認（判定 C の範囲）: 全 EditMode 回帰（空 filter）、実 Editor の AC9・AC10・AC12・AC14、AC13 後の `EditorSettings.asset` の差分確認、Toolbar と詳細窓の見え方。
 - 動作確認の `未実施`（判定 C の完了前に解消）: 変更なし（AC9、AC10、AC12、AC14）。
 - 巡の数え方: 1 巡目の差し戻し（C-1）が B と発見 C の間の 1 巡。2 巡目で阻害する指摘が無くなり、往復は収束した（上限 4 巡のうち 1 巡）。
+
+## 9. 判定 C 記録
+
+- 種別: 判定 C。対象: implementation base `7b28ebad`、implementation head `f87e7806e50edf47eeb43fbbe3b615f42d9cd50a`。
+- 担当・モデル・ベンダー: Codex CLI、gpt-6-luna（OpenAI）。B（Claude Opus 5.5）・発見 C（Claude Sonnet 5.5）と別モデル。実行担当は判定 C の準備の session と、追加取得の session（どちらも Claude Opus 5.5、Phase C の実行担当で判断はしない）。
+- evidence: ローカル固定済み（未昇格）。追加取得の後に同じ head から判定用と C' 用の bundle を作り直した。取得と展開を確認した。
+- **判定: GO（§2 の判定定義どおり。例外なし）。** 現在の問いを阻害する指摘は無い。
+- 判定の経緯: 8 巡。1〜6 巡目は NO-GO または判定 C 未完了で、理由はいずれも証拠の不足（全 EditMode 回帰の省略、AC4〜AC16 の再取得、AC12・AC13・P5 など）。実装の欠陥は無く、head は変わっていない。7 巡目は「AC12 の PlayMode 2 経路は owner 受容の例外付き GO」だったが、§2 は CONDITIONAL ACCEPT を禁じ、合否を変える裁定は決定記録にできないので、**受容の例外を取り下げ、AC12 の 2 経路を実測した**。8 巡目は例外なしで AC12・AC14 を判定し GO。
+- 判定必須テスト: 全 EditMode 回帰（空 filter、`pwsh tools/run-tests.ps1`、`f87e7806`）は total 1735 / passed 1710 / failed 0 / inconclusive 25（VFX）/ skipped 0、root `Passed`。既知の Unity 終了 stall のため `step.json` と終了コードは無い（AC15 は XML で判定する）。起点 filter は 124 件 failed 0。`contract-audit` は errors=0 / warnings=0。`docs-audit` は errors=0。
+- 実 Editor の AC4〜AC14・AC16・P5 は `f87e7806` で判定 C の実行担当が取得した。**AC14 は 2026-11-10 に再観察した:** 新しい Editor process の最初の Play で、owner が Game view を前面にして実際の Toolbar の Play を 1 回クリックし、Game view のまま詳細窓の policy と record を読めた（owner の観察記録）。機械の観測: Toolbar に入口の要素なし、詳細窓は 0 → 1、Play 中 26.5 秒の時点で `EnteredPlay` / Error 0 / Exception 0、停止後の環境変数は Play 前と同じ（空）、`git status` は空。
+- **AC12 の PlayMode 2 経路（2026-11-10）:** project に PlayMode テストが無いので、一時の asmdef とテスト 1 件を未 commit で置いて実行し、後で消した（`git status` は空）。`TestRunnerApi.Execute` と対話の Test Runner window（owner の実クリック）の両方で、テストが 1 件実行され、record は `TestRunnerScene` / `PassThrough` で取り消されなかった。window 経路は results.xml で total 1 / passed 1。**観測上の注意:** Reload Domain 無効の project では、コンパイルまたは script reload の後の最初の PlayMode 実行だけテストが走り、以降は経路によらず 0 件になった（理由は未調査、本スライスの問いではない）。
+- 構造適合: §3 の責務マップどおり（発見 C の確認から head の差分は C-1 の 1 箇所のみ）。
+- 後続スライスの入力: C-2（§2 決定記録、S0-d）。C-3 は Warning と record で revision を示すので N2 に反しない読みとし、より厳しい仕様が要るなら S1 の判断とする。判定 C の 8 巡目は API 経路の results.xml が後の実行で上書きされて残っていない点を挙げた（実行の根拠は Editor.log の行）。
+- 未確認: Editor の異常系全般は §2 の AC の範囲外。
+
+## 9. Phase C' 記録
+
+- 種別: 最終 C'（高コスト証拠の分類なし）。対象: 判定 C と同じ base / head。blind bundle はローカル固定済み（未昇格）で、1 巡目と 2 巡目で作り直した。
+- 担当・モデル・ベンダー: cursor-agent、grok-4.7-high（xAI）。新規 session、B / C と別モデル。独立性: 発見 C・判定 C の結論を含まない blind bundle のみ。normal risk で強化条件は必須でない（A2 と PR の外部レビューの Grok 系の使用は §5 のとおり）。
+- **判定: 2 巡目で指摘なし。** 阻害する指摘は無い。
+- 1 巡目の指摘と解消:
+
+| 指摘 | 条件 | bucket | 解消 |
+|---|---|---|---|
+| 1. AC12 の PlayMode 2 経路が未実施 | AC12、N4 | 現在の問いを阻害 | 同じ head で 2 経路を実測（§9 判定 C）。2 巡目で閉じたと確認 |
+| 2. AC14 の観察記録と 15 秒・停止後の値が足りない | AC14、P4 | 現在の問いを阻害 | 同じ head で再観察。2 巡目で閉じたと確認 |
+| 3. Warning の「verified」「latest」が検証失敗の経路で事実と合わない | P4 の説明の範囲 | 後続スライスの入力 | 決定記録 v1 で S1 へ移送。2 巡目で裁定への異議なし |
+
+- 巡の数え方: C' の指摘による往復 1 巡（上限 3 巡）。実装の変更は無い。
+- 残存リスク: 上の C-2 と Warning の文言。
+- 監査できなかった範囲: program §4.2 の未変更本文、`PurposeLaunchSettings` と Runtime の initializer の本体、全 EditMode の `unity.log` 全体、Editor 画面そのもの。
+- C と C' の突き合わせ: AC12 は事実で一致（判定 C の 7 巡目は受容、C' は blocker）し、実測で解消した。AC14 は判定 C の 7 巡目が「満たす」、C' が不足で、C' が正しかった（再観察で解消）。Warning の文言は C' だけが、C-2 は発見 C と判定 C だけが挙げた。
