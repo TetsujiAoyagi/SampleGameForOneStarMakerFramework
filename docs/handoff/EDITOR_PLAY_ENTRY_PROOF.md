@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（**A3 凍結済み、revision 1、実装待ち**。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `C`（**Phase B 完了、発見 C の開始待ち**。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
-- implementation head commit: `未固定`
+- implementation head commit: `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`
 - risk: `normal`（program §8 の分類。Runtime、asmdef、`SceneState`、Addressables の設定形式を変えない。Editor の Play 移行に割り込むが、状態は Editor process の中に閉じる）
 - owner: root（依頼者）
 - created: 2026-11-09
@@ -20,12 +20,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。凍結した Phase A は revision 1。
-  - 次の作業: §3 の責務マップと §4 の順序のとおりに実装し、§5 の単体テストを書く。出口で `pwsh tools/contract-audit.ps1` と Editor のコンパイル確認を行い、§5 の検証経路の条件のうち Unity テストと Build を要しないものを各 1 回動作確認する（Toolbar 要素の既定の見え方を含む）。AC9・AC10 の準備の Build と AC12 は Phase C が行う。AC14 の実クリックは §6 D-4。
+  - 次の Phase・役割: 発見 C（実装差分の構造・契約・凍結済み失敗経路のレビュー）。凍結した Phase A は revision 1。
+  - 次の作業: §8 の実装結果と implementation head の差分を、§2 の不変条件・AC と §3 の責務マップに照らしてレビューする。差し戻し中のテストは §5 の起点 `-Filter`。単体テストは B では未実行で、最初の実行は C になる。
+  - 動作確認の `未実施`（判定 C の完了前に解消）: AC9、AC10、AC12、AC14。理由と担当は §8「動作確認」。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: ローカルの Unity Editor の起動・`eval`・menu 操作（`osm-unity-editor` に従う）。資格情報は不要。
-  - 停止規則: §2 の停止規則に従う。Unity バッチテストと Build は実行しない。asmdef の参照、Runtime、`ContentDeliveryPlayBridge` は変更しない。凍結済みの条件を満たすのに計画外の状態・依存・所有者・寿命・公開 API が要るなら止めて Phase A の新 revision を諮る。
-  - 引き渡さないもの: なし（Phase A の A2 の入力はレビューが終わっている）。
+  - 必要な権限: Unity Editor の起動・`eval`、Windows の Phase C バッチテストの sandbox 外実行（`osm-workflow`）。資格情報は不要。Editor は B の session が終了済み。
+  - 停止規則: §2 の停止規則に従う。Phase C の指摘は `osm-workflow` の分類に従う。asmdef の参照、Runtime、`ContentDeliveryPlayBridge` を変える修正が必要なら Phase A の新 revision を諮る。
+  - 引き渡さないもの: 判定 C と C' に B の session の観測（§8「動作確認」）を判定の入力として渡さない。
 
 ### 実測の方法
 
@@ -296,3 +297,47 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
 ### PR の最終確認（2026-11-09、owner 経由、PR #175、対象 commit `f6808f6d`）
 
 判定は A3 凍結 GO、追加の blocker なし。計画の凍結可であり機能の成立ではない、AC12・AC14・AC16 を含む証拠は Phase B / C で採る、という留保が付いた。本文の変更なし。目的と利用者の欄は A2 入力版から変えていないので、目的レビューのやり直しは要らない。
+
+## 8. Phase B 実装結果
+
+- 実装: §3 の 7 file（`PlayEntryDecision` 222 行、`PlayEntryTransaction` 135、`PlayEntryInterceptor` 174、`PlayEntryCandidates` 102、`PlayEntryRecord` 192、`PlayEntrySettings` 36、`PlayEntryWindow` 164）と `VerifyPlayLauncher.FindReusableLoadedScenes` の `internal` 化。単体テスト 4 class 71 件。Runtime、asmdef、`SceneState`、`ContentDeliveryPlayBridge` は変更なし。
+- HANDOFF との差（いずれも B 適応。契約・責務配置は変えない）:
+  - **候補の検証失敗の扱い。** 新しい revision から順に検証し、最初に通ったものを使う。検証に失敗して飛ばした revision は Warning に名前を出す。N2 の「黙って別の revision へ切り替えない」と UC3 の「検証を通った最新の install」の両方を満たす読み。全滅なら行 7 の拒否。
+  - **一回の ledger を見た行 2 の拒否だけは `ExitingEditMode` で確定する。** §4 は tick の判定を最終とするが、次の tick までに `HandleIdle` が ledger を戻すと前提が消え、directory の Play が別の source Play に化ける。再入の非素通りも同じく確定し、再 Play を増やさない（N3、N4、AC2）。
+  - **候補の content の検証は tick の最終判定だけで行う。** `Verify` は content ツリー全体を見る。`ExitingEditMode` の判定は取り消すかどうかにしか使わず、経路 Built は行 7〜9 のどれでも取り消すので結果が変わらない。
+  - 詳細窓を開き直すために menu `Tools/OSM/Play Entry` を足した。Toolbar の要素は既定で表示されないことがあるため（§4「対象外を維持する方法」、下の動作確認）。
+  - 行数は §3 の見積もりより Decision が +42、Interceptor が +44、Record が +122、Window が +44 多い。Record は policy / record の 2 型と観測の状態遷移を持つ分。各 500 行未満。
+- 未実行: Unity の単体テストと全 EditMode 回帰（Phase C）。B はコンパイルまでを確認した。Build（AC9・AC10 の準備）も未実行。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors=0 / warnings=0。`git diff --name-only 7b28ebad HEAD` に `Scripts/Runtime/`、`.asmdef`、`SceneState` を含まない。
+- 実 Editor のコンパイル: 成功（`scriptCompilationFailed=false`、テスト asmdef に 4 class 71 件を確認）。
+- implementation head commit: §0 の欄
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）
+
+### 動作確認
+
+判定の入力にしない（B の session の観測）。合否は書かない。
+
+- 対象 head: `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`
+- 実行担当・環境: Phase B の session。Windows、Unity 6000.6.0f1、Domain Reload は project 既定（AC13 以外）。`tools/unity-editor.cmd eval` で §5 の手順（`SessionState` の record を消す → `Edit/Play Mode/Play` → record を読む → 15 秒 → `ExitPlaymode`）。保存値の 2 key は開始時に消した。
+- 開始時の環境: この Editor は `UserSettings` に Variant profile（Production）が選択済みで、そのままの Play は行 5 で拒否された（`variantProfile=True`、AC11 と同じ）。AC4〜AC8、AC13、AC16 の間だけ選択を外し、最後に元へ戻した。既定 cache root の `spring-full` は空。
+- 生の観測:
+
+| 条件 | 操作 | 観測 |
+|---|---|---|
+| AC4 | Title・key なし | `Intervene` / `SourceRoute`、`EnteredPlay`、15 秒後も Error 0・Exception 0、`initializer=unknown`。停止後に環境変数は null、ledger なし、`git status` 空 |
+| AC5 | Title を Dirty で Play | SHA-256 は Play の前後で同じ。停止後 `dirty=True`。確認 UI は eval の応答が返り続けたので出ていない |
+| AC6 addressables | 外の環境変数 | `PassThrough` / `ExplicitSetting`、`EnteredPlay`、値は残る、ledger なし |
+| AC6 `foo` | 外の環境変数 | `PassThrough`、`StartupFailed`（Exception 1、Error 1、`content:runtimeMode must be addressables or directory.`）、値は `foo` のまま |
+| AC6 非 Fast | `Use Existing Build` + addressables | `PassThrough`、Warning に「既存 build を読みうる」。Script は変わらない。この環境は未 build なので Addressables が Play を拒否し（Error 1）、`StartupFailed` で Play に入らず |
+| AC7 Title | 手動 ledger（`directory`、擬似の pair）+ Title | `Reject` / `DirectoryWithReusableScenes`、回復 `EmptyScene`、Play に入らず ledger と値は不変、Title のまま |
+| AC7 空 Scene | 同じ ledger + 空 Scene | `PassThrough` / `ExplicitSetting`。pair が擬似なので Runtime が拒否（`StartupFailed`）。停止後も手動 ledger が残る。実 content の directory Play は未観測 |
+| AC8 | `spring-whitebox` / Built、候補なし | `Reject` / `NoVerifiedCandidate`、回復 `VerifyPlayBuild`・`SwitchToSource`。Play に入らず、経路は Built のまま |
+| AC11 | Production profile 選択 | `Reject` / `ConflictingState`、`variantProfile=True`、profile は不変 |
+| AC13 | Domain Reload 有効 | `EnteredPlay`、15 秒後も Error 0・Exception 0、停止後は環境変数 null。設定は既定に戻した |
+| AC16 拒否 | `Use Existing Build` + Built・候補なし | `Blocked`、Script は `Use Existing Build` のまま |
+| AC16 Source | `Use Existing Build` + Source | Fast Mode に揃い `[PlayEntry] Addressables Play Mode Script set to 'Use Asset Database'` が 1 行、`EnteredPlay`、Error 0・Exception 0、`git status` 空 |
+| Toolbar | Main Toolbar の visual tree を検索 | 要素は tree に見つからない（既定では表示されない）。詳細窓は `Blocked` の時に開き（utility window、docked=False）、前面表示 |
+
+- 検証経路の期待と違う観測と、B への差し戻し: なし。AC6 非 Fast は Addressables の前提で Play に入らなかった点だけが §5 の想定より手前で止まった。AC13 の Editor 設定の保存で `unity/ProjectSettings/EditorSettings.asset` が再シリアライズされて差分が出たので（値の変更ではなく欄の増減）、`git restore` で戻した。実行担当は AC13 の後に同じ確認が要る。
+- 保存先・状態: 未保存（B の session の観測で判定の入力にしない。生の出力は session の一時領域のみ）。
+- `未実施` の条件と理由・担当: AC9・AC10（Content Directory の Build が要る。判定 C の実行担当）、AC12（Unity テストの実行が要る。判定 C の実行担当）、AC14（実クリックと表示の確認。§6 D-4 の判定 C の実行担当、できなければ owner）。
