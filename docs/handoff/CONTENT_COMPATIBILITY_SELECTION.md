@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（**A3 統合版（外部レビュー 1 巡と owner の裁定を反映）。まだ凍結していない。** A2 の独立レビュー 3 件と、owner が依頼した外部レビュー（PR #174 のコメントと 2 件の行コメント。§5.1）の採否を本文に反映した。owner は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を全て推奨どおりに裁定し、目的の文言を改め（§1）、未関与の担当による目的レビューのやり直しも済んだ（§5.1）。凍結は owner の指示を待つ（A3 凍結版の commit で status を凍結にする）。Phase B は未着手。A2 入力版は commit `50d6ff2e`、A3 統合版の最初の commit は `09ac3df7`。本版を commit にして push したのは、外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外である（S0-a の「A3 整理版」と同じ扱い）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
+- status: `A`（**A3 統合版（外部レビュー 2 巡と owner の裁定を反映）。まだ凍結していない。** A2 の独立レビュー 3 件と、owner が依頼した外部レビュー（PR #174 のコメントと 2 件の行コメント。§5.1）の採否を本文に反映した。owner は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を全て推奨どおりに裁定し、目的の文言を改め（§1）、未関与の担当による目的レビューのやり直しも済んだ（§5.1）。凍結は owner の指示を待つ（A3 凍結版の commit で status を凍結にする）。Phase B は未着手。A2 入力版は commit `50d6ff2e`、A3 統合版の最初の commit は `09ac3df7`。本版を commit にして push したのは、外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外である（S0-a の「A3 整理版」と同じ扱い）。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
 - branch: `claude/loving-lamport-7lbluf`（S1 のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `7b28eba`（`develop` の head、2026-11-08。本書の実測は全てこの base。Phase B の着手時に head を取り直し、`Runtime/ContentResolution/` に差分があれば §1 現況を読み直す）
 - implementation head commit: `未固定`
@@ -232,7 +232,7 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
   4. Unity Editor で compile を確認する（できる環境なら）。`.meta` は Unity が生成した新規 file の分だけを commit する。
   5. `pwsh tools/contract-audit.ps1`（できる環境なら）。
 - `Evaluate` の判定順（A3 で凍結する。理由 code はこの順で最初に当たった 1 つ）:
-  1. `UnsupportedSource`: 由来が `ContentDirectory` で根拠が `VerifiedDigest`、または由来が `EditorSnapshot` で根拠が `OpenSceneSnapshot`、のどちらでもない（防御として未定義の enum 値も含めて扱うが、未定義の `ContentSourceKind` / `ContentAcceptanceBasis` は `ContentCandidate` の constructor が拒むので規則に届かず、テストもしない）。
+  1. `UnsupportedSource`: 由来が `ContentDirectory` で根拠が `VerifiedDigest`、または由来が `EditorSnapshot` で根拠が `OpenSceneSnapshot`、のどちらでもない。受け入れ根拠の `None` と未定義の値もここで `UnsupportedSource` になる（`ContentCandidate` の constructor は受け入れ根拠を検査しないので、これらの候補は作れて規則に届く。C17 で確かめる）。未定義の `ContentSourceKind` と `None` の由来は constructor が拒むので規則に届かず、テストもしない（外部レビュー 2 巡 1）。
   2. `ExpectedIdentityMismatch`: 要求に expected identity があり、候補の identity と全欄一致しない。**由来に関係なく**行う（resolver の pin と同じ答え。X-05）。比べるのは要求の expected identity だけで、修復中の pin（識別子付き `Rejected` 由来）は resolver だけが知る（G-05）。
   3. 由来 `EditorSnapshot` ならここで `Compatible`（理由 `compat:Compatible:EditorSnapshot`）。host 述語は当てない（U-S1-3）。
   4. 由来 `ContentDirectory` の時: `IncompleteIdentity` → `ContentSetMismatch` → `RevisionMismatch`（envelope が固定している時だけ）→ `TargetMismatch` → `EngineVersionMissing` → `EngineVersionMismatch` → `SchemaVersionMissing` → `SchemaVersionMalformed` → `SchemaVersionMismatch`。
@@ -260,10 +260,10 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | C11 | `Compat_WithoutHostPredicate_DeclarationFactsAreIgnored`（`osm.compat.` の下の未知の key も無視） | E2、I-C3、反例 (f) |
 | C12 | `Compat_HostPredicates_DeclarationNameRepresentationAndGraph`（一致で採用、不一致で `HostPredicateRejected`、空の期待値・空の事実は一致にしない、宣言の表現の不一致は「別表現」。理由に `digest verified` を返して採る述語を登録した directory の採用時の理由が `compat:Compatible:ContentDirectory` と完全一致する） | E2、E4（別表現）、AC5、反例 (f)、外部レビュー 6 |
 | C13 | `Compat_HostPredicate_CannotLoosenGenericRejection` | I-C2、反例 (d) |
-| C14 | `Compat_HostPredicateException_PropagatesUnchanged`（(i) pin の無い要求で `Fault` → `ProviderFault`、後続を probe しない。(ii) 要求の expected identity と違う候補の後に述語が例外 → `IntegrityRejected`。(iii) 述語が自分の中で `CancellationTokenSource.Cancel()` を呼んでから、その token の `OperationCanceledException` を投げる → resolver が取消として投げ、`Fault` にならない（resolver は規則の前に token を見るので、取消済みの token を最初から渡すと規則まで届かない）。(iv) token が取消されていないのに述語が `OperationCanceledException` を投げる → `Fault`（S0-a の既存の契約）。(v) 規則の直接呼び出しで、述語が投げた例外の型と instance がそのまま出る） | I-C2、反例 (e)、X-02、X-07 |
+| C14 | `Compat_HostPredicateException_PropagatesUnchanged`（(i) pin の無い要求で `Fault` → `ProviderFault`、後続を probe しない。(ii) 要求の expected identity と違う候補の後に述語が例外 → `IntegrityRejected`。(iii) 述語が、`ResolveAsync` に渡したのと同じ `CancellationTokenSource` を自分の中で `Cancel()` してから、その token の `OperationCanceledException` を投げる（`Accepts` は token を受け取らないので、fixture が同じ source を閉じ込める。別の source を取消すと resolver の token は未取消のままで (iv) と同じ `Fault` になる） → resolver が取消として投げ、`Fault` にならない（resolver は規則の前に token を見るので、取消済みの token を最初から渡すと規則まで届かない）。(iv) token が取消されていないのに述語が `OperationCanceledException` を投げる → `Fault`（S0-a の既存の契約）。(v) 規則の直接呼び出しで、述語が投げた例外の型と instance がそのまま出る） | I-C2、反例 (e)、X-02、X-07 |
 | C15 | `Compat_HostPredicates_AllMustAccept_InOrder`（2 番目が拒むと 3 番目は呼ばれず、理由に番号 1） | I-C2 |
 | C16 | `Compat_SnapshotWithEmptyIdentity_IsAdopted_WithoutDigestClaim`（要求の expected identity は無し、要求と候補の表現は同じ。理由が `compat:Compatible:EditorSnapshot` と完全一致。理由に `digest verified` を返す述語を登録しても同じ） | E3、I-C4、AC5、反例 (g)、X-06 |
-| C17 | `Compat_UnsupportedSourceOrBasis_MatchesResolverTable`（候補の constructor が受け付ける `ContentSourceKind` × `ContentAcceptanceBasis` の全ての組について、規則の直接呼び出しの `UnsupportedSource` と、全件採用の規則での resolver の `NoAcceptanceBasis` が一致する。未定義の値・`None` は候補を作れないので対象外。候補の logical key・kind・表現・provider は要求と probe した供給元に揃え、根拠の表だけで差が出るようにする） | I-C4、反例 (h)、G-02 |
+| C17 | `Compat_UnsupportedSourceOrBasis_MatchesResolverTable`（候補の constructor が受け付ける全ての組、すなわち `ContentSourceKind` の `EditorSnapshot` / `ContentDirectory` / `Addressables` × `ContentAcceptanceBasis` の `None` / `VerifiedDigest` / `OpenSceneSnapshot` と未定義の値 1 つ（例: `(ContentAcceptanceBasis)99`）について、規則の直接呼び出しの `UnsupportedSource` と、全件採用の規則での resolver の `NoAcceptanceBasis` が一致する。`None` と未定義の受け入れ根拠の組は全て `UnsupportedSource`。未定義・`None` の `ContentSourceKind` だけは constructor が拒むので対象外。候補の logical key・kind・表現・provider は要求と probe した供給元に揃え、根拠の表だけで差が出るようにする） | I-C4、反例 (h)、G-02 |
 | C18 | `Compat_UnsetIsNotCompatible`（`default(ContentCompatibilityMismatch)` は `Unset` で `Compatible` でない。`Accepts` が true を返すのは `Evaluate` が `Compatible` のときだけ） | I-C6、反例 (c) |
 | C19 | `Compat_Envelope_Validation`（空白の content set / target / engine、schema 0・負・1,000,000,000、空白だけの revision、revision の null は許す） | I-C1、G-01 |
 | C20 | `Compat_HostPredicateList_Validation_AndDefensiveCopy` | I-C2 |
@@ -299,7 +299,7 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
   - 目的レビュー: Claude Sonnet 系。repository を読まず、2 欄の原文だけ。
   - アーキテクチャゲート: Claude Fable 系。本書全体、`AGENTS.md`、architecture-gates.md、Core と offline テスト、関連文書。
   - 反例レビュー: Claude Opus 系（主担当と同じ系列。独立性は「別 session・会話なし」まで）。本書全体、Core、offline テスト、program。
-- A3 統合担当: 主担当（Claude Code、Cloud）。owner の裁定は未了（§2.5）。
+- A3 統合担当: 主担当（Claude Code、Cloud）。owner（root）は 2026-11-09 に §2.5 の U-S1-1〜U-S1-7 を推奨どおりに裁定した。
 - 総合判定: 目的レビューは判定を出さない形式。アーキテクチャゲートは「blocker なし、条件付きで A3 へ進めてよい」。反例レビューは「このままでは凍結できない（X-01・X-04 は owner の裁定が要る、X-02 は文言の修正が必須、X-03 は推奨の見直しが要る）」。
 
 | 指摘 | 要旨 | 採否 | 理由と反映先 |
@@ -361,6 +361,14 @@ path は `unity/Assets/OneStarMaker/Scripts/Runtime/ContentResolution/Core/` か
 | 外 C17 | 未定義の `ContentSourceKind` は候補を作れない | 採用 | C17 と §4 の判定順 1 に注記 |
 | P1（行） | `Evaluate` 単独では要求の不変と供給元の一致を保証しない | 採用 | §2.3 の S0-c の行の引継ぎ条件 (1)・(2)、§3 の規則の行、反例 (p) |
 | P2（行） | AC3 の「folder に変更 0 件」は AC2 と両立しない | 採用 | AC3 を base に存在した file の変更・削除・改名 0 件に限定 |
+
+- 外部レビュー 2 巡（2026-11-09、入力は commit `1b885fb5`、前回と同じ Grok 系の session）: 前回の指摘と P1・P2 は本文に入っており、目的 2 欄の sha256 も再計算して一致した。総合は「次の 2 点を直した版は、新しい裁定なしで凍結してよい」。
+
+| 指摘 | 要旨 | 採否 | 理由と反映先 |
+|---|---|---|---|
+| 外 2-1 | `ContentAcceptanceBasis.None` と未定義の受け入れ根拠は候補を作れる。C17 と §4 の注記が逆 | 採用 | `ContentCandidate.cs` 44〜47 行目が拒むのは由来だけで、受け入れ根拠は 71 行目でそのまま代入する（主担当が確認）。§4 の判定順 1 と C17 の母集団を直した。外部レビュー 1 巡の C17 の注記（未定義の由来は候補を作れない）を受け入れ根拠にまで広げて書いた主担当の誤りで、`Evaluate` の直接呼び出し（S0-c の P1 の経路）に穴が残るところだった |
+| 外 2-2 | program §8 の S1 行が裁定前のまま、gate に条件が無い。§5.1 に「裁定は未了」が残る | 採用 | program §8 の S1 行の注記を裁定済みにし、gate を「同名異内容（expected identity がある時）」「別表現（要求が表現を指定した時）」に直した（AC2 の 5）。§5.1 の文を直した |
+| 外 2-実装 | C14 (iii) は `ResolveAsync` と同じ source を取消す | 採用 | C14 (iii) に明記 |
 
 - S0-c の計画（PR #175、別ブランチで A3 の前）との突き合わせ（主担当、2026-11-09）: (1) #175 は snapshot の機構の選定と実 initializer の gate を新スライス S0-d へ切り出す。本書の該当の参照（対象外、§2.3）を S0-d に直した（#175 のマージ前は program 上 S0-c / S3）。(2) #175 は Built の候補を「検証を通った最新の install」とし「S1 で互換判定に置き換える」とする。置き換えは S0-c の Phase D の後の接続で、本書は入口に触れない（§2.3 の S0-c の行に引継ぎ条件を書いた）。(3) #175 と本書はどちらも program §8 の表の隣り合う行を変えるので、後からマージする側に衝突が出る（§0 の停止規則）。
 
