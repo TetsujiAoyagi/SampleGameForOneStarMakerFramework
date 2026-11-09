@@ -88,8 +88,9 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private static void AlignFastMode()
         {
-            var settings = AddressableAssetSettingsDefaultObject.Settings
-                ?? throw new InvalidOperationException("Addressables settings are missing.");
+            // Settings は UnityEngine.Object なので、破棄されうる値を ?? で判定しない（偽 null）。
+            var settings = AddressableAssetSettingsDefaultObject.Settings;
+            if (settings == null) throw new InvalidOperationException("Addressables settings are missing.");
             var index = settings.DataBuilders.FindIndex(x => x is BuildScriptFastMode);
             if (index < 0) throw new InvalidOperationException("The Addressables 'Use Asset Database' builder is not registered.");
             // ActivePlayerDataBuilderIndex と違い、こちらの保存先は Library/ で追跡 file を dirty にしない。
