@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（**発見 C 1 巡目完了。阻害する指摘 1 件（B 適応）を B へ差し戻し**。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
+- status: `B`（**差し戻し 1 巡目の B 適応（C-1）を commit `f87e7806` で修正。Editor のコンパイル確認は未了（§8）。発見 C 2 巡目は未実施**。発見 C 1 巡目の結論は §9。A3 凍結済み、revision 1。A2 入力版は commit `6164626b`。A3 候補版の commit `1066293a`、`47f40315`、`f6808f6d` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外）
 - branch: `claude/editor-play-entry-proof`（PR の base は `develop`）
 - implementation base commit: `7b28ebad`（`develop` の head、2026-11-09）
-- implementation head commit: `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`
+- implementation head commit: `f87e7806e50edf47eeb43fbbe3b615f42d9cd50a`（B 適応 C-1 の修正後。前の head は `9bcbb3f422d8cda0e41d76f3565b6dcf558308d2`）
 - risk: `normal`（program §8 の分類。Runtime、asmdef、`SceneState`、Addressables の設定形式を変えない。Editor の Play 移行に割り込むが、状態は Editor process の中に閉じる）
 - owner: root（依頼者）
 - created: 2026-11-09
@@ -20,9 +20,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C 1 巡目の差し戻し。B と発見 C の差し戻しの 1 巡目）。修正後は新しい implementation head で発見 C の 2 巡目。凍結した Phase A は revision 1。
-  - 次の作業: §9 の指摘 C-1（`AlignFastMode` の偽 null の契約違反、B 適応）を直す。直すのは `PlayEntryInterceptor.cs` の 1 箇所で、Runtime・asmdef・契約・責務配置は変えない。直したら §8 に B 適応として 1 行記録し、implementation head 欄を新しい commit に更新する。
-  - 発見 C が済んだ範囲: 構造・契約・失敗経路の読解、起点 `-Filter` の単体テスト実行（113 件 passed、§9）。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）。
+  - 次の Phase・役割: 発見 C 2 巡目（B 適応の確認）。凍結した Phase A は revision 1。
+  - 次の作業: §9 の指摘 C-1（`AlignFastMode` の偽 null）は commit `f87e7806` で修正済み（`PlayEntryInterceptor.cs` の 1 箇所、Runtime・asmdef・契約・責務配置は不変）。発見 C 2 巡目は implementation head `f87e7806` の差分（C-1 の修正）と、その修正の前後で影響する経路を確認する。**Editor のコンパイル確認は未了**（§8。起動した Editor が応答しなかった）。未了のまま発見 C を通す場合は、発見 C の記録にその旨を残す。
+  - 発見 C が済んだ範囲: 1 巡目は構造・契約・失敗経路の読解、起点 `-Filter` の単体テスト実行（113 件 passed、§9）。2 巡目は未実施。未了は判定 C の範囲（全 EditMode 回帰、実 Editor の AC9・AC10・AC12・AC14）と、B 適応の修正後のコンパイル確認。
   - 動作確認の `未実施`（判定 C の完了前に解消）: AC9、AC10、AC12、AC14。理由と担当は §8「動作確認」。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
   - 必要な権限: Unity Editor の起動・`eval`、Windows の Phase C バッチテストの sandbox 外実行（`osm-workflow`）。資格情報は不要。Editor は B の session が終了済み。
@@ -308,9 +308,10 @@ ledger の戻し方: 入口は `ContentDeliveryPlayBridge.Reset` を呼ばない
   - **候補の content の検証は tick の最終判定だけで行う。** `Verify` は content ツリー全体を見る。`ExitingEditMode` の判定は取り消すかどうかにしか使わず、経路 Built は行 7〜9 のどれでも取り消すので結果が変わらない。
   - 詳細窓を開き直すために menu `Tools/OSM/Play Entry` を足した。Toolbar の要素は既定で表示されないことがあるため（§4「対象外を維持する方法」、下の動作確認）。
   - 行数は §3 の見積もりより Decision が +42、Interceptor が +44、Record が +122、Window が +44 多い。Record は policy / record の 2 型と観測の状態遷移を持つ分。各 500 行未満。
-- 未実行: Unity の単体テストと全 EditMode 回帰（Phase C）。B はコンパイルまでを確認した。Build（AC9・AC10 の準備）も未実行。
-- 機械検査: `pwsh tools/contract-audit.ps1` は errors=0 / warnings=0。`git diff --name-only 7b28ebad HEAD` に `Scripts/Runtime/`、`.asmdef`、`SceneState` を含まない。
-- 実 Editor のコンパイル: 成功（`scriptCompilationFailed=false`、テスト asmdef に 4 class 71 件を確認）。
+- B 適応（発見 C 1 巡目の C-1、commit `f87e7806`）: `AlignFastMode` で `AddressableAssetSettingsDefaultObject.Settings ?? throw` を `Settings` の取得と `== null` の判定に変えた。`Settings` は `UnityEngine.Object` で、`??` は破棄された object を null と見なさないため、AGENTS.md の偽 null 規則に違反していた。契約・責務・Runtime は変えない。
+- 未実行: Unity の単体テストと全 EditMode 回帰（Phase C）。Build（AC9・AC10 の準備）も未実行。
+- 機械検査: `pwsh tools/contract-audit.ps1` は `f87e7806` で errors=0 / warnings=0。`git diff --name-only 7b28ebad HEAD` に `Scripts/Runtime/`、`.asmdef`、`SceneState` を含まない（修正前の確認。修正は `PlayEntryInterceptor.cs` の 1 箇所）。
+- 実 Editor のコンパイル: `9bcbb3f4` の時点では成功（`scriptCompilationFailed=false`）。**`f87e7806` の修正後は未確認。** 修正後の確認を試みたが、`tools/unity-editor.cmd` の起動（`unity open` の Unity 6000.6.0f1）で Editor が起動し、ライセンス接続までは進んだものの、以後 8 分以上ログが進まず、メインウィンドウも出ず、`status` の接続も得られなかった。起動したこの Editor（PID 12992）は、Scene を編集していないため強制停止した。原因は未調査（既知の終了 stall とは別の起動の停止。再調査は 1 回に限る方針で、本記録では原因を特定しない）。次の担当は、Editor の起動が正常に進む時にだけ compile 確認を行い、結果を §8 に追記する。
 - implementation head commit: §0 の欄
 - Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）
 
