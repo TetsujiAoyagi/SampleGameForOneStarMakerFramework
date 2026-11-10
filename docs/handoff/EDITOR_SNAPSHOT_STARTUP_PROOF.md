@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A3 候補版。未凍結。** owner が 2026-11-10 に §6 の D-1〜D-11 を推奨どおりと決め、D-2 に縮小の規則を足した。owner の指示で、外部レビュー用にドラフト PR へ公開する。外部レビューの 3 点（X-01、X-02、再レビューの X-03。§7）を採用して反映した。その後、判定で字面の未達になる条件を主担当が見直した（§7 末尾。owner の 2026-11-10 の指示）。Phase A の commit を 2 点に限る規則の、人間の指示による例外。A2 入力版は commit `8716a840`）
+- status: `B`（**未着手。A3 凍結済み、revision 1**（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は、A3 凍結版 commit（Phase A の最後の commit）の本書）
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: 未固定
@@ -20,11 +20,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（owner と主担当）。**凍結していない。**
-  - 次の作業: owner が外部レビューの反映（§7 X-01〜X-03。X-01 と X-02 は再レビューで解消の判断）を確かめる。追加の指摘があれば主担当が採否を §7 に足す。目的・利用者の文言が変わったら目的レビューをやり直す（X-01〜X-03 では変わっていない）。owner の凍結の指示で A3 凍結版を commit する。
+  - 次の Phase・役割: Phase B（実装担当）。凍結した Phase A は revision 1。
+  - 次の作業: §4「その他」の順序で §3 の表を実装し、単体テスト（AC1〜AC6）を書き、実 Editor でコンパイルを確かめ、動作確認（AC7、AC8、AC10、AC12、AC13、AC18 を各 1 回）を行う。結果は本書の末尾に「§8 Phase B 実装結果」として足す（§6 と §7 は A3 判断と A2 記録が使っている。判定 C 以降の章はその後ろに続ける）。開始時に、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B が動いていないことをもう一度確かめる（§2 停止規則）。
+  - 最初に確かめる未知（どれも Phase A では通っていない。§5 の疎通結果）: 混成の経路の再 Play が再入の行を通って Play に入ること。`LoadSceneAsyncInPlayMode` の additive の取り込みと、失敗時の unload。Domain Reload 有効の時の bridge と購読の置き直し。Dirty の元の Scene が停止の後に戻ること。
+  - 入力の snapshot・bundle: なし（§0 の各欄のとおり）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: なし（文書のみ）。Phase B 以降は Unity Editor の起動と操作。
-  - 停止規則: 外部レビューで D-1 (a) が成り立たないと分かったら本書の §3・§4 は成り立たない。owner へ返す。
+  - 必要な権限: Unity Editor の起動と操作（`tools/unity-editor.cmd`。AC13 は担当が自分で起動した Editor の process を強制終了する）。Unity テストの実行と判定は Phase C。Artifact Storage は使わない。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」のどれかに当たったら実装を止めて A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら、§6 D-2 の縮小の規則に従い、Phase A の新しい revision へ戻す（owner に問い直さない。機構 (ii) へは進まない）。
   - 引き渡さないもの: なし。
 
 ### 実測の方法
@@ -128,7 +130,7 @@
   - `ApplyForOnePlay` は `isPlayingOrWillChangePlaymode` の間に呼ばない。`EnterPlaymode` は `ExitingEditMode` を同期で発火する。準備・宣言・ledger を置いてから呼ぶ。
   - テストで `Task.Delay` / `Thread.Sleep` を使わない。
   - 置き場の path は `tools/path-budget.json`（repo 相対 150 文字）に収める。
-- 未決事項: なし（§6 は owner が決定済み。外部レビューの指摘は §7 に足す）。
+- 未決事項: なし。
 
 ## 3. 責務マップ
 
@@ -233,7 +235,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
   - 操作: `EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play")`（AC15 だけ実クリック）→ record の `state` が `EnteredPlay` / `Blocked` / `StartupFailed` になるまで短い `eval` で読む → 15 秒の観測窓 → `EditorApplication.ExitPlaymode()`。移行中の `eval` は捨てられるので、停止の後は `isPlaying` が false になってから次を送る。
   - 観測: `PlayEntryRecord` の JSON、loaded の Scene の名前と path と個数、active Scene、`playModeStartScene`、置き場の有無、対象の環境変数、開いている Scene の SHA-256 と Dirty、`git status --short`。構造と値で判断する。AC15 だけ画面。
   - AC10 の手順: 実行担当が `eval` で `playModeStateChanged` に handler を足し、`ExitingEditMode` の 2 回目（再 Play）で複製の `Title.unity` を `File.Delete` する。Domain Reload 無効の設定で行う（handler が残る）。AC18 は同じ handler で、AC9 の 2 Scene を開き、後の Scene の複製だけを消す。
-  - AC11 の手順: `eval` の reflection で initializer の SceneDirector を取り、`Title` の unload と `AddScene("Title")` を呼ぶ。B が実際に動いた `eval` を §6 Phase B 実装結果に残し、判定 C はそれを使う。
+  - AC11 の手順: `eval` の reflection で initializer の SceneDirector を取り、`Title` の unload と `AddScene("Title")` を呼ぶ。B が実際に動いた `eval` を §8 Phase B 実装結果に残し、判定 C はそれを使う。
   - AC13 の手順: 実行担当が Unity CLI で Editor を起動し、その PID を記録する。AC7 の Play の中で `Stop-Process -Id <その PID> -Force`。人間が開いた Editor には行わない。開き直した後、`unity/Logs/Editor.log` の回収の行と状態を読む。
   - 証拠: 条件ごとの観測を 1 file にして evidence bundle へ収録する。C / C' はそれを読む。
 - 未知の操作経路の疎通結果（Phase A、各 1 回）:
@@ -249,7 +251,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC16 の diff の検査。
 - A0/A1 主担当・モデル・ベンダー: A0 は program（複数担当）。A1 は Claude Fable 5.2（Anthropic）。
 - A2 独立レビュー: §7 に記録する。
-- A3 統合担当・モデル・採否: 未実施。
+- A3 統合担当・モデル・採否: Claude Fable 5.2（Anthropic）と owner。採否は §6 と §7。owner が 2026-11-10 に凍結を指示した。
 - C' 用に予約した担当・モデル・ベンダー: Grok 系（xAI、cursor-agent）。Phase A では使わない。
 - 独立性の強化条件を満たせない場合の理由: 該当なし（予約あり）。
 
@@ -283,7 +285,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 - **目的レビュー:** 未関与の subagent（Anthropic、Claude Opus）。入力は §1 の「目的」と「利用者」の原文だけ（sha256 `c88525d186683dec2696528e0d8b3bb3201a41596284c7ee67bf1812896d86b1`）。
 - **A0 だけからの代替構成:** 未関与の subagent（Anthropic、Claude Opus）。入力は A0（問い、program、現況の事実、疎通の結果）と現行 code。本書は読んでいない。
 
-### アーキテクチャゲートの採否（候補）
+### アーキテクチャゲートの採否
 
 | ID | 重大度 | 要旨 | 採否 | 理由と反映 |
 |---|---|---|---|---|
@@ -301,7 +303,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 
 反証の結果: N1・N8 は破れなかった。N2・N3・N6 は上の F-04・F-07・F-05 の不足として指摘された。N4（F-03）、N5（F-01）、N7（F-06）は破る順序が示され、上のとおり塞いだ。
 
-### 代替構成との突き合わせ（候補）
+### 代替構成との突き合わせ
 
 | ID | 要旨 | 採否 | 理由と反映 |
 |---|---|---|---|
@@ -312,7 +314,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 | A-5 | 2 つの checkout で一時 path が衝突しないこと | 不採用 | 置き場は project の中にあり、checkout ごとに別になる。同じ project の 2 process は Unity の project lock が止めるので、前提として書き、実測しない（P5） |
 | A-6 | 反例（封じの log だけで I10 の維持としない、空の Scene で I11 を測らない、正常終了で残骸を見ない 等） | 反映済み | §2 の反例 (1)〜(7) と AC8・AC13 が同じ点を塞いでいる。「Title が 1 個」だけで G21 としない点は、AC7 が path を見ることで塞ぐ |
 
-### 目的レビューとの突き合わせ（候補）
+### 目的レビューとの突き合わせ
 
 | ID | 要旨 | 採否 | 理由と反映 |
 |---|---|---|---|
@@ -323,7 +325,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 
 ### 外部レビューとの突き合わせ
 
-owner が依頼した外部レビュー（web の GPT。PR のレビューとして 2026-11-10 に 2 回受領）。1 回目の入力は A3 候補版（owner 決定を反映した版）の本書、2 回目は X-01 と X-02 を反映した版。文書と現行 code の静的なレビューで、実 Editor の結果は見ていない。2 回目は X-01 と X-02 を解消と判断し、X-03 を足した。3 点とも主担当が現行 code で確かめた。目的・利用者の文言は変えていないので、目的レビューはやり直さない。
+owner が依頼した外部レビュー（web の GPT。PR のレビューとして 2026-11-10 に 3 回受領）。1 回目の入力は A3 候補版（owner 決定を反映した版）の本書、2 回目は X-01 と X-02 を反映した版。文書と現行 code の静的なレビューで、実 Editor の結果は見ていない。2 回目は X-01 と X-02 を解消と判断し、X-03 を足した。3 点とも主担当が現行 code で確かめた。3 回目（下の「判定の前の見直し」を反映した版が入力）は X-03 を解消と判断し、Y-1〜Y-8 を妥当とし、新しい blocker は無いとした。製品の実装と実 Editor の検証を承認するものではない。目的・利用者の文言は変えていないので、目的レビューはやり直さない。
 
 | ID | 重大度 | 要旨 | 採否 | 理由と反映 |
 |---|---|---|---|---|
