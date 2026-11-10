@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（**Phase B 完了、B の出口の動作確認済み。次は発見 C。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
+- status: `C`（**発見 C 完了（阻害する指摘なし、§9）。次は判定 C。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
-- implementation head commit: この票を含む commit
+- implementation head commit: `8a999ee97ad3f2add53a8d9fdc889960a49239a1`
 - risk: `high`（program §8 の分類。Runtime の起動順序に Editor 専用の段を足し、`OneStarMaker.Editor` に公開 API を足し、封じの契約の文言を変える。asmdef と `SceneState` は変えない）
 - owner: root（依頼者）
 - created: 2026-11-10
@@ -20,14 +20,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（レビュー担当）。凍結した Phase A は revision 1。
-  - 次の作業: implementation base から implementation head までの差分を、§2〜§5 の凍結条件と §3 の責務マップに照らして構造・契約・凍結済みの失敗経路から見る。Phase B の結果は §8（実装の細部、行数が見積もりの 1.8 倍になった理由、動作確認の生の観測）。単体テスト（AC1〜AC6）は書いたが未実行で、差し戻し中の確認は §5 の起点 `-Filter`（6 class と `ContentDeliveryPlayBridgeTests`、`PurposeLaunchSettingsTests`）を使う。GO 判定と C' の起動はしない。
-  - 動作確認: B の出口で AC7、AC8、AC10、AC12、AC13、AC18 を各 1 回実施した（§8。未実施なし）。B の session が取った観測なので判定 C の入力にはしない。
-  - 入力の snapshot・bundle: なし（§0 の各欄のとおり）。
+  - 次の Phase・役割: 判定 C（判断担当と、必要なら実行担当）。凍結した Phase A は revision 1。
+  - 次の作業: GO 候補 head は implementation head（B 以降の実装 commit はこの 1 つだけで、判定の前に整理する履歴は無い）。§5 の判定必須テスト（全 EditMode 回帰、空 filter。XML の failed 0 と root result `Passed`）、§2 の実 Editor の AC7〜AC15・AC18（§5 の検証経路の準備・操作・観測。AC15 は §6 D-9）、AC16・AC17 の機械の確認を GO 候補 head で取り、証拠を evidence bundle にする。§8 の B の観測と §9 の発見 C の所見は判定の入力にしない。AC11 の `eval` は §8 末尾のものを使う。判定 C の完了後に C' を起動する（C' には発見 C・判定 C の所見を渡さない）。
+  - 動作確認: B の出口で実施済み（§8。未実施なし）。
+  - 入力の snapshot・bundle: なし（evidence bundle は判定 C が作る）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: 発見 C は読むだけ。限定のテストを走らせる場合は sandbox 外の `pwsh tools/run-tests.ps1`（Editor が閉じていること。B が起動した Editor は正常終了済み）。Artifact Storage は使わない。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる指摘は A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら §6 D-2 の縮小の規則（Phase A の新しい revision。owner に問い直さない）。
-  - 引き渡さないもの: なし（C' には発見 C の所見を渡さない）。
+  - 必要な権限: sandbox 外の `pwsh tools/run-tests.ps1`（Editor が閉じていること。発見 C の限定テストの Unity は終了済み）、`tools/unity-editor.cmd` での Editor の起動・操作と、自分で起動した Editor の強制終了（AC13）、`Verify Play` の Content Directory build（§5 の準備）。Artifact Storage は evidence bundle の保存・引渡しに使う（Artifacts README の事前承認の範囲）。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる結果は A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら §6 D-2 の縮小の規則。製品の挙動が合格の条件に合わない回はやり直して合格に替えない（§2）。Unity の終了時 stall は AGENTS.md の既知事象の規則に従う。
+  - 引き渡さないもの: §9（発見 C の所見）を C' に渡さない。
 
 ### 実測の方法
 
@@ -432,3 +432,27 @@ return "requested";
 - `eval` の code は method の本体として compile されるので `using` を書けない（型は完全名で書く）。
 - 候補の検証を含む `eval`（`PlayEntryCandidates.Select` 等）は 5 秒の main thread の上限を超える。上限の応答の後も処理は走るので、結果は file に書いて読む。
 - AC13 の開き直しで「Scene Backup Detected」dialog が出る（Dirty の Scene を開いたまま強制終了するため）。
+
+## 9. Phase C
+
+### 発見 C（1 回目）
+
+- 種別: 発見。対象は implementation base `4167dca8` から implementation head `8a999ee9` までの差分（commit 固定。stage snapshot は使っていない）。
+- 使用した evidence bundle の取得案内・状態: 該当なし（発見 C は commit と HANDOFF を直接読んだ。evidence bundle は判定 C が作る）。
+- 構造適合: §3 の表と一致する。Runtime の追加は bridge・照合（どちらも file 全体が `#if UNITY_EDITOR`）と initializer の段 1 つ（`#if UNITY_EDITOR` の中、封じの位置と許可 key は無変更、取り込みは `IAssetManagement` を通らない）。複製・置き場・宣言の作成と解除は `PlaySnapshotSession` だけが持ち、writer と root は internal。SampleGame の変更は入口の 4 file と Window・`PurposeLaunchSettings` だけで、asmdef の参照は足していない。行数の 1.8 倍は §8 の説明（doc comment と record の欄）で足り、新規 file はどれも 500 行未満。
+- 凍結済み失敗経路の照合（静的）: N2 の段の途中の失敗は、load を 1 つずつ待ち、失敗時に `SelectUnloadTargets`（path が宣言の複製と一致する loaded だけ）を unload してから元の例外を出す。cancel（`_cts` はアプリ終了）では unload しない。N3 は key が無い Play では bridge を読まず、key があって bridge が無ければ起動の失敗。N4 は `saveAsCopy`、`playModeStartScene` が非 null なら拒否、解除は置き場の下を指す時だけ null に戻す。N7 は folder 名の pid と開始時刻だけで生死を決め、`.meta` ごと回収、準備の最初に回収する。N8 の再入の行は拒否の行の直前で、`Entering` 以外で当たれば取り消して解除する。X-02 は `ModeKeys` を広げず `CheckEmptyLowerLayer` の理由を `ConflictReason` に入れている。
+- 現在の問いを阻害する findings: なし。
+- 阻害しない findings（B 適応で直してよいが、判定 C の前提にしない）:
+  - F-C1（保守）: 取り込みの成功の log の接頭辞が、Runtime の `EditorPlaySnapshotIntake.LogPrefix` と SampleGame の `PlayEntryRecord.IntakeLogMarker` の 2 か所に同じ文字列で書かれている。`ExpectedConfigKey` は `PlaySnapshotSession` が Runtime の定数を中継しているので、同じ形にすれば 1 か所になる。片方だけ変わると record の `intake` が空になり AC7 が落ちる（黙って偽の合格にはならない）。
+  - F-C2（表示）: `PlaySnapshotSession.HasNoCopiesOnDisk` は置き場の folder 自体の有無を見る。名前の形が違う entry（触らない規則）や他の生きている process の folder が残ると、自分の複製を消せていても record の `copiesRemoved` が `no` になる。AC8 は置き場の有無を直接見るので合否には効かない。
+  - F-C3（公開面）: §3 の公開面（準備・解除・宣言の読み取り・event）のほかに `IsPrepared` と `StartSceneName` が public で、framework の外からの参照は無い。参照 0 は削除の理由にしないので、記録だけにする。
+- 後続スライスへ移送する findings:
+  - T-C1（S3）: 取り込みの段の入口の条件は `_contentDirectoryConfiguration != null` を含み、`editor:playSnapshotExpected` が真でも directory mode でなければ段を飛ばす。入口は directory の値と key を同じ ledger で置き、環境変数とコマンドラインの競合は拒否するので、現行の経路では到達しない。snapshot を resolver の候補に広げる時に、key と mode の組み合わせの扱いを決める。
+  - T-C2（S3）: map にある Scene（例: `UIScene`）を開いて混成で Play し、その Scene が取り込みより前に directory から load されていれば、照合が「同名が既に loaded」で起動の失敗にする（fail-closed で N2・N5 は守る）。実証の範囲は `Title` と空の Scene（§2 判定定義）なので本スライスでは扱わない。
+- 機械の確認: `pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`（checks 1〜9）。AC16 の検査を手で実行: `git diff --name-only 4167dca8 8a999ee9` に `.asmdef` と `SceneState` が無い、追加行に `"content:…"` の新しい key が無い、`ModeKeys` は 3 key。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: B が書いて未実行だった AC1〜AC6 の単体を、§5 の起点 filter のとおりに 1 回実行した（sandbox 外）。`pwsh tools/run-tests.ps1 -Filter 'SceneSnapshotWriterTests|SnapshotRootTests|EditorPlaySnapshotIntakeTests|PlayEntryDecisionTests|PlayEntryTransactionTests|PlayEntryRecordTests|ContentDeliveryPlayBridgeTests|PurposeLaunchSettingsTests'`。
+- テスト結果: XML の root `result="Passed" total="149" passed="149" failed="0"`、8 class が全て収録された（Unity 6000.6.0f1、EditMode）。
+- 判定必須のうち未実行: 全 EditMode 回帰、実 Editor の AC7〜AC15・AC18、AC17（どれも判定 C）。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: 実 Editor の挙動は B の観測（§8）しか無く、発見 C では取り直していない。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。
