@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C'`（**C' 完了（§10、blocker なし）。判定 C は GO（§9）。次は PR の公開点。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
+- status: `C'`（**C' 完了（§10、blocker なし）。判定 C は GO（§9）。C' 後の PR レビューは全件後続（§11）。次は owner のマージ判断と Phase D。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: `8a999ee97ad3f2add53a8d9fdc889960a49239a1`
@@ -20,8 +20,8 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。task `editor-snapshot-startup-proof`。判定 C の session が同じ PC で `fetch` し、全 file と XML を読めることを確かめた。別 session からの取得確認は未実施。取得案内は進行役の session の共有ノート（owner の手元）にあり、本書には転記しない。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C' の進行役の session が同じ PC で C' 用の取得案内だけで `fetch` し、全 file を読めた（判定 C と別の session）。中身は evidence bundle の全 file、A3 凍結版の本書、implementation head の本書（§8 を読む）で、発見 C・判定 C の所見と裁定を含まない。取得の確認は evidence bundle と同じ。取得案内は所見と別の file で、同じ共有ノートにある。
 - 引継ぎ票:
-  - 次の Phase・役割: PR の公開点（主担当）。その後、マージの判断（owner）と Phase D。凍結した Phase A は revision 1。
-  - 次の作業: 未公開の commit（発見 C・判定 C・C' の記録）を確認して push し、PR の状態ブロックと本文の要約を C' 完了に合わせる。マージ後に Phase D（evidence bundle と C' blind bundle の保存・引渡しの確認、harvest、本書の削除）。
+  - 次の Phase・役割: マージの判断（owner）と Phase D。凍結した Phase A は revision 1。
+  - 次の作業: C' 完了までの記録と §11 は push 済み。Phase D（§11 の program の S0-d 行の更新を含む harvest、evidence bundle と C' blind bundle の保存・引渡しの確認、本書の削除）。
   - 動作確認: B の出口で実施済み（§8。未実施なし）。
   - 入力の snapshot・bundle: evidence bundle と C' blind bundle（§0 の各欄。ローカル固定済み（未昇格））。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
@@ -506,3 +506,14 @@ return "requested";
 - 独立性: 制約なし。担当は §5 で C' 用に予約した Grok 系で、Phase A・B・C に関与していない。監査の指示 file は進行役の session（発見 C・判定 C の報告を読んでいる）が書いたが、所見・結論・疑念候補は含めず、凍結版の §2・§3 と常時契約に照らす 2 点だけを指示した。
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: どちらも無し。
 - 担当・モデル: Grok 4.7（xAI、cursor-agent、`--mode=ask`）。所要約 13 分、1 回。
+
+## 11. C' 完了後の PR レビュー（head `84f61665`）
+
+cursor[bot] の 2 件と、owner のアカウントからの独立レビュー 1 件。どれも凍結済みの条件と常時契約への違反を示さないので、blocker の基準に当たらない。owner が 2026-11-10 に全件を後続とすると決めた（実装の head を動かさず、判定 C と C' を取り直さない）。
+
+- 後続スライスへ移送する findings:
+  - **`SceneSnapshotWriterTests` の隔離（独立レビュー、修正推奨）。** `SetUp` の `GetSceneManagerSetup()` は開いている Scene の構成だけを保存し、Dirty な in-memory の変更を保存しない。`CreateSavedScene` と `TearDown` は `NewScene(..., Single)` で元の Scene を置き換えるので、Editor で Dirty な Scene を開いたままテストを走らせると未保存の編集が失われ得る。`AssetDatabase.DeleteAsset(Root)` も、テストの前から `Root` があればその中身ごと消す。同じ書き方は既存のテスト（`AttachedAssetDirectoryIntegrationTests`、`BuildContentDirectoryIntegrationTests`、`HpGaugeScriptViewTests` など）にもあるので、まとめて直す。直し方の案: テスト用の Scene を `Additive` で作り、作った Scene だけを閉じる。消すのはテストが作った subfolder だけにする。標準の `pwsh tools/run-tests.ps1` は Editor を閉じた batchmode で走るので、この経路では Dirty な Scene は無い。
+  - **空白を含む Scene 名（cursor[bot]、独立レビュー）。** 取り込みの log は `scene=` / `copy=` を空白区切りで書き、`PlayEntryRecord.ParseToken` は最初の空白で切るので、`intake` と由来の path が途中で切れる。宣言の欄（identity、元の path、Dirty、SHA-256）は構造化データのままで、実証の範囲の Scene には当たらない。
+  - **由来の「directory」の断定（独立レビュー）。** `PlaySnapshotSession.OnSceneLoaded` は複製でない path を一律に `directory` とするが、このイベントだけでは loader / provider の由来を証明できない。一般化するときは `unknown` / other と directory を分けるか、S3 の provider record につなぐ。
+  - **未使用の public メンバーと log の接頭辞の二重定義（cursor[bot]）。** `IsPrepared`・`StartSceneName` は参照 0 だけを理由に消さない（常時契約）。
+  - **program の S0-d 行の状態（cursor[bot]、独立レビュー）。** `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の S0-d 行が「Phase B」のまま。Phase D の harvest で直す。
