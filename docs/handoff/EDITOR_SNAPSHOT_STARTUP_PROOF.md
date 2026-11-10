@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（**判定 C 完了（§9）。次は C'。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
+- status: `C'`（**C' 完了（§10、blocker なし）。判定 C は GO（§9）。次は PR の公開点。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: `8a999ee97ad3f2add53a8d9fdc889960a49239a1`
@@ -18,16 +18,16 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 該当なし（Artifact Storage を使わない。結果は §8 と implementation head の commit）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。task `editor-snapshot-startup-proof`。判定 C の session が同じ PC で `fetch` し、全 file と XML を読めることを確かめた。別 session からの取得確認は未実施。取得案内は進行役の session の共有ノート（owner の手元）にあり、本書には転記しない。
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。中身は evidence bundle の全 file、A3 凍結版の本書、implementation head の本書（§8 を読む）で、発見 C・判定 C の所見と裁定を含まない。取得の確認は evidence bundle と同じ。取得案内は所見と別の file で、同じ共有ノートにある。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。C' の進行役の session が同じ PC で C' 用の取得案内だけで `fetch` し、全 file を読めた（判定 C と別の session）。中身は evidence bundle の全 file、A3 凍結版の本書、implementation head の本書（§8 を読む）で、発見 C・判定 C の所見と裁定を含まない。取得の確認は evidence bundle と同じ。取得案内は所見と別の file で、同じ共有ノートにある。
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目、最終 C'。高コスト証拠の分類は無い）。凍結した Phase A は revision 1。
-  - 次の作業: C' 用の取得案内だけで blind bundle を `fetch` し、その中身だけで監査する（本書と PR は読まない）。§5「C' 用に予約した担当」のとおり。
+  - 次の Phase・役割: PR の公開点（主担当）。その後、マージの判断（owner）と Phase D。凍結した Phase A は revision 1。
+  - 次の作業: 未公開の commit（発見 C・判定 C・C' の記録）を確認して push し、PR の状態ブロックと本文の要約を C' 完了に合わせる。マージ後に Phase D（evidence bundle と C' blind bundle の保存・引渡しの確認、harvest、本書の削除）。
   - 動作確認: B の出口で実施済み（§8。未実施なし）。
-  - 入力の snapshot・bundle: C' blind bundle（上記。ローカル固定済み）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。C' は PR を読まない。
-  - 必要な権限: Artifact Storage の `fetch`（Artifacts README の事前承認の範囲、network と資格情報を使わない）。Unity の実行は必須にしない。
-  - 停止規則: 指摘は blocker の基準（凍結済みの条件か常時契約への違反）で分類する。Unity の終了時 stall は AGENTS.md の既知事象の規則に従う。
-  - 引き渡さないもの: §9（発見 C と判定 C の所見）を C' に渡さない。
+  - 入力の snapshot・bundle: evidence bundle と C' blind bundle（§0 の各欄。ローカル固定済み（未昇格））。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
+  - 必要な権限: push と PR 本文の編集（公開点）。Phase D の Artifact Storage の操作は Artifacts README の事前承認の範囲。
+  - 停止規則: push の前に SKILL の「公開点と Git 履歴」の確認（`git log --name-status` と差分本文の点検、`docs-audit`）を行う。
+  - 引き渡さないもの: なし。
 
 ### 実測の方法
 
@@ -484,3 +484,25 @@ return "requested";
 - 判定必須のうち未実行: なし。
 - 未確認事項: evidence bundle と C' blind bundle の別 session からの取得確認（Phase D）。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。実行担当と判断担当を兼ねた。AC13 の dialog と AC15 のクリックは PC の前の人。
+
+## 10. Phase C'
+
+- 担当方式: AI
+- 種別と巡: 最終 C'（高コスト証拠の分類は無い）、1 巡目、全体。
+- 受け取った決定記録の版: なし。
+- 使用した blind audit bundle の取得案内・状態: §0 の C' blind bundle（ローカル固定済み（未昇格））。進行役の session が共有ノートの C' 用の取得案内だけで `fetch` し、展開した bundle と implementation head のソースの写し（`docs/handoff` を除く）だけを監査の workspace にした。
+- 確認範囲・方法: 凍結版 §2 の N1〜N8・P1〜P7 と AC1〜AC18 を、bundle の生の証拠（XML、`step.json`、Editor log、観測 file、機械の確認）と差分・ソースから照合した。差分を常時契約と §3 の責務マップに照らした。読み取り専用モードで、Unity は実行していない。
+- 判定: **blocker なし。**
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings:
+  - `PlaySnapshotSession.Matches` は環境変数を見ず、`editor:playSnapshotExpected` との AND は `PlayEntryInterceptor` 側にある。判定の単体は事実の真偽を手で立てるので、「印の key が無い再入」の case は単体に無い。
+  - 準備の後に開いている Scene だけを変えた再入、load は完了したが Scene が無効な経路、unload 自体が失敗する経路は、code 上は失敗になるが、テストにも実 Editor の証拠にも無い。
+  - 公開の Editor 型（`PlaySnapshotSession` など）が `Debug.Log` で Console に出す。この slice の Console 行は計画が Editor log に出す前提で、今回の問いは阻害しない。
+  - `docs/handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md` の S0-d 行（状態とリンク）の変更は §3 の表に無く、§8 にも理由が無い（製品 code ではない）。
+  - 製品 code は見積もり約 +655 行に対し約 +1180 行。新規 file の上限と §3 の配置には収まっている（§8 の説明のとおり）。
+  - 証拠の書き方: AC11 の観測 file は eval の出力の写しで、判定は Editor log と停止後の観測で閉じている。AC10・AC18 の `errorCount` 2 の 2 件目は既存の directory の後始末の Error。AC12 の停止観測の `EditorSettings.asset` の差は Domain Reload を有効にした設定の保存で、AC13 の時点では基準に戻っている。
+- 残存リスク: 実証は `Title` と map に無い空の Scene だけで、他の Scene の `Awake` が封じの下で何を呼ぶかは N1 の範囲外のまま。同じ project の 2 process は P5 が実測しない。AC15 の Toolbar のクリックは画面記録が無く、目録の記述、script の押下行が無いこと、結果が AC7 と同じことで支えている。
+- 監査できなかった範囲: 証拠を採った worktree と head の同一性（目録の記述で、workspace から commit を取り直していない）。program §5.2 の比較表（AC17 が harvest へ送る）。
+- 独立性: 制約なし。担当は §5 で C' 用に予約した Grok 系で、Phase A・B・C に関与していない。監査の指示 file は進行役の session（発見 C・判定 C の報告を読んでいる）が書いたが、所見・結論・疑念候補は含めず、凍結版の §2・§3 と常時契約に照らす 2 点だけを指示した。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: どちらも無し。
+- 担当・モデル: Grok 4.7（xAI、cursor-agent、`--mode=ask`）。所要約 13 分、1 回。
