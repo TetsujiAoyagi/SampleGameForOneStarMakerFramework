@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `C`（**発見 C 完了（阻害する指摘なし、§9）。次は判定 C。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
+- status: `C`（**判定 C 完了（§9）。次は C'。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: `8a999ee97ad3f2add53a8d9fdc889960a49239a1`
@@ -17,17 +17,17 @@
 - 関連: program §3・§4.1・§4.3・§5.2・§6 I4・I10・I11・§8 S0-d 行と移送・§9 G18・G21・G26・§10 U2・U3（**本スライスの A0**）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。C / C' が読む凍結版は A3 凍結版 commit の本書）
 - Phase B result snapshot の取得案内・状態: 該当なし（Artifact Storage を使わない。結果は §8 と implementation head の commit）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。task `editor-snapshot-startup-proof`。判定 C の session が同じ PC で `fetch` し、全 file と XML を読めることを確かめた。別 session からの取得確認は未実施。取得案内は進行役の session の共有ノート（owner の手元）にあり、本書には転記しない。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。中身は evidence bundle の全 file、A3 凍結版の本書、implementation head の本書（§8 を読む）で、発見 C・判定 C の所見と裁定を含まない。取得の確認は evidence bundle と同じ。取得案内は所見と別の file で、同じ共有ノートにある。
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（判断担当と、必要なら実行担当）。凍結した Phase A は revision 1。
-  - 次の作業: GO 候補 head は implementation head（B 以降の実装 commit はこの 1 つだけで、判定の前に整理する履歴は無い）。§5 の判定必須テスト（全 EditMode 回帰、空 filter。XML の failed 0 と root result `Passed`）、§2 の実 Editor の AC7〜AC15・AC18（§5 の検証経路の準備・操作・観測。AC15 は §6 D-9）、AC16・AC17 の機械の確認を GO 候補 head で取り、証拠を evidence bundle にする。§8 の B の観測と §9 の発見 C の所見は判定の入力にしない。AC11 の `eval` は §8 末尾のものを使う。判定 C の完了後に C' を起動する（C' には発見 C・判定 C の所見を渡さない）。
+  - 次の Phase・役割: C'（独立監査、1 巡目、最終 C'。高コスト証拠の分類は無い）。凍結した Phase A は revision 1。
+  - 次の作業: C' 用の取得案内だけで blind bundle を `fetch` し、その中身だけで監査する（本書と PR は読まない）。§5「C' 用に予約した担当」のとおり。
   - 動作確認: B の出口で実施済み（§8。未実施なし）。
-  - 入力の snapshot・bundle: なし（evidence bundle は判定 C が作る）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: sandbox 外の `pwsh tools/run-tests.ps1`（Editor が閉じていること。発見 C の限定テストの Unity は終了済み）、`tools/unity-editor.cmd` での Editor の起動・操作と、自分で起動した Editor の強制終了（AC13）、`Verify Play` の Content Directory build（§5 の準備）。Artifact Storage は evidence bundle の保存・引渡しに使う（Artifacts README の事前承認の範囲）。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる結果は A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら §6 D-2 の縮小の規則。製品の挙動が合格の条件に合わない回はやり直して合格に替えない（§2）。Unity の終了時 stall は AGENTS.md の既知事象の規則に従う。
-  - 引き渡さないもの: §9（発見 C の所見）を C' に渡さない。
+  - 入力の snapshot・bundle: C' blind bundle（上記。ローカル固定済み）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。C' は PR を読まない。
+  - 必要な権限: Artifact Storage の `fetch`（Artifacts README の事前承認の範囲、network と資格情報を使わない）。Unity の実行は必須にしない。
+  - 停止規則: 指摘は blocker の基準（凍結済みの条件か常時契約への違反）で分類する。Unity の終了時 stall は AGENTS.md の既知事象の規則に従う。
+  - 引き渡さないもの: §9（発見 C と判定 C の所見）を C' に渡さない。
 
 ### 実測の方法
 
@@ -456,3 +456,31 @@ return "requested";
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: 実 Editor の挙動は B の観測（§8）しか無く、発見 C では取り直していない。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。
+
+### 判定 C（1 回目）
+
+- 種別: 判定。対象は implementation base `4167dca8` から implementation head `8a999ee9` までの差分（commit 固定）。GO 候補 head は implementation head。作業の HEAD は `062370be`（implementation head からの差分は本書だけ）。
+- 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーは clean。implementation head は HEAD の祖先で、差分は本書だけ。PR の状態ブロックの `引き継ぐ commit` は `8a999ee9` のままで、渡された SHA と食い違った。間にある commit は発見 C の記録 commit（本書だけ）だけで、発見 C の出口が状態ブロックを更新しなかったものと判断して引き継いだ。判定 C の出口で状態ブロックを更新する。
+- 使用した evidence bundle の取得案内・状態: §0 の evidence bundle（ローカル固定済み）。判定の材料はすべて GO 候補 head で取り直したもので、§8 の B の観測と発見 C の所見は使っていない。
+- 構造適合: 発見 C の構造の照合（§3 の表、Runtime の `#if UNITY_EDITOR`、所有、公開面）は差分が同じなので取り直していない。AC16 の機械の確認は下のとおり取り直した。
+- 判定必須テスト: `pwsh tools/run-tests.ps1`（空 filter、`-WithGraphics` なし、sandbox 外、Editor は閉じていた）。XML の root `result="Passed" total="1792" passed="1767" failed="0" inconclusive="25"`。Inconclusive の 25 件は全て `SampleGame.Tests.Rendering.Vfx.*PlayTests`（`-nographics` の既知の分）。`step.json` は `failed`（理由は Inconclusive と Unity の exit code 2）で、§2 AC16 のとおり exit code では判定しない。AC1〜AC6 の 6 class は全て収録され Passed（`SceneSnapshotWriterTests` 6、`SnapshotRootTests` 12、`EditorPlaySnapshotIntakeTests` 7、`PlayEntryDecisionTests` 48、`PlayEntryTransactionTests` 26、`PlayEntryRecordTests` 21）。
+- 機械の確認（AC16）: `pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`（checks 1〜9）。`git diff --name-only` に `.asmdef` と `SceneState` が無い。`Scripts/Runtime/` の追加行は、initializer の 2 hunk がそれぞれ `#if UNITY_EDITOR` で始まり `#endif` で終わり、新規 2 file は全体が `#if UNITY_EDITOR`。追加行に `"content:…"` の key が無い。`ModeKeys` は 3 key。`pwsh tools/docs-audit.ps1` は errors 0（Warning 2 件は本スライスと無関係の既存の物）。
+- 実 Editor（AC7〜AC15・AC18。§5 の検証経路。Unity 6000.6.0f1、判定 C の session が `unity open` で起動した Editor。AC13 の後は開き直した Editor）:
+  - 準備: Variant profile の選択（元は `fc9baeaf…`）を外し、`Verify Play` `spring-full` を非対話で実行した。1 回目は Install の `Directory.Move` が staging の folder で Access denied になり（環境の失敗）、2 回目で installed の revision `20261110T094616124Z-83f3…` ができた。入口の保存値 2 key を消して経路を `BuiltWithOpenScenes` にした。準備の直後の `git status --short` は空。終わりに Variant の選択と保存値を元へ戻し、Editor を正常終了した。
+  - AC7（Domain Reload 無効）: record `EnteredPlay`、`rule=SnapshotRoute`、封じの log が record にある。loaded は空の開始 Scene・`UIScene`・`Title`（置き場の下の複製）・`OutGameScene` で `Title` は 1 個、active は複製の `Title`、`intake=[Title]`。15 秒の窓の後に Error / Exception 0。**合格。**
+  - AC11（AC7 と同じ Play）: 1 回目の後に Warning「`Scene 'Title' was loaded again …`」が出て、record の `Title` の由来が `snapshot->directory`。2 回目で Warning は増えない。**合格。**
+  - AC8（AC7 の後）: `Title.unity` の SHA-256 は前と同じ（`3EEB386C…`）、Dirty のまま、active と並びは同じ、`playModeStartScene` null、置き場と `.meta` が無い、`SAMPLEGAME_*` の環境変数が無い（Play の前と同じ）、`git status --short` は基準と同じ。**合格。**
+  - AC9: `Title` と保存済みの空 Scene `S0dExtraC`（`Assets/OsmS0dCheckC/`、確認の後に削除）を additive に開いて Play。両方が置き場の下の複製から loaded、`SceneDirector.ContainsScene` は `Title=True`・`S0dExtraC=False`、active は `Title`。**合格。**
+  - AC18: 同じ 2 Scene で、再 Play の `ExitingEditMode` で `S0dExtraC` の複製だけを消した。15 秒の窓の後に record `StartupFailed`、`firstFailure` に「`The play snapshot of scene 'S0dExtraC' could not be loaded`」、loaded は空の開始 Scene だけ（`Title` の複製は無い）。停止の後に置き場が無い。**合格。** 1 回目は実行担当の handler の誤り（複製でなく元の path を拾い、`playModeStateChanged` の中で例外を出して何も消さなかった）で無効とし、handler を直してやり直した。無効の回の観測も bundle にある（製品の挙動による不合格をやり直したものではない。無効の回は両 Scene が複製から load されていた）。
+  - AC10: `Title` だけで、`Title` の複製を消した。record `StartupFailed`、`firstFailure` に「`The play snapshot of scene 'Title' could not be loaded`」、`Title` という名前の Scene が loaded に無い。停止の後に置き場が無い。**合格。**
+  - AC14: 経路 Built + `Title` は `Blocked`（`BuiltWithReusableScenes`、回復 `EmptyScene`）、経路 Source + `Title` は `EnteredPlay`（`SourceRoute`、mode `addressables`）、混成 + 新規未保存の Scene は `Blocked`（`SnapshotUnsupportedScenes`、「Save these scenes …」）、混成 + UICommon は `Blocked`（同、「UICommon cannot be played …」）。4 つとも置き場を作っていない。**合格。**
+  - AC12（Domain Reload 有効。log に `Reloading assemblies for play mode` と `Domain Reload Profiling`）: AC7 は `EnteredPlay`、封じあり、`Title` 1 個（複製）、`intake=[Title]`、Error 0。AC11 は Warning 1 回、由来 `snapshot->directory`、2 回目で増えない。AC8 は SHA-256 同じ、Dirty のまま、`playModeStartScene` null、置き場無し、環境変数無し。`git status` の差は確認のために変えた `EditorSettings.asset` だけで、設定を `DisableDomainReload` に戻して `git checkout` で戻した。**合格。**
+  - AC13: AC7 の Play（今回は Dirty にしていない。AC7 は Dirty を求めない）の中で自分の Editor（PID 28208）を `Stop-Process -Force`。置き場の folder が残った。`unity open` で開き直すと「Scene Backup Detected」の dialog が出て、PC の前の人が Delete を選んだ。log に「`[PlaySnapshot] Collected leftover snapshots: …28208_…`」、置き場無し、`playModeStartScene` null、`git status --short` は基準と同じ。続く AC7 も `EnteredPlay`、封じあり、`Title` 1 個（置き場 `31596_…` の複製）、Error 0。**合格。**
+  - AC15: 実行担当の session に画面操作の道具が無いので、§6 D-9 の代替で PC の前の人が Toolbar の Play ボタンを 1 回クリックした。record `EnteredPlay`、封じあり、`Title` 1 個（複製）、`intake=[Title]`、15 秒の窓の後に Error 0。**合格。**
+  - AC17: 押下から `EnteredPlayMode` までと準備の所要。AC7 14.7 秒（準備 4304 ms）、AC9 13.0 秒（準備 1676 ms）、AC12 の AC7 100.7 秒（準備 1517 ms）、AC13 の後の AC7 10.1 秒（準備 789 ms）。**合格（数値が証拠にある）。**
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし（AC10・AC18 の `errorCount` に既存の directory の後始末の Error が入ることは §8 末尾のとおり既存の挙動）。
+- 判定: **GO**（N1〜N8・P1〜P7 を AC1〜AC18 で満たす。実証の範囲は `Title` と map に無い空の Scene。機構 (i) を製品の候補とする）。C' の結果が揃うまでスライスの完了ではない。
+- 判定必須のうち未実行: なし。
+- 未確認事項: evidence bundle と C' blind bundle の別 session からの取得確認（Phase D）。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。実行担当と判断担当を兼ねた。AC13 の dialog と AC15 のクリックは PC の前の人。
