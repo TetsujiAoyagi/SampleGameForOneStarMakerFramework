@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A3 候補版。未凍結。** owner が 2026-11-10 に §6 の D-1〜D-11 を推奨どおりと決め、D-2 に縮小の規則を足した。owner の指示で、外部レビュー用にドラフト PR へ公開する。外部レビューの 2 点（X-01、X-02。§7）を採用して反映した。Phase A の commit を 2 点に限る規則の、人間の指示による例外。A2 入力版は commit `8716a840`）
+- status: `A`（**A3 候補版。未凍結。** owner が 2026-11-10 に §6 の D-1〜D-11 を推奨どおりと決め、D-2 に縮小の規則を足した。owner の指示で、外部レビュー用にドラフト PR へ公開する。外部レビューの 3 点（X-01、X-02、再レビューの X-03。§7）を採用して反映した。Phase A の commit を 2 点に限る規則の、人間の指示による例外。A2 入力版は commit `8716a840`）
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: 未固定
@@ -21,7 +21,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A の A3（owner と主担当）。**凍結していない。**
-  - 次の作業: owner が外部レビューの反映（§7 X-01、X-02）を確かめる。追加の指摘があれば主担当が採否を §7 に足す。目的・利用者の文言が変わったら目的レビューをやり直す（X-01、X-02 では変わっていない）。owner の凍結の指示で A3 凍結版を commit する。
+  - 次の作業: owner が外部レビューの反映（§7 X-01〜X-03。X-01 と X-02 は再レビューで解消の判断）を確かめる。追加の指摘があれば主担当が採否を §7 に足す。目的・利用者の文言が変わったら目的レビューをやり直す（X-01〜X-03 では変わっていない）。owner の凍結の指示で A3 凍結版を commit する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
   - 必要な権限: なし（文書のみ）。Phase B 以降は Unity Editor の起動と操作。
   - 停止規則: 外部レビューで D-1 (a) が成り立たないと分かったら本書の §3・§4 は成り立たない。owner へ返す。
@@ -79,7 +79,7 @@
   - **N5 同じ identity を 2 つ実行しない（G21）。** snapshot で載せた identity について、同じ Play の起動で同名の Scene がもう 1 つ load されない。崩しうる経路: `content:firstScene` が snapshot と同名（**疎通で、`Title` の複製と firstScene `Title` は 1 個だけになると確認**。`AddSceneCore` の active の検査、`SceneDirector.Loading.cs:126-137`）、`BootstrapUiCommonLoader` は active の `UICommon` だけを借りる（`BootstrapUiCommonLoader.cs:75-103`）ので additive の UICommon の複製は 2 つになる、開いている Scene に同名が 2 つある。
   - **N6 由来を偽らない。** record は snapshot から載せた Scene を directory 由来と書かず、その逆も書かない。起動の後に snapshot の Scene が unload され、同名が別の供給元から読み直された時は、Warning と record に出る（黙って切り替わらない）。崩しうる経路: `PerformUnitySceneUnload` の後の再要求（現況）、directory から読んだ Scene の `scene.path` は元の asset の path を返す（疎通で確認）ので path だけでは区別できない。
   - **N7 残骸が次の Play に入らず、追跡 file を汚さない。** 複製の置き場は git 管理外で、Play の終了・取り消し・起動の失敗・Editor の異常終了のどの後でも、次の Play の準備より前に回収され、前の Play の複製が別の Play の snapshot として採用されない。崩しうる経路: 異常終了では `SessionState` が消える、置き場を作った直後の異常終了（記録 file に頼ると孤児になるので、生死は folder 名の pid と開始時刻だけで判定する）、pid の再利用、`.meta` の残り、回収前の再 Play。
-  - **N8 別の仕組みの Play に割り込まない。** S0-c の N4（バッチ、Test Runner、既存の ledger の Play を取り消さない。再 Play は 1 回）を保つ。
+  - **N8 別の仕組みの Play に割り込まない。** S0-c の N4（バッチ、Test Runner、既存の ledger の Play を取り消さない。再 Play は 1 回）を保つ。混成の経路の再 Play を通すために足す行（§4 の再入の行）は、入口が準備した snapshot の session と 1 回の ledger が揃った再入だけに当たり、明示の directory、手動の ledger、他の launcher の ledger の拒否（G18）を変えない。崩しうる経路: directory と再利用しうる Scene の検査を ledger の素通りより後ろへ動かす実装、session の残留（前の Play の session が次の Play の検査を外す）。
 - 成立条件:
   - **P1** 混成の経路で `Title` を開いて Play を押すと、directory mode で Play に入り、封じの log があり、`Title` は複製が 1 個だけ実行され、他の Scene（UI、後続）は directory から来る。
   - **P2** Dirty の Scene と、additive に開いた 2 Scene（map に載る Scene と載らない Scene）で P1 が成り立つ。active Scene と並び順は開いていた時と同じになる。
@@ -92,8 +92,8 @@
   - **AC1**（N4, N5, P6。EditMode テストで、実際の Scene と `AssetDatabase` を使う）複製の書き出し: Dirty の Scene の複製が in-memory の内容を持ち、元の file の SHA-256 と Dirty が変わらない。失敗経路: 新規未保存、同名 2 つ、書き込み先が既にある、途中の失敗（書いた物を消す）。
   - **AC2**（N7。一時 folder を使う EditMode テスト。生死の判定は folder 名と process の一覧を引数に取る純粋な関数にする）置き場: 生きている process の folder は回収しない。死んだ pid、pid が同じで開始時刻が違う folder、中身が空か途中の folder は `.meta` ごと回収する。失敗経路: 名前の形が違う folder（触らず Warning）、回収中の削除の失敗（残った物を次回に回収し、今回の Play には使わない）。
   - **AC3**（N2, N5）取り込みの照合（Unity の Scene を使わない純粋な判定）: 宣言と load 済みの一覧の一致。失敗経路: 1 件欠ける、path が違う、同名が 2 つ、宣言に無い同名が既に loaded。途中の失敗で unload する対象の選び方も同じ file の純粋な関数にする: 対象は path が宣言の複製と一致する loaded の Scene だけで、開始 Scene、UI の Scene、宣言に無い Scene を含まない。
-  - **AC4**（N3, N8, P6）判定表: 混成の経路の全行と、既存の行が変わらないこと。失敗経路: 明示の directory + 開いた Scene は従来どおり拒否、経路 Built + 開いた Scene は従来どおり拒否、UICommon、Scene reload 無効、`playModeStartScene` が非 null、JSON の層に `content:firstScene` がある。最後の 1 つは facts を手で作らず、**JSON の本文 `{"content":{"firstScene":"Title"}}` から理由を作る関数（§4）を通して**拒否になることを固定する（値が空文字、key が無い時は理由が出ない）。
-  - **AC5**（N4, N7, N8）transaction: 複製の準備 → 宣言 → ledger → 再 Play の順序。失敗経路: 準備の例外（Play に入らず、書いた複製と `playModeStartScene` を戻す）、`EnterPlaymode` の例外、再入、Play に至らず idle に戻った時（宣言と複製を回収し、record の観測を閉じる。§6 D-8）。
+  - **AC4**（N3, N8, P6）判定表: 混成の経路の全行と、既存の行が変わらないこと。失敗経路: 明示の directory + 開いた Scene は従来どおり拒否、経路 Built + 開いた Scene は従来どおり拒否、UICommon、Scene reload 無効、`playModeStartScene` が非 null、JSON の層に `content:firstScene` がある。最後の 1 つは facts を手で作らず、**JSON の本文 `{"content":{"firstScene":"Title"}}` から理由を作る関数（§4）を通して**拒否になることを固定する（値が空文字、key が無い時は理由が出ない）。再入の行（X-03）: 実効 mode が directory、`Title` が開いている、1 回の ledger がある、session が開いている Scene と一致する、の 4 つが揃えば素通り。どれか 1 つを欠く時（session が無い、session の Scene と開いている Scene が違う、手動の ledger、ledger が無い明示の directory）は従来どおり `DirectoryWithReusableScenes` の拒否。
+  - **AC5**（N4, N7, N8）transaction: 複製の準備 → 宣言 → ledger → 再 Play の順序。失敗経路: 準備の例外（Play に入らず、書いた複製と `playModeStartScene` を戻す）、`EnterPlaymode` の例外、再入、Play に至らず idle に戻った時（宣言と複製を回収し、record の観測を閉じる。§6 D-8）。**再入を実際の `PlayEntryDecision.Decide` で通す test（X-03）:** port だけを差し替え、facts は port の状態から作る（`ApplyForOnePlay` の後は実効 mode が directory、準備の後は session が一致）。`Title` を開いた混成の経路で、1 回目の `ExitingEditMode` は取り消し → tick で準備・ledger・`EnterPlaymode` → その中の 2 回目の `ExitingEditMode` は素通り、の順になり、`CancelPlay` が 1 回、`EnterPlaymode` が 1 回、`PublishBlocked` が 0 回。同じ test で準備を抜く（session が無い）と 2 回目が拒否になる。再入でない `ExitingEditMode` に再入の行が当たった時（session の残留）は取り消して `Blocked` にする。
   - **AC6**（N6, P3）record: 宣言と取り込みの結果が別の欄に出る。再読込の検出（同名が別の path で load された）で Warning と record が変わる。Warning は 1 回の Play で identity ごとに 1 回だけ出す。
 - 受け入れ条件（実 Editor。経路は §5。各 1 回）:
   - **AC7**（P1, N1, N5）混成の経路・`Title` を開いて Play。合格: record が `EnteredPlay`、封じの log が record にある、loaded の `Title` が 1 個でその path が複製の置き場の下、取り込みの log に `Title` が出て、その後の `EnteredPlayMode` から 15 秒の観測窓を終えた時点の record で Error / Exception が 0 件（取り込みの log が窓の中に出なければ不合格）。不合格の例: `Title` が 2 個、`Title` の path が元の asset。
@@ -115,7 +115,7 @@
   - 参照先 asset の overlay（G22）: **S2**。
   - 互換判定と候補の選び方: **S1**。経路の UI の整理: **S5**。
   - Framework への Play 入口の移設: S5 の A1（S0-c §3「配置」の判断を引き継ぐ）。
-- スライス分割の判断: 契機（高リスクの初回実機スライスで、独立して失敗しうる未知が複数）に当たる。未知は (a) 実 initializer の下の取り込み、(b) Domain Reload 有効の時の宣言の受け渡し、(c) 実 process の異常終了の後の回収、の 3 つ。(a) は Phase A の疎通で中心の部分（Unity が読んだ複製が封じの下で 1 個だけ動く）が通った。(b) と (c) は AC12 と AC13 で別々に判定でき、同じ置き場の記録の code を使う。回収だけを別スライスにすると、残骸を残す code が先に develop に入る。**分割しない。** 規模の見積もりは §3（製品 code 約 +640 行、test 約 +600 行）で、S0-c（約 +730 行）と同じ程度。Phase B で取り込みの段が §3 の配置に収まらなければ A へ戻す。
+- スライス分割の判断: 契機（高リスクの初回実機スライスで、独立して失敗しうる未知が複数）に当たる。未知は (a) 実 initializer の下の取り込み、(b) Domain Reload 有効の時の宣言の受け渡し、(c) 実 process の異常終了の後の回収、の 3 つ。(a) は Phase A の疎通で中心の部分（Unity が読んだ複製が封じの下で 1 個だけ動く）が通った。(b) と (c) は AC12 と AC13 で別々に判定でき、同じ置き場の記録の code を使う。回収だけを別スライスにすると、残骸を残す code が先に develop に入る。**分割しない。** 規模の見積もりは §3（製品 code 約 +655 行、test 約 +600 行）で、S0-c（約 +730 行）と同じ程度。Phase B で取り込みの段が §3 の配置に収まらなければ A へ戻す。
 - 判定定義: GO は N1〜N8 と P1〜P7 を AC1〜AC18 で満たす。GO の時、機構 (i) を製品の候補とする。NO-GO はいずれかの未達。CONDITIONAL ACCEPT は使わない。
 - どうすれば誤って YES を出せるか（反例）: (1) 開いている Scene をそのまま Play に持ち込み（Unity 標準の Play）、「Title が動いた」を snapshot の成立とする（AC7 は path が置き場の下であることを見る）。(2) 経路 Source で試す（封じが無い。AC7 は封じの log を要求する）。(3) `eval` の `EnterPlaymode` だけで Play ボタンの経路とする（AC15）。(4) 模擬の lease だけで異常終了を確かめる（AC13 は実 process を止める）。(5) 取り込みの失敗を単体だけで確かめる（AC10 は実 Editor）。1 Scene の失敗だけで N2 とする（AC18 は 1 つ目が load できた後の失敗を見る）。(6) 起動の直後だけ見て由来を説明済みとする（AC11）。(7) Domain Reload 無効だけで試す（AC12）。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` は Runtime を触るスライスとの Phase B の同時実行を禁じる。同スライスは A1 未着手で、本スライスの Phase B の開始時にもう一度確かめる。S3 の Phase B より前に本スライスを完了する（program §8）。
@@ -142,9 +142,9 @@ Framework の Editor（`unity/Assets/OneStarMaker/Scripts/Editor/PlaySnapshot/`�
 | `Editor/PlaySnapshot/SceneSnapshotWriter.cs`（新規） | 開いている Scene を複製に書き、SHA-256 と Dirty を記録する。失敗時は書いた物を消す | 呼び出しの間 | `EditorSceneManager`、`AssetDatabase` | Unity / Editor I/O。EditMode の単体（AC1） | +110 |
 | `Editor/PlaySnapshot/SnapshotRoot.cs`（新規） | 置き場の folder（名前に pid と開始時刻）。生死の判定と回収。記録 file は持たない | disk。Editor の process をまたぐ | `System.IO`、`System.Diagnostics` | 永続。判定は純粋な関数、回収は一時 folder の EditMode テスト（AC2） | +110 |
 | `Editor/PlaySnapshot/PlaySnapshotSession.cs`（新規、公開 API） | 準備（複製、開始 Scene の設定、宣言を bridge と `SessionState` に置く）と解除（bridge、開始 Scene、複製を戻す）、再読込の検出、`[InitializeOnLoad]` での宣言の置き直しと残骸の回収 | static の配線。宣言は `SessionState`（process 寿命）、複製は disk | 上の 2 つ、bridge | Orchestration。実 Editor（AC8、AC12、AC13）と、順序の単体（AC5 の一部） | +150 |
-| `SampleGame/.../PlayEntryDecision.cs` | 経路の 3 つ目の値と行、拒否の理由 | 状態なし | 既存 | Policy。単体（AC4） | 222、+45 |
-| `SampleGame/.../PlayEntryTransaction.cs` | tick の再判定の後、ledger の前に準備を呼ぶ。失敗と idle 復帰の時に解除を呼ぶ | 既存 | port（delegate） | Orchestration。単体（AC5） | 135、+30 |
-| `SampleGame/.../PlayEntryInterceptor.cs` | facts（Scene reload の設定、開いている Scene の一覧、JSON の層の `content:firstScene` の理由）と port の配線、取り込みの log の採取 | 既存 | `PlaySnapshotSession`、`PlayAsLauncher.CheckEmptyLowerLayer` | Unity I/O。実 Editor。JSON の理由は単体（AC4） | 175、+40 |
+| `SampleGame/.../PlayEntryDecision.cs` | 経路の 3 つ目の値と行、再入の行、拒否の理由 | 状態なし | 既存 | Policy。単体（AC4） | 222、+55 |
+| `SampleGame/.../PlayEntryTransaction.cs` | tick の再判定の後、ledger の前に準備を呼ぶ。失敗と idle 復帰の時に解除を呼ぶ。再入の行は `Entering` の時だけ素通りにする | 既存 | port（delegate） | Orchestration。単体（AC5） | 135、+35 |
+| `SampleGame/.../PlayEntryInterceptor.cs` | facts（Scene reload の設定、開いている Scene の一覧、JSON の層の `content:firstScene` の理由、session が開いている Scene と一致するか）と port の配線、取り込みの log の採取 | 既存 | `PlaySnapshotSession`、`PlayAsLauncher.CheckEmptyLowerLayer` | Unity I/O。実 Editor。JSON の理由は単体（AC4） | 175、+40 |
 | `SampleGame/.../PlayEntryRecord.cs` | policy に宣言、record に取り込みの結果と由来の変化 | 既存 | なし | 永続 + 表示の素材。単体（AC6） | 192、+45 |
 | `SampleGame/.../PlayEntrySettings.cs`・`PlayEntryWindow.cs`・`PurposeLaunchSettings.cs` | 経路の値、popup、由来の行、初回 Scene を置かない directory の値 | 既存 | 既存 | 表示・値。単体と実 Editor | 36 / 164 / 101、計 +40 |
 | `.gitignore` | 置き場と `.meta` を無視する | — | — | AC8 の `git status` | +3 |
@@ -162,7 +162,7 @@ Framework の Editor（`unity/Assets/OneStarMaker/Scripts/Editor/PlaySnapshot/`�
   解除は `EnteredEditMode`、Play に至らなかった idle の tick、準備の例外、`[InitializeOnLoad]`（宣言が残っていて Play 中でない時）のどれからも同じ method を呼ぶ。何度呼んでも同じ結果になる。回収は準備より前に終える。
 - 由来の変化の観測: `PlaySnapshotSession` が Play の間 `SceneManager.sceneUnloaded` / `sceneLoaded` を購読する。宣言の identity と同じ名前の Scene が、複製の path 以外で load されたら、public の event で identity を知らせる。SampleGame の `PlayEntryInterceptor` がそれを受けて record と Warning を書く。SceneDirector には触れない。
 - 行数の警報: `AbstractApplicationInitializer.cs` は既に 1062 行で、+60 行（6%）。段は 1 つの private method にし、照合は `EditorPlaySnapshotIntake` へ出すので、initializer に入るのは順序だけである。分割しない。新規は各 500 行未満。
-- 公開面: `PlaySnapshotSession` の準備と解除、宣言の読み取り、由来の変化の event だけを public にする（host の Editor asmdef から呼ぶため。`SampleGame.DependOnAll.Editor.asmdef` は既に `OneStarMaker.Editor` を参照しているので、参照は足さない）。writer と root は internal。Runtime の bridge は `OneStarMaker.Editor` からだけ使うので internal にする（`SceneVariantRuntimeBridge` は host からも読むので public だが、こちらは host が読まない）。
+- 公開面: `PlaySnapshotSession` の準備と解除、宣言の読み取り（「今の session が、渡した Scene の名前と path の一覧に一致するか」の問い合わせを含む）、由来の変化の event だけを public にする（host の Editor asmdef から呼ぶため。`SampleGame.DependOnAll.Editor.asmdef` は既に `OneStarMaker.Editor` を参照しているので、参照は足さない）。writer と root は internal。Runtime の bridge は `OneStarMaker.Editor` からだけ使うので internal にする（`SceneVariantRuntimeBridge` は host からも読むので public だが、こちらは host が読まない）。
 - 配置の理由: 複製・置き場・取り込みは SampleGame の宣言や Scene 名を知らない（program D2、D10、§4.4 の Editor adapter）。Runtime の internal に届くのは `OneStarMaker.Editor` だけである。経路の選択と拒否の理由は S0-c の入口（SampleGame）にあるので、そこは動かさない（S0-c §3「配置」）。
 - テスト境界: 単体は `unity/Assets/OneStarMaker/Tests/Editor/PlaySnapshot/`（SampleGame の型を使わない）と、既存の `unity/Assets/SampleGame/Tests/Editor/Build/PlayEntry*Tests.cs`。
 
@@ -172,7 +172,7 @@ Framework の Editor（`unity/Assets/OneStarMaker/Scripts/Editor/PlaySnapshot/`�
 
 封じはそのままの位置に置く。snapshot は `IAssetManagement` を通らない別の口から入れる。
 
-1. 入口（混成の経路、tick の再判定の後）: 開いている全 Scene を置き場へ複製し、置き場に空の開始 Scene を 1 つ作り、`playModeStartScene` をそれにする。宣言を bridge と `SessionState` に置く。directory の値は `content:firstScene` を含めずに ledger に置く（環境変数は空文字を置けないので、下の層に値が無いことを判定表で確かめる。base の `app-config.json` に `content:firstScene` は無い）。`EnterPlaymode`。
+1. 入口（混成の経路、tick の再判定の後）: 開いている全 Scene を置き場へ複製し、置き場に空の開始 Scene を 1 つ作り、`playModeStartScene` をそれにする。宣言を bridge と `SessionState` に置く。directory の値は `content:firstScene` を含めずに ledger に置く（環境変数は空文字を置けないので、下の層に値が無いことを判定表で確かめる。base の `app-config.json` に `content:firstScene` は無い）。`EnterPlaymode`。`EnterPlaymode` は 2 回目の `ExitingEditMode` を同期で発火し、その時点では元の Scene がまだ開いていて実効 mode は directory になっている。下の「再入の行」がこの 1 回だけを通す。
 2. Unity: 空の開始 Scene だけを読む（開いている Scene は Play に入らない。Unity が停止時に元へ戻す）。
 3. `BeforeSceneLoad`: 既存どおり。directory なので封じる。
 4. `AfterSceneLoad`: directory の登録、UICommon、SceneResourceMap、SceneDirector の作成までは既存どおり。`register-loaded-scenes` の直前の段で、宣言の Scene を並び順に 1 つずつ additive で load して完了を待ち（bridge の delegate。中身は `EditorSceneManager.LoadSceneAsyncInPlayMode`。前の load が終わるまで次を始めないので、失敗の時点で進行中の load は無い）、全部を照合し、active Scene を合わせ、Scene ごとに 1 行 log を出す。delegate が null を返す、完了しても Scene が有効でない、照合が合わない、のどれも失敗にする。失敗した時は、この段が load した複製を全て unload し終えてから例外を出す（空の開始 Scene が残るので、最後の 1 Scene の unload にはならない）。Play の終了による cancel では unload しない（Unity が片付ける）。
@@ -181,10 +181,18 @@ Framework の Editor（`unity/Assets/OneStarMaker/Scripts/Editor/PlaySnapshot/`�
 
 Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]` が `SessionState` の宣言から bridge を置き直す。置き直しに失敗した Play が「snapshot 無し」の directory Play として黙って進まないよう（N2）、入口は 1 回の ledger に `editor:playSnapshotExpected=true` を足す。取り込みの段は、この key があるのに bridge が無い時を起動の失敗にする。key は真偽だけを運び、複製の path は運ばない。`content:` の名前空間に置かない（program U3）ので Player の protected config の照合の対象に入らず、読むのは `#if UNITY_EDITOR` の段だけである。
 
-### 判定の行（`PlayEntryDecision`。既存の行は変えない）
+### 判定の行（`PlayEntryDecision`。既存の行の条件と結果は変えない）
+
+**再入の行（X-03）。** 現行の `Decide` は「実効 mode が directory で、再利用しうる Scene が開いている → 拒否」（`PlayEntryDecision.cs:152-154`）を「1 回の ledger がある → 素通り」（`:156-158`）より先に見る。混成の経路の再 Play は、入口が ledger を置いた後で、元の `Title` が開いたまま 2 回目の `ExitingEditMode` に入るので、行を足さなければこの拒否に当たり、`PlayEntryTransaction.OnExitingEditMode` の再入の分岐（`:66-70`）が取り消して `Blocked` にする。`playModeStartScene` はこの検査に効かない（検査は開いている Scene を見る）。
+
+- 足す行は 1 つで、拒否の行の直前に置く: **1 回の ledger があり、手動の ledger が無く、入口が準備した session が今開いている Scene と一致する → 素通り**（rule `SnapshotReentry`）。拒否の行と素通りの行の順序は動かさない。
+- 「一致する」は facts の採取が `PlaySnapshotSession` に問い合わせる 1 つの真偽で、次が全て真の時だけ真になる: session が準備済みである。`playModeStartScene` がその session の空の開始 Scene である。loaded で開いている Scene の名前と path の集合が、宣言の元の Scene の集合と同じである。入口の置く `editor:playSnapshotExpected` が環境にある。
+- `PlayEntryTransaction` は、この rule を `Entering`（自分の `EnterPlaymode` の中）の時だけ素通りにする。それ以外の `ExitingEditMode` で当たった時は取り消して `Blocked` にする（session の残留を別の Play の許可にしない）。
+- 当たらない例: 明示の directory 設定（ledger も session も無い）、手動の ledger、Verify Play 等の他の launcher の 1 回の ledger（session が無い）、準備の後に開いている Scene が変わった時。どれも従来どおり拒否になる（N3、N8）。
 
 | 条件 | 結果 |
 |---|---|
+| 実効 mode が directory、再利用しうる Scene が開いている、1 回の ledger があり手動の ledger が無い、session が開いている Scene と一致する（既存の拒否の行の直前） | 素通り（`SnapshotReentry`。`Entering` の時だけ。それ以外は取り消して `Blocked`） |
 | 混成の経路、Scene reload が無効 | 拒否（理由: この経路は Scene reload が要る） |
 | 混成の経路、`playModeStartScene` が既に非 null | 拒否（理由: 開始 Scene の設定を上書きしない） |
 | 混成の経路、JSON の層に空でない `content:firstScene` がある | 拒否（理由: 初回 Scene が開いている Scene と重なりうる）。**`facts.JsonLayer` では検出できない**（`PlayEntryConfigLayer.From` は mode の 3 key だけを残す。`PlayEntryDecision.cs:44-51`）。facts の採取が、混成の経路の時に既存の `PlayAsLauncher.CheckEmptyLowerLayer`（`PlayAsLauncher.cs:152-161`）へ `content:firstScene` と app-config の本文を渡し、返った理由を既存の `ConflictReason` に入れる。判定は既存の `ConflictingState` の行で拒否する。`ModeKeys` は広げない（広げると JSON に `content:firstScene` だけがある Play が「明示設定」になり、既存の経路の結果が変わる。N3）。環境変数とコマンドラインの層は既存の `CheckLaunchConflicts` が拒否する（`DirectoryPlayConfigKeys` が `content:firstScene` を含む。`PurposeLaunchSettings.cs:81-82`） |
@@ -229,12 +237,12 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
   - AC13 の手順: 実行担当が Unity CLI で Editor を起動し、その PID を記録する。AC7 の Play の中で `Stop-Process -Id <その PID> -Force`。人間が開いた Editor には行わない。開き直した後、`unity/Logs/Editor.log` の回収の 1 行と状態を読む。2 つ目の process は `Unity.exe -batchmode -quit -projectPath unity` を Editor を開いたまま起動し、終了 code と log の project lock の行を採る。
   - 証拠: 条件ごとの観測を 1 file にして evidence bundle へ収録する。C / C' はそれを読む。
 - 未知の操作経路の疎通結果（Phase A、各 1 回）:
-  - **Unity が読んだ複製は、封じた directory の実 initializer の下で 1 個だけ動く。** `Title` を `SaveScene(saveAsCopy)` で別の folder へ複製し（GUID は元と別）、開いている Scene を空の新規に替え、`playModeStartScene` を複製にし、installed の `spring-full`（2026-11-07 の revision、入口の検証を通った）の値を明示の環境変数に置いて Play の menu を実行した。結果: `EnteredPlay`、実効 mode `directory`、封じの log あり、Error / Exception 0 件、loaded は `Title`（path は複製）、`UIScene`、`OutGameScene` の 3 つで、`Title` は 1 個（`content:firstScene=Title` と重ならなかった）、active は `Title`。**確かめたのは「複製が開始 Scene の時」で、§4 の「additive の取り込みの段」そのものではない**（製品 code が要る。初回確認は B の動作確認の AC7）。
+  - **Unity が読んだ複製は、封じた directory の実 initializer の下で 1 個だけ動く。** `Title` を `SaveScene(saveAsCopy)` で別の folder へ複製し（GUID は元と別）、開いている Scene を空の新規に替え、`playModeStartScene` を複製にし、installed の `spring-full`（2026-11-07 の revision、入口の検証を通った）の値を明示の環境変数に置いて Play の menu を実行した。結果: `EnteredPlay`、実効 mode `directory`、封じの log あり、Error / Exception 0 件、loaded は `Title`（path は複製）、`UIScene`、`OutGameScene` の 3 つで、`Title` は 1 個（`content:firstScene=Title` と重ならなかった）、active は `Title`。**確かめたのは「複製が開始 Scene の時」で、§4 の「additive の取り込みの段」そのものではない。開いている Scene を空にし、値を明示の環境変数に置いた（明示設定の素通りの行）ので、混成の経路の再入（§4 の再入の行）も通っていない**（製品 code が要る。初回確認は B の動作確認の AC7）。
   - `SaveScene(saveAsCopy)` の後、元の `Title` の path と Dirty は変わらず、`git status` に出たのは複製の folder だけだった。
   - **`playModeStartScene` は Play を止めても設定したまま残る。** 戻すのは入口の責務（N4）。Editor の再起動の後に残るかは未確認（初回確認は AC13）。
   - 入口は Variant profile の選択がある Editor で経路 Built を拒否した（`ConflictingState`）。検証の準備に含める。
   - 非フォーカスの Editor では `eval` が timeout した。window を前面にすると通った。
-  - **未確認。初回確認は Phase B の動作確認:** Domain Reload 有効の時に `[InitializeOnLoad]` が `AfterSceneLoad` より前に bridge を置けるか（AC12。不成立なら A へ戻す）。`LoadSceneAsyncInPlayMode` で additive に読んだ複製が `RegisterAlreadyLoadedScenes` の前に `isLoaded` になるか（AC7）。Play 中の強制終了の後の置き場と `playModeStartScene`（AC13）。file の無い path を `LoadSceneAsyncInPlayMode` に渡した時の戻り値（null、例外、完了しても無効な Scene のどれか。AC10。段は 3 つとも失敗として扱う）。取り込みの失敗の中での `UnloadSceneAsync` の完了（AC18）。
+  - **未確認。初回確認は Phase B の動作確認:** Domain Reload 有効の時に `[InitializeOnLoad]` が `AfterSceneLoad` より前に bridge を置けるか（AC12。不成立なら A へ戻す）。`LoadSceneAsyncInPlayMode` で additive に読んだ複製が `RegisterAlreadyLoadedScenes` の前に `isLoaded` になるか（AC7）。Play 中の強制終了の後の置き場と `playModeStartScene`（AC13）。file の無い path を `LoadSceneAsyncInPlayMode` に渡した時の戻り値（null、例外、完了しても無効な Scene のどれか。AC10。段は 3 つとも失敗として扱う）。取り込みの失敗の中での `UnloadSceneAsync` の完了（AC18）。元の Scene（Dirty を含む）を開いたまま `playModeStartScene` の Play に入り、保存の確認が出ず、停止の後に元の Scene が戻ること（AC7、AC8。疎通は開いている Scene を空にして行った）。
 - 人間の判断が必要な条件: AC15（実クリック）。§6 D-9。
 - 高コスト証拠: なし（準備の Content Directory build は Phase C の通常の Build として 1 回行う）。
 - 判定 C の照合 script の方式: なし（テスト XML と観測 file を判定 C の担当が読む）。
@@ -265,7 +273,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 - **D-9 AC15（実クリック）の担当。** 推奨: S0-c の D-4 と同じ。判定 C の実行担当が画面操作で行い、できなければ owner が 1 回確認して観察記録を受理する。
 - **D-10 置き場。** 推奨: `unity/Assets/OsmPlaySnapshot/<pid と乱数>/`、`.gitignore` に folder と `.meta` を足す。`LoadSceneAsyncInPlayMode` と `playModeStartScene` は asset の path が要るので `Assets/` の下に置く。名前は運用上の選択（担当の判断）。
 
-- **D-11 分割（A2 の代替構成の提案）。** 案: S0-d1 = 1 Scene（D-1 (a')）と I11、残骸、異常終了。S0-d2 = additive の複数 Scene の取り込みの段と (i) / (ii) の最終の選定。推奨: **分割しない**（§2「スライス分割の判断」）。ただし owner が D-1 で (a') を選ぶなら、それが分割と同じ結果になり、§3 の Runtime の 3 行と AC3、AC9 が後続へ移る。規模は製品 code が約 +640 行から約 +450 行になる。
+- **D-11 分割（A2 の代替構成の提案）。** 案: S0-d1 = 1 Scene（D-1 (a')）と I11、残骸、異常終了。S0-d2 = additive の複数 Scene の取り込みの段と (i) / (ii) の最終の選定。推奨: **分割しない**（§2「スライス分割の判断」）。ただし owner が D-1 で (a') を選ぶなら、それが分割と同じ結果になり、§3 の Runtime の 3 行と AC3、AC9 が後続へ移る。規模は製品 code が約 +655 行から約 +450 行になる。
 
 ## 7. A2 記録
 
@@ -315,9 +323,10 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 
 ### 外部レビューとの突き合わせ
 
-owner が依頼した外部レビュー（web の GPT。PR のレビューとして 2026-11-10 に受領）。入力は A3 候補版（owner 決定を反映した版）の本書。文書だけのレビューで、実 Editor の結果は見ていない。2 点とも主担当が現行 code で確かめた。目的・利用者の文言は変えていないので、目的レビューはやり直さない。
+owner が依頼した外部レビュー（web の GPT。PR のレビューとして 2026-11-10 に 2 回受領）。1 回目の入力は A3 候補版（owner 決定を反映した版）の本書、2 回目は X-01 と X-02 を反映した版。文書と現行 code の静的なレビューで、実 Editor の結果は見ていない。2 回目は X-01 と X-02 を解消と判断し、X-03 を足した。3 点とも主担当が現行 code で確かめた。目的・利用者の文言は変えていないので、目的レビューはやり直さない。
 
 | ID | 重大度 | 要旨 | 採否 | 理由と反映 |
 |---|---|---|---|---|
 | X-01 | major | additive の 2 つ目で取り込みが失敗した時、先に load した複製を誰が unload するかが無い。AC10 は 1 Scene の失敗しか見ない（N2、N7） | 採用 | 指摘のとおり、`CleanupAfterStartupFailureAsync` も `ReleaseAll` も Unity の Scene を unload しない。取り込みの段が、自分の load した複製を例外の前に unload する（N2、§3 の initializer の行と状態の表、§4 の 4）。load を 1 つずつにして、失敗の時点で進行中の load を無くした。AC18 と AC3 の 1 行を足した。Unity の callback の発火は違反に数えない（レビューの前提と同じ） |
 | X-02 | moderate | `facts.JsonLayer` は mode の 3 key しか残さないので、JSON の `content:firstScene` を拾えない（F-01 の反映が成り立っていない） | 採用 | 指摘のとおり（`PlayEntryDecision.cs:44-51`、`:132`）。既存の `CheckEmptyLowerLayer` を使って理由を `ConflictReason` に入れる形に直し、`ModeKeys` は広げない（§4 の判定の行、§3 の Interceptor の行）。AC4 に JSON の本文から拒否までを通す case を、AC16 に `ModeKeys` が 3 key のままの検査を足した |
+| X-03 | blocker | 混成の経路の再 Play が、S0-c の既存の検査（directory + 再利用しうる Scene → 拒否。1 回の ledger の素通りより先）に当たって自分で止まる（N8、P1） | 採用 | 指摘のとおり（`PlayEntryDecision.cs:152-158`、`PlayEntryTransaction.cs:55-70`）。初稿の「既存の行は変えない」のままでは P1 が成り立たなかった。拒否の行の直前に、入口が準備した session と 1 回の ledger が揃った再入だけを通す行を足した（§4 の再入の行、§3、N8）。検査の順序は動かさない。AC4 に行の成立と不成立、AC5 に実際の `Decide` を通す順序の test を足した。Phase A の疎通はこの経路を通っていないと §5 に明記した |
