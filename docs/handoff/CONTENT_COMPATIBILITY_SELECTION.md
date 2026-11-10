@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C 完了（阻害する指摘なし、§7.2）、C' 待ち`（判定 C は 2026-11-11 に完了（§7.2）。以下は判定 C 前の記録。**発見 C 完了、2026-11-10。阻害する指摘なし、B への差し戻しなし（§7.1）。次は判定 C。develop の取り込みで implementation base / head を更新した（§7.1）。** Phase B 完了は 2026-11-09、動作確認は対象なし。以下は A3 凍結時の記録。A3 凍結版（revision 0）、2026-11-09。 owner（root）が外部レビュー 3 巡目の「blocker なし」を受けて凍結を指示した。A2 入力版は commit `50d6ff2e`。A3 統合版は commit `09ac3df7` → `b4793e99` → `1b885fb5` → `c0842527`（外部レビューに渡すための owner の指示による逸脱で、phases-and-handoff.md「Phase A の commit と snapshot」の「A2 入力版と A3 凍結版の 2 点だけ」の例外。S0-a の「A3 整理版」と同じ扱い）。A3 凍結版は本書を含む commit。凍結後に設計判断を変える場合は Phase A を新しい revision として再開する。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。A0 の入力は同書 §3・§4.1・§6（I1・I2・I5・I7・I8・I10）・§8 の S1 行と「S0-a から移送した入力」「S0-b から移送した入力」・§9 G08・§10 U4・U5。program の停止規則「S1 以降は S0-b の Phase D より前に Phase B を始めない」は、S0-b が PR #172 でマージ済みなので満たしている）
+- status: `C' 完了（阻害する指摘なし、§8）、Phase D 待ち`（2026-11-11。判定 C は §7.2 と決定記録 D-1（§7.3）、C' は §8。A3 凍結の経緯は §5.1 と PR #174。A3 凍結版は revision 0、commit `d60658b8`。program [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S1。）
 - branch: `claude/loving-lamport-7lbluf`（S1 のスライスブランチ。PR の base は `develop`）
 - implementation base commit: `bbfa3e2c0f8a3422deaa811a998a2bf3578615cb`（2026-11-10、判定 C の前に owner の承認で develop（S0-d のマージ後）を取り込んだので、取り込んだ develop の head に更新した。経緯と、`Runtime/ContentResolution/` と `tools/` の差分が旧 base `7b28eba` → `336dbbd` と一致することの確認は §7.1。A3 時点の値は `7b28eba`（`develop` の head、2026-11-08。本書の §1 の実測はこの base））
 - implementation head commit: `b686b5f2b2720421818bee2c62154e6a1cf307fe`
@@ -17,14 +17,14 @@
 - 関連: [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（**所有境界の正本。** 本スライスの型は S0-a と同じく AssetManagement の上の任意の層 `Runtime/ContentResolution/Core/` に置き、BuildSystem 本体を参照しない。境界を本書で定義し直さない）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（本スライスは起動コードに触れないので、Phase B の同時実行制約の対象外）、S0-c `EDITOR_PLAY_ENTRY_PROOF`（owner のローカルで進行中。本スライスは S0-c の入口・ledger・config に触れない。§2.3）
 - Phase A snapshot の取得案内・状態: 未生成（Cloud に Artifact Storage が無いため、A3 凍結版は snapshot ではなく commit と PR #174 で渡す。機械向けの期待値・照合 script は無い（§5「判定 C の照合 script の方式」が `なし`）。C / C' の入力の固定は判定 C の担当が evidence bundle で行う）
 - Phase B result snapshot の取得案内・状態: 未生成（Phase B は Cloud で行い、Artifact Storage が無い。実装は implementation head の commit と PR #174 で渡す。dotnet の出力の末尾は §6 に転記した）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。task `content-compat-s1`。取得案内は `pwsh tools/artifacts.ps1 evidence inspect --profile osm --config <v2-config> --task content-compat-s1` が返す reference と packageSha256（locality `local`）。判定の生証拠（head と base 2 回の XML・log、offline、contract-audit）、完全 diff（本書を除く）、Phase B 完了時点の本書の版を収録し、所見を含まない。取得と閲覧の確認は進行役の session の fetch まで（別 session の確認は Phase D）
+- C' blind bundle の取得案内・状態: evidence bundle と同じ artifact（所見を含まないので 1 つで兼ねた）。状態も同じ
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査）。判定 C は §7.2 で完了。C' は Phase B・判定 C と異なるモデル・新規 session で、発見 C・判定 C の所見を含まない blind bundle から行う（bundle の stage は進行役）。 [旧: 判定 C]
-  - 次の作業: implementation head（§0 の欄）を GO 候補 head とする（develop の取り込みは済み。§7.1）。AC2 と AC7 の base は §0 の implementation base を使う。GO 候補 head で §5 の判定必須テスト（offline の全件、base と head の全 EditMode 回帰（AC7）、`contract-audit`（AC8））を判定 C の担当が自分で実行し、evidence bundle を作る。発見 C は Phase B と同じモデルで行ったので（§7.1「独立性」）、判定 C は Phase B と異なるモデルで、構造レビュー（AC・責務マップ・判定順・C1〜C30・反例）も自分で行う。発見 C の機械検査・offline の出力・Unity の compile 確認は判定の入力にしない。
+  - 次の Phase・役割: Phase D（owner のマージ判断）。C / C' は完了（§7.2、§7.3、§8）。
+  - 次の作業: 判定 C と C' を突き合わせ、Evidence の取得を別 session で確かめ、PR #174 の CI（`dotnet-offline-tests`、AC8）を確認してマージを判断する。harvest は §0 の harvest to。§7.1 の S0-d の記述の更新と U-S1-5 の doc の 1 文も harvest で扱う。
   - 引き継ぐ commit: 本票を含む記録 commit（SHA は tree の外、起動指示と PR #174 の状態ブロックで渡す）。開始時に HEAD と照合し、implementation head 欄の SHA が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` の本書だけであることを確かめる。
   - 必要な権限: リポジトリの読み取り。offline テストは dotnet SDK 8。Unity のコンパイル確認と全 EditMode 回帰（判定 C）には Unity Editor `6000.6.0f1` と `pwsh`。実操作・資格情報は不要。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる指摘は Phase A の再開として owner に返す。それ以外の後続の入力は §2.3 の所有スライスへ送り、現スライスの受け入れ条件を広げない。判定 C で阻害する指摘が出たら B へ返す（発見 C との往復は残り 4 巡）。AC7 の base が failed 0 にならなければ head を判定せずに owner へ返す。判定 C の証拠が揃うまで C' を起動しない。
+  - 停止規則: head を動かす変更（実装の修正）が入れば判定 C と C' をやり直す（review-evidence.md「判定後の head 変更」）。
   - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない。osm-workflow の「Phase C': 独立監査」の規則）。
 ### PR 状態ブロック
 
@@ -92,7 +92,7 @@ PR が存在する間は PR 本文先頭の状態ブロックを更新する。�
 - このスライスの成果の範囲: GO は「既存の公開型と resolver を変えずに、汎用の互換規則と host 述語の合成が、fake の供給元と fake の事実の上で、program §8 S1 の gate の反例（同名異内容（expected identity がある時）、壊れた manifest、異なる version、別表現（要求が表現を指定した時）、旧 manifest）を採らないこと」だけを意味する。要求が表現を指定しない（空の）時は、上位の候補が規則で落ちた後に下位の別表現の互換な候補が採られうる。表現の中身は汎用側が解釈しない（program U5）ので、これを別表現への切替に数えない（外部レビュー 2。C30 で固定）。host 述語を登録しない policy は、同じ content set・revision・digest で宣言だけが違う候補を採る（program U5 どおり。G08 の `declaration` の比較は host 述語の責任）。供給元の申告が実体と一致することは主張しない（申告を照合するだけ）。実在の manifest から事実を作る adapter、Unity の Content Directory からの実ロード、Editor Play の入口、複数 package の合成、要求をまたぐ一貫は主張しない。**Unity 実機では何も検証しない**（本スライスの対象は pure な core で、Unity で確かめるのは Phase B の compile と Phase C の全 EditMode 回帰による非退行だけ）。program §8 の「誤った合格を除外する」の列をそのまま引き継ぐ。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: D-1（§7.3、2026-11-11）
 
 ### 2.1 進める最低条件
 
@@ -503,9 +503,21 @@ ContentResolution offline: 58 passed, 0 failed, 58 executed
 - evidence bundle: 未生成。生証拠（head と base の XML・unity.log・step.json、offline の出力）は判定 C の担当のローカルに保持している。C' 用の stage は進行役が行う。操作・目視の条件は対象なし。
 - 後続の入力（受け入れ条件を広げない）: base の worktree の初回は Build 統合テストが Timeout しうる（cold な cache）。S0-d マージに伴う §1 の記述の更新は §7.1 のとおり Phase D の harvest。
 
+### 7.3 決定記録
+
+- **D-1（版 1、2026-11-11、適用: 判定 C の head `b686b5f2` / base `bbfa3e2c`）AC7 の base の結果:** base の 1 回目は failed 1（`BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` の 360 秒 Timeout、新規 worktree の初回実行）だった。AC7 と §0 の停止規則は、この時 head を判定せずに owner へ返すと定めるが、判定 C の担当は返さずに再実行した（§7.2 の「AC7 の規定により」は規定の読み違いで、規定どおりの手順ではない）。**owner の裁定: 2 回目（failed 0）を AC7 の base として認める。** 理由: AC7 の比較の基準は「base が failed 0」で、2 回目で満たす。S1 の差分はこのテストの経路に触れず、当該テストは head と base の 2 回目で Passed。AC7 の意味・合否は変えない。進行役が 2 つの XML を独立に照合した（full name 1792 件が一致、base で passed は全て head で passed、Inconclusive 25 件が同一）。Timeout の原因は未調査で、新規 worktree の cold な Library と整合するという推定に留まる。
+- 判定 C の不足: 票の evidence bundle は判定 C の担当が作らず、進行役が同じ生証拠から stage する（§8）。
+
 ## 8. Phase C'
 
-未着手。
+- 種別: 最終 C'（高コスト証拠は無いので判定証拠の揃った head の C' を最終とする）。1 巡目。2026-11-11。
+- 担当とモデル: Codex CLI 0.167.0、`gpt-6-luna`（OpenAI）、reasoning medium、`codex exec --sandbox workspace-write`、新規 session。Phase A・B・発見 C・判定 C に OpenAI 系は関与していない（A は Anthropic と Grok 系、B と発見 C は Opus 5.5、判定 C は Sonnet 5.5）。独立性の条件は満たす。
+- 入力: §0 の blind bundle を fetch し、head `b686b5f2` の関係 path の `git archive` と併せた packet。発見 C・判定 C の結論・指摘と、それらへの裁定（D-1）は渡していない。head の本書は §7.1 を含むので diff と packet から除き、Phase B 完了時点の版（`b476a67`）を入力にした。MANIFEST には base の 2 回の実行の事実と、2 回目が AC7 の比較の入力であることだけを書いた。
+- 結論: **阻害する指摘なし。**
+- 後続の入力: (1) 実在の manifest から候補の identity と事実を作る adapter と実ロード（S3 / S4、重大度 中。§2.3 のとおり）。(2) 要求をまたぐ revision の一貫（S4、重大度 低。U-S1-4 / U-S1-6 の裁定どおり）。どちらも受け入れ条件を広げない。
+- 確認した範囲（C' の報告）: AC1〜AC8、I-C1〜I-C6、§2.3 の境界、差分の変更範囲、新規実装と凍結条件の照合、offline の生ログ（58 passed、C1〜C30 の PASS 行）、EditMode の XML の比較（head と base-run2 の各 1,792 件、failed 0、inconclusive 25、base の passed は全て head で passed、inconclusive の集合が一致）、contract-audit（違反 0）。
+- 監査できなかった範囲（C' の報告）: packet に git の metadata が無いので base / head の SHA の存在と祖先関係は MANIFEST の記述を前提とした。Unity の import 後に `.meta` が変わらなかった証拠は packet に無い（§7.1 と §7.2 で別に確認している）。実 manifest・実 provider・実ロード・Editor Play 入口・複数 package の合成・Player は対象外。
+- 残存リスク（C' の報告）: Unity の終了コードは 2 で、終了時のログに leak / shutdown の記録がある。AC7 の XML の比較は満たし、今回の変更による回帰を示す証拠ではない。
 
 ## 9. Phase D
 
