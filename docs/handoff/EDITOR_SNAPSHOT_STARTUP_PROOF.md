@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `B`（**未着手。A3 凍結済み、revision 1**（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は、A3 凍結版 commit（Phase A の最後の commit）の本書）
+- status: `C`（**Phase B 完了、B の出口の動作確認済み。次は発見 C。** 凍結版は revision 1（owner の 2026-11-10 の指示）。A2 入力版は commit `8716a840`。A3 候補版の commit `0f65639d`、`050c292c`、`73478f3d`、`f922a2cb` は、owner の指示で外部レビュー用にドラフト PR へ公開したもので、Phase A の commit を 2 点に限る規則の、人間の指示による例外。C / C' が読む凍結版は A3 凍結版 commit `2856da5a` の本書（§0〜§7））
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - risk: `high`（program §8 の分類。Runtime の起動順序に Editor 専用の段を足し、`OneStarMaker.Editor` に公開 API を足し、封じの契約の文言を変える。asmdef と `SceneState` は変えない）
 - owner: root（依頼者）
 - created: 2026-11-10
@@ -16,18 +16,18 @@
 - harvest to: `unity/Assets/Docs/Architecture/04-app-startup.md` §4.6・§4.7（snapshot の取り込みの段、封じの対象の文言）、`18-asset-description.md` §4「宣言からの Play 経路」（3 つ目の経路）、program §5.2（機構の選定）・§8・§10 U2・U3
 - 関連: program §3・§4.1・§4.3・§5.2・§6 I4・I10・I11・§8 S0-d 行と移送・§9 G18・G21・G26・§10 U2・U3（**本スライスの A0**）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・script・fixture を持たない。C / C' が読む凍結版は A3 凍結版 commit の本書）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 該当なし（Artifact Storage を使わない。結果は §8 と implementation head の commit）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装担当）。凍結した Phase A は revision 1。
-  - 次の作業: §4「その他」の順序で §3 の表を実装し、単体テスト（AC1〜AC6）を書き、実 Editor でコンパイルを確かめ、動作確認（AC7、AC8、AC10、AC12、AC13、AC18 を各 1 回）を行う。結果は本書の末尾に「§8 Phase B 実装結果」として足す（§6 と §7 は A3 判断と A2 記録が使っている。判定 C 以降の章はその後ろに続ける）。開始時に、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B が動いていないことをもう一度確かめる（§2 停止規則）。
-  - 最初に確かめる未知（どれも Phase A では通っていない。§5 の疎通結果）: 混成の経路の再 Play が再入の行を通って Play に入ること。`LoadSceneAsyncInPlayMode` の additive の取り込みと、失敗時の unload。Domain Reload 有効の時の bridge と購読の置き直し。Dirty の元の Scene が停止の後に戻ること。
+  - 次の Phase・役割: 発見 C（レビュー担当）。凍結した Phase A は revision 1。
+  - 次の作業: implementation base から implementation head までの差分を、§2〜§5 の凍結条件と §3 の責務マップに照らして構造・契約・凍結済みの失敗経路から見る。Phase B の結果は §8（実装の細部、行数が見積もりの 1.8 倍になった理由、動作確認の生の観測）。単体テスト（AC1〜AC6）は書いたが未実行で、差し戻し中の確認は §5 の起点 `-Filter`（6 class と `ContentDeliveryPlayBridgeTests`、`PurposeLaunchSettingsTests`）を使う。GO 判定と C' の起動はしない。
+  - 動作確認: B の出口で AC7、AC8、AC10、AC12、AC13、AC18 を各 1 回実施した（§8。未実施なし）。B の session が取った観測なので判定 C の入力にはしない。
   - 入力の snapshot・bundle: なし（§0 の各欄のとおり）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
-  - 必要な権限: Unity Editor の起動と操作（`tools/unity-editor.cmd`。AC13 は担当が自分で起動した Editor の process を強制終了する）。Unity テストの実行と判定は Phase C。Artifact Storage は使わない。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」のどれかに当たったら実装を止めて A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら、§6 D-2 の縮小の規則に従い、Phase A の新しい revision へ戻す（owner に問い直さない。機構 (ii) へは進まない）。
-  - 引き渡さないもの: なし。
+  - 必要な権限: 発見 C は読むだけ。限定のテストを走らせる場合は sandbox 外の `pwsh tools/run-tests.ps1`（Editor が閉じていること。B が起動した Editor は正常終了済み）。Artifact Storage は使わない。
+  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」に当たる指摘は A へ戻す。明示の複製が N1〜N8 を満たせないと分かったら §6 D-2 の縮小の規則（Phase A の新しい revision。owner に問い直さない）。
+  - 引き渡さないもの: なし（C' には発見 C の所見を渡さない）。
 
 ### 実測の方法
 
@@ -347,3 +347,88 @@ owner が依頼した外部レビュー（web の GPT。PR のレビューとし
 | Y-6 | 緩める | P5 と AC13 から、2 つ目の Unity process の実測を外した（Unity の project lock の挙動で、本スライスの code は関わらない） |
 | Y-7 | 緩める | 実 Editor の条件に、環境の失敗のやり直しの規則を足し、log の行数を数えないことにした |
 | Y-8 | 範囲 | 判定定義に、実証の範囲は `Title` と空の Scene だと書いた |
+
+## 8. Phase B 実装結果
+
+対象は revision 1 の凍結版（commit `2856da5a`）。開始時に `RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` が Phase A（A0 入力だけ）のままで、Phase B が動いていないことを確かめた（§2 停止規則）。Phase A へ差し戻す条件（§4「その他」）には当たらなかった。
+
+### 実装
+
+§3 の表のとおりに置いた。表に無い製品の file は変えていない（`PlayEntrySettings.cs` は変更不要だった。経路の値は `PlayEntryDecision.cs` の enum にある）。
+
+| file | 行数（base 比） | §3 の見積もり |
+|---|---|---|
+| `Runtime/Bootstrap/EditorPlaySnapshotBridge.cs`（新規、全体が `#if UNITY_EDITOR`） | +70 | +50 |
+| `Runtime/Bootstrap/EditorPlaySnapshotIntake.cs`（新規、同上） | +81 | +70 |
+| `Runtime/Bootstrap/AbstractApplicationInitializer.cs` | +87（1149 行） | +60 |
+| `Editor/PlaySnapshot/SceneSnapshotWriter.cs`（新規） | +116 | +110 |
+| `Editor/PlaySnapshot/SnapshotRoot.cs`（新規） | +166 | +110 |
+| `Editor/PlaySnapshot/PlaySnapshotSession.cs`（新規、公開 API） | +312 | +150 |
+| `PlayEntryDecision.cs` / `PlayEntryTransaction.cs` / `PlayEntryInterceptor.cs` / `PlayEntryRecord.cs` | +99 / +36 / +48 / +115 | +55 / +35 / +40 / +45 |
+| `PlayEntryWindow.cs` / `PurposeLaunchSettings.cs` | +20 / +24 | 計 +40 |
+| `.gitignore` | +4 | +3 |
+
+製品 code は計 約 +1180 行で、見積もり（約 +655 行）の 1.8 倍。増えたのは主に `PlaySnapshotSession`（解除の契機・異常終了の回収・Domain Reload の置き直しの理由を doc comment に書いた分と、空の開始 Scene の作成）と `PlayEntryRecord`（宣言・取り込み・由来・複製の残りの欄と Console の行）。新規 file はどれも 500 行未満。`AbstractApplicationInitializer.cs` に入ったのは段の順序 1 か所と private method 1 つ（照合は `EditorPlaySnapshotIntake`）で、分割していない。test は約 +800 行（見積もり約 +600 行）。
+
+計画の範囲で決めた実装の細部（設計判断の変更ではない）:
+
+- 取り込みの段は、config に `editor:playSnapshotExpected` が真の時だけ bridge を読む。key があって bridge が無ければ起動の失敗。key が無い Play は、bridge に前の値が残っていても読まない（N3）。
+- 解除（`PlaySnapshotSession.Release`）の契機は §3 の 4 つ（EnteredEditMode、Play に至らない idle、準備の例外、`[InitializeOnLoad]`）を全て `PlaySnapshotSession` 自身が持ち、`PlayEntryTransaction` も準備・`EnterPlaymode` の例外と idle で同じ method を呼ぶ（何度呼んでも同じ結果）。idle の観測を閉じる（§6 D-8）のは `PlayEntryTransaction` で、snapshot の無い経路にも効く。
+- 空の開始 Scene は additive の `NewScene` → `SaveScene` → `CloseScene` で作り、active Scene を元へ戻す（Scene の file を手で書かない）。
+- 混成の経路の競合の検査は、`DirectoryPlayConfigKeys` に `editor:playSnapshotExpected` を足した key の集合に掛ける。
+- `PlayEntryRule` に `SnapshotReentry`・`SnapshotUnsupportedSetting`・`SnapshotNothingToCarry`・`SnapshotUnsupportedScenes`・`SnapshotRoute` を判定の順に足した（record は名前で書く）。`PlayEntryRecovery` に `SwitchToBuilt` を足した。
+- snapshot の Play では、Console の 1 行を EnteredPlayMode に加えて EnteredEditMode にも出す（取り込み・由来・複製の残りは Play の後でないと揃わない。P3）。
+- 置き場の folder 名は `<pid>_<process 開始時刻の UTC ticks>_<乱数 8 桁>`（§6 D-10 の運用上の選択）。開始 Scene は `OsmPlaySnapshotStart`、開いている Scene に同名があれば複製しない。
+- 動作確認の 1 回目の AC10 で、起動の失敗の最初の Error が Unity 自身の「`LoadSceneAsyncInPlayMode expects a valid full path`」になった（record の `firstFailure` に snapshot の path は出ていたが、理由の文ではない）。B 適応として、load の delegate は file の無い複製を Unity に渡さず null を返すようにした。再実行の結果は下の 7。
+- 準備の所要を `[PlaySnapshot] Prepared in <ms> ms` の log に出す（AC17 の材料）。
+
+### 機械の確認
+
+- `pwsh tools/contract-audit.ps1`: `errors=0 warnings=0`（checks 1〜9）。
+- AC16 の検査（B が手で実行）: `git diff --name-only 4167dca8` に `.asmdef` と `SceneState` が無い。`Scripts/Runtime/` の追加行は、新規 2 file が全体 `#if UNITY_EDITOR`、initializer の追加 2 か所が `#if UNITY_EDITOR` の中。追加行に `"content:…"` の新しい key が無い。`PlayEntryDecision.ModeKeys` は 3 key のまま。
+- 実 Editor のコンパイル: Unity 6000.6.0f1 で `EditorUtility.scriptCompilationFailed=False`（製品と test の asmdef を含む）。最後の変更（initializer の空行 2 つを `#if` の内側へ移しただけ）の後は再コンパイルしていない。
+- 単体テスト（AC1〜AC6）は書いたが、**実行していない**（Unity テストの実行と判定は Phase C）。追加した test: `OneStarMaker/Tests/Editor/PlaySnapshot/` の `SceneSnapshotWriterTests`・`SnapshotRootTests`・`EditorPlaySnapshotIntakeTests`、既存の `PlayEntryDecisionTests`・`PlayEntryTransactionTests`・`PlayEntryRecordTests` への追加。
+
+### 動作確認（B の出口。AC7、AC8、AC10、AC12、AC13、AC18 を各 1 回）
+
+B の session が取った観測なので、判定 C の入力にはしない（判定 C が GO 候補 head で取り直す）。合否は書かず、生の観測と検証経路の期待との差だけを書く。
+
+- 環境: Unity 6000.6.0f1、B が `unity open` で起動した Editor（PID 4128、AC13 の後は 31308）。候補は installed の `spring-full` revision `20261107T141413498Z-1846…`（Phase A の疎通と同じ）。準備として Variant profile の選択（元は GUID `fc9baeaf…` の明示選択）を外し、経路の保存値を `BuiltWithOpenScenes` にした。終わりに両方を元へ戻し、Editor を正常終了した。`git status --short` の基準は準備の直後に採った。
+- 観測は `tools/unity-editor.cmd eval` で `SessionState` の record、loaded の Scene、active Scene、`playModeStartScene`、置き場、`SAMPLEGAME_*` の環境変数、ledger を読み、`Title.unity` の SHA-256 と `git status --short` は shell で採った。
+- コードの版: 1 と 2 は「準備の所要の log・終了時の Console の行・load の前の file の確認」を足す前、3 は load の前の確認を足した後、4〜7 は最終の code（空行の移動の前）。
+
+1. **AC7 + AC8（Domain Reload 無効）。** `MarkSceneDirty` の後に `Edit/Play Mode/Play`。押下から `EnteredPlayMode` まで 13.5 秒。record `EnteredPlay`、`rule=SnapshotRoute`、封じの log あり、loaded は `OsmPlaySnapshotStart`（置き場）・`UIScene`・`Title`（置き場の下の複製）・`OutGameScene` で `Title` は 1 個、active は複製の `Title`、`intake=[Title]`、15 秒の窓の後で Error / Exception 0。停止の後: `Title.unity` の SHA-256 は前と同じ（`3eeb386c…`）、Dirty のまま、active と並びは同じ、`playModeStartScene` は null、置き場と `.meta` は無い、`SAMPLEGAME_*` の環境変数は無い（Play の前と同じ）、`git status --short` は基準と同じ。保存の確認 dialog は出なかった。期待との差: なし。
+2. **AC10（1 回目）。** 再 Play の `ExitingEditMode` で複製の `Title.unity` を消す handler を `eval` で足した。record `StartupFailed`、loaded は空の開始 Scene だけ（`Title` という名前の Scene は無い）、`firstFailure` は Unity の「`LoadSceneAsyncInPlayMode expects a valid full path. The provided path was 'Assets/OsmPlaySnapshot/…/Title.unity'`」。停止の後に置き場は無い。期待との差: 理由の文が snapshot の読み込みの失敗ではなく Unity の path の Error だった（上の B 適応で直し、7 で再実行）。
+3. **AC18。** `Title` と map に無い保存済みの空 Scene `S0dExtra`（`Assets/OsmS0dCheck/`、確認の後に削除）を additive に開き、再 Play で `S0dExtra.unity` の複製だけを消した。record `StartupFailed`、`firstFailure` は「`AfterSceneLoad failed at stage 'intake-editor-snapshots': … The play snapshot of scene 'S0dExtra' could not be loaded`」、15 秒の窓の後の loaded は空の開始 Scene だけ（先に load した `Title` の複製は無い）。停止の後に置き場は無い。期待との差: なし。
+4. **（参考。B の対象外の AC9・AC11 の手順の疎通）** 同じ 2 Scene で Play: record `EnteredPlay`、`Title` と `S0dExtra` がどちらも複製から loaded、active は `Title`、`intake=[Title, S0dExtra]`、Error 0。押下から `EnteredPlayMode` まで 17.2 秒、準備 3078 ms。同じ Play で下の AC11 の `eval` を 2 回実行: Warning「`Scene 'Title' was loaded again from Assets/SampleGame/OutGame/Title/Title.unity instead of the play snapshot…`」は 1 回、record の `Title` の由来は `snapshot->directory`。
+5. **AC12（Domain Reload 有効）。** `EditorSettings.enterPlayModeOptions = None` にした（log に `Reloading assemblies for play mode`、`Domain Reload Profiling` がある）。AC7: record `EnteredPlay`、封じあり、`Title` 1 個（複製）、`intake=[Title]`、Error 0。押下から 45.0 秒、準備 1670 ms。AC11 を 2 回: Warning 1 回、由来 `snapshot->directory`。停止の後: SHA-256 同じ、Dirty のまま、`playModeStartScene` null、置き場無し、環境変数無し。`git status --short` は基準に対して `unity/ProjectSettings/EditorSettings.asset` だけが違った（準備で変えた設定を Unity が Play 中に保存した物）。設定を `DisableDomainReload` に戻した後も Unity の serialize の差（`m_SerializeInlineMappingsOnOneLine` の削除と `m_UseLegacyHierarchy` の追加）が残ったので、`git checkout` で追跡の内容へ戻した。期待との差: なし（`EditorSettings.asset` は確認のための設定の変更）。
+6. **AC13。** AC7 の Play の `EnteredPlay` を確かめた後に `Stop-Process -Id 4128 -Force`。置き場に folder `4128_…` が残った。`unity open` で開き直すと、Unity の「Scene Backup Detected」dialog（Dirty の `Title` の backup を `Assets/_Recovery/` に残すか）が出たので Delete を選んだ（残すと追跡外の file が増える。backup は確認のための `MarkSceneDirty` だけで中身の変更は無い）。Editor が落ち着いた後、log に「`[PlaySnapshot] Collected leftover snapshots: …\OsmPlaySnapshot\4128_…, …4128_….meta, …\OsmPlaySnapshot, …\OsmPlaySnapshot.meta`」、置き場無し、`playModeStartScene` null、`git status --short` は基準と同じ。続けて AC7: record `EnteredPlay`、封じあり、`Title` 1 個（置き場 `31308_…` の複製）、Error 0。押下から 39.0 秒、準備 8677 ms（起動直後の 1 回目）。停止の時の Console の行に `intake=[Title] origins=[Title=snapshot] copiesRemoved=yes` が出た。期待との差: なし。回収は `delayCall` で行うので、Editor の import とコンパイルが終わってから走る。
+7. **AC10（最終の code で再実行）。** 2 と同じ手順。record `StartupFailed`、`firstFailure` は「`AfterSceneLoad failed at stage 'intake-editor-snapshots': … The play snapshot of scene 'Title' could not be loaded: Assets/OsmPlaySnapshot/…/Title.unity`」、`Title` という名前の Scene は loaded に無い。停止の後に置き場無し。期待との差: なし。
+
+未実施: なし（B の出口の対象 6 つは全て実施）。
+
+動作確認で見えた既存の挙動（本スライスの AC の対象外。直していない）: 起動が directory を install した後に失敗すると（AC10、AC18）、既存の後始末が「`Content directory cleanup after startup failure also failed: … Content directory still has live asset, scene, cache, or instance tokens.`」を Error で出す（`CleanupAfterStartupFailureAsync` が directory を close する時点で UICommon 等の token がまだ生きている）。record の `errorCount` はこの 1 件を含む。
+
+AC11 の `eval`（判定 C はこれを使う。Play 中に実行する）:
+
+```csharp
+var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance;
+var appType = System.Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll");
+var instance = appType.GetField("s_instance", flags).GetValue(null);
+var director = (OneStarMaker.Runtime.SceneSystem.SceneDirector)typeof(OneStarMaker.Runtime.AbstractApplicationInitializer)
+    .GetField("_sceneDirector", flags).GetValue(instance);
+System.Func<Cysharp.Threading.Tasks.UniTask> run = async () =>
+{
+    await director.UnloadScene("Title");
+    await director.AddScene("Title", null, System.Threading.CancellationToken.None);
+    UnityEngine.Debug.Log("[S0D-AC11] unload and re-request of Title finished");
+};
+Cysharp.Threading.Tasks.UniTaskExtensions.Forget(run());
+return "requested";
+```
+
+実行担当への補足（検証経路の手順を変えるものではない）:
+
+- `eval` の code は method の本体として compile されるので `using` を書けない（型は完全名で書く）。
+- 候補の検証を含む `eval`（`PlayEntryCandidates.Select` 等）は 5 秒の main thread の上限を超える。上限の応答の後も処理は走るので、結果は file に書いて読む。
+- AC13 の開き直しで「Scene Backup Detected」dialog が出る（Dirty の Scene を開いたまま強制終了するため）。

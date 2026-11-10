@@ -81,6 +81,30 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal static IReadOnlyList<string> DirectoryPlayConfigKeys(IEnumerable<KeyValuePair<string, string>> runtimeDefaults) =>
             ContentDeliveryPlayBridge.ContentConfigKeys.Append(FirstSceneKey).Concat(runtimeDefaults.Select(x => x.Key)).ToArray();
 
+        /// <summary>
+        /// 混成の経路の環境変数。検証 Play の値から初回 Scene を除き（開いている Scene の複製から始まる）、snapshot を宣言した印を足す。
+        /// 環境変数は空文字を置けないので、初回 Scene の実効値を空にするには下位の層（app-config）に値が無いことを入口が別に確かめる。
+        /// 印の key は <c>content:</c> の名前空間ではなく、Player の protected config の照合に入らない。
+        /// </summary>
+        internal static IReadOnlyList<KeyValuePair<string, string>> SnapshotPlay(IEnumerable<KeyValuePair<string, string>> directoryPlay)
+        {
+            var firstScene = EnvironmentName(FirstSceneKey);
+            var expected = EnvironmentName(SnapshotExpectedKey);
+            var values = directoryPlay
+                .Where(x => !string.Equals(x.Key, firstScene, StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(x.Key, expected, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            values.Add(new KeyValuePair<string, string>(expected, "true"));
+            return values;
+        }
+
+        /// <summary>snapshot を宣言した印の config key（Framework の Play snapshot の session が持つ値）。</summary>
+        internal const string SnapshotExpectedKey = OneStarMaker.Editor.PlaySnapshot.PlaySnapshotSession.ExpectedConfigKey;
+
+        /// <summary>混成の経路が実効値を保証する config key（競合の検査に掛ける）。</summary>
+        internal static IReadOnlyList<string> SnapshotPlayConfigKeys(IEnumerable<KeyValuePair<string, string>> runtimeDefaults) =>
+            DirectoryPlayConfigKeys(runtimeDefaults).Append(SnapshotExpectedKey).ToArray();
+
         internal sealed class LaunchSettings
         {
             internal LaunchSettings(IReadOnlyList<KeyValuePair<string, string>> placed, IReadOnlyList<string> controlled,

@@ -82,3 +82,7 @@ docs/debugstudio/**
 
 # agent個別設定
 *.codex
+
+# Editor Play snapshot の一時置き場（OneStarMaker.Editor.PlaySnapshot。Play の終了・次の Editor 起動で回収する）
+/unity/Assets/OsmPlaySnapshot/
+/unity/Assets/OsmPlaySnapshot.meta

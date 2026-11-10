@@ -123,6 +123,21 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (record.firstFailure.Length != 0) Row("First Failure", record.firstFailure);
             Row("Directory Sealed", record.sealedLog.Length == 0 ? "not observed" : "observed");
             Row("Variant Profile", record.variantProfileActive ? "active" : "none");
+            DrawSnapshot(document);
+        }
+
+        private static void DrawSnapshot(PlayEntryRecord.Document document)
+        {
+            if (document.policy.snapshot.Length == 0) return;
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Play Snapshot", EditorStyles.boldLabel);
+            Row("Declared", string.Join("\n", document.policy.snapshot.Select(x =>
+                x.identity + (x.active ? " (active)" : "") + "\n  from " + x.sourcePath + (x.dirty ? " (dirty)" : "") + "\n  sha256 " + x.sha256)));
+            Row("Intake", document.record.intake.Length == 0 ? "not observed" : string.Join(", ", document.record.intake));
+            Row("Origins", document.record.origins.Length == 0 ? "-" : string.Join("\n",
+                document.record.origins.Select(x => x.identity + ": " + x.origin + " (" + x.path + ")")));
+            Row("Copies Removed", document.record.copiesRemoved.Length == 0 ? "pending (Play has not ended)" : document.record.copiesRemoved);
+            Row("Released By", PlayEntryRecord.ReleaseOwners);
         }
 
         private static void DrawRecoveries(PlayEntryRecord.Policy policy)
@@ -145,6 +160,11 @@ namespace SampleGame.DependOnAll.Editor.Build
                 if (recovery.HasFlag(PlayEntryRecovery.SwitchToSource) && GUILayout.Button("Use the Source route"))
                 {
                     PlayEntrySettings.Route = PlayEntryRoute.Source;
+                    RefreshToolbar();
+                }
+                if (recovery.HasFlag(PlayEntryRecovery.SwitchToBuilt) && GUILayout.Button("Use the Built route"))
+                {
+                    PlayEntrySettings.Route = PlayEntryRoute.Built;
                     RefreshToolbar();
                 }
             }

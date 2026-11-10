@@ -304,6 +304,184 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(Environment.GetEnvironmentVariable(Key), Is.EqualTo("window"));
         }
 
+        // ═══ 混成の経路（snapshot の準備と解除）═══
+
+        private readonly List<string> _snapshotCalls = new();
+
+        /// <summary>
+        /// port の状態から facts を作る混成の経路の模擬。ApplyForOnePlay の後は実効 mode が directory で 1 回の ledger があり、
+        /// 準備の後は session が開いている Scene と一致する。判定は実際の <see cref="PlayEntryDecision.Decide"/> を通す。
+        /// </summary>
+        private sealed class SnapshotWorld
+        {
+            internal bool Prepared;
+            internal bool Applied;
+            internal bool SkipPrepare;
+            internal bool FailPrepare;
+
+            internal PlayEntryFacts Facts()
+            {
+                var facts = new PlayEntryFacts
+                {
+                    RunPurpose = "spring-full",
+                    Route = PlayEntryRoute.BuiltWithOpenScenes,
+                    Candidate = new PlayEntryCandidate("revision-1", PurposeLaunchSettings.DirectoryPlay("root", "digest", "revision-1", "Full",
+                        SampleGameBuildPurposes.SpringFull.RuntimeDefaults, "Title"), false),
+                    OpenScenes = new[] { ("Title", "Assets/SampleGame/Scenes/Title.unity") },
+                    ReusableScenes = new[] { "Assets/SampleGame/Scenes/Title.unity" },
+                    HasOnePlayLedger = Applied,
+                    SnapshotMatchesOpenScenes = Prepared,
+                };
+                if (Applied)
+                    facts.EnvironmentLayer = new PlayEntryConfigLayer(new Dictionary<string, string> { [PlayEntryDecision.RuntimeModeKey] = "directory" });
+                return facts;
+            }
+        }
+
+        private PlayEntryTransaction SnapshotTransaction(SnapshotWorld world)
+        {
+            _snapshotCalls.Clear();
+            PlayEntryTransaction? transaction = null;
+            transaction = new PlayEntryTransaction(new PlayEntryPorts
+            {
+                CollectFacts = _ => world.Facts(),
+                CancelPlay = () => _snapshotCalls.Add("Cancel"),
+                IsIdle = () => _idle,
+                ApplyForOnePlay = _ => { _snapshotCalls.Add("Apply"); world.Applied = true; },
+                EnterPlaymode = () =>
+                {
+                    _snapshotCalls.Add("Enter");
+                    _enterPlaymode();
+                    // EnterPlaymode の中で 2 回目の ExitingEditMode が同期で来る。
+                    transaction!.OnExitingEditMode();
+                },
+                PublishPlanned = (_, plan) => _snapshotCalls.Add("Planned:" + plan.Rule),
+                PublishBlocked = (_, plan) => { _snapshotCalls.Add("Blocked:" + plan.Rule); _lastBlocked = plan; },
+                PrepareSnapshot = () =>
+                {
+                    _snapshotCalls.Add("Prepare");
+                    if (world.FailPrepare) throw new InvalidOperationException("prepare failed");
+                    if (!world.SkipPrepare) world.Prepared = true;
+                },
+                ReleaseSnapshot = () => { _snapshotCalls.Add("Release"); world.Prepared = false; },
+                CloseObservation = () => _snapshotCalls.Add("Close"),
+            });
+            return transaction;
+        }
+
+        private int SnapshotCount(string call) => _snapshotCalls.FindAll(x => x == call).Count;
+
+        [Test]
+        public void Snapshot_Reentry_PassesOnlyInsideTheOwnEnterPlaymode()
+        {
+            _enterPlaymode = () => { };
+            var world = new SnapshotWorld();
+            var transaction = SnapshotTransaction(world);
+
+            transaction.OnExitingEditMode();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Cancel" }), "1 回目の ExitingEditMode は取り消す");
+            transaction.OnTick();
+
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Cancel", "Prepare", "Apply", "Planned:SnapshotRoute", "Enter" }),
+                "準備 → 宣言 → ledger → 再 Play の順で、2 回目の ExitingEditMode は再入の行で素通りする");
+            Assert.That(SnapshotCount("Cancel"), Is.EqualTo(1));
+            Assert.That(SnapshotCount("Enter"), Is.EqualTo(1));
+            Assert.That(_snapshotCalls.FindAll(x => x.StartsWith("Blocked", StringComparison.Ordinal)), Is.Empty);
+        }
+
+        [Test]
+        public void Snapshot_WithoutTheSession_TheReentryIsRejected()
+        {
+            _enterPlaymode = () => { };
+            var world = new SnapshotWorld { SkipPrepare = true };
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Does.Contain("Blocked:DirectoryWithReusableScenes"), "session が無ければ従来の拒否");
+            Assert.That(SnapshotCount("Cancel"), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Snapshot_ReentryRuleOutsideTheOwnEnterPlaymode_IsCancelledAndReleased()
+        {
+            // 前の Play の session と ledger が残った状態で、利用者が Play を押した。
+            var world = new SnapshotWorld { Prepared = true, Applied = true };
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Cancel", "Release", "Blocked:SnapshotReentry" }));
+            Assert.That(_lastBlocked!.Action, Is.EqualTo(PlayEntryAction.Reject));
+            Assert.That(transaction.CurrentPhase, Is.EqualTo(PlayEntryTransaction.Phase.Idle));
+        }
+
+        [Test]
+        public void Snapshot_PrepareFailure_DoesNotEnter_AndReleases()
+        {
+            var world = new SnapshotWorld { FailPrepare = true };
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Cancel", "Prepare", "Release", "Blocked:EntryFailed" }));
+            Assert.That(_lastBlocked!.Reason, Does.Contain("prepare failed"));
+        }
+
+        [Test]
+        public void Snapshot_EnterPlaymodeFailure_Releases()
+        {
+            _enterPlaymode = () => throw new InvalidOperationException("refused");
+            var world = new SnapshotWorld();
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Cancel", "Prepare", "Apply", "Planned:SnapshotRoute", "Enter", "Release", "Blocked:EntryFailed" }));
+        }
+
+        [Test]
+        public void NotReachingPlay_ReleasesAndClosesTheObservationOnTheNextIdleTick()
+        {
+            _enterPlaymode = () => { };
+            var world = new SnapshotWorld();
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            _idle = true;
+            transaction.OnTick();
+            _snapshotCalls.Clear();
+
+            // EnterPlaymode の要求が Play に至らず、Editor が idle に戻った。
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Release", "Close" }));
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Is.EqualTo(new[] { "Release", "Close" }), "1 回だけ");
+        }
+
+        [Test]
+        public void ReachingPlay_DoesNotReleaseOnTheIdleTick()
+        {
+            _enterPlaymode = () => { };
+            var world = new SnapshotWorld();
+            var transaction = SnapshotTransaction(world);
+            transaction.OnExitingEditMode();
+            transaction.OnTick();
+            transaction.OnEnteredPlayMode();
+            _snapshotCalls.Clear();
+            transaction.OnTick();
+            Assert.That(_snapshotCalls, Is.Empty, "Play の後の解除は EnteredEditMode が持つ");
+        }
+
+        [Test]
+        public void SourcePlay_NotReachingPlay_AlsoClosesTheObservation()
+        {
+            var closed = 0;
+            var transaction = new PlayEntryTransaction(new PlayEntryPorts
+            {
+                CollectFacts = _ => SourceFacts(),
+                CloseObservation = () => closed++,
+            });
+            transaction.OnExitingEditMode();
+            transaction.OnTick();
+            transaction.OnTick();
+            Assert.That(closed, Is.EqualTo(1), "Planned のまま Play に至らない Play の観測を閉じる");
+        }
+
         // ═══ 回復操作 ═══
 
         [Test]

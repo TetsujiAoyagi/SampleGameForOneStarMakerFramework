@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using SampleGame.DependOnAll.Editor.Build;
 using UnityEditor;
@@ -199,6 +200,89 @@ namespace SampleGame.Tests.Editor.Build
             EditorUserSettings.SetConfigValue(PlayEntrySettings.RouteKey, "Elsewhere");
             Assert.That(PlayEntrySettings.RunPurpose, Is.EqualTo("spring-full"));
             Assert.That(PlayEntrySettings.Route, Is.EqualTo(PlayEntryRoute.Source));
+        }
+
+        // ═══ Play snapshot（宣言・取り込み・由来）═══
+
+        private const string TitleCopy = "Assets/OsmPlaySnapshot/1_2_ab/Title.unity";
+
+        private static PlayEntryPlan SnapshotPlan() => new(PlayEntryAction.Intervene, PlayEntryRule.SnapshotRoute, "because", "directory",
+            new[] { new KeyValuePair<string, string>("SAMPLEGAME_CONTENT__RUNTIMEMODE", "directory") }, revision: "revision-1");
+
+        private static void BeginSnapshotPlay()
+        {
+            PlayEntryRecord.BeginPlanned(Facts(PlayEntryRoute.BuiltWithOpenScenes), SnapshotPlan(), new[]
+            {
+                new PlayEntryRecord.SnapshotScene { identity = "Title", sourcePath = "Assets/SampleGame/Scenes/Title.unity", dirty = true, sha256 = "0123456789abcdef", active = true },
+            });
+        }
+
+        [Test]
+        public void Snapshot_DeclarationAndIntake_AreSeparateFields()
+        {
+            BeginSnapshotPlay();
+            Assert.That(Current.policy.snapshot.Select(x => x.identity), Is.EqualTo(new[] { "Title" }));
+            Assert.That(Current.record.intake, Is.Empty, "宣言だけでは取り込み済みにしない");
+
+            PlayEntryRecord.ObserveLog(PlayEntryRecord.IntakeLogMarker + "scene=Title copy=" + TitleCopy + " active=true", LogType.Log, 1);
+            Assert.That(Current.record.intake, Is.EqualTo(new[] { "Title" }));
+            Assert.That(Current.record.origins.Single().origin, Is.EqualTo(PlayEntryRecord.OriginSnapshot));
+            Assert.That(Current.record.origins.Single().path, Is.EqualTo(TitleCopy));
+            Assert.That(Current.record.errorCount, Is.Zero, "取り込みの log は失敗に数えない");
+        }
+
+        [Test]
+        public void Snapshot_ReloadFromAnotherPath_ChangesTheOrigin_AndWarnsOncePerIdentity()
+        {
+            BeginSnapshotPlay();
+            PlayEntryRecord.ObserveLog(PlayEntryRecord.IntakeLogMarker + "scene=Title copy=" + TitleCopy + " active=true", LogType.Log, 1);
+
+            var warnings = new List<string>();
+            void OnLog(string message, string stack, LogType type) { if (type == LogType.Warning && message.StartsWith(PlayEntryRecord.LogPrefix, StringComparison.Ordinal)) warnings.Add(message); }
+            Application.logMessageReceived += OnLog;
+            try
+            {
+                PlayEntryRecord.MarkSourceChanged("Title", "Assets/SampleGame/Scenes/Title.unity");
+                PlayEntryRecord.MarkSourceChanged("Title", "Assets/SampleGame/Scenes/Title.unity");
+                PlayEntryRecord.MarkSourceChanged("NotDeclared", "Assets/Other.unity");
+            }
+            finally { Application.logMessageReceived -= OnLog; }
+
+            Assert.That(warnings, Has.Count.EqualTo(1), "Warning は 1 回の Play で identity ごとに 1 回");
+            Assert.That(warnings[0], Does.Contain("Title"));
+            var origin = Current.record.origins.Single();
+            Assert.That(origin.origin, Is.EqualTo(PlayEntryRecord.OriginSnapshotThenDirectory));
+            Assert.That(origin.path, Is.EqualTo("Assets/SampleGame/Scenes/Title.unity"));
+        }
+
+        [Test]
+        public void Snapshot_ConsoleLine_ExplainsOriginAndRelease()
+        {
+            BeginSnapshotPlay();
+            PlayEntryRecord.ObserveLog(PlayEntryRecord.IntakeLogMarker + "scene=Title copy=" + TitleCopy + " active=true", LogType.Log, 1);
+            PlayEntryRecord.MarkCopiesRemoved(true);
+            var line = PlayEntryRecord.FormatConsoleLine(Current);
+            Assert.That(line, Does.Contain("declared=[Title* from Assets/SampleGame/Scenes/Title.unity dirty sha256=0123456789ab]"));
+            Assert.That(line, Does.Contain("intake=[Title]"));
+            Assert.That(line, Does.Contain("origins=[Title=snapshot]"));
+            Assert.That(line, Does.Contain("copiesRemoved=yes"));
+            Assert.That(line, Does.Contain(PlayEntryRecord.ReleaseOwners));
+        }
+
+        [Test]
+        public void NoSnapshot_KeepsTheConsoleLineAndIgnoresCopiesRemoved()
+        {
+            PlayEntryRecord.BeginPlanned(Facts(), SourcePlan());
+            PlayEntryRecord.MarkCopiesRemoved(true);
+            Assert.That(Current.record.copiesRemoved, Is.Empty);
+            Assert.That(PlayEntryRecord.FormatConsoleLine(Current), Does.Not.Contain("snapshot"));
+        }
+
+        [Test]
+        public void Settings_BuiltWithOpenScenes_Persists()
+        {
+            PlayEntrySettings.Route = PlayEntryRoute.BuiltWithOpenScenes;
+            Assert.That(PlayEntrySettings.Route, Is.EqualTo(PlayEntryRoute.BuiltWithOpenScenes));
         }
 
         [Test]

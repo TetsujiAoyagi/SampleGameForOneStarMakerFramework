@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using OneStarMaker.Editor.PlaySnapshot;
 using OneStarMaker.Foundation.Config;
 using OneStarMaker.Runtime.AssetManagement;
 using UnityEditor;
@@ -38,6 +39,9 @@ namespace SampleGame.DependOnAll.Editor.Build
             PublishBlocked = PublishBlocked,
             ConfirmSaveScenes = EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo,
             ReplaceWithEmptyScene = () => EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single),
+            PrepareSnapshot = PlaySnapshotSession.Prepare,
+            ReleaseSnapshot = PlaySnapshotSession.Release,
+            CloseObservation = PlayEntryRecord.StopObserving,
         });
 
         static PlayEntryInterceptor()
@@ -45,6 +49,8 @@ namespace SampleGame.DependOnAll.Editor.Build
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             EditorApplication.update += Transaction.OnTick;
             Application.logMessageReceived += OnLogMessage;
+            // snapshot の Scene が起動の後に別の供給元から読み直されたら record と Warning に出す（domain reload の後もここで張り直す）。
+            PlaySnapshotSession.SourceChanged += PlayEntryRecord.MarkSourceChanged;
             // batch には Toolbar が無い。
             if (!Application.isBatchMode) PlayEntryRecord.Changed += PlayEntryWindow.RefreshToolbar;
         }
@@ -66,7 +72,13 @@ namespace SampleGame.DependOnAll.Editor.Build
                         PlayEntryWindow.OpenOncePerSession();
                     break;
                 case PlayModeStateChange.EnteredEditMode:
+                    // 複製の解除は PlaySnapshotSession が同じ通知で行う。購読の順序に依らないよう、ここでも呼ぶ（何度呼んでも同じ）。
+                    PlaySnapshotSession.Release();
+                    PlayEntryRecord.MarkCopiesRemoved(PlaySnapshotSession.HasNoCopiesOnDisk);
                     PlayEntryRecord.StopObserving();
+                    // 取り込みと由来、複製の残りは Play の後でないと揃わないので、snapshot の Play は終わった時にもう 1 行出す。
+                    if (PlayEntryRecord.Load() is { policy: { snapshot: { Length: > 0 } } } finished)
+                        Debug.Log(PlayEntryRecord.FormatConsoleLine(finished));
                     break;
             }
         }
@@ -76,7 +88,11 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private static void PublishPlanned(PlayEntryFacts? facts, PlayEntryPlan plan)
         {
-            PlayEntryRecord.BeginPlanned(facts, plan);
+            var snapshot = plan.Rule == PlayEntryRule.SnapshotRoute
+                ? PlaySnapshotSession.Declaration.Select(x => new PlayEntryRecord.SnapshotScene
+                    { identity = x.Identity, sourcePath = x.SourcePath, dirty = x.WasDirty, sha256 = x.Sha256, active = x.IsActive }).ToArray()
+                : null;
+            PlayEntryRecord.BeginPlanned(facts, plan, snapshot);
             foreach (var warning in plan.Warnings) Debug.LogWarning(PlayEntryRecord.LogPrefix + warning);
         }
 
@@ -104,7 +120,13 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (facts.IsBatchMode) return facts;
 
             var openScenes = new List<string>();
-            for (var i = 0; i < SceneManager.sceneCount; i++) openScenes.Add(SceneManager.GetSceneAt(i).name);
+            var loadedScenes = new List<(string Name, string Path)>();
+            for (var i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                openScenes.Add(scene.name);
+                if (scene.isLoaded) loadedScenes.Add((scene.name, scene.path));
+            }
             facts.IsTestRunnerScene = PlayEntryDecision.IsTestRunnerScene(openScenes);
             if (facts.IsTestRunnerScene) return facts;
 
@@ -120,6 +142,14 @@ namespace SampleGame.DependOnAll.Editor.Build
             facts.HasManualLedger = ContentDeliveryPlayBridge.HasManualLedger;
             facts.ReusableScenes = VerifyPlayLauncher.FindReusableLoadedScenes();
             facts.HasVariantProfile = SceneVariantRuntimeBridge.EditorSceneVariantResolver?.Invoke() != null;
+            facts.OpenScenes = loadedScenes;
+            facts.IsSceneReloadDisabled = EditorSettings.enterPlayModeOptionsEnabled
+                                          && (EditorSettings.enterPlayModeOptions & EnterPlayModeOptions.DisableSceneReload) != 0;
+            // SceneAsset は UnityEngine.Object なので、偽 null を == で判定する。
+            facts.HasPlayModeStartScene = EditorSceneManager.playModeStartScene != null;
+            facts.SnapshotMatchesOpenScenes = PlaySnapshotSession.Matches(loadedScenes)
+                && string.Equals(Environment.GetEnvironmentVariable(PurposeLaunchSettings.EnvironmentName(PurposeLaunchSettings.SnapshotExpectedKey)),
+                    "true", StringComparison.Ordinal);
 
             var addressables = AddressableAssetSettingsDefaultObject.Settings;
             facts.IsFastMode = addressables != null && addressables.ActivePlayModeDataBuilder is BuildScriptFastMode;
@@ -134,8 +164,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return facts;
             }
 
-            facts.ConflictReason = PlayAsLauncher.CheckLaunchConflicts(
-                PurposeLaunchSettings.DirectoryPlayConfigKeys(declaration.RuntimeDefaults), commandLine);
+            facts.ConflictReason = facts.Route == PlayEntryRoute.BuiltWithOpenScenes
+                ? PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.SnapshotPlayConfigKeys(declaration.RuntimeDefaults), commandLine)
+                  ?? SnapshotFirstSceneConflict(appConfig)
+                : PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.DirectoryPlayConfigKeys(declaration.RuntimeDefaults), commandLine);
             if (validateCandidate)
             {
                 var selection = PlayEntryCandidates.Select(VerifyPlayLauncher.ResolveCacheRoot(ContentDeliveryWindow.LoadSettings().cacheRoot),
@@ -145,6 +177,18 @@ namespace SampleGame.DependOnAll.Editor.Build
                 facts.CandidateWarnings = selection.Warnings;
             }
             return facts;
+        }
+
+        /// <summary>
+        /// 混成の経路は初回 Scene を置かない。環境変数は空文字で上書きできないので、app-config（JSON の層）に空でない
+        /// <c>content:firstScene</c> があれば、開いている Scene の複製と初回 Scene が重なりうるとして拒否の理由を返す。
+        /// mode の 3 key だけを残す <see cref="PlayEntryConfigLayer"/> には載らないので、本文から直接読む。環境変数とコマンドラインの層は
+        /// <see cref="PlayAsLauncher.CheckLaunchConflicts"/> が拒否する。
+        /// </summary>
+        internal static string? SnapshotFirstSceneConflict(string? appConfigJson)
+        {
+            var reason = PlayAsLauncher.CheckEmptyLowerLayer(new[] { PurposeLaunchSettings.FirstSceneKey }, appConfigJson);
+            return reason == null ? null : reason + " (the first scene could overlap the open scenes).";
         }
 
         // 3 層とも Runtime と同じ読み手で読む。JSON は disk の file で、起動が読む bytes との一致までは保証しない（明示 addressables の Warning の理由）。

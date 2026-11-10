@@ -3,22 +3,28 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace SampleGame.DependOnAll.Editor.Build
 {
-    internal enum PlayEntryRoute { Source, Built }
+    /// <summary>
+    /// 経路。<see cref="BuiltWithOpenScenes"/> は build 済み content の Play に、開いている Scene の Play 前の複製を載せる（混成）。
+    /// <see cref="Built"/> は「directory だけ」のまま（Scene が開いていれば従来どおり拒否する）。保存値は名前なので末尾に足す。
+    /// </summary>
+    internal enum PlayEntryRoute { Source, Built, [InspectorName("Built + open scenes")] BuiltWithOpenScenes }
 
     internal enum PlayEntryAction { PassThrough, Intervene, Reject }
 
     /// <summary>判定表のどの行で決まったか。record に出す名前で、並びは判定の順序と同じ。</summary>
     internal enum PlayEntryRule
     {
-        BatchMode, TestRunnerScene, DirectoryWithReusableScenes, OnePlayLedger, ExplicitSetting, ConflictingState,
-        SourceRoute, NoVerifiedCandidate, BuiltWithReusableScenes, BuiltRoute, EntryFailed,
+        BatchMode, TestRunnerScene, SnapshotReentry, DirectoryWithReusableScenes, OnePlayLedger, ExplicitSetting, ConflictingState,
+        SourceRoute, SnapshotUnsupportedSetting, NoVerifiedCandidate, BuiltWithReusableScenes, BuiltRoute,
+        SnapshotNothingToCarry, SnapshotUnsupportedScenes, SnapshotRoute, EntryFailed,
     }
 
     [Flags]
-    internal enum PlayEntryRecovery { None = 0, EmptyScene = 1, VerifyPlayBuild = 2, SwitchToSource = 4 }
+    internal enum PlayEntryRecovery { None = 0, EmptyScene = 1, VerifyPlayBuild = 2, SwitchToSource = 4, SwitchToBuilt = 8 }
 
     /// <summary>JSON・環境変数・コマンドラインの 1 層のうち、mode を決める 3 key だけの値（無い key は入らない）。</summary>
     internal sealed class PlayEntryConfigLayer
@@ -87,6 +93,17 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal string CandidateFailure { get; set; } = string.Empty;
         /// <summary>選択に関わる注意（検証に失敗した新しい revision を飛ばした等）。Play は止めない。</summary>
         internal IReadOnlyList<string> CandidateWarnings { get; set; } = Array.Empty<string>();
+        /// <summary>loaded で開いている Scene の名前と path（開いている順）。新規未保存の Scene の path は空。</summary>
+        internal IReadOnlyList<(string Name, string Path)> OpenScenes { get; set; } = Array.Empty<(string, string)>();
+        /// <summary>Enter Play Mode の設定で Scene reload が無効（Unity が開いている Scene をそのまま Play に使う）。</summary>
+        internal bool IsSceneReloadDisabled { get; set; }
+        /// <summary><c>EditorSceneManager.playModeStartScene</c> が非 null。</summary>
+        internal bool HasPlayModeStartScene { get; set; }
+        /// <summary>
+        /// 入口が準備した Play snapshot の session が今開いている Scene と一致し、入口の置く <c>editor:playSnapshotExpected</c> が環境にある。
+        /// 再入の行（<see cref="PlayEntryRule.SnapshotReentry"/>）だけが見る。
+        /// </summary>
+        internal bool SnapshotMatchesOpenScenes { get; set; }
     }
 
     /// <summary>判定の出力。<see cref="Environment"/> は介入の時だけ値を持つ。</summary>
@@ -149,6 +166,14 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return new PlayEntryPlan(PlayEntryAction.PassThrough, PlayEntryRule.TestRunnerScene,
                     "An open scene starts with '" + TestRunnerScenePrefix + "', so this Play is treated as a Test Runner Play.", mode);
 
+            // 混成の経路の再 Play は、入口が ledger を置いた後、元の Scene を開いたまま 2 回目の ExitingEditMode に入る。入口が準備した
+            // session と 1 回の ledger が揃った再入だけを通し、明示の directory・手動の ledger・他の launcher の ledger は次の行で従来どおり拒否する。
+            // 通すのは入口自身の EnterPlaymode の中だけで、それ以外で当たった時は PlayEntryTransaction が取り消す。
+            if (mode == Directory && facts.ReusableScenes.Count != 0 && facts.HasOnePlayLedger && !facts.HasManualLedger
+                && facts.SnapshotMatchesOpenScenes)
+                return new PlayEntryPlan(PlayEntryAction.PassThrough, PlayEntryRule.SnapshotReentry,
+                    "The play snapshot prepared by this entry matches the open scenes.", mode);
+
             if (mode == Directory && facts.ReusableScenes.Count != 0)
                 return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.DirectoryWithReusableScenes,
                     OpenScenesMessage(facts), mode, recovery: PlayEntryRecovery.EmptyScene);
@@ -172,12 +197,22 @@ namespace SampleGame.DependOnAll.Editor.Build
                     "No explicit setting; source Play with the selected purpose.", Addressables,
                     facts.SourceEnvironment, alignFastMode: !facts.IsFastMode);
 
-            // 経路 Built。候補が無くても Source へ黙って切り替えない（利用者の選んだ経路を入口が変えない）。
+            if (facts.Route == PlayEntryRoute.BuiltWithOpenScenes)
+            {
+                var unsupported = SnapshotUnsupportedSetting(facts);
+                if (unsupported != null)
+                    return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.SnapshotUnsupportedSetting, unsupported, Directory);
+            }
+
+            // 経路 Built と混成。候補が無くても Source へ黙って切り替えない（利用者の選んだ経路を入口が変えない）。
             if (facts.Candidate == null)
                 return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.NoVerifiedCandidate,
                     "No verified installed content for '" + facts.RunPurpose + "'." +
                     (facts.CandidateFailure.Length == 0 ? "" : " " + facts.CandidateFailure),
                     Directory, recovery: PlayEntryRecovery.VerifyPlayBuild | PlayEntryRecovery.SwitchToSource);
+
+            if (facts.Route == PlayEntryRoute.BuiltWithOpenScenes)
+                return DecideSnapshot(facts);
 
             if (facts.ReusableScenes.Count != 0)
                 return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.BuiltWithReusableScenes,
@@ -190,6 +225,65 @@ namespace SampleGame.DependOnAll.Editor.Build
                 "Built route with a verified installed revision.", Directory,
                 facts.Candidate.PlacedEnvironment, warnings: builtWarnings, revision: facts.Candidate.Revision);
         }
+
+        /// <summary>
+        /// 混成の経路で候補がある時の残りの行。開いている Scene を複製して載せ、初回 Scene を置かない directory の値で Play する
+        /// （置くと開いている Scene と初回 Scene の両方が load される）。
+        /// </summary>
+        private static PlayEntryPlan DecideSnapshot(PlayEntryFacts facts)
+        {
+            var candidate = facts.Candidate!;
+            var open = facts.OpenScenes;
+            if (open.Count == 0 || open.Count == 1 && open[0].Path.Length == 0)
+                return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.SnapshotNothingToCarry,
+                    "No saved scene is open, so there is nothing to carry into the built content.", Directory,
+                    recovery: PlayEntryRecovery.SwitchToBuilt, revision: candidate.Revision);
+            var problems = OpenSceneProblems(open);
+            if (problems != null)
+                return new PlayEntryPlan(PlayEntryAction.Reject, PlayEntryRule.SnapshotUnsupportedScenes, problems, Directory,
+                    revision: candidate.Revision);
+
+            var warnings = new List<string>(facts.CandidateWarnings);
+            if (candidate.HasMultiple)
+                warnings.Add("Several verified revisions exist for '" + facts.RunPurpose + "'; using the latest: " + candidate.Revision);
+            return new PlayEntryPlan(PlayEntryAction.Intervene, PlayEntryRule.SnapshotRoute,
+                "Built route with a verified installed revision and copies of the open scenes: " +
+                string.Join(", ", open.Select(x => x.Name)) + ".", Directory,
+                PurposeLaunchSettings.SnapshotPlay(candidate.PlacedEnvironment), warnings: warnings, revision: candidate.Revision);
+        }
+
+        /// <summary>混成の経路が扱えない Editor の設定。複製を作る前に分かるものだけ。</summary>
+        private static string? SnapshotUnsupportedSetting(PlayEntryFacts facts)
+        {
+            if (facts.IsSceneReloadDisabled)
+                return "Playing with open scenes needs Scene Reload. Enable it in Project Settings > Editor > Enter Play Mode Settings.";
+            if (facts.HasPlayModeStartScene)
+                return "A Play Mode start scene is already set, and this route does not overwrite it. Clear EditorSceneManager.playModeStartScene.";
+            return null;
+        }
+
+        /// <summary>複製できない開いている Scene（新規未保存、UICommon、同名 2 つ）。無ければ null。</summary>
+        internal static string? OpenSceneProblems(IReadOnlyList<(string Name, string Path)> openScenes)
+        {
+            var unsaved = openScenes.Where(x => x.Path.Length == 0).Select(x => x.Name.Length == 0 ? "(untitled)" : x.Name).ToArray();
+            if (unsaved.Length != 0)
+                return "Save these scenes before playing with open scenes: " + string.Join(", ", unsaved);
+            var uiCommon = openScenes.Where(x => string.Equals(x.Name, "UICommon", StringComparison.Ordinal)
+                                                 || string.Equals(x.Path, SampleGameBootstrapContentComposer.UiCommonPath, StringComparison.Ordinal)).ToArray();
+            if (uiCommon.Length != 0)
+                return "UICommon cannot be played from an open scene. Close it: " + string.Join(", ", uiCommon.Select(x => x.Path));
+            var duplicate = openScenes.GroupBy(x => x.Name, StringComparer.Ordinal).FirstOrDefault(x => x.Count() > 1);
+            if (duplicate != null)
+                return "Two open scenes are named '" + duplicate.Key + "'. Close one of them: " + string.Join(", ", duplicate.Select(x => x.Path));
+            return null;
+        }
+
+        /// <summary>
+        /// 再入の行に、入口自身の EnterPlaymode の外で当たった（前の Play の session の残り）。別の Play の許可にしないため取り消す計画。
+        /// </summary>
+        internal static PlayEntryPlan StaleSnapshot(PlayEntryPlan reentry) =>
+            new(PlayEntryAction.Reject, PlayEntryRule.SnapshotReentry,
+                "A play snapshot from an earlier Play entry was still in place and has been released. Press Play again.", reentry.EffectiveMode);
 
         /// <summary>facts の採取や適用に失敗した時の計画。何が起きるか分からない Play を始めない。</summary>
         internal static PlayEntryPlan EntryFailed(string message) =>

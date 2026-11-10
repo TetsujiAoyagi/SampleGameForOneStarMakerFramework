@@ -395,6 +395,17 @@ namespace OneStarMaker.Runtime
                     return;
                 }
 
+#if UNITY_EDITOR
+                // Editor の Play 入口が宣言した Scene の複製を、登録より前に読む。封じは IAssetManagement の Addressables の取得経路だけが対象で、
+                // この段は IAssetManagement を通らない。読んだ複製は次の登録で名前のとおり再利用され、同名を directory から読まない。
+                if (_contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration
+                    && _config != null && _config.GetBool(EditorPlaySnapshotBridge.ExpectedConfigKey))
+                {
+                    progress.Stage = "intake-editor-snapshots";
+                    await IntakeEditorSnapshotsAsync(ct);
+                }
+
+#endif
                 // Editor のプレイモードで開いていたシーンを SceneDirector に登録する。
                 // PerformUnitySceneLoad が SceneManager.GetSceneByName でロード済みシーンを検出し、
                 // 再ロードせず RootGameObjects を返すため二重ロードは発生しない。
@@ -446,6 +457,82 @@ namespace OneStarMaker.Runtime
                       $"identity={_contentDirectoryConfiguration!.BuildIdentity} stable={_sceneDirector!.IsSceneStable(firstScene)}");
         }
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// Editor の Play snapshot の取り込み。宣言の Scene を並び順に 1 つずつ additive で load して完了を待ち、全部を照合し、
+        /// active Scene を Play の前と同じにする。宣言が無い・load できない・照合が合わないのはどれも起動の失敗で、別の供給元へ逃がさない。
+        /// <para>
+        /// 失敗した時は、この段が load した複製を、例外を既存の catch へ出す前に全て unload する。この時点の複製は SceneDirector に未登録で、
+        /// 起動の失敗の後始末（<see cref="CleanupAfterStartupFailureAsync"/>、<see cref="ReleaseAll"/>）は Unity の Scene を unload しないので、
+        /// 段のほかに回収する者がいない。load は 1 つずつ行うので、失敗の時点で進行中の load は無い。Play の終了による cancel では
+        /// unload しない（Unity が片付ける）。unload の失敗は Error の log にし、元の例外を隠さない。
+        /// </para>
+        /// </summary>
+        private static async UniTask IntakeEditorSnapshotsAsync(CancellationToken ct)
+        {
+            var declaration = EditorPlaySnapshotBridge.Declaration;
+            var loadScene = EditorPlaySnapshotBridge.LoadScene;
+            if (declaration == null || loadScene == null)
+                throw new InvalidOperationException(
+                    "This Play declared Editor scene snapshots, but the snapshot declaration is not available (it may have been lost in a domain reload).");
+            try
+            {
+                foreach (var scene in declaration)
+                {
+                    var operation = loadScene(scene.CopyPath)
+                        ?? throw new InvalidOperationException("The play snapshot of scene '" + scene.Identity + "' could not be loaded: " + scene.CopyPath);
+                    await operation.ToUniTask(cancellationToken: ct);
+                    var loadedScene = SceneManager.GetSceneByPath(scene.CopyPath);
+                    if (!loadedScene.IsValid() || !loadedScene.isLoaded)
+                        throw new InvalidOperationException("The play snapshot of scene '" + scene.Identity + "' did not load: " + scene.CopyPath);
+                }
+
+                var failure = EditorPlaySnapshotIntake.Verify(declaration, CaptureLoadedScenes());
+                if (failure != null) throw new InvalidOperationException(failure);
+
+                foreach (var scene in declaration)
+                {
+                    if (scene.IsActive) SceneManager.SetActiveScene(SceneManager.GetSceneByPath(scene.CopyPath));
+                    Debug.Log(EditorPlaySnapshotIntake.FormatLoadedLog(scene));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                foreach (var target in EditorPlaySnapshotIntake.SelectUnloadTargets(declaration, CaptureLoadedScenes()))
+                {
+                    try
+                    {
+                        var unload = SceneManager.UnloadSceneAsync(SceneManager.GetSceneByPath(target.Path));
+                        if (unload == null)
+                            Debug.LogError("[AppInit] Editor play snapshot cleanup could not unload " + target.Path + ".");
+                        else
+                            await unload.ToUniTask();
+                    }
+                    catch (Exception unloadException)
+                    {
+                        Debug.LogError("[AppInit] Editor play snapshot cleanup also failed for " + target.Path + ": " + unloadException);
+                    }
+                }
+                throw;
+            }
+        }
+
+        private static IReadOnlyList<EditorPlaySnapshotLoadedScene> CaptureLoadedScenes()
+        {
+            var loaded = new List<EditorPlaySnapshotLoadedScene>(SceneManager.sceneCount);
+            for (var i = 0; i < SceneManager.sceneCount; i++)
+            {
+                var scene = SceneManager.GetSceneAt(i);
+                if (scene.isLoaded) loaded.Add(new EditorPlaySnapshotLoadedScene(scene.name, scene.path));
+            }
+            return loaded;
+        }
+
+#endif
         /// <summary>
         /// Player content smoke の 6 段（初回 Scene のロード → fixture → unload → directory の close → 完了通知）。
         /// 例外は握らず <see cref="InitializeAfterSceneLoad"/> の catch へ出す。stage は段に入るたびに progress へ書く。
