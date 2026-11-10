@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A3 候補版。未凍結。** owner が 2026-11-10 に §6 の D-1〜D-11 を推奨どおりと決め、D-2 に縮小の規則を足した。owner の指示で、外部レビュー用にドラフト PR へ公開する。外部レビューの 3 点（X-01、X-02、再レビューの X-03。§7）を採用して反映した。Phase A の commit を 2 点に限る規則の、人間の指示による例外。A2 入力版は commit `8716a840`）
+- status: `A`（**A3 候補版。未凍結。** owner が 2026-11-10 に §6 の D-1〜D-11 を推奨どおりと決め、D-2 に縮小の規則を足した。owner の指示で、外部レビュー用にドラフト PR へ公開する。外部レビューの 3 点（X-01、X-02、再レビューの X-03。§7）を採用して反映した。その後、判定で字面の未達になる条件を主担当が見直した（§7 末尾。owner の 2026-11-10 の指示）。Phase A の commit を 2 点に限る規則の、人間の指示による例外。A2 入力版は commit `8716a840`）
 - branch: `claude/editor-snapshot-startup-proof`（PR の base は `develop`）
 - implementation base commit: `4167dca8`（`develop` の head、2026-11-10）
 - implementation head commit: 未固定
@@ -85,7 +85,7 @@
   - **P2** Dirty の Scene と、additive に開いた 2 Scene（map に載る Scene と載らない Scene）で P1 が成り立つ。active Scene と並び順は開いていた時と同じになる。
   - **P3** Console の 1 行と観測 UI に、Scene ごとの由来（identity、元の path、Dirty、SHA-256、複製の bytes を Play の後に残していないこと）と、解放の担当（Scene の unload は SceneDirector、複製の file は入口）が出る。
   - **P4** Domain Reload の有効と無効の両方で P1 が成り立つ。
-  - **P5** Play 中に Editor の process を強制終了した後、次に Editor を開いて Play を押すと、残骸が回収されて P1 が成り立つ。同じ project を 2 つ目の Unity process で開けないことを実測で確かめる（置き場が project の中にあるので、衝突は Unity の project lock が先に止める）。
+  - **P5** Play 中に Editor の process を強制終了した後、次に Editor を開いて Play を押すと、残骸が回収されて P1 が成り立つ。同じ project を 2 つの Unity process で同時に開く場合は扱わない（置き場は project の中にあり、同時に開くことは Unity の project lock が止める。Unity の挙動で本スライスの code は関わらないので、前提として書き、実測しない）。
   - **P6** 始められない時（保存していない新規 Scene、UICommon が開いている、同名の Scene が 2 つ、Scene reload が無効、複製の失敗）は Play に入らず、理由と次の操作が出る。黙って経路 Built や Source にしない。
   - **P7** 機構の比較（(i) の実測の所要、(ii) に要る製品変更の一覧と S0-b の所要）が program §5.2 に書ける形で揃う。
 - 受け入れ条件（単体。詳細は §5）:
@@ -95,20 +95,20 @@
   - **AC4**（N3, N8, P6）判定表: 混成の経路の全行と、既存の行が変わらないこと。失敗経路: 明示の directory + 開いた Scene は従来どおり拒否、経路 Built + 開いた Scene は従来どおり拒否、UICommon、Scene reload 無効、`playModeStartScene` が非 null、JSON の層に `content:firstScene` がある。最後の 1 つは facts を手で作らず、**JSON の本文 `{"content":{"firstScene":"Title"}}` から理由を作る関数（§4）を通して**拒否になることを固定する（値が空文字、key が無い時は理由が出ない）。再入の行（X-03）: 実効 mode が directory、`Title` が開いている、1 回の ledger がある、session が開いている Scene と一致する、の 4 つが揃えば素通り。どれか 1 つを欠く時（session が無い、session の Scene と開いている Scene が違う、手動の ledger、ledger が無い明示の directory）は従来どおり `DirectoryWithReusableScenes` の拒否。
   - **AC5**（N4, N7, N8）transaction: 複製の準備 → 宣言 → ledger → 再 Play の順序。失敗経路: 準備の例外（Play に入らず、書いた複製と `playModeStartScene` を戻す）、`EnterPlaymode` の例外、再入、Play に至らず idle に戻った時（宣言と複製を回収し、record の観測を閉じる。§6 D-8）。**再入を実際の `PlayEntryDecision.Decide` で通す test（X-03）:** port だけを差し替え、facts は port の状態から作る（`ApplyForOnePlay` の後は実効 mode が directory、準備の後は session が一致）。`Title` を開いた混成の経路で、1 回目の `ExitingEditMode` は取り消し → tick で準備・ledger・`EnterPlaymode` → その中の 2 回目の `ExitingEditMode` は素通り、の順になり、`CancelPlay` が 1 回、`EnterPlaymode` が 1 回、`PublishBlocked` が 0 回。同じ test で準備を抜く（session が無い）と 2 回目が拒否になる。再入でない `ExitingEditMode` に再入の行が当たった時（session の残留）は取り消して `Blocked` にする。
   - **AC6**（N6, P3）record: 宣言と取り込みの結果が別の欄に出る。再読込の検出（同名が別の path で load された）で Warning と record が変わる。Warning は 1 回の Play で identity ごとに 1 回だけ出す。
-- 受け入れ条件（実 Editor。経路は §5。各 1 回）:
+- 受け入れ条件（実 Editor。経路は §5。各 1 回。環境の失敗（`eval` の timeout、window のフォーカス外れ、Editor の起動の失敗）は、何が起きたかを証拠に書いてやり直してよい。製品の挙動が合格の条件に合わなかった回は、やり直して合格に替えない。log は「出ている」「2 回目で増えない」で読み、行数は数えない。回数の厳密な検査は単体の AC6 が持つ）:
   - **AC7**（P1, N1, N5）混成の経路・`Title` を開いて Play。合格: record が `EnteredPlay`、封じの log が record にある、loaded の `Title` が 1 個でその path が複製の置き場の下、取り込みの log に `Title` が出て、その後の `EnteredPlayMode` から 15 秒の観測窓を終えた時点の record で Error / Exception が 0 件（取り込みの log が窓の中に出なければ不合格）。不合格の例: `Title` が 2 個、`Title` の path が元の asset。
   - **AC8**（N4, N7）AC7 の前に `Title` の `.unity` の SHA-256 を採り、`MarkSceneDirty` で Dirty にする。合格: 停止の後、SHA-256 が同じ、Dirty のまま、active Scene と並びが同じ、`playModeStartScene` が Play の前の値、複製の置き場が無い、入口が置く環境変数（`PurposeLaunchSettings.DirectoryPlayConfigKeys` の key と `editor:playSnapshotExpected`）が Play の前と同じ、`git status --short` が準備の直後に採った出力と同じ。読むのは `isPlaying` が false になり idle の tick を 1 回過ぎた後。
-  - **AC9**（P2）`Title` と、実行担当が作る保存済みの空 Scene（map に無い）を additive に開いて Play。合格: 両方が複製から load され（map に無い Scene も物理的に loaded でよい）、SceneDirector に登録されるのは `Title` だけで、active Scene が開いていた時と同じ。不合格の例: map に無い Scene が登録される。
+  - **AC9**（P2）`Title` と、実行担当が作る保存済みの空 Scene（map に無い）を additive に開いて Play。合格: 両方が複製から load され（map に無い Scene も物理的に loaded でよい）、複製のうち SceneDirector に登録されるのは `Title` だけで（directory から来る UI や後続の Scene の登録は数えない）、active Scene が開いていた時と同じ。不合格の例: map に無い Scene の複製が登録される。
   - **AC10**（N2）再 Play の直前に複製の file を 1 つ消す（実行担当が `eval` で `ExitingEditMode` の handler を足す）。合格: 15 秒の観測窓を終えた時点で record が `StartupFailed`、`Title` という名前の Scene が loaded に無い、理由に snapshot が出る。不合格の例: directory の `Title` で Play が続く。
   - **AC18**（N2, N7。X-01）AC9 と同じ 2 Scene（`Title` が先、map に無い保存済みの空 Scene が後）で、再 Play の直前に **後の Scene の複製だけ**を消す。合格: 15 秒の観測窓を終えた時点で record が `StartupFailed`、loaded の Scene に path が置き場の下の物が空の開始 Scene のほかに無い（先に load できた `Title` の複製が unload されている）、`Title` という名前の Scene が loaded に無い、理由に読めなかった Scene の名前が出る。停止の後は AC8 と同じく置き場が無い。不合格の例: `Title` の複製が loaded のまま残る、directory の `Title` で Play が続く。
-  - **AC11**（N6）AC7 の Play の中で、SceneDirector に `Title` の unload と再要求を出す。合格: 再要求の load が終わった後に読むと、Warning が 1 行あり、record の `Title` の由来が「snapshot の後 directory」に変わっている。同じ操作をもう 1 回行っても Warning は増えない。
-  - **AC12**（P4）Domain Reload を有効にして AC7 と AC8 を繰り返し、設定を元に戻す。
-  - **AC13**（P5, N7）AC7 の Play の中で、実行担当が自分で起動した Editor の process を強制終了する。Editor を開き直す。合格: 起動の後に残骸の回収の log が 1 行あり、置き場が無く、`playModeStartScene` が null、`git status --short` が空。続けて AC7 が合格する。別に、Editor を開いたまま同じ project へ 2 つ目の Unity（batch）を起動し、project lock で拒否される log を採る。
+  - **AC11**（N6）AC7 の Play の中で、SceneDirector に `Title` の unload と再要求を出す。合格: 再要求の load が終わった後に読むと、Warning が出ていて、record の `Title` の由来が「snapshot の後 directory」に変わっている。同じ操作をもう 1 回行っても Warning は増えない。
+  - **AC12**（P4）Domain Reload を有効にして AC7、AC8、AC11 を繰り返し、設定を元に戻す（AC11 を含めるのは、由来の変化の観測が reload の後の購読し直しに依るため。同じ Play の中で行う）。
+  - **AC13**（P5, N7）AC7 の Play の中で、実行担当が自分で起動した Editor の process を強制終了する。Editor を開き直す。合格: 起動の後に残骸の回収の log があり、置き場が無く、`playModeStartScene` が null、`git status --short` が AC8 と同じ基準（準備の直後に採った出力）と同じ。続けて AC7 が合格する。
   - **AC14**（P6, N3, N8）経路 Built + `Title`（従来どおり拒否、置き場を作らない）、経路 Source + `Title`（従来どおり Play、置き場を作らない）、混成 + 新規未保存の Scene、混成 + UICommon。合格: それぞれの結果と理由が record に出る。
   - **AC15**（P1）**実際の Toolbar の Play ボタン**を 1 回クリックして AC7 の結果になる（§6 D-9）。
 - 受け入れ条件（機械）:
-  - **AC16**（N3）`git diff --name-only <base>` が §3 の表の file と、その test、`.meta`、`.gitignore`、文書に限られる。`.asmdef` と `SceneState` を含まない。`Scripts/Runtime/` の追加行は `#if UNITY_EDITOR` の中か、全体が `#if UNITY_EDITOR` の file にある。`content:` で始まる新しい key が無い。`PlayEntryDecision.ModeKeys` が 3 key のまま（X-02）。`pwsh tools/contract-audit.ps1` が通る。全 EditMode 回帰は XML の failed 0 と root result `Passed`（VFX の Inconclusive で `step.json` は `failed` になるので exit code で判定しない）。
-  - **AC17**（P7）§4「機構の比較」の表が、AC7・AC9 の実測の所要で埋まる。
+  - **AC16**（N3）`git diff --name-only <base>` が `.asmdef` と `SceneState` を含まない。§3 の表に無い製品の file を変えた時は、B が file と理由を Phase B 実装結果に書く（表は見積もりで、file の一覧そのものは条件にしない。守るのはこの行の残りの検査）。`Scripts/Runtime/` の追加行は `#if UNITY_EDITOR` の中か、全体が `#if UNITY_EDITOR` の file にある。`content:` で始まる新しい key が無い。`PlayEntryDecision.ModeKeys` が 3 key のまま（X-02）。`pwsh tools/contract-audit.ps1` が通る。全 EditMode 回帰は XML の failed 0 と root result `Passed`（VFX の Inconclusive で `step.json` は `failed` になるので exit code で判定しない）。
+  - **AC17**（P7）AC7 と AC9 の証拠に、Play の押下から `EnteredPlayMode` までの所要と、そのうち複製の準備の所要が数値で入っている。§4「機構の比較」の表と program §5.2 へ書くのは harvest（Phase D）で、受け入れ条件にしない（判定の結果に依存する文書は、B の head で必ず未達になる）。
 - ここでは答えない問いと所有スライス:
   - 起動の後の再要求を snapshot から読み直す、snapshot を resolver の候補として扱う、`ContentRequest` との接続、loaded で未要求の Scene の非参加（G23）: **S3 `RUNTIME_PROVIDER_INTEGRATION`**。
   - 機構 (ii) の製品化と複数 directory: 本スライスが (i) で GO なら不要。NO-GO なら owner へ返し、新しいスライスを切る。
@@ -116,7 +116,7 @@
   - 互換判定と候補の選び方: **S1**。経路の UI の整理: **S5**。
   - Framework への Play 入口の移設: S5 の A1（S0-c §3「配置」の判断を引き継ぐ）。
 - スライス分割の判断: 契機（高リスクの初回実機スライスで、独立して失敗しうる未知が複数）に当たる。未知は (a) 実 initializer の下の取り込み、(b) Domain Reload 有効の時の宣言の受け渡し、(c) 実 process の異常終了の後の回収、の 3 つ。(a) は Phase A の疎通で中心の部分（Unity が読んだ複製が封じの下で 1 個だけ動く）が通った。(b) と (c) は AC12 と AC13 で別々に判定でき、同じ置き場の記録の code を使う。回収だけを別スライスにすると、残骸を残す code が先に develop に入る。**分割しない。** 規模の見積もりは §3（製品 code 約 +655 行、test 約 +600 行）で、S0-c（約 +730 行）と同じ程度。Phase B で取り込みの段が §3 の配置に収まらなければ A へ戻す。
-- 判定定義: GO は N1〜N8 と P1〜P7 を AC1〜AC18 で満たす。GO の時、機構 (i) を製品の候補とする。NO-GO はいずれかの未達。CONDITIONAL ACCEPT は使わない。
+- 判定定義: GO は N1〜N8 と P1〜P7 を AC1〜AC18 で満たす。GO の時、機構 (i) を製品の候補とする。実証の範囲は `Title` と map に無い空の Scene で、他の Scene が封じの下で動くことは主張しない。NO-GO はいずれかの未達。CONDITIONAL ACCEPT は使わない。
 - どうすれば誤って YES を出せるか（反例）: (1) 開いている Scene をそのまま Play に持ち込み（Unity 標準の Play）、「Title が動いた」を snapshot の成立とする（AC7 は path が置き場の下であることを見る）。(2) 経路 Source で試す（封じが無い。AC7 は封じの log を要求する）。(3) `eval` の `EnterPlaymode` だけで Play ボタンの経路とする（AC15）。(4) 模擬の lease だけで異常終了を確かめる（AC13 は実 process を止める）。(5) 取り込みの失敗を単体だけで確かめる（AC10 は実 Editor）。1 Scene の失敗だけで N2 とする（AC18 は 1 つ目が load できた後の失敗を見る）。(6) 起動の直後だけ見て由来を説明済みとする（AC11）。(7) Domain Reload 無効だけで試す（AC12）。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` は Runtime を触るスライスとの Phase B の同時実行を禁じる。同スライスは A1 未着手で、本スライスの Phase B の開始時にもう一度確かめる。S3 の Phase B より前に本スライスを完了する（program §8）。
 - A3 後の例外承認: なし
@@ -203,7 +203,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 
 明示の directory 設定と経路 Built の「再利用しうる Scene が開いていれば拒否」（G18）は変えない。
 
-### 機構の比較（P7。Phase B と C の実測で埋める）
+### 機構の比較（P7。実測の値は harvest で入れる。AC17）
 
 | 観点 | (i) 一時 Scene asset（本スライスが実装） | (ii) 一時 Content Directory（実装しない） |
 |---|---|---|
@@ -234,7 +234,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
   - 観測: `PlayEntryRecord` の JSON、loaded の Scene の名前と path と個数、active Scene、`playModeStartScene`、置き場の有無、対象の環境変数、開いている Scene の SHA-256 と Dirty、`git status --short`。構造と値で判断する。AC15 だけ画面。
   - AC10 の手順: 実行担当が `eval` で `playModeStateChanged` に handler を足し、`ExitingEditMode` の 2 回目（再 Play）で複製の `Title.unity` を `File.Delete` する。Domain Reload 無効の設定で行う（handler が残る）。AC18 は同じ handler で、AC9 の 2 Scene を開き、後の Scene の複製だけを消す。
   - AC11 の手順: `eval` の reflection で initializer の SceneDirector を取り、`Title` の unload と `AddScene("Title")` を呼ぶ。B が実際に動いた `eval` を §6 Phase B 実装結果に残し、判定 C はそれを使う。
-  - AC13 の手順: 実行担当が Unity CLI で Editor を起動し、その PID を記録する。AC7 の Play の中で `Stop-Process -Id <その PID> -Force`。人間が開いた Editor には行わない。開き直した後、`unity/Logs/Editor.log` の回収の 1 行と状態を読む。2 つ目の process は `Unity.exe -batchmode -quit -projectPath unity` を Editor を開いたまま起動し、終了 code と log の project lock の行を採る。
+  - AC13 の手順: 実行担当が Unity CLI で Editor を起動し、その PID を記録する。AC7 の Play の中で `Stop-Process -Id <その PID> -Force`。人間が開いた Editor には行わない。開き直した後、`unity/Logs/Editor.log` の回収の行と状態を読む。
   - 証拠: 条件ごとの観測を 1 file にして evidence bundle へ収録する。C / C' はそれを読む。
 - 未知の操作経路の疎通結果（Phase A、各 1 回）:
   - **Unity が読んだ複製は、封じた directory の実 initializer の下で 1 個だけ動く。** `Title` を `SaveScene(saveAsCopy)` で別の folder へ複製し（GUID は元と別）、開いている Scene を空の新規に替え、`playModeStartScene` を複製にし、installed の `spring-full`（2026-11-07 の revision、入口の検証を通った）の値を明示の環境変数に置いて Play の menu を実行した。結果: `EnteredPlay`、実効 mode `directory`、封じの log あり、Error / Exception 0 件、loaded は `Title`（path は複製）、`UIScene`、`OutGameScene` の 3 つで、`Title` は 1 個（`content:firstScene=Title` と重ならなかった）、active は `Title`。**確かめたのは「複製が開始 Scene の時」で、§4 の「additive の取り込みの段」そのものではない。開いている Scene を空にし、値を明示の環境変数に置いた（明示設定の素通りの行）ので、混成の経路の再入（§4 の再入の行）も通っていない**（製品 code が要る。初回確認は B の動作確認の AC7）。
@@ -309,7 +309,7 @@ Domain Reload が有効な時は static が消えるので、`[InitializeOnLoad]
 | A-2 | directory mode では、snapshot として登録した Scene だけを名前で再利用し、他の既ロードの Scene は Runtime で拒否する | 一部採用 | 宣言のある Play の中では AC3 が拒否する。宣言の無い directory Play へ広げると既存の挙動が変わる（N3）ので、S3 へ送る |
 | A-3 | 分割（1 Scene と残骸 / 複数 Scene と最終の選定） | 不採用（owner、§6 D-11） | — |
 | A-4 | Enter Play Mode の 4 設定すべてで確かめる | 不採用（owner、§6 D-7） | Scene reload 無効は拒否して診断する（G26 が許す）。Domain Reload の有無は AC12 で見る |
-| A-5 | 2 つの checkout で一時 path が衝突しないこと | 不採用 | 置き場は project の中にあり、checkout ごとに別になる。同じ project の 2 process は AC13 で見る |
+| A-5 | 2 つの checkout で一時 path が衝突しないこと | 不採用 | 置き場は project の中にあり、checkout ごとに別になる。同じ project の 2 process は Unity の project lock が止めるので、前提として書き、実測しない（P5） |
 | A-6 | 反例（封じの log だけで I10 の維持としない、空の Scene で I11 を測らない、正常終了で残骸を見ない 等） | 反映済み | §2 の反例 (1)〜(7) と AC8・AC13 が同じ点を塞いでいる。「Title が 1 個」だけで G21 としない点は、AC7 が path を見ることで塞ぐ |
 
 ### 目的レビューとの突き合わせ（候補）
@@ -330,3 +330,18 @@ owner が依頼した外部レビュー（web の GPT。PR のレビューとし
 | X-01 | major | additive の 2 つ目で取り込みが失敗した時、先に load した複製を誰が unload するかが無い。AC10 は 1 Scene の失敗しか見ない（N2、N7） | 採用 | 指摘のとおり、`CleanupAfterStartupFailureAsync` も `ReleaseAll` も Unity の Scene を unload しない。取り込みの段が、自分の load した複製を例外の前に unload する（N2、§3 の initializer の行と状態の表、§4 の 4）。load を 1 つずつにして、失敗の時点で進行中の load を無くした。AC18 と AC3 の 1 行を足した。Unity の callback の発火は違反に数えない（レビューの前提と同じ） |
 | X-02 | moderate | `facts.JsonLayer` は mode の 3 key しか残さないので、JSON の `content:firstScene` を拾えない（F-01 の反映が成り立っていない） | 採用 | 指摘のとおり（`PlayEntryDecision.cs:44-51`、`:132`）。既存の `CheckEmptyLowerLayer` を使って理由を `ConflictReason` に入れる形に直し、`ModeKeys` は広げない（§4 の判定の行、§3 の Interceptor の行）。AC4 に JSON の本文から拒否までを通す case を、AC16 に `ModeKeys` が 3 key のままの検査を足した |
 | X-03 | blocker | 混成の経路の再 Play が、S0-c の既存の検査（directory + 再利用しうる Scene → 拒否。1 回の ledger の素通りより先）に当たって自分で止まる（N8、P1） | 採用 | 指摘のとおり（`PlayEntryDecision.cs:152-158`、`PlayEntryTransaction.cs:55-70`）。初稿の「既存の行は変えない」のままでは P1 が成り立たなかった。拒否の行の直前に、入口が準備した session と 1 回の ledger が揃った再入だけを通す行を足した（§4 の再入の行、§3、N8）。検査の順序は動かさない。AC4 に行の成立と不成立、AC5 に実際の `Decide` を通す順序の test を足した。Phase A の疎通はこの経路を通っていないと §5 に明記した |
+
+### 判定の前の見直し（主担当。owner の 2026-11-10 の指示）
+
+判定 C と C' で字面の未達になる条件と、厳密にする利益の小さい条件を見直した。不変条件 N1〜N8 と目的・利用者の文言は変えていない。
+
+| ID | 種類 | 内容 |
+|---|---|---|
+| Y-1 | 文言の穴 | AC9 の「登録されるのは `Title` だけ」を、複製のうちの話に限った（directory から来る Scene も登録される） |
+| Y-2 | 文言の穴 | AC13 の `git status` の基準を AC8 と揃えた（実行担当が作る Scene で空にならない） |
+| Y-3 | 文言の穴 | AC17 を「証拠に所要の数値がある」にし、比較の表を埋めるのは harvest にした（結果に依存する文書を条件にしない） |
+| Y-4 | 厳密にする | AC12 に AC11 を足した（由来の変化の観測は Domain Reload の後の購読し直しに依る） |
+| Y-5 | 緩める | AC16 から file の一覧の検査を外した。asmdef、`SceneState`、`#if UNITY_EDITOR`、`content:` の key、`ModeKeys` の検査は残る |
+| Y-6 | 緩める | P5 と AC13 から、2 つ目の Unity process の実測を外した（Unity の project lock の挙動で、本スライスの code は関わらない） |
+| Y-7 | 緩める | 実 Editor の条件に、環境の失敗のやり直しの規則を足し、log の行数を数えないことにした |
+| Y-8 | 範囲 | 判定定義に、実証の範囲は `Title` と空の Scene だと書いた |
