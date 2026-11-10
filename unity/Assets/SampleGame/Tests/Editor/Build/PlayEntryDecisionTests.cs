@@ -386,6 +386,188 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(plan.Warnings, Has.Some.Contains("latest"));
         }
 
+        // ═══ 混成の経路（Built + open scenes）═══
+
+        private const string FirstSceneEnvironment = "SAMPLEGAME_CONTENT__FIRSTSCENE";
+        private const string SnapshotExpectedEnvironment = "SAMPLEGAME_EDITOR__PLAYSNAPSHOTEXPECTED";
+
+        private static PlayEntryFacts SnapshotFacts(params (string Name, string Path)[] open)
+        {
+            var facts = Facts(PlayEntryRoute.BuiltWithOpenScenes);
+            facts.Candidate = Candidate();
+            facts.OpenScenes = open.Length == 0 ? new[] { ("Title", "Assets/SampleGame/Scenes/Title.unity") } : open;
+            facts.ReusableScenes = new[] { "Assets/SampleGame/Scenes/Title.unity" };
+            return facts;
+        }
+
+        [Test]
+        public void Snapshot_WithCandidateAndSavedScene_IntervenesWithoutTheFirstScene()
+        {
+            var plan = PlayEntryDecision.Decide(SnapshotFacts());
+            Assert.That(plan.Action, Is.EqualTo(PlayEntryAction.Intervene));
+            Assert.That(plan.Rule, Is.EqualTo(PlayEntryRule.SnapshotRoute));
+            Assert.That(plan.EffectiveMode, Is.EqualTo(PlayEntryDecision.Directory));
+            Assert.That(plan.Environment.Select(x => x.Key), Has.None.EqualTo(FirstSceneEnvironment), "初回 Scene を置かない");
+            Assert.That(plan.Environment, Has.Some.EqualTo(new KeyValuePair<string, string>(SnapshotExpectedEnvironment, "true")));
+            Assert.That(plan.Environment.Select(x => x.Key), Has.Some.EqualTo(RuntimeModeEnvironment));
+            Assert.That(plan.Environment.Where(x => x.Key.StartsWith("SAMPLEGAME_CONTENT__", StringComparison.Ordinal))
+                .Select(x => x.Key), Has.None.Contains("SNAPSHOT"), "印は content: の名前空間に置かない");
+        }
+
+        [Test]
+        public void Snapshot_SceneReloadDisabled_IsRejected()
+        {
+            var facts = SnapshotFacts();
+            facts.IsSceneReloadDisabled = true;
+            var plan = PlayEntryDecision.Decide(facts);
+            AssertRejected(plan, PlayEntryRule.SnapshotUnsupportedSetting);
+            Assert.That(plan.Reason, Does.Contain("Scene Reload"));
+        }
+
+        [Test]
+        public void Snapshot_PlayModeStartSceneAlreadySet_IsRejected()
+        {
+            var facts = SnapshotFacts();
+            facts.HasPlayModeStartScene = true;
+            var plan = PlayEntryDecision.Decide(facts);
+            AssertRejected(plan, PlayEntryRule.SnapshotUnsupportedSetting);
+            Assert.That(plan.Reason, Does.Contain("start scene"));
+        }
+
+        [Test]
+        public void Snapshot_FirstSceneInAppConfigJson_IsRejectedThroughTheRealReason()
+        {
+            var facts = SnapshotFacts();
+            facts.ConflictReason = PlayEntryInterceptor.SnapshotFirstSceneConflict("{\"content\":{\"firstScene\":\"Title\"}}");
+            var plan = PlayEntryDecision.Decide(facts);
+            AssertRejected(plan, PlayEntryRule.ConflictingState);
+            Assert.That(plan.Reason, Does.Contain(PurposeLaunchSettings.FirstSceneKey));
+        }
+
+        [TestCase("{\"content\":{\"firstScene\":\"\"}}")]
+        [TestCase("{\"content\":{\"runtimeMode\":\"addressables\"}}")]
+        [TestCase("{}")]
+        public void Snapshot_EmptyOrMissingFirstSceneInJson_GivesNoReason(string json)
+        {
+            Assert.That(PlayEntryInterceptor.SnapshotFirstSceneConflict(json), Is.Null);
+        }
+
+        [Test]
+        public void Snapshot_NoCandidate_IsRejectedLikeTheBuiltRoute()
+        {
+            var facts = SnapshotFacts();
+            facts.Candidate = null;
+            var plan = PlayEntryDecision.Decide(facts);
+            AssertRejected(plan, PlayEntryRule.NoVerifiedCandidate);
+            Assert.That(plan.Recovery, Is.EqualTo(PlayEntryRecovery.VerifyPlayBuild | PlayEntryRecovery.SwitchToSource));
+        }
+
+        [Test]
+        public void Snapshot_UnsavedScene_IsRejected()
+        {
+            var plan = PlayEntryDecision.Decide(SnapshotFacts(("Title", "Assets/SampleGame/Scenes/Title.unity"), ("Untitled", "")));
+            AssertRejected(plan, PlayEntryRule.SnapshotUnsupportedScenes);
+            Assert.That(plan.Reason, Does.Contain("Save"));
+        }
+
+        [Test]
+        public void Snapshot_UiCommon_IsRejected()
+        {
+            var plan = PlayEntryDecision.Decide(SnapshotFacts(("Title", "Assets/SampleGame/Scenes/Title.unity"),
+                ("UIScene", SampleGameBootstrapContentComposer.UiCommonPath)));
+            AssertRejected(plan, PlayEntryRule.SnapshotUnsupportedScenes);
+            Assert.That(plan.Reason, Does.Contain("UICommon"));
+        }
+
+        [Test]
+        public void Snapshot_TwoScenesWithTheSameName_AreRejected()
+        {
+            var plan = PlayEntryDecision.Decide(SnapshotFacts(("Title", "Assets/A/Title.unity"), ("Title", "Assets/B/Title.unity")));
+            AssertRejected(plan, PlayEntryRule.SnapshotUnsupportedScenes);
+            Assert.That(plan.Reason, Does.Contain("Title"));
+        }
+
+        [Test]
+        public void Snapshot_OnlyAnUntitledScene_HasNothingToCarry()
+        {
+            var plan = PlayEntryDecision.Decide(SnapshotFacts(("", "")));
+            AssertRejected(plan, PlayEntryRule.SnapshotNothingToCarry);
+            Assert.That(plan.Recovery, Is.EqualTo(PlayEntryRecovery.SwitchToBuilt));
+        }
+
+        [Test]
+        public void ExistingRows_AreUnchanged_ForExplicitDirectoryAndBuiltWithOpenScenes()
+        {
+            // 明示の directory + 開いた Scene は従来どおり拒否（混成の経路を選んでいても、ledger が無い）。
+            var explicitDirectory = SnapshotFacts();
+            explicitDirectory.EnvironmentLayer = EnvironmentLayer((RuntimeModeEnvironment, "directory"));
+            explicitDirectory.SnapshotMatchesOpenScenes = true;
+            AssertRejected(PlayEntryDecision.Decide(explicitDirectory), PlayEntryRule.DirectoryWithReusableScenes);
+
+            // 経路 Built + 開いた Scene は従来どおり拒否。
+            var built = Facts(PlayEntryRoute.Built);
+            built.Candidate = Candidate();
+            built.ReusableScenes = new[] { "Title" };
+            built.OpenScenes = new[] { ("Title", "Assets/SampleGame/Scenes/Title.unity") };
+            AssertRejected(PlayEntryDecision.Decide(built), PlayEntryRule.BuiltWithReusableScenes);
+        }
+
+        [Test]
+        public void ModeKeys_StayTheThreeModeKeys()
+        {
+            Assert.That(PlayEntryDecision.ModeKeys, Is.EqualTo(new[]
+                { PlayEntryDecision.RuntimeModeKey, PlayEntryDecision.InstalledRevisionPathKey, PlayEntryDecision.ManifestSha256Key }));
+        }
+
+        // ═══ 再入の行（SnapshotReentry）═══
+
+        private static PlayEntryFacts ReentryFacts()
+        {
+            var facts = SnapshotFacts();
+            facts.HasOnePlayLedger = true;
+            facts.SnapshotMatchesOpenScenes = true;
+            facts.EnvironmentLayer = EnvironmentLayer((RuntimeModeEnvironment, "directory"));
+            return facts;
+        }
+
+        [Test]
+        public void Reentry_AllFourConditions_PassesThrough()
+        {
+            AssertPassThrough(PlayEntryDecision.Decide(ReentryFacts()), PlayEntryRule.SnapshotReentry);
+        }
+
+        [Test]
+        public void Reentry_WithoutSession_IsTheExistingRejection()
+        {
+            var facts = ReentryFacts();
+            facts.SnapshotMatchesOpenScenes = false;
+            AssertRejected(PlayEntryDecision.Decide(facts), PlayEntryRule.DirectoryWithReusableScenes);
+        }
+
+        [Test]
+        public void Reentry_WithManualLedger_IsTheExistingRejection()
+        {
+            var facts = ReentryFacts();
+            facts.HasManualLedger = true;
+            AssertRejected(PlayEntryDecision.Decide(facts), PlayEntryRule.DirectoryWithReusableScenes);
+        }
+
+        [Test]
+        public void Reentry_WithoutLedger_ExplicitDirectory_IsTheExistingRejection()
+        {
+            var facts = ReentryFacts();
+            facts.HasOnePlayLedger = false;
+            AssertRejected(PlayEntryDecision.Decide(facts), PlayEntryRule.DirectoryWithReusableScenes);
+        }
+
+        [Test]
+        public void Reentry_WhenTheModeIsNotDirectory_DoesNotApply()
+        {
+            var facts = ReentryFacts();
+            facts.EnvironmentLayer = EnvironmentLayer((RuntimeModeEnvironment, "addressables"));
+            Assert.That(PlayEntryDecision.Decide(facts).Rule, Is.Not.EqualTo(PlayEntryRule.SnapshotReentry));
+        }
+
         [Test]
         public void Facts_RealEnvironmentLayer_OnlyKeepsTheThreeModeKeys()
         {

@@ -21,6 +21,12 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>未保存の Scene の確認。偽なら利用者が拒んだ。</summary>
         internal Func<bool> ConfirmSaveScenes { get; set; } = () => true;
         internal Action ReplaceWithEmptyScene { get; set; } = () => { };
+        /// <summary>混成の経路の準備（開いている Scene の複製、開始 Scene、宣言）。失敗は例外で、準備は自分の作った物を戻してから投げる。</summary>
+        internal Action PrepareSnapshot { get; set; } = () => { };
+        /// <summary>snapshot の解除。何度呼んでも同じ結果になる。</summary>
+        internal Action ReleaseSnapshot { get; set; } = () => { };
+        /// <summary>record の観測を閉じる（Play に至らずに idle へ戻った時）。</summary>
+        internal Action CloseObservation { get; set; } = () => { };
     }
 
     /// <summary>
@@ -37,6 +43,8 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private readonly PlayEntryPorts _ports;
         private Phase _phase = Phase.Idle;
+        // EnterPlaymode を呼んだが EnteredPlayMode をまだ見ていない。Play に至らずに idle へ戻ったら、準備と観測を閉じる。
+        private bool _awaitingPlay;
 
         internal PlayEntryTransaction(PlayEntryPorts ports) => _ports = ports ?? throw new ArgumentNullException(nameof(ports));
 
@@ -56,6 +64,15 @@ namespace SampleGame.DependOnAll.Editor.Build
             var facts = TryCollect(validateCandidate: false, out var failure);
             var plan = facts != null ? PlayEntryDecision.Decide(facts) : failure!;
 
+            if (plan.Action == PlayEntryAction.PassThrough && plan.Rule == PlayEntryRule.SnapshotReentry && !entering)
+            {
+                // 入口自身の EnterPlaymode の外で再入の行に当たった。前の Play の session の残りを別の Play の許可にしない。
+                _ports.CancelPlay();
+                _ports.ReleaseSnapshot();
+                _ports.PublishBlocked(facts, PlayEntryDecision.StaleSnapshot(plan));
+                return;
+            }
+
             if (plan.Action == PlayEntryAction.PassThrough)
             {
                 // 再入の素通りは tick で書いた計画のまま。行 3 の一回の ledger は入口自身が置いたもの。
@@ -73,11 +90,23 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         /// <summary>Play に入った。取り消しが効かなかった時に、Play を抜けた後の tick で再 Play しない。</summary>
-        internal void OnEnteredPlayMode() => _phase = Phase.Idle;
+        internal void OnEnteredPlayMode()
+        {
+            _phase = Phase.Idle;
+            _awaitingPlay = false;
+        }
 
         /// <summary>update の tick。再判定・適用・EnterPlaymode は 1 つの同期呼び出しの中で続けて行い、間に他の callback を挟まない。</summary>
         internal void OnTick()
         {
+            if (_awaitingPlay && _phase == Phase.Idle && _ports.IsIdle())
+            {
+                // 再 Play の要求が Play に至らなかった（受理されない、移行の中断、再入での拒否）。置いた複製と開始 Scene を戻し、
+                // Planned のまま開いた観測を閉じる。ledger は ContentDeliveryPlayBridge.HandleIdle が戻す。
+                _awaitingPlay = false;
+                _ports.ReleaseSnapshot();
+                _ports.CloseObservation();
+            }
             if (_phase != Phase.WaitingForTick || !_ports.IsIdle()) return;
             _phase = Phase.Idle;
 
@@ -89,17 +118,23 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return;
             }
 
+            var snapshot = plan.Rule == PlayEntryRule.SnapshotRoute;
             try
             {
                 // Play Mode Script は拒否の時に変えない。ここまで来た後の失敗でも元に戻さない（永続の変更を仕様にしている）。
                 if (plan.AlignFastMode) _ports.AlignFastMode();
+                // 複製の準備 → 宣言 → ledger → 再 Play の順。再 Play の同期の ExitingEditMode が見る session と ledger を先に揃える。
+                if (snapshot) _ports.PrepareSnapshot();
                 if (plan.Action == PlayEntryAction.Intervene) _ports.ApplyForOnePlay(plan.Environment);
                 _ports.PublishPlanned(facts, plan);
                 _phase = Phase.Entering;
+                _awaitingPlay = true;
                 _ports.EnterPlaymode();
             }
             catch (Exception ex)
             {
+                _awaitingPlay = false;
+                if (snapshot) _ports.ReleaseSnapshot();
                 _ports.PublishBlocked(facts, PlayEntryDecision.EntryFailed("Play could not start: " + ex.Message));
             }
             finally
