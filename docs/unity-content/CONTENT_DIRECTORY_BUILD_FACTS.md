@@ -16,8 +16,8 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 - **同じになる:** texture、material、asset として参照される prefab、variant の無い自作 shader。root 集合と build の回によらない。
 - **build の組み合わせで中身が変わる:** URP の `Lit` の shader と、build 内の全 MonoScript をまとめた file の 2 種類だけ。`Lit` が変わる理由は確かめていない（build 内の material の keyword で variant の集合が変わる、という仮説）。root の identity が違う build の間では、root の file と manifest も変わる（OSM の製品経路 `BuildContentCoordinator` は build ごとに identity を作り直すので、毎回変わる）。同じ root を別の出力先へ build し直した時は、比較から除外しており測っていない。
-- **依存先を変えた時:** 変わるのは書き換えた asset の file だけで、参照元の file の bytes は変わらなかった。UnityDataTools の形式文書は、その理由を「file 間の参照は相手の hash ではなく安定した id（`.cfid`）で持つ」と説明している（実測で確かめたのは bytes が変わらなかったことだけ）。
-- **名前ではまとめられない:** `BuildManifestHash.txt` は同じ名前で、中身が build ごとに違う。まとめるのは sha256 で行う。content file の名前は内容 hash なので、それ以外の file では名前と sha256 が一致した。
+- **依存先を変えた時:** 比べた content file（manifest と `BuildManifestHash.txt` を除く）のうち、変わったのは書き換えた asset の file だけで、参照元の file の bytes は変わらなかった。manifest と `BuildManifestHash.txt` は内容が変われば変わる。UnityDataTools の形式文書は、その理由を「file 間の参照は相手の hash ではなく安定した id（`.cfid`）で持つ」と説明している（実測で確かめたのは bytes が変わらなかったことだけ）。
+- **名前ではまとめられない:** `BuildManifestHash.txt` は同じ名前で、中身が build ごとに違う。まとめるのは sha256 で行う。それ以外の出力では、この fixture の全 build を通じて名前と sha256 の対応が一対一だった（同じ名前で sha256 が違う file も、同じ sha256 で名前が違う file も無かった）。名前に使われる hash は Unity の内容 hash で、sha256 そのものではない。
 
 ## 数値（fixture の比率で、実 project の代表値ではない）
 
@@ -27,7 +27,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 | 同じ 2 つの sha256 の和集合 | 1,574,899（946,108 減る） |
 | `A` と `B` の root をまとめた 1 build | 1,374,182（和集合より 200,717 小さい） |
 | 組み合わせで変わった file の延べ（shader 5 件 / script 4 件。下の注） | 1,679,044 / 7,984 |
-| 依存先 1 つの変更で配り直す量（texture は `A` で 48,488・`B` で 48,916 / material / prefab / 元に戻した時） | 48,488・48,916 / 6,764 / 8,544 / 0 |
+| 依存先 1 つの変更で配り直す量（変更前の build に無い sha256 の file の合計。manifest と `BuildManifestHash.txt` を含む。texture は `A` で 48,488・`B` で 48,916 / material / prefab / 元に戻した時） | 48,488・48,916 / 6,764 / 8,544 / 0 |
 
 - 「組み合わせで変わった file」は一意の file の量ではなく、root 集合の違う 6 対で違った file を対ごとに数えた延べ。内訳は `S`–`A` が shader 1 件、`S`–`B`・`S`–`AB`・`A`–`B`・`A`–`AB` が shader と script 各 1 件、`B`–`AB` が 0 件。
 - OSM の製品経路で build した `P1` と `P2` を `ContentTransportPublisher.Publish` に通し、その `ContentTransportManifest.files` の `sha256` だけで、2 つの和集合を棚卸しと同じ 1,171,554 bytes に計算できた（`A` と `B` の和集合とは別の数。実行ごとに 1 byte 前後違うのは、毎回 identity が変わる root の file による）。
