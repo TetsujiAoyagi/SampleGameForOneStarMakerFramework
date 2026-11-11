@@ -224,7 +224,7 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 |---|---|
 | `ContentRequest` | logical key、kind（Scene / Object）、表現、expected identity。resolver も provider も書き換えない |
 | `IContentProvider` | 供給元。候補の有無を `Available` / `NotFound` / `Unavailable` / `Rejected` で答えるだけで、bytes の取得や install はしない |
-| `IContentCompatibilityRule` | 候補を採ってよいかの規則。製品の実装はまだ無く、host が policy に渡す |
+| `IContentCompatibilityRule` | 候補を採ってよいかの規則。製品の実装は `ContentCompatibilityRule`（下記）で、host が policy に渡す |
 | `ResolutionPolicy` | provider の順序と規則 |
 | `ContentResolver` | 上の 3 つを順に当て、probe ごとの結果を残す。Unity に依存しない（`Core/`） |
 | `ContentRequestLoader` | 採用した候補を既存の `LoadContentSceneAsync` / `LoadContentAssetAsync<T>` に渡し、handle と `ContentLoadRecord` を返す |
@@ -234,6 +234,33 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 - **`IAssetManagement` に member を足さない理由:** 探索と由来は任意の機能なので、使わない利用者の必須依存にしない。loader は AssetManagement の public だけを使い、同じ assembly の internal を呼ばない。別 asmdef に分けていないので、コンパイルでは防げない。この点を確かめる検査は常設していない。
 - **所有と解放は既存の契約のまま。** `Release`、`UnloadSceneAsync` → `ReleaseScene`、`ReleaseAll` を使い、解放 API を足さない。
 - **まだ保証しないこと:** record は採用した候補の記録であり、実際にロードした directory との同一性は検証していない（`SourceBindingVerified` は常に false）。`IAssetManagement` が directory の identity を返さないためで、Runtime の供給元の接続で閉じる。record の表現は provider が申告した値で、`ContentDirectoryIndex` の `Full` fallback の実効値は写さない。Scene の provider adapter・SceneDirector 経由の経路・要求をまたぐ pin は未実装である。実在の provider はまだ無く、fake でだけ検証している。
+
+#### 候補の互換判定（`ContentCompatibilityRule`）
+
+`IContentCompatibilityRule` の製品実装である。host の宣言（宣言名・Scene 名等）を知らず、Play 前に固定した互換の基準 `ContentCompatibilityEnvelope` と、要求の expected identity だけで判定する。汎用の既定値は持たず、基準の値の出所は host か後続の adapter が決める。
+
+| 基準の欄 | 扱い |
+|---|---|
+| content set、target、engine の version | 必須。候補と ordinal で完全一致させる。正規化も大文字小文字の同一視もしない |
+| root schema の version | 必須（1〜999,999,999）。候補の事実は ASCII の `1`〜`9` で始まる 9 桁以内の 10 進表記だけを受け付ける |
+| revision | 任意。null は「固定しない」で、互換な候補ならどの revision でも採る |
+
+候補は engine と root schema の version を、`ContentCandidate.Facts` の予約 key `osm.compat.engineVersion` / `osm.compat.rootSchemaVersion`（`ContentCompatibilityFactKeys`）で申告する。`osm.compat.` の下の未知の key は判定に使わない。host 固有の事実は別の key に書く。
+
+判定は次の順で、最初に当たった 1 つを `ContentCompatibilityMismatch` の値として返す（`Unset = 0` は「判定していない」で、`default` が互換と読めないようにしている）。
+
+1. 由来と受け入れ根拠の組が `ContentDirectory` + `VerifiedDigest` か `EditorSnapshot` + `OpenSceneSnapshot` でなければ `UnsupportedSource`。この表は `ContentResolver` の private な固定表の複製なので、由来を足すときは両方を直す（offline テストが一致を確かめる）。
+2. 要求に expected identity があれば、由来に関係なく 4 欄すべてを比べる（`ExpectedIdentityMismatch`）。
+3. `EditorSnapshot` はここで採る。受け入れ理由が digest ではないので、identity・engine・schema を要求せず、利用者が開いている Scene を host の述語で崩さないよう述語も当てない。
+4. `ContentDirectory` は identity の完全さ、content set、revision（固定した時だけ）、target、engine、schema を比べる。事実が欠けた・空白だけの候補は `…Missing`、schema の表記が壊れた候補は `SchemaVersionMalformed` で採らない。比べられない事実を一致として扱わない。
+5. host が登録した述語（`IContentCompatibilityRule` の実装）を登録順に評価し、全てが採ると答えた時だけ採る（AND）。最初に false を返した述語で止め（`HostPredicateRejected`）、述語が true を返しても汎用の不採用は覆らない。述語の例外は捕まえず包み直さない。resolver が、取消済みの token の `OperationCanceledException` は取消として投げ直し、それ以外は `Fault` を記録して探索を止める。
+
+- **不採用の残り方:** 規則の不採用は例外にせず、probe に `RuleRejected` と理由 `compat:<種別>:` を残して次の供給元へ進む。採用時の理由は `compat:Compatible:<由来>` の固定文字列で、述語の理由を連結しない。
+- **要求の終わり方は既存の `DecideFailureCode` の優先順に従う。** 「規則で落ちたら必ず `NoCompatibleCandidate`」ではない。pin が未充足なら `IntegrityRejected`、`Fault` があれば `ProviderFault` になりうる。
+- **`Evaluate` は互換性だけの部分判定である。** 要求の logical key・kind・表現と候補の一致、probe した供給元と候補の一致は resolver が規則の前に見る。resolver を通さずに結果だけで候補を確定する呼び手は、それらの一致を別に保証する。
+- **基準を固定しない要求の読み方:** expected identity も基準の revision も無ければ、互換な候補はどの revision・digest でも採る。上位の供給元が不採用で、下位の別 revision が採られることは整合性の失敗ではない（別 revision を避けたい host は基準の revision か expected identity で固定する）。同名で digest が違う候補を見分けるのは expected identity がある時だけである。要求が表現を指定しない時は、別表現の候補も採りうる。
+- **snapshot を優先する policy は、要求に directory の expected identity を載せない。** 載せると identity の空な snapshot は pin と一致せず、pin に合う directory が成功する。
+- **まだ保証しないこと:** 規則は供給元の申告を照合するだけで、申告が bytes と一致することは証明しない。host の述語を登録しない policy は、宣言だけが違う候補を採る。実在の manifest から事実を作る adapter は無く、fake の供給元と事実でだけ検証している。複数 package の合成の可否、要求をまたぐ revision の一貫も判定しない。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 
