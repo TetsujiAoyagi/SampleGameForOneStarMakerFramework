@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: `A`（A3 凍結版、revision 0。2026-11-11 に owner が凍結を指示した。A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: `B` 完了（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - risk: `normal`（製品 code を変えない。build だけで、Play も登録もしない）
 - owner: root（依頼者）
 - created: 2026-11-11
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。新しい session で始める。
-  - 次の作業: §3 の 4 file を §4 の順に実装し、Unity のコンパイル確認と `pwsh tools/contract-audit.ps1` を行う。build と Unity テストは実行しない（Phase C）。
+  - 次の Phase・役割: 発見 C（動作確認は §5 のとおり `対象なし`）。新しい session で始める。
+  - 次の作業: §6 の実装を §2・§3 と照合する構造・契約のレビュー。build と Unity テストは判定 C で §5 の 3 コマンドを実行する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: Unity Editor のコンパイル確認（`osm-unity-editor` Skill に従う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。判定定義と判定に使う語（§2）を B が変えない。
+  - 必要な権限: 判定 C の Unity バッチテストは sandbox 外の承認済み経路（`osm-workflow` の Phase C）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -266,7 +266,32 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 
 ## 6. Phase B 実装結果
 
-未着手。
+§3 の 4 file を `unity/Assets/OneStarMaker/Tests/Editor/Spikes/ContentFileIdentity/` に新規で置いた（`.meta` と folder の `.meta` を含む）。製品 code、asmdef、他の file は変えていない。
+
+| file | 行数（予想） | 実際の中身 |
+|---|---|---|
+| `FileInventory.cs` | 453（240） | `ContentLayout.json` の写しの型、棚卸し（`Read`）、対の比較（`Compare`。違った・想定した変更・`片方だけ`・別の file に入った source asset）、`Absent`、bytes の集計、AC1 の名前と sha256 の観測、判定定義の写像（`Judgement.Judge`） |
+| `FileInventoryTests.cs` | 247（220） | 合成の layout で 13 件。§3 に挙げた全ケースと、pointer の不一致・仮想の built-in 項目の扱い |
+| `IdentityFixture.cs` | 322（220） | fixture の生成・変更 round・復元・source の採取・後始末 |
+| `IdentityBuilds.cs` | 477（300） | `[Explicit]` の `FirstProcess`（13 build）と `SecondProcess`（2 build と判定）、JSONL の record、AC7 の確認 |
+
+行数は予想の約 1.7 倍。増えた理由は、判定の写像を 1 つの関数に閉じず項目ごとに書いたこと（`FileInventory`）、fixture の決定性の処理（下の B 適応 1）、record の行の型（`IdentityBuilds`）。責務の配置と依存の向きは §3 のとおりで、製品への依存は `IdentityBuilds` だけ、`FileInventory` は Unity と製品の型を受け取らない。
+
+**B 適応（§4 の範囲内。判定の語と判定定義は変えていない）:**
+
+1. **fixture の決定性の方法:** Editor で確かめたところ、prefab の object と URP material の副 object（`AssetVersion`）の fileID は作るたびに乱数になる。別 process で source の bytes を一致させる（AC2）ため、各 asset を一度 Unity に作らせ、その text の fileID を class id から決まる固定値に、`.meta` の GUID を file 名から決まる値に置き換えてから最終の path へ書く。同じ class が 1 file に 2 つあれば止める。folder の `.meta` と marker は build の入力でないので source の採取から外した。
+2. **component の選び方:** `SharedPrefab` に `AssetReleaseOnDestroy`、`OnlyB` に `VfxOwnerDestroyNotifier`（どちらも Runtime の既存 component）。この 2 つは直列化する値を持たないので、AC5 (3) の「component の値」は `SharedPrefab` の Transform の位置にした。
+3. **Scene の作り方:** untitled の Scene と追加の新規 Scene は並べられないので、単独で開いて作り、終われば元の Scene 構成に戻す。開いている Scene が dirty なら始めない。
+4. **root:** 直接の build の root は fixture の folder に固定 GUID で作る（`S`・`A`・`A-name`・`B`・`AB`。`A-same`・変更 round・`A-clean` は `A` の root、`B-tex`・`B-clean` は `B` の root）。build の `name` は root の identity と同じ。第 2 process は `A` と `B` の root だけを作り、作った全 file が第 1 process と同じ bytes と GUID であることと、root 以外の file が欠けていないことを確かめる。
+5. **`SecondProcess` が第 1 process の record を読む方法:** `TestResults/cfi/first-process.txt` が run id を指し、`TestResults/cfi/<run id>/` の `first-state.json` と `inventories/<build>.json` を読む。最終の判定は第 2 process が全 build の棚卸しから計算し直して `verdict` 行に書く。
+6. **test の形:** 既存の `BuildContentDirectoryIntegrationTests` と同じく `[UnityTest]` + `[Timeout]`（第 1 process は 3600 秒）にした。判定の結論は test の合否にせず、harness が record を書けなかった時だけ test が失敗する。
+7. **`P1`・`P2` の publish 先:** `TestResults/bs3-fixture/cfi/pub/<run id>/P1`（`P2`）。
+
+**record の置き場:** `TestResults/cfi/<run id>/record.jsonl`、`layouts/<build>/`（`ContentLayout.json`・`BuildLog.jsonl`・`BuildReportSummary.json` の写し）、`out/<build>/`（直接の build の出力）。全て git 管理外。
+
+**確認したこと:** Unity 6000.6.0f1 の Editor でコンパイル成功（新しい file の警告 0、全ての型がロードされた）。`BuildContentOptions.CleanBuildCache` が存在することを Editor で確かめた。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。確認に使った Editor はこの session で起動し、正常終了させた。
+
+**未実行:** Unity テスト（`FileInventoryTests` を含む）と build は一度も実行していない（Phase C）。§5 の「未知の操作経路の疎通」の 3 点（`[Explicit]` の完全名の filter、`BuildManifestHash` による layout の対応づけ、`CleanBuildCache` の所要時間）は未確認のまま。fixture の生成が別 process で同じ bytes になるかは、判定 C の第 2 process で初めて分かる（ならなければ AC2 で未判定となり B へ戻る）。
 
 ## 7. Phase C
 
