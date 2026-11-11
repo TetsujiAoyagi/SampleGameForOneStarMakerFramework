@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: 判定 C のやり直しを終えた（2026-11-12。§7.5。結論 GO。判定した head は implementation head `444651ed`）。次は C'。Phase A の revision 1 は凍結済み（§5.2）。判定 C（1 回目）は未判定だった（§7.3 の J-1。AC1 の `SharedTex` の `.resS` を layout から特定できない）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。revision 1 の A2 入力版は commit `018c74c7`、A3 凍結版はこの票を含む commit である。revision 0 の A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`（採否の経緯は §5.1）。revision 0 で実装した head は `0b2b6625`（§6.1）
+- status: C' の 1 巡目を終えた（2026-11-12。§8。現在の問いを阻害する指摘なし、後続スライスへ移送する指摘 3 件、独立性制約あり）。判定 C のやり直しは GO（§7.5。判定した head は implementation head `444651ed`）。次は Phase D。Phase A の revision 1 は凍結済み（§5.2）。判定 C（1 回目）は未判定だった（§7.3 の J-1。AC1 の `SharedTex` の `.resS` を layout から特定できない）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。revision 1 の A2 入力版は commit `018c74c7`、A3 凍結版はこの票を含む commit である。revision 0 の A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`（採否の経緯は §5.1）。revision 0 で実装した head は `0b2b6625`（§6.1）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: `444651ed`
@@ -18,9 +18,9 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結の入力は、この票を含む commit の本書だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（同じ PC の発見 C へ commit の SHA で引き継ぐ。Phase B は Unity のテストも build も実行していないので、渡す実行結果は無い）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C のやり直しの判定 evidence（base `aa6b9488` / head `444651ed`）を Artifact Storage の task `content-shared-file-registration-spike` に stage した。取得案内は進行役（Phase C〜C'）の session 群の共有 notes（同じ PC、git 管理外）にあり、引渡し先は Phase D。送信側の fetch は確認した。
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。上と同じ task に stage した。所見を含まない取得案内を上と同じ共有 notes に分けて置いた。引渡し先は C' の担当で、取得と閲覧の確認は C' の担当が行う（引渡し未完了）。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。上と同じ task に stage した。所見を含まない取得案内を上と同じ共有 notes に分けて置いた。引渡し先は C' の担当で、C' の担当が取得と閲覧を確かめた（確認済み。§8）。
 - 引継ぎ票:
-  - 次の Phase・役割: C'（1 巡目。対象は implementation head `444651ed`、判定 C は §7.5 で GO）。進行役（Phase C〜C'）が C' の担当を新しい session で起こし、C' の担当には C' blind bundle の取得案内だけを渡す（本書・PR を読ませない）。
+  - 次の Phase・役割: Phase D（対象は implementation head `444651ed`。判定 C は §7.5 で GO、C' は §8 で阻害する指摘なし）。進行役が C と C' を突き合わせ、SKILL の公開点と Phase D の規則に従って進める。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄が `未固定` の間は Phase A の出口であり、Phase B の担当だけが引き継ぐ。その時は、revision 0 の実装 head `0b2b6625` が HEAD の祖先で、`0b2b6625` から HEAD までの差分が本書だけであることも確かめる（B はその実装の上で直す）。implementation head 欄が SHA になった後の担当は、それが HEAD の祖先で（`git merge-base --is-ancestor`）、implementation head から HEAD までの差分が本書だけであることを確かめる。PR #179 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が本欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
   - 次の作業（B、revision 0）: 完了（§6.1。F-1 の修正は commit `0b2b6625`）。
   - 次の作業（B、revision 1）: 完了（§6.2。commit `444651ed`）。
@@ -28,7 +28,8 @@
   - 次の作業（発見 C の再レビュー）: 完了（§7.2。阻害する指摘なし）。
   - 次の作業（判定 C の 1 回目）: 完了、未判定（§7.3）。
   - 次の作業（判定 C のやり直し）: 完了、GO（§7.5。判定 evidence を取った commit `b3aa811d` はローカルの軽量 tag `evidence/content-shared-file-registration-spike/2`）。
-  - 次の作業（C'）: C' blind bundle（README.txt に中身）だけから、§2 の判定の手順と受け入れ条件、契約違反、構造劣化、未検証の失敗経路、Phase C の見落としを独立に監査し、§8 に指摘、残存リスク、監査できなかった範囲、使用したモデルを記録する。担当は §5 のとおり Phase A・B・C に関与していないベンダーとし、`cursor-agent` を使う場合は Grok 系を明示する。凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを確かめ、当たらなければ独立性の制約として §8 に記録する。
+  - 次の作業（C'、1 巡目）: 完了（§8。阻害する指摘なし。後続スライスへ移送する F1〜F3）。
+  - 次の作業（C'、指示。済み）: C' blind bundle（README.txt に中身）だけから、§2 の判定の手順と受け入れ条件、契約違反、構造劣化、未検証の失敗経路、Phase C の見落としを独立に監査し、§8 に指摘、残存リスク、監査できなかった範囲、使用したモデルを記録する。担当は §5 のとおり Phase A・B・C に関与していないベンダーとし、`cursor-agent` を使う場合は Grok 系を明示する。凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを確かめ、当たらなければ独立性の制約として §8 に記録する。
   - 次の作業（判定 C のやり直しの指示。済み）: GO 候補 head（implementation head 欄）で、§5 の判定必須テストの 3 コマンドを順に、それぞれ別の Unity process で実行する。XML（total 1 以上、failed 0、root `Passed`）と record の全 round の終了行で harness の成立を確かめた後、§2 の判定の手順を record の観測の行に当てて GO か未判定かを決める（`RegistrationVerdict` の判定の行は補助。§2 の「test の合否と判定は別である」）。record を読む時は §7.1 の N-1〜N-3、§7.4 の N-4 と未確認事項（`SharedShader` の残り）、§6.1 の F-1 の修正の確かめ方（`order-check` 行の `failureRecorded` と `case` 行の `callLoggedError` を、同じ phase の `unity-log` 行の `logType` と突き合わせる）に従う。§5 の「未知の操作経路の疎通」の初回確認も判定 C の最初の実行で行う。revision 1 で足した確かめ: AC1 の pixel の所在の行（(2)・(3) の件数、(4a) か (4b)、(i)・(ii) の値と format）を layout の写しと独立に突き合わせる。所在が `.cf` なら、それが推論であるという限界を結論に書く。§7.3 の O-5 の 2 つの `.cf` を分類する（§5.2 の A0 では、layout 上は `SceneA`・`SceneB` の別の id だった）。`SharedShader` の残りは §7.3 で残らないと確かめたが、新しい head でも同じく確かめる。判定 evidence を取った head は SKILL の公開点の規則どおり軽量 tag で到達可能に保つ。
   - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。C' の担当の手段: 2026-11-12 時点で Codex CLI は使えず、`cursor-agent` は使える（AGENTS.md の契約どおり Grok 系だけ）。§5 の「Phase A・B・C に関与していないベンダー」に当たるかは C' を起こす時に確かめ（Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを含む）、当たらなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない。§5）。
   - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B 適応で足りる欠陥は B へ戻す。B と発見 C の往復は 4 巡まで。
@@ -663,7 +664,29 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
 
 ## 8. Phase C'
 
-未着手。
+- 担当方式: AI（`cursor-agent`、Grok 系を明示）。この session（Claude）は、開始時の照合、bundle の取得、監査の入力 packet の組み立て、監査担当の起動、所見の記録を行う運び役で、監査の判断はしていない。
+- 種別と巡: 最終 C'（高コスト証拠なし。§5）、1 巡目（全体を初見で監査）。
+- 受け取った決定記録の版: なし。
+- 開始時の照合: 渡された SHA（`8154c116`）と HEAD が一致し、作業ツリーは clean、ブランチは一致した。`444651ed` は HEAD の祖先で、`444651ed` から HEAD までの差分は本書だけ。PR #179 の状態ブロックの `引き継ぐ commit`（`8154c116`）と implementation base / head（`aa6b9488` / `444651ed`）は §0 と一致した（照合のために状態ブロックだけを読んだ。PR の本文・レビューは監査担当に渡していない）。
+- 使用した blind audit bundle の取得案内・状態: §0 の C' blind bundle。C' の担当（この session）が同じ PC で fetch し、期待 packageSha256 と一致して取得できた（`status: passed`）。中身は bundle の README のとおり（凍結した §1〜§5、§6 と §6.2、base から head までの diff（`docs/handoff` を除く）、`contract-audit` の出力、3 コマンドの XML・log・step、record・layout・build の出力。決定記録なし）。
+- 監査担当への入力: 上の bundle と、implementation head `444651ed` の `git archive` の写し（スパイクの 5 file、それが呼ぶ製品の `Runtime/BuildContent`・`AssetManagement/Internal`・`AssetBuildContracts`、`OneStarMaker.Tests.Editor.asmdef`、`AGENTS.md`、`tools/Harness/README.md`。`.meta` を除く。本書は含めない）と、英語の指示書だけ。指示書は 2 つの問い（Q-A: §2 の判定の手順を record の行に自分で当て、GO か未判定かと答えを出す。Q-B: 成功した実行では表に出ない実験 code の欠陥と契約違反）と、指摘の分類（blocker / 後続スライスの入力）を指定した。発見 C・判定 C の結論・指摘・疑念候補は入れていない。
+- 確認範囲・方法: 監査担当が record・layout・XML・diff・source を読んで確かめた。shell の実行は 2 回拒否され、`out/` の file の sha256 の再計算はしていない（下の「監査できなかった範囲」）。読み取り専用のモード（`--mode=ask`）で実行したので、所見は file ではなく最終の出力から取った。
+- 判定: **GO。** 監査担当が §2 の手順を record の観測の行に独立に当てた結果である。手順 1 は当たらない（両方の順で 2 つ目の登録が成功）。手順 2 の未判定の条件にも当たらない。手順 3 で Q1 と Q3 が一意に読める。
+  - Q1: Loadable からの load（AC2）は両方の順で prefab・material・texture の実体が各 1。直接参照からの load（AC3）は両方の順で material・texture の実体が各 2。2 反復で一致する。
+  - Q3: U1・U2・U5・U7 は無傷、U3・U4・U6 は壊れた（T1 で prefab・Renderer・material・texture が `== null`）。2 反復で一致する。U1・U6・U7 の R0・R1 は空。拒否された case は無い。
+  - AC1 の前提: 中核の 3 種と `SharedShader` が両 directory で同じ file に帰属し、layout の path から一意に決まる。`SharedTex` の pixel の所在は (4b)（`.cf`。(2) 1 件、(3) 0 件、(i) 参照の無い texture の項目 0 件、(ii) 3,147,948 ≥ 3,145,728）。正の対照は名前と sha256 が互いに違い、実体 2。process の間の head と digest は一致。片方にしか無い file は、`SceneA`・`SceneB` の `.cf`、各 root の `.cf`、`TwinA`・`TwinB` の `.cf` と `.resS`、manifest の `.json` で、同じ id の `SerializedFile` で `ContentHash` が違う物は 0 件。名前が同じで中身が違うのは `BuildManifestHash.txt` だけ。
+  - harness: 3 つの XML は別の process で、total 59 / 1 / 1、failed 0、root `Passed`。`round-start` と `round-end` は各 26 行。`round-cleanup` と `process-aftercare` に残りは無い。`contract-audit` は exit 0、製品 code の変更は無い（AC5）。
+  - S2 への含意の表で当たる行は「実体が 2 つ」（AC3）と「どれかの case が壊れた」（U3・U4・U6）。1 行目は当たらない。補助の `verdict` 行（GO）は同じ答えで、根拠にはしていない。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings（3 件。いずれも今回の実行の分類を変えない。監査担当の引用した行番号と code が head と一致することは、この session が確かめた）:
+  - **F1:** `RegistrationRounds.cs` の `Probe.Describe` は、texture と shader の `EntityId` と pixel の sha256 を構築時の値のまま書く。壊れた case の T3 の survivor の文字列は、`broken` に `texture.null` があり width が `-1` なのに、load の時の texture の id と pixel の sha256 を示す。§2 の観測の時点が言う「その時点の pixel」を survivor の文字列は意味しない。今回の分類は `broken` の `== null` で一意に決まるので未判定にはならない。object が null にならず pixel だけが変わる経路では、survivor の hash を現在の値と読むと分類を誤る。
+  - **F2:** `UnregisterObservation.ReferencesHeldToT3` は `RegistrationVerdict.cs` で初期値 `true` のままで、`RegistrationRounds` は代入せず、record にも出ない。§2 は参照を離した後の `== null` を壊れたの証拠にせず未判定とする。今回の経路は T3 の記録の後まで probe を保持し、Release はその後なので分類は成り立つ。途中で参照を離す経路では flag が倒れず、未判定にならない。
+  - **F3:** log は次の phase の切り替えで record へ流すので、`unity-log` 行の並びは発生順ではなく、結びつきは phase の文字列で決まる。`LogType.Log` は捨てる。重複の file を Unity が `Log` の level で知らせた場合、仮説の確かめ（重複を警告する log の有無）には残らない。
+- 残存リスク（監査担当の記述）: 反復は同じ Unity process（Domain Reload 無効）の中の 2 回で、process をまたいだ再現ではない。pixel が `.cf` にあるという読みは layout の参照と size からの推論。正の対照が示す数え分けは texture だけ。U5・U7 が無傷なので、Scene の直接参照でどちらの directory の file を読んだかは未知のまま残る。Game の bootstrap が Play の中で AppInit と DebugSocket を動かしている（round の開始時の fixture の名前の物は 0 件で、実体の数には入っていない）。
+- 監査できなかった範囲: `out/` の各 file と digest の sha256 の再計算（監査担当の shell が拒否された。layout の Size と棚卸しの size の一致、第 2 process の `digestMatched` までを読んだ）。固定 GUID が `AssetDatabase` 上でその path に戻ること（Unity を再実行していないので、record の帰属の行と layout の path の一意性まで）。
+- 独立性: B・発見 C・判定 C は Claude（Anthropic）、A2 は Claude と Codex CLI（OpenAI）で、Grok（xAI）はそのどれにも関与していない。**ただし独立性制約あり:** Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）のモデルは確かめられなかった（C' は PR を読まないので、PR のレビューから調べていない）。Grok だった場合、Phase A に関与した系列になる。risk `normal` のため強化条件は必須ではない（§5）。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 監査担当（Grok）は閲覧も関与も無い。運び役のこの session は §0 の票を読むために本書を開き、§7 を閲覧した。そのため指示書には計画（bundle の §1〜§5）の語だけを使い、Phase C の結論・指摘・疑念候補を書かなかった。指示書の確かめる項目は凍結した計画（§2・§5、§5.2 の A0）から取った。
+- 担当・モデル: 監査担当は `cursor-agent`（`--mode=ask`、`grok-4.7-high`。起動時の表示は Grok 4.7 256K High）、2026-11-12、1 回の実行で約 10 分（入力 190,276、出力 43,393、cache read 2,636,800 token）。運び役は Claude（Anthropic）の新しい session。
 
 ## 9. Phase D
 
