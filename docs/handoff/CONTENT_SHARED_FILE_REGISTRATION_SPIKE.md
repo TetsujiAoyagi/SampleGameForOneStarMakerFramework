@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: C' の 1 巡目を終えた（2026-11-12。§8。現在の問いを阻害する指摘なし、後続スライスへ移送する指摘 3 件、独立性制約あり）。判定 C のやり直しは GO（§7.5。判定した head は implementation head `444651ed`）。次は Phase D。Phase A の revision 1 は凍結済み（§5.2）。判定 C（1 回目）は未判定だった（§7.3 の J-1。AC1 の `SharedTex` の `.resS` を layout から特定できない）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。revision 1 の A2 入力版は commit `018c74c7`、A3 凍結版はこの票を含む commit である。revision 0 の A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`（採否の経緯は §5.1）。revision 0 で実装した head は `0b2b6625`（§6.1）
+- status: Phase D（2026-11-12。§9）。C' の 1 巡目を終えた（§8。現在の問いを阻害する指摘なし、後続スライスへ移送する指摘 3 件、独立性制約あり）。判定 C のやり直しは GO（§7.5。判定した head は implementation head `444651ed`）。次は Phase D。Phase A の revision 1 は凍結済み（§5.2）。判定 C（1 回目）は未判定だった（§7.3 の J-1。AC1 の `SharedTex` の `.resS` を layout から特定できない）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。revision 1 の A2 入力版は commit `018c74c7`、A3 凍結版は commit `8498d146`。revision 0 の A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`（採否の経緯は §5.1）。revision 0 で実装した head は `0b2b6625`（§6.1）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: `444651ed`
@@ -15,7 +15,7 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（「確かめていないこと」の該当行を実測の事実へ置き換え、登録の事実の節を足す。文書の冒頭の範囲は build の出力だけを言うので、登録と load の事実を含む範囲へ一文を改める。新しい文書は作らない。自己点検 S-5）、program §2.4「Unity の複数 Content Directory」・§5.3・§8（本スライスの行と S2 の再開条件）。実験 code は製品に残さず git 履歴に置く（S0-b・S2-0 と同じ）。program の本文は Phase D まで変えない
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§2.4、§5.3、§8 の S2-0 の移送、§9 の G11・G24）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（S2-0 の実測と測り直しの harness の所在）
-- Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結の入力は、この票を含む commit の本書だけ）
+- Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結の入力は、A3 凍結版（revision 1 は commit `8498d146`）の本書だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（同じ PC の発見 C へ commit の SHA で引き継ぐ。Phase B は Unity のテストも build も実行していないので、渡す実行結果は無い）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C のやり直しの判定 evidence（base `aa6b9488` / head `444651ed`）を Artifact Storage の task `content-shared-file-registration-spike` に stage した。取得案内は進行役（Phase C〜C'）の session 群の共有 notes（同じ PC、git 管理外）にあり、引渡し先は Phase D。送信側の fetch は確認した。
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。上と同じ task に stage した。所見を含まない取得案内を上と同じ共有 notes に分けて置いた。引渡し先は C' の担当で、C' の担当が取得と閲覧を確かめた（確認済み。§8）。
@@ -684,10 +684,18 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
   - **F3:** log は次の phase の切り替えで record へ流すので、`unity-log` 行の並びは発生順ではなく、結びつきは phase の文字列で決まる。`LogType.Log` は捨てる。重複の file を Unity が `Log` の level で知らせた場合、仮説の確かめ（重複を警告する log の有無）には残らない。
 - 残存リスク（監査担当の記述）: 反復は同じ Unity process（Domain Reload 無効）の中の 2 回で、process をまたいだ再現ではない。pixel が `.cf` にあるという読みは layout の参照と size からの推論。正の対照が示す数え分けは texture だけ。U5・U7 が無傷なので、Scene の直接参照でどちらの directory の file を読んだかは未知のまま残る。Game の bootstrap が Play の中で AppInit と DebugSocket を動かしている（round の開始時の fixture の名前の物は 0 件で、実体の数には入っていない）。
 - 監査できなかった範囲: `out/` の各 file と digest の sha256 の再計算（監査担当の shell が拒否された。layout の Size と棚卸しの size の一致、第 2 process の `digestMatched` までを読んだ）。固定 GUID が `AssetDatabase` 上でその path に戻ること（Unity を再実行していないので、record の帰属の行と layout の path の一意性まで）。
-- 独立性: B・発見 C・判定 C は Claude（Anthropic）、A2 は Claude と Codex CLI（OpenAI）で、Grok（xAI）はそのどれにも関与していない。**ただし独立性制約あり:** Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）のモデルは確かめられなかった（C' は PR を読まないので、PR のレビューから調べていない）。Grok だった場合、Phase A に関与した系列になる。risk `normal` のため強化条件は必須ではない（§5）。
+- 独立性: B・発見 C・判定 C は Claude（Anthropic）、A2 は Claude と Codex CLI（OpenAI）で、Grok（xAI）はそのどれにも関与していない。**ただし独立性制約あり:** Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）のモデルは確かめられなかった（C' は PR を読まないので、PR のレビューから調べていない）。Grok だった場合、Phase A に関与した系列になる。**Phase D の追記:** PR の外部レビューが、凍結前の外部レビューは Grok の cursor agent だったと述べたので、Phase A に同系列が関与しており、独立性制約は実際に当たる（§9）。risk `normal` のため強化条件は必須ではない（§5）。
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: 監査担当（Grok）は閲覧も関与も無い。運び役のこの session は §0 の票を読むために本書を開き、§7 を閲覧した。そのため指示書には計画（bundle の §1〜§5）の語だけを使い、Phase C の結論・指摘・疑念候補を書かなかった。指示書の確かめる項目は凍結した計画（§2・§5、§5.2 の A0）から取った。
 - 担当・モデル: 監査担当は `cursor-agent`（`--mode=ask`、`grok-4.7-high`。起動時の表示は Grok 4.7 256K High）、2026-11-12、1 回の実行で約 10 分（入力 190,276、出力 43,393、cache read 2,636,800 token）。運び役は Claude（Anthropic）の新しい session。
 
 ## 9. Phase D
 
-未着手。
+- 担当: Phase C〜C' の進行役（Claude、Anthropic）。owner の指示（2026-11-12）で、外部レビューの後に行った。
+- **C と C' の突き合わせ:** 判定 C（§7.5）と C'（§8）は独立に GO で、Q1・Q3 の答え、AC1 の前提の読み（`SharedTex` の pixel は `.cf`、推論）、S2 への含意の当たった 2 行、結論の限界が一致した。食い違いは無い。C' が移送した F1〜F3 は、判定 C の答えを変えない（判定 C の分類は `== null` で決まり、参照は T3 の記録の後まで保持し、重複の警告は Warning でも出なかった）。
+- **PR の外部レビュー（2026-11-12、PR #179。cursor の background agent と owner の再レビュー）:** 結論を覆す指摘は無い。
+  - 記録の整合 2 件を本 commit で直した: §0 の status と Phase A snapshot の欄の「この票を含む commit」を、revision 1 の A3 凍結版 `8498d146` に改めた。§8 の独立性は、凍結前の外部レビュー（§5.1）が Grok の cursor agent だったと PR のレビューが述べたので、「同系列が Phase A に関与した」として独立性制約が実際に当たる（risk `normal` のため強化条件は必須ではなく、GO は開き直さない。owner は独立性制約を受け入れている）。
+  - 未実行の失敗経路 1 件（後続への注意）: `RegistrationVerdict.Judge` は、両方の順で同時登録が拒否された時に、§2 の手順 1 が残すと定める前提（正の対照の file の相違、単独登録の基準）を検査する前に GO を返す。今回の実行は両方の順で登録が成功したので通らない。実験 code は本 Phase で削除するので直さない。補助の判定を再利用する時は、この分岐でも前提を検査する。
+- **Evidence の保存・引渡し確認:** 判定 evidence（Artifact Storage の task `content-shared-file-registration-spike`、ローカル固定・未昇格）を、Phase D の担当が送信側と別の session で fetch し、期待 packageSha256 と一致して 44 file を取得し、3 つの XML（59/1/1、全て `Passed`）と record を読めた（引渡し確認済み）。C' blind bundle は C' の担当が fetch して確認済み（§8）。取得案内は同じ PC の進行役の共有 notes（git 管理外）にある。
+- **日次清掃 job の確認:** `evidence schedule status` は `scheduler-identity-mismatch`（`passed` ではない）。review-evidence の Phase D の規則どおり、この確認では直さず、owner が Artifacts README の「自動清掃」の切替手順で処置する（未完了）。
+- **harvest:** [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) に登録と load の事実の節を足し、範囲の一文と「確かめていないこと」を改めた。program の §2.4・§5.3・§8（S2-0b の行と S2-0b から移送した入力）を改めた。実験 code は製品に残さず、git 履歴（implementation head `444651ed`）に置く。
+- **task の終了:** owner の Phase D の指示で `workflow-task.ps1 end` を記録する。
