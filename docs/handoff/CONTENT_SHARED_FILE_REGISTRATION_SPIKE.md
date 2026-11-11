@@ -8,7 +8,7 @@
 - status: Phase A の revision 1 の Phase B の修正を終えた（2026-11-12。§6.2。implementation head `444651ed`）。次は発見 C。Phase A の revision 1 は凍結済み（§5.2）。判定 C（1 回目）は未判定だった（§7.3 の J-1。AC1 の `SharedTex` の `.resS` を layout から特定できない）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。revision 1 の A2 入力版は commit `018c74c7`、A3 凍結版はこの票を含む commit である。revision 0 の A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`（採否の経緯は §5.1）。revision 0 で実装した head は `0b2b6625`（§6.1）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
-- implementation head commit: `444651ed`（revision 1 の B の修正。§6.2）
+- implementation head commit: `444651ed`
 - risk: `normal`（製品 code を変えない。Editor の Play の中で、製品の native 層の wrapper を 2 つ使うだけ）
 - owner: root（依頼者）
 - created: 2026-11-12
