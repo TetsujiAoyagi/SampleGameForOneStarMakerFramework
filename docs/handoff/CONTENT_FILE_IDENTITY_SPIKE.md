@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: 判定 C 1 回目が未判定（AC2）で `B` へ差し戻し（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: 判定 C 1 回目の差し戻し（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
-- implementation head commit: 0b72f0ffccb733439f683b372f2871b365c07bbf
+- implementation head commit: bb4efe7767c825ac3de3d4d2bc458e47c750ff8e
 - risk: `normal`（製品 code を変えない。build だけで、Play も登録もしない）
 - owner: root（依頼者）
 - created: 2026-11-11
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 判定 C 1 回目（head `0b72f0ff`）の bundle はローカル固定済み（未昇格）、取得と閲覧を判断担当の別 process で確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。差し戻しで head が変わるので判定には流用しない
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（判定 C 1 回目の差し戻し。新しい session）。
-  - 次の作業: §7.3 の EC-01（別 process で `LitEmissive.mat` の bytes が一致しない）を §4 の B 適応（fixture の決定性）の範囲で直し、`contract-audit` とコンパイル確認を済ませ、§6 に追記して commit する。修正後は発見 C で修正差分を見てから、新しい GO 候補 head で判定 C の 3 コマンドをやり直す（旧 head の判定証拠は流用しない）。
+  - 次の Phase・役割: 発見 C（判定 C 1 回目の差し戻しの修正差分の確認。新しい session）。
+  - 次の作業: `0b72f0ff` から implementation head の `unity/` の修正差分（§6 の「判定 C 1 回目の差し戻しの修正」）で EC-01 が解消し、新しい凍結条件・常時契約の違反が無いかを見る。阻害する指摘が無ければ implementation head を GO 候補 head とし、判定 C の 3 コマンド（§5）をやり直す（旧 head の判定証拠は流用しない）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: Phase B はコンパイル確認と原因確認の Editor 操作だけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
+  - 必要な権限: 発見 C は commit を読むだけで、Unity と資格情報は要らない。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: なし。
 
@@ -299,6 +299,17 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - **DC-03:** root の生成（`BuildContentRoot`・`BuildContentEntry`・`Loadable` の組み立て）を `IdentityFixture.CreateRoot` から `IdentityBuilds.CreateRoot` へ移した。fixture は作り終えた root を `AddRoot`（`ScriptableObject` を受け、他の asset と同じ固定 GUID の処理で置く）で受け取るだけにした。prefab の component は `IdentityFixture` の constructor が `System.Type` で受け（`Component` の派生で、2 つが別の型であることを確かめる）、`IdentityBuilds` が `AssetReleaseOnDestroy` と `VfxOwnerDestroyNotifier` を渡す。`IdentityFixture` から `OneStarMaker.Runtime.*` と `Unity.Loading` の using は無くなり、製品への依存は `IdentityBuilds` だけになった。新しい Runtime の型は足していない。
 - 行数は `IdentityBuilds.cs` 507、`IdentityFixture.cs` 315（他の 2 file は変えていない）。
 - **確認したこと:** Unity 6000.6.0f1 の Editor でコンパイル成功（`scriptCompilationFailed` が false、4 つの型がロードされ、`IdentityFixture` の constructor が `Type, Type` であることを確認。Editor.log に spike の file の警告・エラーは 0）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。確認の Editor はこの session で起動し、`EditorApplication.Exit(0)` で正常終了させ、Editor の process が消えたことをプロセス一覧で確かめた（強制終了はしていない）。Unity CLI 自身の常駐 process（`unity.exe --internal-identity-serve`）は Editor ではないので残している。
+- **未実行:** Unity テストと build（Phase C）。
+
+**判定 C 1 回目の差し戻しの修正（§7.3 の EC-01。§4 の B 適応「fixture の決定性」と「keyword の選び方」の範囲。判定の語・判定定義・§3 の参照の形・製品 code・asmdef は変えていない）:**
+
+- **原因（確認した事実）:** Editor で fixture の生成（`IdentityFixture.Create` と `Delete`）を同じ process で 2 回繰り返すと、`LitEmissive.mat` の sha256 が判定 C の第 2 process の値（`02c2…`）と第 1 process の値（`ee62…`）に分かれた。2 つの bytes の差は、URP の `AssetVersion`（class 114）の文書が `Material` の文書の前にあるか後にあるかだけだった。Unity は object の文書を元の乱数の fileID の順に書き、`FixFileIds` は fileID を固定値へ置き換えても文書の順を変えていなかった。`LitPlain.mat` も同じ 2 つの object を持つので、判定 C で一致したのは偶然の範囲と読む（仮説。確率は測っていない）。prefab と Scene は乱数の fileID を持つが、判定 C の 2 process で一致しており、Unity が乱数の順以外で書くと見られる（未確認）。
+- **修正 1:** `FixFileIds` の後に、YAML の文書を固定後の fileID の昇順に並べ直す（`SortDocuments`。全ての text の asset に効く。固定後の fileID が重なれば止める）。並べ直しの後の prefab・material・Scene を Editor で読み、component・material の参照・Scene の Renderer の material・`AssetVersion` の副 object が揃い、warning と error の log が 0 件であることを確かめた。
+- **修正 2（同じ調査で見つけた §3 との食い違い）:** 保存された `LitEmissive.mat` の `m_ValidKeywords` が空で、§3 の「URP の `Lit` に emission の keyword」になっていなかった（判定 C 1 回目の 2 つの bytes とも同じ）。新しい material の既定の GI flag `EmissiveIsBlack` を見て、URP の material の検証が `_EMISSION` を外すため（keyword が外れたことは確認した事実、外す主体が URP の検証であることは仮説）。`globalIlluminationFlags` を `RealtimeEmissive` にして keyword を残した。保存された file の `m_ValidKeywords` は `_EMISSION`、`m_LightmapFlags` は 1 になった。
+- **確かめたこと:** 修正後、同じ Editor の process で fixture の生成を 3 回、Editor を終了して起動し直した別の process で 1 回行い（別 process ではもう 1 回を依頼したが、起動直後の Editor で実行されず結果が無い）、4 回とも全ての source の file と `.meta`（root を除く 18 個）の sha256 が一致した（root は `IdentityBuilds` が build ごとに作るので、この確認には入れていない）。生成の試行のたびに `Assets/OsmSpikeCfi` が消えたことを file system で確かめた。Unity 6000.6.0f1 の Editor でコンパイル成功（`scriptCompilationFailed` が false）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。
+- **source の bytes が変わったことの影響:** prefab・Scene・`LitPlain.mat`・`LitEmissive.mat` の bytes は判定 C 1 回目と違う（文書の順と keyword）。判定 C 1 回目の record は旧 head のもので流用しない。
+- 行数は `IdentityFixture.cs` 335（他の 3 file は変えていない）。
+- Editor はこの session で起動し（2 回）、`EditorApplication.Exit(0)` で終了させ、Editor の process が消えたことをプロセス一覧で確かめた。判定 C 1 回目の record（`TestResults/cfi/20261111T152153Z/`）は読んだだけで変えていない。
 - **未実行:** Unity テストと build（Phase C）。
 
 ## 7. Phase C
