@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: `B` 完了（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: 発見 C 1 巡目で `B` へ差し戻し（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: df21b8178bb8d798ddce5eab3d0f532301bd9515
 - risk: `normal`（製品 code を変えない。build だけで、Play も登録もしない）
 - owner: root（依頼者）
 - created: 2026-11-11
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（動作確認は §5 のとおり `対象なし`）。新しい session で始める。
-  - 次の作業: §6 の実装を §2・§3 と照合する構造・契約のレビュー。build と Unity テストは判定 C で §5 の 3 コマンドを実行する。
+  - 次の Phase・役割: Phase B（発見 C 1 巡目の差し戻し。新しい session）。
+  - 次の作業: §7.1 の DC-01 と DC-03 を直し、`contract-audit` とコンパイル確認を済ませ、§6 に修正を追記して commit する。修正後は発見 C 2 巡目（修正差分と DC-01・DC-03 の解消を見る）。build と Unity テストは判定 C で §5 の 3 コマンドを実行する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 判定 C の Unity バッチテストは sandbox 外の承認済み経路（`osm-workflow` の Phase C）。
+  - 必要な権限: Phase B はコンパイル確認の Editor 操作だけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路（`osm-workflow` の Phase C）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: なし。
 
@@ -295,7 +295,21 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 
 ## 7. Phase C
 
-未着手。
+### 7.1 発見 C 1 巡目（対象 implementation head `df21b817`）
+
+- 種別: 発見。動作確認は §5 のとおり `対象なし`。
+- 入力: base `f8ffd023` から head `df21b817` の完全 diff・stat・name-status、head の新規 4 file と呼び出す製品 code の写し、本書（head の版）、`AGENTS.md`、アーキテクチャゲート、`contract-audit`（errors 0・warnings 0）。commit で固定し、Artifact Storage は使っていない（発見 C の入力は commit 固定で足りる）。
+- 構造適合: `FileInventory` は Unity と製品の型を受け取らず §3 どおり。行数の約 1.7 倍は判定の写像の明示、fixture の決定性、record の型で説明でき、責務の混在は無い。`#nullable enable`・`record` 不使用・`Task.Delay` / `Thread.Sleep` 不使用・偽 null（`== null`）は満たす。
+- 現在の問いを阻害する findings（B へ差し戻し、1 巡目）:
+  - **DC-01**（AC1）: build ごとの source の採取は直前と直後の 2 回だが、record に書くのは直前の一覧だけで、直後の sha256 と GUID が残らない（`IdentityBuilds.cs` の `Measure`）。AC1 の「直前と直後に採り、両者が一致する」を record から確かめられない。修正: 直後の一覧も build ごとに record へ書く。
+  - **DC-03**（§3 の責務マップ「製品への依存はこの file だけ」= `IdentityBuilds`）: `IdentityFixture` が `BuildContentRoot` の生成（`CreateRoot`）と Runtime の component 型（`AssetReleaseOnDestroy`・`VfxOwnerDestroyNotifier`）を直接参照する。修正: root の生成と製品の型の参照を `IdentityBuilds` へ移し、fixture へは `System.Type` 等で渡す（§3 の参照の形と新しい Runtime 型を足さない条件は変えない）。
+- 阻害しない findings:
+  - **DC-02**（決定記録の候補）: source に `.shader` と `.unity` が同居する file は、§2 の分類の順で shader になり、違えば CONDITIONAL ACCEPT 側に入る。凍結した分類の文言どおりで違反ではない。AC4 が複数 source の file と違った file を source の一覧付きで列挙するので、判定 C はその一覧で同居の有無を読む。
+  - §2 (a): `CleanBuildCache` の build が cache を使わなかったことは log の行の抽出までで、自動の判定は無い。AC2 の文言どおり（取れなければ結論に付記）で、判定 C が record を読んで確かめる。
+- 後続スライスへ移送する findings: なし。
+- 実行したテスト: なし（Unity は起動していない。静的レビューのみ）。
+- 未確認事項: 実際の `ContentLayout.json` の対応づけ、`CleanBuildCache` の log、別 process の fixture の一致、例外時の後始末、AC1〜AC7 の record の充足（全て判定 C の実行で確かめる）。
+- 担当: Codex CLI（read-only sandbox、新規 session）。DC-02 の重さは、凍結した分類の文言を示して同じ session に再確認させ、blocker から外した。
 
 ## 8. Phase C'
 
