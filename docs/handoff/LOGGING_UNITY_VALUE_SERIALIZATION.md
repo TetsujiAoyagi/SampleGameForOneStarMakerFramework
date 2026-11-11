@@ -7,16 +7,17 @@
 - implementation base: f8ffd023 （開始時の origin/develop） / implementation head: 未固定
 - risk: high（非同期ログ出力と失敗通知、寿命に影響）
 - owner: 主担当 / created: 2026-11-12 / expires: 凍結または置換 revision
-- harvest: `unity/Assets/Docs/Architecture/12-telemetry.md` の G5 とログ利用上の制約、`unity/Assets/Docs/Architecture/30-accessibility-identity.md` の Foundation における Vector3 の記述
+- harvest: `unity/Assets/Docs/Architecture/12-telemetry.md` の G5 とログ利用上の制約（Editor の実 factory で確認した範囲と Player 未検証を区別）、`unity/Assets/Docs/Architecture/30-accessibility-identity.md` の Foundation における Vector3 の記述
 - Phase A snapshot: 未生成。外部レビュー後、凍結前に固定・引渡し確認する。
 - 次: 再レビューと人間の採否、下記の実現経路確認、正式 A2 の後に A3 を判断する。Phase B には進まない。
 
 ## 1. 目的と対象
 
-- 目的: Unity の値型を含むログを欠落させず記録でき、記録できない場合も開発者が失敗を検出できるようにする。
+- 目的: 有限の Vector3 を含むログを x/y/z の数値として記録でき、記録できない場合も開発者が失敗を検出できるようにする。
 - 利用者: Unity アプリのログを使って問題を調査する開発者。
+- 目的文の変更: 元の文言は「Unity の値型を含むログを欠落させず記録でき、記録できない場合も開発者が失敗を検出できるようにする。」。再現された問題を最初のスライスで扱うため範囲を明確化。2026-11-12、依頼者は推奨した有限 Vector3 と Player 判定範囲の案を承認した。変更後の目的レビューは §7 に記録。
 - 現況: `AppLoggerFactory` の JSON formatter は `IncludeProperties.All`。文書 G5 に `Vector3` を structured property に含む行が循環参照で欠落した再現と実例がある。ZLogger 同梱 XML は `InternalErrorLogger` が書込み中の例外に呼ばれ既定 null は無視と説明する。callback の範囲・安全性は未実測。JSON 設定は rolling file と realtime JSON で共有、既定 realtime MessagePack は別 formatter。telemetry は JSON の structured fields を利用する。
-- 対象: 再現済み `Vector3` の通常の有限成分と、provider の書込み処理で捕捉される変換失敗の可視化。一般の任意型や物理媒体の故障時の完全な復旧を保証しない。
+- 対象: 再現済み `Vector3` の有限成分 x/y/z を JSON 数値として保存し、対象 provider の書込み処理で捕捉される変換失敗を可視化する。非有限成分は変換失敗として通知し、値としての保存は後続。`Quaternion` 等の他の Unity 値型の値の保存は保証しない。これらが変換例外として捕捉された場合は通知対象だが、すべての型が必ず失敗するとは仮定しない。一般の任意型や物理媒体の故障時の完全な復旧を保証しない。
 - 対象外: DebugStudio protocol/画面変更、formatter 以外のログ基盤の作り直し、ログ呼出側の個別文字列化、全 Unity 型の網羅、ログの配信保証、既存ファイル修復、asmdef 参照追加。
 - UC: 開発者は従来どおり `ILogger` にメッセージと値を渡す（開発時の呼出、調査したい値を指定するため必要）。アプリ起動・対象出力は既存配線と既定値による。調査時に既存 rolling log と独立した障害通知先を確認する（実行時の閲覧）。値型ごとの登録・新たな操作は求めない。
 
@@ -31,14 +32,14 @@
 - E3: rolling と realtime JSON の双方で E1/E2 と I1〜I3 を検証する。既定 MessagePack は既存 wire/telemetry の回帰確認を行う。
 - 合格例: `Vector3(1,2,3)` の x/y/z を数値で持つ正常行、正常 A → 64 KiB 超の変換失敗 B → 正常 C を実 provider に通し、出力全体を byte 単位で改行分割した各非空行が JSON 値ちょうど 1 個で A/C が各 1 行、B の断片がなく、対象 provider の通知を確認できる。別に上限以内の 64 KiB 超の正常 entry が一行で完全に出ること、上限超過 entry は変換結果が正常でも断片を出さず通知されることを確認する。 不合格例: 行だけが消える、通知が同一 logger に再投入される、B の断片が残る、途中断片と後続行が結合する。
 - 分割判断: 型対応と失敗検出は独立に失敗するが、現在の問いは再現された欠落と検知不能の両方を閉じること。小さく収まる前提で一スライスとし、別通知基盤や多数の型へ広がる場合は A に戻して分割する。後続は残りの Unity 型・非有限数・媒体障害の検討（担当未定）。
-- GO: 上記不変条件・成立条件と判定必須検証を満たす。NO-GO: いずれか未達。候補の実現性は未確認であり、成立しない場合は仕様を自動緩和せず A に戻す。
-- 未決: entry 単位の一時 buffer 案の既存 provider への組込み、メモリ上限と超過時の通知、callback の実際の到達・provider 継続性、独立通知先の選択と可用性、目的文と対象型の整合。これらを A3 凍結前に確認・裁定する。Player の AOT / stripping は実機証拠がなく、Editor の結果から成功を推測しない。
+- GO: Unity Editor の EditMode で実 factory を通し、上記不変条件・成立条件と判定必須検証を満たす。NO-GO: いずれか未達。Player / IL2CPP / AOT / stripping は今回 GO の対象外で未検証、Editor の結果を Player での修正の証拠にしない。候補の実現性は未確認であり、成立しない場合は仕様を自動緩和せず A に戻す。
+- 未決: entry 単位の一時 buffer 案の既存 provider への組込み、メモリ上限と超過時の通知、callback の実際の到達・provider 継続性、独立通知先の選択と可用性。これらを A3 凍結前に確認・裁定する。Player の AOT / stripping は実機証拠がなく、Editor の結果から成功を推測しない。
 
 ## 3. 責務と実装案
 
 - `Foundation/Logging/AppLoggerFactory.cs`（205行）: 既存 provider の配線、寿命は factory、公開面は `ILogger<T>`。JSON 設定と必要な通知 callback を接続。予定 +20〜40行。
 - Foundation/Logging 内の小さな専用 converter（候補、新規）: 状態・I/O を持たず、有限 `Vector3` を x/y/z の数値 object にする。非有限値は変換失敗として通知する候補。formatter の既存 `JsonSerializerOptions` に converter を追加し、他の既定値を置き換えない。ZLogger 2.5.10 の source 上は設定点があるが実配線は未確認。登録と converter は factory と同寿命。公開 API・asmdef 追加なし。+50〜100行見込み。
-- Foundation/Logging の entry 単位 buffer（新規候補）: JSON formatter を包み、一時 buffer 内で変換が成功した後だけ完成 bytes を provider の writer へ渡す。変換失敗時は外側へ bytes を渡さず例外を再送出して provider の callback に届ける。成功コピー後と失敗再送出前の双方で一時 buffer を破棄または初期化し、次の entry に残さない。`WithLineBreak` は内側の JSON formatter と同じ true とし、改行は provider のみが書く。各 provider の formatter と同寿命、Unity API 非依存。上限は成功行にも適用され、**変換中の書込みまたは buffer 拡張の時点で超過を止める**。変換完了後の長さ検査だけには依存しない。上限以下は通常どおり出し、超過時はそれまでの一時 bytes を外側へ渡さず破棄し、例外を再送出して通知する候補。上限の具体値は未決だが上記 64 KiB 超の成功・失敗 fixture が上限以内、超過 fixture は上限より大きいことを要求する。ZLogger 2.5.10 の source 上は public `UseFormatter` で包めるが、実行での成立は未確認。processor の置換は、この方法が成立しない場合の Phase A 再検討対象。推定規模は未確定であり、計画をそのまま B に渡さない。
+- Foundation/Logging の entry 単位 buffer（新規候補）: JSON formatter を包み、一時 buffer 内で変換が成功した後だけ完成 bytes を provider の writer へ渡す。変換失敗時は外側へ bytes を渡さず例外を再送出して provider の callback に届ける。成功コピー後と失敗再送出前の双方で一時 buffer を破棄または初期化し、次の entry に残さない。`WithLineBreak` は内側の JSON formatter と同じ true とし、改行は provider のみが書く。各 provider の formatter と同寿命、Unity API 非依存。上限は成功行にも適用され、**変換中の容量要求・書込みまたは buffer 拡張の時点で、上限を超す確保に先立って超過を止める**。変換完了後の長さ検査だけには依存しない。上限以下は通常どおり出し、超過時はそれまでの一時 bytes を外側へ渡さず破棄し、例外を再送出して通知する候補。上限の具体値は未決だが上記 64 KiB 超の成功・失敗 fixture が上限以内、超過 fixture は上限より大きいことを要求する。ZLogger 2.5.10 の source 上は public `UseFormatter` で包めるが、実行での成立は未確認。processor の置換は、この方法が成立しない場合の Phase A 再検討対象。推定規模は未確定であり、計画をそのまま B に渡さない。
 - Foundation/Logging 内の独立通知（候補）: factory が所有し provider 別の callback から同期的に通知する。複数 provider の並行アクセスを保護し、例外を内側で処理する。同じ `ILogger`、provider の dispose / flush 待ち、Unity main thread の同期待ちに戻らない。provider を `_inner.Dispose()` で drain した後に通知先を閉じる。通知先の具体的な I/O と開発者の閲覧経路、通知先停止時の扱いは未決。+30〜80行見込み。
 - `MessagePackZLoggerFormatter` と `JsonFileTelemetrySink`: 変更を予定しない。既存テストを回帰境界として使う。
 - Foundation tests: 既存の `InternalsVisibleTo` を利用し、factory 内部コンストラクタの一つの seam で一時 log directory と通知先を指定する案。公開コンストラクタをその共通経路へ委譲し、formatter / callback 設定を複製しない。公開 API は変えず、processor 自体は差し替えない。rolling と realtime JSON の実 factory 配線を通す。`Dispose` の完了後に rolling file と realtime の全 bytes、通知を観測し、実時間 sleep を使わない。ZLogger は渡された realtime stream を閉じる一方、現 factory コメントは呼び出し側所有と記述しており不一致がある。所有権の実装を変えず、コメントを実挙動に合わせて修正する案。テスト候補の `MemoryStream` は close 後に seek/read はできないが `ToArray()` は可能であることを .NET で確認した。Unity Editor の BCL では未確認であり、凍結前に観測経路を確認するか、終了後も残る一時 file を realtime へ渡し file bytes を読む案に決める。非 Unity の結果を Unity の確認として使わない。
@@ -46,14 +47,14 @@
 
 ## 4. 実装順
 
-凍結前の小さい確認は非 Unity 実行で ZLogger 2.5.10 の実 provider と wrapper を用い、組込み・64 KiB 超の成功と失敗・上限・通知と終了の成立を確認する。これは Unity の実 factory 配線の証拠ではない。実行結果を得る前は候補であり成立済みとしない。Unity テストや Build が必要な確認は Phase C の責任に従い、A で実行しない。凍結後は converter・buffer・通知・配線、回帰テスト、文書更新の順。本番 Scene やアセットを変更しない。
+凍結前の小さい確認は非 Unity 実行で ZLogger 2.5.10 の実 provider と wrapper を用い、正常 A → 64 KiB 超の変換失敗 B → 正常 C で B の bytes が外側へ 0 byte、A/C は各 1 行、成功した 64 KiB 超の entry が 1 行、上限超過時は確保前に止めて通知、失敗後に同じ formatter を再利用できることを確認する。通知と終了の成立も確認する。これは Unity の実 factory 配線の証拠ではない。不成立なら Phase A に戻し、B で processor を場当たり的に改造しない。実行結果を得る前は候補であり成立済みとしない。Unity テストや Build が必要な確認は Phase C の責任に従い、A で実行しない。凍結後は converter・buffer・通知・配線、回帰テスト、文書更新の順。本番 Scene やアセットを変更しない。
 
 ## 5. 検証とレビュー候補
 
 - 差戻し中の起点: 新設の logging fixture と `MessagePackZLoggerFormatterTests` / `TelemetryLogCorrelationTests` の該当テストを C が選択し、XML で実行名を確認する。具体 filter は fixture 名の凍結時に確定。
 - 判定 C: `pwsh tools/run-tests.ps1` の空 filter 全 EditMode、同 XML の件数とテスト名確認、`pwsh tools/contract-audit.ps1`。Unity Editor と project を確認し、人間所有 Editor は止めない。Phase B では Unity test / Build を実行しない。
-- 通常値、複数プロパティ、例外、繰り返し出力、強制 serialization failure と後続正常行、通知先 failure、JSON の行単位 parse、telemetry、MessagePack を検証。確定的な同期で flush/終了を待ち、通知とデータを書き終えた時点を判定する。
-- 操作・目視: 通知先の実際の閲覧経路は未確定。担当・環境・観測・証拠と到達性の確認を凍結前に決める。自動テストで閉じる範囲は実ファイル全体で判定する。Player 固有の AOT/stripping は今回 GO の対象外とする案であり、人間の採否待ち。Editor の成功は Player 成功の証拠にしない。
+- 有限 Vector3 の正負・小数・ゼロ、複数プロパティ、例外、繰り返し出力、強制 serialization failure と後続正常行、通知先 failure、JSON の行単位 parse、telemetry、MessagePack を検証。確定的な同期で flush/終了を待ち、通知とデータを書き終えた時点を判定する。
+- 操作・目視: 通知先の実際の閲覧経路は未確定。担当・環境・観測・証拠と到達性の確認を凍結前に決める。自動テストで閉じる範囲は実ファイル全体で判定する。依頼者の裁定により Player 固有の AOT/stripping は今回 GO の対象外・未検証とする。Editor の成功は Player 成功の証拠にしない。
 - 高コスト証拠: なしを候補。判定 C の照合 script: なし、テスト自身の assert と XML を使用。
 - A0/A1 と A3 統合: OpenAI GPT-6（主担当）。A2 の記録と採否はレビュー後追記。C′ の担当系列は凍結時に確定。
 
@@ -70,3 +71,5 @@
 - 外部レビュー（Grok 4.7、commit `c16009ba`、正式 A2 ではない）: 大きな entry の失敗で後続行が結合し得る点、通知の thread / 終了順 / provider 識別、実 factory を通した byte 単位の検証、目的・対象型と Player の範囲を採用し本文に反映。I3 を小さい失敗だけに狭める案は、元の行整合条件を失うため現時点では採らず、entry buffer と processor 方式の成立・コストを比較する。formatter の options を置換せず converter を追加する提案も採用。通知先と Player 除外は具体案を含め凍結前の未決。外部レビューは source 調査であり、実行再現ではない。
 - 外部再レビュー（Grok 4.7、commit `ea33c3c1`、正式 A2 ではない）: wrapper の例外再送出・buffer 初期化・改行所有、成功した大きな行と上限超過、callback の I/O 例外、公開コンストラクタの共通配線、非 Unity での成立確認、I1 の判定範囲を採用。realtime stream が provider に閉じられる点は採用し、所有権を未決に記録。「閉じた MemoryStream から bytes を読めない」は seek/read には当てはまるが `ToArray()` は dispose 後も成功するため全面採用せず、.NET での限定確認と Unity 未確認を記録。目的文と Player の採否は人間の裁定待ち。
 - 外部再レビュー（Grok 4.7、commit `f23abbbc`、正式 A2 ではない）: 上限は変換後ではなく一時 buffer の書込み・拡張中に適用し、超過 bytes を外へ渡さず通知する点を採用。realtime の `ToArray()` は .NET で確認済みだが Editor BCL では未確認とし、閉じた後に file を読む代案を記録。factory コメントは実挙動に合わせる案とし、stream の所有権の実装変更は行わない。目的と Player 範囲の人間の裁定、通知先・上限の値と経路の確認、正式 A2 は未了。
+- 外部レビュー（Grok 4.7、commit `d9902b51`、正式 A2 ではない）と依頼者レビュー: 目的の範囲と Player の裁定を本文に反映し、目的レビューをやり直す。容量要求での確保前上限判定と非 Unity spike の観測項目を具体化。通知先の実体、上限値、realtime 観測方式、spike と正式 A2 は未了。2026-11-12 依頼者が推奨した有限 Vector3 と Editor 限定の判定を明示的に承認。凍結の承認ではない。
+- 変更後の目的レビュー（OpenAI GPT-6、初稿を読まない別担当、目的・利用者の原文のみ）: 入力 SHA-256 `e18f0a25273b731d202e0e0de44921fe585e9310deae9a14017050cd93b0ab73`。通常の呼出で正負・小数・ゼロを含む有限成分が数値として残り、失敗を再帰しない独立経路で観測し、非同期出力の終了点と出力経路ごとの範囲を明示すべきとした。型登録や呼出側変換、汎用シリアライザ、配送保証基盤は不要とした。既存条件との照合: 呼出・経路・失敗・終了点は本文に記載し、正負・小数・ゼロをテスト対象へ追加。通知先の実体は引き続き未決。
