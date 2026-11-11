@@ -23,11 +23,43 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
         public bool BuildsSucceeded;
         public bool DigestMatched;
         public bool FixtureAbsentAtSecondStart;
-        // 両 directory で同じ file でなかった帰属（"texture.cf"、"texture.resS"、"material"、"prefab"、"shader"）。空なら全て同じ file。
+        // 両 directory で同じ file でなかった帰属（"texture.cf"、"material"、"prefab"、"shader"、SharedTex の pixel を持つ file は
+        // PixelLocation.NotSameFileItem）。空なら全て同じ file。
         public List<string> NotSameFile = new List<string>();
-        // 正の対照の .cf と .resS が、両方とも名前と sha256 で違う。
+        // 正の対照の pixel の所在が両方で同じで、その所在の file（.cf、所在が .resS なら .resS も）が名前と sha256 で違う。
         public bool TwinFilesDiffer;
         public List<string> HarnessProblems = new List<string>();
+    }
+
+    /// <summary>
+    /// 1 つの directory の layout から読んだ、ある texture の pixel の所在の材料（HANDOFF AC1 の (1)〜(4b)）。
+    /// layout の参照の向きは、contentfile の項目の ArtifactReferences が texture の項目の Index を指す（S2-0 の FileInventory と同じ）。
+    /// </summary>
+    internal sealed class PixelEvidence
+    {
+        // (1) その texture の .cf（出力の file）。帰属できなかった時は空。
+        public string CfName = "", CfSha256 = "";
+        // (2) Category が contentfile で、ContentHash が .cf と一致する BinaryArtifacts の項目の数。
+        public int ContentFileArtifacts;
+        // (3) その項目の ArtifactReferences が指す、Category が texture の項目の数。
+        public int TextureReferences;
+        // (4a) (3) が 1 件の時の .resS（その ContentHash を名前に持つ出力の file）。無ければ空。
+        public string ResSName = "", ResSSha256 = "";
+        // (4b)(i) どの contentfile の項目からも指されない texture の項目の数。
+        public int UnreferencedTextures;
+        // (4b)(ii) .cf の size と、source の mip 0 の raw pixel の byte 数（record に format と一緒に書いた値。求められなければ 0）。
+        public long CfSize, RawBytes;
+    }
+
+    /// <summary>SharedTex の pixel の所在（"resS" か "cf"。決められなければ空）と、両 directory で pixel を持つ file が同じ file か。</summary>
+    internal sealed class PixelLocation
+    {
+        public const string ResS = "resS", Cf = "cf";
+        public string Location = "";
+        public List<string> Reasons = new List<string>();
+        public bool SameFile => Reasons.Count == 0;
+        // 同じ file でない時に Preconditions.NotSameFile へ入れる項目。同じ file なら null。
+        public string? NotSameFileItem => SameFile ? null : "texture.pixels (" + string.Join("; ", Reasons) + ")";
     }
 
     /// <summary>1 つの登録の順の、同時登録の確認（AC1）。</summary>
@@ -201,6 +233,62 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                 verdict.Answers.Add(key + ": " + answers[(key, 1)]);
             verdict.Implications.AddRange(Implications(answers.Where(x => x.Key.rep == 1).Select(x => (x.Key.key, x.Value)).ToList()));
             return verdict;
+        }
+
+        /// <summary>
+        /// HANDOFF AC1 の SharedTex の pixel の所在と、pixel を持つ file が両 directory で同じ file か（revision 1）。
+        /// .cf 自体の一致は "texture.cf" の帰属で別に見るので、ここでは見ない。所在が .cf だという読みは layout の参照と
+        /// file の size からの推論で、.cf の bytes の中の pixel の位置は確かめていない（HANDOFF §2「同じ file」の限界）。
+        /// </summary>
+        public static PixelLocation LocatePixels(PixelEvidence a, PixelEvidence b)
+        {
+            var result = new PixelLocation();
+            var both = new[] { ("A", a), ("B", b) };
+            foreach (var (d, e) in both)
+            {
+                if (e.ContentFileArtifacts != 1) result.Reasons.Add(d + ": contentfile artifacts " + e.ContentFileArtifacts);
+                if (e.TextureReferences >= 2) result.Reasons.Add(d + ": texture references " + e.TextureReferences);
+            }
+            if (a.TextureReferences != b.TextureReferences) result.Reasons.Add("texture references differ (" + a.TextureReferences + " / " + b.TextureReferences + ")");
+            if (result.Reasons.Count != 0) return result;
+
+            if (a.TextureReferences == 1)
+            {
+                // (4a) pixel は .resS にある。両 directory に実在し、名前と sha256 が同じ時だけ同じ file。
+                result.Location = PixelLocation.ResS;
+                foreach (var (d, e) in both)
+                    if (e.ResSName.Length == 0) result.Reasons.Add(d + ": .resS file is not in the output");
+                if (result.Reasons.Count == 0 && (a.ResSName != b.ResSName || a.ResSSha256 != b.ResSSha256)) result.Reasons.Add(".resS differs");
+                return result;
+            }
+
+            // (4b) 指す texture の項目が 0 件なので pixel は .cf にあるとする。根拠 (i)・(ii) が両 directory で成り立つ時だけ。
+            // (ii) は byte 数を求められなかった時（0）も成り立たないとする。小さな値で .cf の size の比較を素通りさせないため。
+            result.Location = PixelLocation.Cf;
+            foreach (var (d, e) in both)
+            {
+                if (e.UnreferencedTextures != 0) result.Reasons.Add(d + ": (i) unreferenced texture artifacts " + e.UnreferencedTextures);
+                if (e.RawBytes <= 0 || e.CfSize < e.RawBytes) result.Reasons.Add(d + ": (ii) .cf size " + e.CfSize + " is not at least raw bytes " + e.RawBytes);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// HANDOFF AC1 の正の対照の file。(1)〜(3) で所在を決め、所在が .resS なら .cf と .resS の両方、.cf なら .cf が、
+        /// 互いに名前と sha256 で違う時だけ真。(4b) の根拠は求めない（対照が示すのは数え方で、file の同一性ではない）。
+        /// (2) が 1 件でない、(3) が 2 件以上、TwinA と TwinB で所在が違う時は対照不成立で偽（A2 R-3）。
+        /// </summary>
+        public static bool ControlFilesDiffer(PixelEvidence a, PixelEvidence b, out string reason)
+        {
+            static bool Differ(string nameA, string shaA, string nameB, string shaB) =>
+                nameA.Length != 0 && nameB.Length != 0 && nameA != nameB && shaA != shaB;
+            reason = "";
+            if (a.ContentFileArtifacts != 1 || b.ContentFileArtifacts != 1) reason = "contentfile artifacts " + a.ContentFileArtifacts + " / " + b.ContentFileArtifacts;
+            else if (a.TextureReferences >= 2 || b.TextureReferences >= 2) reason = "texture references " + a.TextureReferences + " / " + b.TextureReferences;
+            else if (a.TextureReferences != b.TextureReferences) reason = "pixel locations differ";
+            else if (!Differ(a.CfName, a.CfSha256, b.CfName, b.CfSha256)) reason = ".cf is not different";
+            else if (a.TextureReferences == 1 && !Differ(a.ResSName, a.ResSSha256, b.ResSName, b.ResSSha256)) reason = ".resS is not different";
+            return reason.Length == 0;
         }
 
         public static IEnumerable<(string ac, string key, string order)> ExpectedRounds()

@@ -20,7 +20,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
 {
     /// <summary>
     /// 第 1 process（HANDOFF §2.2 AC1・AC5）。fixture を作り、directory A と B を build し、出力の全 file の名前・size・sha256 と、
-    /// ContentLayout.json による中核の 3 種・SharedShader・SharedTex の .resS・正の対照の帰属を record に書き、fixture を消して終わる。
+    /// ContentLayout.json による中核の 3 種・SharedShader・SharedTex の pixel の所在・正の対照の帰属を record に書き、fixture を消して終わる。
     /// 通常の回帰に混ぜないので [Explicit]。test が失敗するのは harness 自身の例外の時だけで、build の失敗や帰属の不一致は
     /// record の行（未判定の材料）にする。判定は判定 C が record から読む（HANDOFF §2 末尾）。
     /// 製品への依存は BuildContentRoot（無改変）だけで、build は BuildPipeline.BuildContentDirectory を直接呼ぶ（S2-0 と同じ）。
@@ -41,6 +41,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
             {
                 var fixture = new RegistrationFixture();
                 fixture.Create();
+                var rawBytes = SourceRawBytes(run);
                 yield return null;
                 var layouts = new Dictionary<string, (LayoutDocument layout, OutputFile[] files)>();
                 foreach (var d in Directories)
@@ -51,7 +52,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                     yield return null;
                 }
                 state.BuildsSucceeded = layouts.Count == Directories.Length;
-                if (state.BuildsSucceeded) Attribute(run, state, layouts);
+                if (state.BuildsSucceeded) Attribute(run, state, layouts, rawBytes);
             }
             finally
             {
@@ -139,7 +140,28 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
         internal static string Digest(OutputFile[] files) =>
             RegistrationFixture.Sha256(Encoding.UTF8.GetBytes(string.Concat(files.OrderBy(x => x.Name, StringComparer.Ordinal).Select(x => x.Name + " " + x.Sha256 + "\n"))));
 
-        private static void Attribute(SpikeRun run, FirstState state, Dictionary<string, (LayoutDocument layout, OutputFile[] files)> built)
+        // AC1 (ii) の raw の byte 数。build の前に、読める source の imported texture の mip 0 の raw data の長さから求め、
+        // width・height・format・mip の数と一緒に record に書く。format を仮定した計算はしない（HANDOFF §4、A2 R-4。
+        // J-1 の build では .cf の size との余裕が 2,220 bytes しかない）。求められなければ 0 を返し、(ii) が成り立たず未判定になる。
+        private static long SourceRawBytes(SpikeRun run)
+        {
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(RegistrationFixture.SharedTex);
+            long raw = 0;
+            string detail;
+            // Texture2D は UnityEngine.Object なので == null で判定する。
+            if (tex == null) detail = "source texture not found";
+            else if (!tex.isReadable) detail = "source texture is not readable";
+            else
+            {
+                raw = tex.GetPixelData<byte>(0).Length;
+                detail = "mip 0 raw data";
+            }
+            run.Write("source-texture", ("path", RegistrationFixture.SharedTex), ("width", tex != null ? tex.width : 0), ("height", tex != null ? tex.height : 0),
+                ("format", tex != null ? tex.format.ToString() : null), ("mipmapCount", tex != null ? tex.mipmapCount : 0), ("rawBytes", raw), ("detail", detail));
+            return raw;
+        }
+
+        private static void Attribute(SpikeRun run, FirstState state, Dictionary<string, (LayoutDocument layout, OutputFile[] files)> built, long rawBytes)
         {
             state.Digests = Directories.Select(d => d + "=" + Digest(built[d].files)).ToArray();
             var items = new (string item, string path)[]
@@ -148,6 +170,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                 ("prefab", RegistrationFixture.SharedPrefab), ("shader", RegistrationFixture.SharedShader),
             };
             var found = new Dictionary<(string d, string item), OutputFile?>();
+            var pixels = new Dictionary<(string d, string item), PixelEvidence>();
             foreach (var d in Directories)
             {
                 var (layout, files) = built[d];
@@ -158,13 +181,16 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                     run.Write("attribution", ("directory", d), ("item", item), ("path", path), ("guid", RegistrationFixture.FixedGuid(path)),
                         ("file", cf?.Name), ("sha256", cf?.Sha256), ("detail", detail));
                     if (item != "texture.cf" && item != "twin.cf") continue;
-                    var resItem = item == "texture.cf" ? "texture.resS" : "twin.resS";
-                    var res = cf == null ? null : ResS(layout, files, cf, out detail);
-                    found[(d, resItem)] = res;
-                    run.Write("attribution", ("directory", d), ("item", resItem), ("path", path), ("file", res?.Name), ("sha256", res?.Sha256), ("detail", detail));
+                    // 正の対照には (ii) を求めないので raw の byte 数を渡さない（HANDOFF AC1 の正の対照）。
+                    var pixelItem = item == "texture.cf" ? "texture.pixels" : "twin.pixels";
+                    var e = Pixels(layout, files, cf, item == "texture.cf" ? rawBytes : 0);
+                    pixels[(d, pixelItem)] = e;
+                    run.Write("pixel-evidence", ("directory", d), ("item", pixelItem), ("cf", e.CfName), ("cfSize", e.CfSize),
+                        ("contentFileArtifacts", e.ContentFileArtifacts), ("textureReferences", e.TextureReferences),
+                        ("resS", e.ResSName), ("resSSha256", e.ResSSha256), ("unreferencedTextures", e.UnreferencedTextures), ("rawBytes", e.RawBytes));
                 }
             }
-            foreach (var item in new[] { "texture.cf", "texture.resS", "material", "prefab", "shader" })
+            foreach (var item in new[] { "texture.cf", "material", "prefab", "shader" })
             {
                 var a = found[("A", item)];
                 var b = found[("B", item)];
@@ -172,13 +198,12 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                 if (!same) state.NotSameFile.Add(item);
                 run.Write("same-file", ("item", item), ("same", same), ("a", a?.Name), ("b", b?.Name));
             }
-            state.TwinFilesDiffer = new[] { "twin.cf", "twin.resS" }.All(item =>
-            {
-                var a = found[("A", item)];
-                var b = found[("B", item)];
-                return a != null && b != null && a.Name != b.Name && a.Sha256 != b.Sha256;
-            });
-            run.Write("positive-control-files", ("differ", state.TwinFilesDiffer));
+            // pixel の所在と同じ file かは pure の RegistrationVerdict で決め、ここでは分岐しない（HANDOFF §3、A2 R-1・R-2）。
+            var location = RegistrationVerdict.LocatePixels(pixels[("A", "texture.pixels")], pixels[("B", "texture.pixels")]);
+            if (location.NotSameFileItem != null) state.NotSameFile.Add(location.NotSameFileItem);
+            run.Write("same-file", ("item", "texture.pixels"), ("same", location.SameFile), ("location", location.Location), ("reasons", location.Reasons));
+            state.TwinFilesDiffer = RegistrationVerdict.ControlFilesDiffer(pixels[("A", "twin.pixels")], pixels[("B", "twin.pixels")], out var controlReason);
+            run.Write("positive-control-files", ("differ", state.TwinFilesDiffer), ("reason", controlReason));
             // 観測（判定に使わない）: 両方にある同じ id で sha256 が違う file を全件、source asset 付きで（HANDOFF §1 対象外、G24）。
             var la = built["A"].layout;
             var lb = built["B"].layout;
@@ -208,16 +233,25 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
             return file.Length == 1 ? file[0] : null;
         }
 
-        // .resS の 4 段の引き方（HANDOFF AC1、外部レビュー E-13。S2-0 の FileInventory と同じ向き）。
-        private static OutputFile? ResS(LayoutDocument layout, OutputFile[] files, OutputFile cf, out string detail)
+        // pixel の所在の材料を layout から集める（HANDOFF AC1 の (1)〜(4b)。S2-0 の FileInventory と同じ向き）。値を集めるだけで、
+        // 所在と同じ file かの判断は RegistrationVerdict.LocatePixels / ControlFilesDiffer が行う。.cf を帰属できなければ
+        // (2) が 0 件のまま返り、未判定（対照なら不成立）になる。
+        private static PixelEvidence Pixels(LayoutDocument layout, OutputFile[] files, OutputFile? cf, long rawBytes)
         {
+            var e = new PixelEvidence { RawBytes = rawBytes };
+            var referenced = new HashSet<int>(layout.BinaryArtifacts.Where(x => x.Category == "contentfile").SelectMany(x => x.ArtifactReferences));
+            e.UnreferencedTextures = layout.BinaryArtifacts.Count(x => x.Category == "texture" && !referenced.Contains(x.Index));
+            if (cf == null) return e;
+            e.CfName = cf.Name; e.CfSha256 = cf.Sha256; e.CfSize = cf.Size;
             var owners = layout.BinaryArtifacts.Where(x => x.Category == "contentfile" && x.ContentHash == Stem(cf.Name)).ToArray();
-            if (owners.Length != 1) { detail = "contentfile artifacts: " + owners.Length; return null; }
+            e.ContentFileArtifacts = owners.Length;
+            if (owners.Length != 1) return e;
             var textures = layout.BinaryArtifacts.Where(x => owners[0].ArtifactReferences.Contains(x.Index) && x.Category == "texture").ToArray();
-            if (textures.Length != 1) { detail = "texture artifacts: " + textures.Length; return null; }
+            e.TextureReferences = textures.Length;
+            if (textures.Length != 1) return e;
             var file = files.Where(x => Stem(x.Name) == textures[0].ContentHash).ToArray();
-            detail = "contentfile=" + owners[0].Index + " texture=" + textures[0].Index + " files=" + file.Length;
-            return file.Length == 1 ? file[0] : null;
+            if (file.Length == 1) { e.ResSName = file[0].Name; e.ResSSha256 = file[0].Sha256; }
+            return e;
         }
 
         private static string Stem(string name) => name.Contains('.') ? name.Substring(0, name.IndexOf('.')) : name;

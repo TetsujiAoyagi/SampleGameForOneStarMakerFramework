@@ -255,13 +255,127 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
 
         // ───── (d) 同じ file の前提、process の照合 ─────
 
-        [TestCase("shader")]
-        [TestCase("texture.resS")]
-        public void NotTheSameFileIsUndecided(string item)
+        [Test]
+        public void ShaderNotTheSameFileIsUndecided()
         {
             var input = Input();
-            input.Preconditions.NotSameFile.Add(item);
+            input.Preconditions.NotSameFile.Add("shader");
             Assert.That(Judge(input).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        // ───── AC1 の SharedTex の pixel の所在（revision 1） ─────
+
+        // §7.3 の J-1 の record の形: (2) 1 件、(3) 0 件、参照の無い texture の項目 0 件、.cf の size 3,147,948 ≥ raw 3,145,728。
+        private static PixelEvidence CfShape() => new PixelEvidence
+        {
+            CfName = "3f21.cf", CfSha256 = "s", ContentFileArtifacts = 1, TextureReferences = 0,
+            UnreferencedTextures = 0, CfSize = 3147948, RawBytes = 3145728,
+        };
+
+        private static PixelEvidence ResSShape(string name = "r.resS", string sha = "rs") => new PixelEvidence
+            { CfName = "c.cf", CfSha256 = "c", ContentFileArtifacts = 1, TextureReferences = 1, ResSName = name, ResSSha256 = sha };
+
+        // FirstProcess と同じく、所在判定の結果を NotSameFile に入れて Judge へ渡す。
+        private static Verdict JudgeWithPixels(PixelEvidence a, PixelEvidence b)
+        {
+            var input = Input();
+            var item = RegistrationVerdict.LocatePixels(a, b).NotSameFileItem;
+            if (item != null) input.Preconditions.NotSameFile.Add(item);
+            return Judge(input);
+        }
+
+        [Test]
+        public void PixelsInTheCfWithBothGroundsAreTheSameFileAndGo()
+        {
+            var location = RegistrationVerdict.LocatePixels(CfShape(), CfShape());
+            Assert.That(location.Location, Is.EqualTo(PixelLocation.Cf));
+            Assert.That(location.SameFile, Is.True, string.Join("\n", location.Reasons));
+            var v = JudgeWithPixels(CfShape(), CfShape());
+            Assert.That(v.Outcome, Is.EqualTo(RegistrationVerdict.Go), string.Join("\n", v.Reasons));
+        }
+
+        [Test]
+        public void PixelsInTheSameResSAreTheSameFileAndGo()
+        {
+            var location = RegistrationVerdict.LocatePixels(ResSShape(), ResSShape());
+            Assert.That(location.Location, Is.EqualTo(PixelLocation.ResS));
+            Assert.That(JudgeWithPixels(ResSShape(), ResSShape()).Outcome, Is.EqualTo(RegistrationVerdict.Go));
+        }
+
+        [TestCase("", "rs")]
+        [TestCase("r.resS", "other")]
+        [TestCase("q.resS", "rs")]
+        public void MissingOrDifferentResSIsUndecided(string name, string sha)
+        {
+            Assert.That(JudgeWithPixels(ResSShape(), ResSShape(name, sha)).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        [TestCase(0)]
+        [TestCase(2)]
+        public void ContentFileArtifactsOtherThanOneAreUndecided(int artifacts)
+        {
+            var b = CfShape();
+            b.ContentFileArtifacts = artifacts;
+            Assert.That(JudgeWithPixels(CfShape(), b).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        [Test]
+        public void TwoOrMoreTextureReferencesAreUndecided()
+        {
+            var a = ResSShape(); a.TextureReferences = 2;
+            var b = ResSShape(); b.TextureReferences = 2;
+            Assert.That(JudgeWithPixels(a, b).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        [Test]
+        public void DifferentTextureReferenceCountsAreUndecided()
+        {
+            Assert.That(JudgeWithPixels(CfShape(), ResSShape()).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        [Test]
+        public void UnreferencedTextureInOneDirectoryIsUndecided()
+        {
+            var b = CfShape();
+            b.UnreferencedTextures = 1;
+            Assert.That(JudgeWithPixels(CfShape(), b).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        [TestCase(3145727L, 3145728L)]
+        [TestCase(3147948L, 0L)]
+        public void CfTooSmallForTheRawPixelsOrUnknownRawIsUndecided(long cfSize, long raw)
+        {
+            var a = CfShape();
+            a.CfSize = cfSize; a.RawBytes = raw;
+            Assert.That(JudgeWithPixels(a, CfShape()).Outcome, Is.EqualTo(RegistrationVerdict.Undecided));
+        }
+
+        // ───── AC1 の正の対照の file（revision 1） ─────
+
+        private static PixelEvidence Twin(string v, int references) => new PixelEvidence
+        {
+            CfName = v + ".cf", CfSha256 = "c" + v, ContentFileArtifacts = 1, TextureReferences = references,
+            ResSName = references == 1 ? v + ".resS" : "", ResSSha256 = references == 1 ? "r" + v : "",
+        };
+
+        [TestCase(1)]
+        [TestCase(0)]
+        public void ControlFilesDifferInEitherLocation(int references)
+        {
+            Assert.That(RegistrationVerdict.ControlFilesDiffer(Twin("a", references), Twin("b", references), out var reason), Is.True, reason);
+        }
+
+        [Test]
+        public void ControlWithTheSameResSOrDifferentLocationsOrAmbiguousArtifactsDoesNotDiffer()
+        {
+            var sameResS = Twin("b", 1);
+            sameResS.ResSName = "a.resS"; sameResS.ResSSha256 = "ra";
+            Assert.That(RegistrationVerdict.ControlFilesDiffer(Twin("a", 1), sameResS, out _), Is.False);
+            Assert.That(RegistrationVerdict.ControlFilesDiffer(Twin("a", 1), Twin("b", 0), out _), Is.False);
+            var ambiguous = Twin("b", 1);
+            ambiguous.ContentFileArtifacts = 2;
+            Assert.That(RegistrationVerdict.ControlFilesDiffer(Twin("a", 1), ambiguous, out _), Is.False);
+            Assert.That(RegistrationVerdict.ControlFilesDiffer(Twin("a", 2), Twin("b", 2), out _), Is.False);
         }
 
         [Test]
