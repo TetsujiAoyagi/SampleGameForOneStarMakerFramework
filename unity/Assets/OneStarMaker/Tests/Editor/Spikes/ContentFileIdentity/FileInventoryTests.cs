@@ -133,6 +133,39 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
         }
 
         [Test]
+        public void SceneJoiningTheScriptIdOnTheRightOnly_IsNoGo()
+        {
+            // 左の build の同じ id が script だけでも、右の build でその id に Scene が加わって bytes が違えば、
+            // script の差（CONDITIONAL ACCEPT 側）として読まない。
+            var e = RootSets((name, specs) =>
+            {
+                if (name != "B") return;
+                specs.RemoveAll(x => x.Id == "sc.cfid");
+                specs.Add(new Spec("sc.cfid", "h-sc-b", "Assets/R.cs", "Assets/X.unity"));
+            });
+            var verdict = Judgement.Judge(e, Kinds);
+            Assert.That(verdict.Conclusion, Is.EqualTo(nameof(Conclusion.NoGo)));
+            Assert.That(verdict.Reasons, Has.Some.StartsWith("N4 A-B"));
+            Assert.That(verdict.Reasons, Has.Some.StartsWith("N4 S-B"));
+        }
+
+        [Test]
+        public void CoreAssetJoiningTheScriptIdOnTheRightOnly_IsDifferedAsCore()
+        {
+            var e = RootSets((name, specs) =>
+            {
+                if (name != "B") return;
+                specs.RemoveAll(x => x.Id == "sc.cfid");
+                specs.Add(new Spec("sc.cfid", "h-sc-b", "Assets/R.cs", Prefab));
+            });
+            var item = FileInventory.Compare(e.Builds["A"], e.Builds["B"]).Differed.Single(x => x.Id == "sc.cfid");
+            Assert.That(item.Kind, Is.EqualTo(KindClassifier.Script));
+            Assert.That(item.KindB, Is.EqualTo(KindClassifier.Prefab));
+            Assert.That(item.SourceAssets, Is.EquivalentTo(new[] { "Assets/R.cs", Prefab }));
+            Assert.That(Judgement.Judge(e, Kinds).Reasons, Has.Some.StartsWith("N2 A-B"));
+        }
+
+        [Test]
         public void SameNameButDifferentBytes_IsNotGo()
         {
             // (b) 名前は内容の hash だという主張を信じない。sha256 で比べる。

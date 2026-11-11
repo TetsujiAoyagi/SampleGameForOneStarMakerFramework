@@ -258,7 +258,13 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                 var shaL = l!.Select(x => x.Sha256).OrderBy(x => x, StringComparer.Ordinal);
                 var shaR = r.Select(x => x.Sha256).OrderBy(x => x, StringComparer.Ordinal);
                 if (shaL.SequenceEqual(shaR)) continue;
+                // 同じ id でも source asset の一覧は build ごとに違いうる。種類を左の build だけで決めると、右の build で
+                // 中核の asset や Scene が同じ id に加わった差を script・shader の差として読み、判定を甘い側に倒す。
+                // 種類は両側それぞれの分類を残し（どちらかが中核・Scene・その他なら N2 / N4 に入る）、source は和集合を残す。
                 var item = Item(id, sample, "", false);
+                item.KindB = r[0].Kind;
+                item.SourceAssets = l.Concat(r).SelectMany(x => x.SourceAssets).Distinct(StringComparer.Ordinal)
+                    .OrderBy(x => x, StringComparer.Ordinal).ToArray();
                 item.SizeB = r[0].Size;
                 var expectedChange = l.Concat(r).SelectMany(x => x.SourceAssets).Any(changedSources.Contains);
                 (expectedChange ? expected : differed).Add(item);
@@ -306,12 +312,18 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
     [Serializable] internal sealed class PairItem
     {
         public string Id = "";
+        // 片方だけの id ではその側の file の種類。両方の build にある id では左の build の file の種類で、KindB に右の
+        // build の file の種類が入る（片方だけなら KindB は空）。
         public string Kind = "";
+        public string KindB = "";
+        // 両方の build にある id では両側の source asset の和集合。
         public string[] SourceAssets = Array.Empty<string>();
         public long SizeA;
         public long SizeB;
         public string Side = "";
         public bool Excluded;
+        public IEnumerable<string> Kinds => KindB.Length == 0 || KindB == Kind ? new[] { Kind } : new[] { Kind, KindB };
+        public string KindLabel => string.Join("/", Kinds);
     }
 
     [Serializable] internal sealed class MovedSource
@@ -333,7 +345,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
         public PairItem[] OneSided = Array.Empty<PairItem>();
         public MovedSource[] Moved = Array.Empty<MovedSource>();
         public bool HasOneSidedOutsideExclusions => OneSided.Any(x => !x.Excluded);
-        public IEnumerable<string> FindingKinds => Differed.Select(x => x.Kind).Concat(Moved.Select(x => x.Kind));
+        public IEnumerable<string> FindingKinds => Differed.SelectMany(x => x.Kinds).Concat(Moved.Select(x => x.Kind));
     }
 
     internal enum Conclusion { Undecided, NoGo, Go, ConditionalAccept }
@@ -442,7 +454,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
         }
 
         private static string Describe(PairResult c) =>
-            "differed=" + string.Join(",", c.Differed.Select(x => x.Kind + ":" + x.Id))
+            "differed=" + string.Join(",", c.Differed.Select(x => x.KindLabel + ":" + x.Id))
             + " moved=" + string.Join(",", c.Moved.Select(x => x.Kind + ":" + x.SourceAsset))
             + " oneSided=" + string.Join(",", c.OneSided.Where(x => !x.Excluded).Select(x => x.Kind + ":" + x.Id))
             + " expected=" + c.ExpectedChanges.Length;

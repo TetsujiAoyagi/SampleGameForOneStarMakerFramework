@@ -270,7 +270,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
 
         // Unity は object の文書を元の乱数の fileID の順に書く。fileID を固定値に置き換えても文書の順は乱数のままなので、
         // 固定後の fileID の昇順に並べ直す（URP material の AssetVersion が Material の前に来るか後に来るかが
-        // process ごとに変わり、別 process で LitEmissive.mat の bytes が一致しなかった。HANDOFF §6 の EC-01）。
+        // process ごとに変わり、別 process で LitEmissive.mat の bytes が一致しなかった）。
         // 文書の順は読み込みの意味を変えない。
         private static string SortDocuments(string yaml)
         {

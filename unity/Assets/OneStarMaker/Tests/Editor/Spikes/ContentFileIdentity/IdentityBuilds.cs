@@ -68,6 +68,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             public bool GeneratedFolderExists;
             public string GitStatusBefore = "";
             public string GitStatusAfter = "";
+            public bool GitStatusBeforeRead;
+            public bool GitStatusAfterRead;
             public string SettingsBefore = "";
             public string SettingsAfter = "";
         }
@@ -268,7 +270,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                 notes.Add("Incremental cache involvement is unknown (no cache line in the CleanBuildCache build logs).");
             if (new[] { "A", "B", "A-clean", "B-clean" }.All(builds.ContainsKey))
             {
-                static string Findings(PairResult c) => string.Join(";", c.Differed.Select(x => x.Kind + ":" + x.Id).Concat(c.Moved.Select(x => x.Kind + ":" + x.SourceAsset)).OrderBy(x => x));
+                static string Findings(PairResult c) => string.Join(";", c.Differed.Select(x => x.KindLabel + ":" + x.Id).Concat(c.Moved.Select(x => x.Kind + ":" + x.SourceAsset)).OrderBy(x => x));
                 var warm = Findings(FileInventory.Compare(builds["A"], builds["B"]));
                 var clean = Findings(FileInventory.Compare(builds["A-clean"], builds["B-clean"]));
                 if (warm != clean) notes.Add("A-B and A-clean-B-clean disagree: [" + warm + "] vs [" + clean + "]");
@@ -294,7 +296,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             n.OneBuildMinusUnion = n.OneBuildAB - n.UnionAB;
             n.DifferedByKind = e.RootSetPairs.Where(x => builds.ContainsKey(x.a) && builds.ContainsKey(x.b))
                 .SelectMany(x => FileInventory.Compare(builds[x.a], builds[x.b]).Differed)
-                .GroupBy(x => x.Kind).Select(g => g.Key + ": count=" + g.Count() + " bytes=" + g.Sum(x => x.SizeB)).ToArray();
+                .GroupBy(x => x.KindLabel).Select(g => g.Key + ": count=" + g.Count() + " bytes=" + g.Sum(x => x.SizeB)).ToArray();
             n.RedistributedByRound = e.Rounds.Where(r => builds.ContainsKey(r.Baseline) && builds.ContainsKey(r.Build))
                 .Select(r => r.Build + "=" + FileInventory.RedistributedBytes(builds[r.Baseline], builds[r.Build])).ToArray();
             return n;
@@ -305,7 +307,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
                 EditorUserBuildSettings.standaloneBuildSubtarget != StandaloneBuildSubtarget.Player)
                 throw new InvalidOperationException("The spike requires the active StandaloneWindows64 Player target.");
-            var care = new Aftercare { GitStatusBefore = Git("status --porcelain"), SettingsBefore = Settings() };
+            var care = new Aftercare { SettingsBefore = Settings() };
+            care.GitStatusBeforeRead = TryGit("status --porcelain", out care.GitStatusBefore);
             care.LeftoverRemoved = IdentityFixture.RemoveLeftovers();
             run.Write("process-start", care);
             return care;
@@ -319,10 +322,12 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             care.FixtureFolderExists = IdentityFixture.Exists;
             care.GeneratedFolderExists = Directory.Exists(Path.Combine(Application.dataPath, "OneStarMakerGenerated"))
                                          || File.Exists(Path.Combine(Application.dataPath, "OneStarMakerGenerated.meta"));
-            care.GitStatusAfter = Git("status --porcelain");
+            care.GitStatusAfterRead = TryGit("status --porcelain", out care.GitStatusAfter);
             care.SettingsAfter = Settings();
             if (care.FixtureFolderExists || care.GeneratedFolderExists) run.Undecided.Add("AC7: generated folders remain");
-            if (care.GitStatusAfter != care.GitStatusBefore) run.Undecided.Add("AC7: git status changed during the process");
+            // 取得に失敗した git status は前後が同じ失敗の文字列になりうるので、一致として読まずに未判定にする。
+            if (!care.GitStatusBeforeRead || !care.GitStatusAfterRead) run.Undecided.Add("AC7: git status could not be read");
+            else if (care.GitStatusAfter != care.GitStatusBefore) run.Undecided.Add("AC7: git status changed during the process");
             if (care.SettingsAfter != care.SettingsBefore) run.Undecided.Add("AC7: build settings, target or graphics settings changed");
             run.Write("process-aftercare", care);
         }
@@ -352,8 +357,11 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                     outputPath = output, rootAssetPaths = new[] { rootPath }, name = name,
                     compression = BuildCompression.Uncompressed, options = options, extraScriptingDefines = Array.Empty<string>(),
                 });
-                if (report == null || report.summary.result != BuildResult.Succeeded)
-                    throw new InvalidOperationException("Content build " + build + " failed: " + report?.summary.result);
+                // BuildReport は UnityEngine.Object なので、null の判定は == null で行う（?. は破棄済みを見落とす）。
+                if (report == null)
+                    throw new InvalidOperationException("Content build " + build + " failed: no build report");
+                if (report.summary.result != BuildResult.Succeeded)
+                    throw new InvalidOperationException("Content build " + build + " failed: " + report.summary.result);
                 return output;
             });
         }
@@ -493,15 +501,25 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
 
         private static string Git(string arguments)
         {
+            TryGit(arguments, out var text);
+            return text;
+        }
+
+        // 失敗した時は false を返し、text に失敗の理由を入れる（record に残すため）。
+        private static bool TryGit(string arguments, out string text)
+        {
             try
             {
                 using var process = Process.Start(new ProcessStartInfo("git", arguments)
                     { WorkingDirectory = RepoRoot, RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true });
-                var text = process!.StandardOutput.ReadToEnd();
+                if (process == null) { text = Unloaded + " (git did not start)"; return false; }
+                var output = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
-                return process.ExitCode == 0 ? text : Unloaded + " (exit " + process.ExitCode + ")";
+                if (process.ExitCode == 0) { text = output; return true; }
+                text = Unloaded + " (exit " + process.ExitCode + ")";
+                return false;
             }
-            catch (Exception ex) { return Unloaded + " (" + ex.Message + ")"; }
+            catch (Exception ex) { text = Unloaded + " (" + ex.Message + ")"; return false; }
         }
     }
 }
