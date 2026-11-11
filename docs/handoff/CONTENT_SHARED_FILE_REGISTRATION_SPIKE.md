@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: `A`（A3 の統合案。**未凍結。** A2 入力版は commit `1c96bd8c`。owner の指示で、凍結の前に draft PR #179 で外部レビューを受け、その指摘を反映した。採否の経緯は §5.1）
+- status: `A` 完了（**A3 凍結、revision 0、2026-11-12 に owner が凍結を指示。** 凍結版はこの票を含む commit。A2 入力版は commit `1c96bd8c`。凍結の前に draft PR #179 で外部レビュー 6 巡と PR の独立レビューを受け、最後の巡はどちらも blocker なし。採否の経緯は §5.1）。次は Phase B
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: 未固定
@@ -15,17 +15,17 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（「確かめていないこと」の該当行を実測の事実へ置き換え、登録の事実の節を足す。文書の冒頭の範囲は build の出力だけを言うので、登録と load の事実を含む範囲へ一文を改める。新しい文書は作らない。自己点検 S-5）、program §2.4「Unity の複数 Content Directory」・§5.3・§8（本スライスの行と S2 の再開条件）。実験 code は製品に残さず git 履歴に置く（S0-b・S2-0 と同じ）。program の本文は Phase D まで変えない
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§2.4、§5.3、§8 の S2-0 の移送、§9 の G11・G24）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（S2-0 の実測と測り直しの harness の所在）
-- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
+- Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結の入力は、この票を含む commit の本書だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（凍結前）。owner が §5.1 の外部レビュー（E-1〜E-13）、PR の独立レビュー（PR-1・PR-2）と自己点検（S-1〜S-5）の採否を確認した後、A3 凍結版を commit する。
-  - 次の作業: owner の確認。追加の指摘があれば §5.1 に足して採否を決める。目的・利用者の欄は変えていない（変えたら §5.1 の目的レビューのやり直しの規則に従う）。
-  - 引き継ぐ commit: この票を含む commit（A3 の統合案。凍結版ではない。tree の外で渡す）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: §2 の判定定義と §4 の差し戻し条件に従う。
-  - 引き渡さないもの: 目的レビューには §1 の「目的」と「利用者」の欄の原文だけを渡す（他の欄・初稿・UC の表を渡さない）。
+  - 次の Phase・役割: Phase B（実装）。新しい session で、Phase A の会話ではなく本書を入力にする。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は `未固定`（Phase A の出口）なので、Phase B の担当としてだけ引き継ぐ。PR #179 の状態ブロックの `引き継ぐ commit` も同じ SHA であること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 次の作業: §3 の 5 file を §4 の順で、`unity/Assets/OneStarMaker/Tests/Editor/Spikes/SharedFileRegistration/` に実装する。S2-0（commit `f632707a`）と S0-b（commit `94b0c4a6`）の harness は §3 のとおり git 履歴から写して縮めてよく、写した元を §6 に書く。製品 code・asmdef・既存の test は変えない（AC5）。実装を終えたら Unity Editor でコンパイルを確かめ、`pwsh tools/contract-audit.ps1` を通し、§6 に実装結果・HANDOFF との差・未実行を書いて commit する。implementation head 欄と本票の書き方は「引継ぎ票」の (a) か (b) に従う。本票の次の担当は発見 C とする（§5 のとおり動作確認は `対象なし`）。PR が存在するので、出口で PR #179 の状態ブロックも更新する。
+  - 必要な権限: Unity Editor の起動・操作とコンパイル確認（`.agents/skills/osm-unity-editor/SKILL.md` に従う。起動前に対象 project と既存の Editor を確かめる）。Unity のバッチテスト（`run-tests.ps1`）と Content Directory の build は Phase B では実行しない（Phase C の責任。§5 の 3 コマンドも実行しない）。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従い、同じ PC の発見 C へは commit の SHA で引き継ぐ。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。新しい事実は SKILL の「新しい事実の分類」で、A 再開・B 適応・スパイク・後続スライスに分ける。B 適応の範囲は §4 に書いたものだけ。Phase B は判定をしない（§2 の判定定義は判定 C が record に当てる）。
+  - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
 
 ## 1. 目的と対象外
 
@@ -224,7 +224,7 @@ fixture（SampleGame を使わない。一時 folder `Assets/OsmSpikeSfr/` に m
 - A2 独立レビュー（実施 2026-11-12。互いの指摘を見せていない）:
   - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `af641270fdfba8bd68c28f78945d3bc2eb7d33f2154a5aaa7497b6192f603f09`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
   - (2) アーキテクチャゲート兼、各不変条件を破る順序と §2 の誤答の一覧の外の探索: Codex CLI（OpenAI）。入力は A2 入力版の本書（内容 sha256 `7f4b60e44e45b9c6788440b43c5cfbfd64c65e79f82921f14d5e4a7ec8d9645b`、commit `1c96bd8c`）と、program・S2-0 の事実・AGENTS.md・アーキテクチャゲート・製品の `Runtime/BuildContent` の source・Unity 6000.6 の `ContentLoadModule` の XML doc・S2-0 と S0-b の harness の写し。枠は「計画した実験 code は実装済みと仮定」「判定を答えの有無で決めること、Q2 を S4 へ送ったことは変えない」に固定した。
-- A3 統合担当・採否: 本 session（§5.1）。**未凍結**（owner の指示で、凍結の前に draft PR の外部レビューを受ける）。
+- A3 統合担当・採否: 本 session（§5.1）。owner の指示で、凍結の前に draft PR #179 で外部レビューを受けた。2026-11-12 に owner が凍結を指示し、revision 0 として凍結した。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー（`cursor-agent` を使う場合は AGENTS.md の契約どおり Grok 系だけ）。
 - 独立性の強化条件: risk `normal` のため必須ではない。
 
@@ -296,6 +296,8 @@ commit `974cc4f7` に対して、4 巡目の外部レビュー（同じ担当）
 | PR-1 | 「同じ file」の確認が `.cf` だけで、texture の pixel を持つ `.resS` の一致を確かめていない（I-2 の誤答経路） | 採用 | 新しい指摘で妥当。`BinaryArtifacts` の `ArtifactReferences` から `SharedTex` の `.resS` を特定し、両 directory で名前と sha256 の一致を AC1 の前提と record に足した。特定できない・違う時は未判定。正の対照も同じ引き方で違うことを確かめる。build と case の追加は無い |
 | E-13 | PR-1 の反映で書いた `.resS` の引き方の参照の向きが、S2-0 が読んだ layout と逆（texture の項目が `.cf` を指すのではなく、`contentfile` の項目の `ArtifactReferences` が texture の項目の `Index` を指す）。このままだと 0 件で未判定になる | 採用 | 主担当の誤り。S2-0 の harness（commit `f632707a` の `FileInventory`）で向きを確かめ、§2 の「同じ file」と AC1 の引き方を 4 段の手順に固定した。PR の独立レビューも追跡のコメントで同じ訂正を認めた（5 巡目の外部レビュー） |
 | PR-2 | `EntityId` が答えるのは区別できる Object の実体の数で、GPU・stream の物理メモリの共有量は証明していない | 採用 | §2 の成果の範囲に「メモリに何個」の意味を限定し、含意の表の「実体が 2 つ」に量を測っていないことを書いた。目的の文言は変えない（変えると目的レビューのやり直しが要り、この限定で読めば目的と食い違わないため） |
+
+commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）と PR の独立レビューの再レビューを受けた。どちらも凍結の前に直す指摘は無く、E-13 の 4 段の引き方が S2-0 の向きと一致すること、E-11・E-12・PR-2 の修正が残っていることを確かめた。独立レビューは、実験計画のレビューであり Unity 上の build・Play の成立と実 fixture での `BinaryArtifacts` の一意な対応は未検証、想定外の layout は計画どおり未判定として B か Phase A へ返し、C で record と照合すること、と添えた（§5 の「未知の操作経路の疎通」の扱いのとおり）。owner が凍結を指示した。
 
 **自己点検（S）。** 2 巡目の反映と同時に、Phase C と C' に問われそうな所を主担当が見直した。
 
