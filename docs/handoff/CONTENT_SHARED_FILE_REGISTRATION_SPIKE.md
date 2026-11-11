@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: 発見 C の再レビューで F-1 の解消を確かめ、現在の問いを阻害する指摘は無くなった（2026-11-12。§7.2。B と発見 C の往復は 1 巡で収束）。GO 候補 head は implementation head（`0b2b6625`）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は判定 C（進行役が起こす）
+- status: 判定 C（1 回目）は未判定（2026-11-12。§7.3）。harness は 3 コマンドとも最後まで動いたが、AC1 の `SharedTex` の `.resS` を layout から特定できない（J-1）。判定 C は未完了で、C' へ進まない。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は owner の判断（J-1 の戻し先。§7.3 の (a)〜(c)）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: `0b2b6625`
@@ -20,11 +20,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（GO 候補 head は implementation head 欄の commit。§7.2）。Phase C から C' までの進行役が新しい session で起こし、起動指示で引き継ぐ commit の SHA を渡す。担当は会話ではなく本書を入力にする。判定 C の後に C' と進める。進行役自身はレビュー・判定・監査をしない（動作確認は §5 のとおり `対象なし`）。
+  - 次の Phase・役割: owner の判断。判定 C（1 回目）は未判定で、J-1（§7.3）の戻し先を owner が決める。推奨は Phase A（§2 の手順 2 の「Unity の挙動が定義した語で読めない時」）。選択肢は §7.3 の (a)〜(c)。Phase A の新しい revision か B の限定 build を経て、新しい GO 候補 head で判定 C をやり直す（§7.3 の record は新しい head の判定に流用しない）。C' は起動しない。以下の「次の作業（判定 C）」は、やり直しの判定 C の手順として残す。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は SHA なので、それが HEAD の祖先で（`git merge-base --is-ancestor`）、implementation head から HEAD までの差分が本書だけであること。PR #179 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が本欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
   - 次の作業（B）: 完了（§6.1。F-1 の修正は commit `0b2b6625`）。
   - 次の作業（発見 C の再レビュー）: 完了（§7.2。阻害する指摘なし）。
-  - 次の作業（判定 C）: GO 候補 head（implementation head 欄）で、§5 の判定必須テストの 3 コマンドを順に、それぞれ別の Unity process で実行する。XML（total 1 以上、failed 0、root `Passed`）と record の全 round の終了行で harness の成立を確かめた後、§2 の判定の手順を record の観測の行に当てて GO か未判定かを決める（`RegistrationVerdict` の判定の行は補助。§2 の「test の合否と判定は別である」）。record を読む時は §7.1 の N-1〜N-3 と未確認事項（`SharedShader` の残り）、§6.1 の F-1 の修正の確かめ方（`order-check` 行の `failureRecorded` と `case` 行の `callLoggedError` を、同じ phase の `unity-log` 行の `logType` と突き合わせる）に従う。§5 の「未知の操作経路の疎通」の初回確認も判定 C の最初の実行で行う。判定 evidence を取った head は SKILL の公開点の規則どおり軽量 tag で到達可能に保つ。
+  - 次の作業（判定 C の 1 回目）: 完了、未判定（§7.3）。
+  - 次の作業（判定 C のやり直し）: GO 候補 head（implementation head 欄）で、§5 の判定必須テストの 3 コマンドを順に、それぞれ別の Unity process で実行する。XML（total 1 以上、failed 0、root `Passed`）と record の全 round の終了行で harness の成立を確かめた後、§2 の判定の手順を record の観測の行に当てて GO か未判定かを決める（`RegistrationVerdict` の判定の行は補助。§2 の「test の合否と判定は別である」）。record を読む時は §7.1 の N-1〜N-3 と未確認事項（`SharedShader` の残り）、§6.1 の F-1 の修正の確かめ方（`order-check` 行の `failureRecorded` と `case` 行の `callLoggedError` を、同じ phase の `unity-log` 行の `logType` と突き合わせる）に従う。§5 の「未知の操作経路の疎通」の初回確認も判定 C の最初の実行で行う。判定 evidence を取った head は SKILL の公開点の規則どおり軽量 tag で到達可能に保つ。
   - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。C' の担当の手段: 2026-11-12 時点で Codex CLI は使えず、`cursor-agent` は使える（AGENTS.md の契約どおり Grok 系だけ）。§5 の「Phase A・B・C に関与していないベンダー」に当たるかは C' を起こす時に確かめ（Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを含む）、当たらなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない。§5）。
   - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B 適応で足りる欠陥は B へ戻す。B と発見 C の往復は 4 巡まで。
   - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
@@ -427,6 +428,55 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: §7.1 の未確認事項と同じ（判定 C の最初の実行で確かめる）。F-1 の修正の効果は Unity が実際に出す log の種類に依存するので、判定 C が record で確かめる（§6.1）。
 - 担当・モデル: 発見 C の再レビューは Claude（Anthropic）の新しい session で行った。モデルは Phase B と同じで、§7.1 と同じく owner が「独立性制約あり」として受け入れている。残存リスクも §7.1 と同じ。
+
+### 7.3 判定 C（1 回目、2026-11-12）
+
+- 種別: 判定。**結論: 未判定**（§2 の判定の手順 2）。判定 C は完了していない。C' 用の bundle は作らず、C' を起動しない。
+- 対象: GO 候補 head（implementation head `0b2b6625`）。実行時の worktree の HEAD は `08e18adc`（`0b2b6625` からの差分は本書だけ）。判定 evidence を取った head はローカルの軽量 tag `evidence/content-shared-file-registration-spike/1`（`08e18adc`）で到達可能にした（push しない）。
+- 開始時の照合: 渡された SHA（`08e18adc`）と HEAD が一致、作業ツリーは clean、ブランチ一致。`0b2b6625` は HEAD の祖先で、`0b2b6625` から HEAD までの差分は本書だけ。PR #179 の状態ブロックの `引き継ぐ commit` と implementation base / head は §0 と一致。
+- 使用した evidence bundle の取得案内・状態: 未生成（未判定で C' へ進まないので作らない。record・XML・log・layout は git 管理外の `TestResults` にローカルで残した。次の判定 C は新しい GO 候補 head で取り直す）。
+
+**harness の成立（§5 の 3 コマンド。それぞれ別の Unity process で、sandbox 外の承認済み経路で実行した。開始前に Unity の process と `UnityLockfile` が無いことを確かめた）。**
+
+| コマンド（`-Filter`） | XML | exit | 終了 |
+|---|---|---|---|
+| (1) `...RegistrationVerdictTests` | root `Passed`、total 45、passed 45、failed 0 | 0 | 自然終了 |
+| (2) `...RegistrationBuilds.FirstProcess` | root `Passed`、total 1、passed 1、failed 0 | 0 | 自然終了 |
+| (3) `...RegistrationRounds.SecondProcess` | root `Passed`、total 1、passed 1、failed 0 | 0 | 自然終了（既知の終了 stall は起きなかった） |
+
+- record（実行 id `20261111T214815Z`、head `08e18adc`、6000.6.0f1、StandaloneWindows64、Enter Play Mode 有効・Domain Reload 無効）は、第 1 process の開始行から第 2 process の終了行まである。round の開始行 26・終了行 26（同時登録の確認、基準 A・B、正の対照、AC2〜AC4 の 11 round × 2 反復）で、終了行の無い round は無い。`round-end` は全て `cleanedUp: true`、`round-cleanup` 28 行に回収・残り・Scene の残り・error・0 でない数は無い。`process-end` の `harnessFailures` は空、両 process の `process-aftercare` は fixture の folder と `Assets/OsmSpikeSfr`・`Assets/OneStarMakerGenerated` が無く、git status と設定は開始時と一致（AC5 の後半）。
+- 未知の操作経路の疎通（§5）: 同じ file を持つ 2 つの directory の同時登録は両方の順で受け付けられた（`order-check` の `secondValid: true`、`failureRecorded: false`）。log は phase に結びついて `unity-log` 行に残った（下の O-4）。`log-capture` 行で、round ごとに購読の開始・解除と `ignoreFailingMessages` の元の値（false）への復元が記録された。
+
+**未判定の理由（§2 の手順を record の観測の行に当てた。`verdict` 行の補助の判定も `UNDECIDED`、理由は同じ 1 件で、独立に読んだ結果と一致）。**
+
+- **J-1 `SharedTex` の `.resS` を特定できない（§2 手順 2「`SharedTex` の `.resS` を特定できないか…」、AC1）。** 両 directory の `attribution` 行で `texture.resS` が `file: null`、`detail: texture artifacts: 0`。layout を直接読むと、`SharedTex` の `.cf`（`3f21b98b….cf`、3,147,948 bytes、両 directory で名前と sha256 が同じ）の `BinaryArtifacts` の項目に `ArtifactReferences` が無い。AC1 の 4 段の引き方の (3) が 0 件である。harness の欠陥ではない（同じ引き方で `TwinA`・`TwinB` の `.resS` は 1 件ずつ引けた）。
+  - 推測（実測ではない）: `.cf` の size は 1024×1024×3 bytes（RGB24、非圧縮）に約 2 KB を足した値で、pixel は `.cf` の中にあると読める。fixture の差は、`SharedTex` が読める texture（`isReadable` 真、§2 の「壊れた」が「読める texture にしておく」と求める）で、`Twin` が読めない texture であること、と大きさである。読める texture の pixel が `.resS` に出ないなら、§2 の「同じ file」の texture の規則（`.cf` と `.resS` の両方）と「読める texture にしておく」は、この Unity では同時に満たせない。どちらが原因かは確かめていない。
+  - 戻し先: **Phase A（owner の判断）を推奨する。** §2 の手順 2 は「Unity の挙動が定義した語で読めない時」を Phase A へ戻す。凍結した語（`.resS` を持つ読める `SharedTex`）を保ったまま B の fixture の細部（§4 の B 適応）で直せるのは、原因が大きさだった時だけで、その確かめ自体に build が要る。owner が決めること: (a) texture の項目に `ArtifactReferences` が無い時は pixel が `.cf` にあるとし、`.cf` の一致で「同じ file」とする（合否が変わるので Phase A の新しい revision）、(b) `SharedTex` を読めない texture にして `.resS` に出し、pixel の比較を別の方法にする（「壊れた」の語が変わるので同じく revision）、(c) 原因を確かめる限定 build を B に許し、大きさで直るなら B 適応にする。
+- J-1 以外に手順 2 に当たる項目は record に無かった: 第 2 process の digest は第 1 process と一致（`digestMatched: true`）、fixture の folder は無い（`fixtureAbsent: true`）、`texture.cf`・material・prefab・`SharedShader` は両 directory で同じ file（`same-file` 行）、正の対照の file 名と sha256 は違う（`positive-control-files`、`differ: true`）、正の対照は load 2 つが相異なる `EntityId` で列挙と一致、全 round の開始時に登録 0 件・共通物と対照の名前の物 0 件・source は AssetDatabase に無い、R0（U1・U6・U7）は全て空、全 round の後始末が終わった。
+
+**判定 C への注意（§7.1・§6.1）の確かめ。**
+
+- N-1: U2〜U5 の `t0` 行の `broken` は 2 反復とも空。影響しない。
+- N-2: 手順 1 に当たらない（両方の順で 2 つ目の登録が成功）。
+- N-3: `round-cleanup` の `fixtureScenesLoaded` は全て false で、Scene を載せた round（基準、AC3、U5、U7）の後も残りは無い。
+- F-1 の修正: `order-check` の `failureRecorded` は両方の順で false で、その phase（`<order>/register-second`）の `unity-log` 行は無い。`case` 行の `callLoggedError` は 14 件全て false で、登録解除の呼び出しの phase の `unity-log` 行は無い（`unity-log` 10 行は全て Warning で、phase は `t1-t3`・`cleanup`・`reload-after-t3`）。食い違いは無い。ただし Unity が Error を出した場面が無いので、修正の Error 側は実地では通っていない。
+- `SharedShader` の残り（§7.1 の未確認事項）: 全 round の開始時と `round-cleanup` の後で `OsmSpikeSfr/SharedShader=0`。残らなかった。
+
+**観測（未判定なので答えにしない。次の判定 C と Phase A の入力）。** 1 回の実行の値で、2 反復の値は一致した。
+
+- O-1 AC2（Loadable）: 両方の順で、2 つの root の `SharedPrefab` の load は prefab・material・texture とも同じ `EntityId` が 1 つで列挙も 1 件、`LoadableObjectId` は等しい。
+- O-2 AC3（直接参照）: 両方の順で、`SceneA` と `SceneB` の Renderer の material と texture は相異なる `EntityId` が 2 つずつで、列挙も 2 件。`A` の root の `SharedPrefab` の material は、順 `A`→`B` では `SceneA` の material と違い、`B`→`A` では等しい（`prefabMaterialEqualsSceneA`）。
+- O-3 AC4: U1・U2・U5・U7 は無傷、U3・U4・U6 は T1 から生き残る側の prefab・Renderer・material・texture の参照が `== null` になった（壊れた）。どの case の登録解除の呼び出しにも Error・Exception の log は無く、T3 で対象の directory は一覧に無い。T3 の後の再 load は全 case で成功。U3 と U4 は同じ分類。
+- O-4 log: 捕捉した `unity-log` 10 行は全て Game の bootstrap の `[DebugSocket] Failed to connect to DebugStudio server.` の Warning で、登録・load と同じ名前の重複の警告は無かった（§2 の仮説の「警告する」は、この実行では出なかった）。bootstrap は addressables mode で 1 つ動き（`environment` 行）、その Warning が round の phase に混ざる。分類（Error・Exception だけを数える）には影響しない。
+- O-5 両方にある同じ id で sha256 が違う file: 第 1 process の棚卸しで、`A` だけの `.cf`（`4fd92f49…`）と `B` だけの `.cf`（`040c9c0e…`）は同じ size（17,324 bytes）で名前が違う。`same-id` の種類付きの行は record に無く、これが §1 の「中身が違う同じ id の file」に当たるかは判定 C では読み取っていない（次の判定 C で確かめる）。
+
+**後続スライスへ移送する findings:** なし。
+
+- 実行したテストコマンドと `-Filter`: §5 の判定必須テストの 3 コマンド（上の表）。全 EditMode 回帰は §5 のとおり適用除外。
+- 判定必須のうち未実行: なし。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 該当なし（判定 C）。
+- 未確認事項: J-1 の原因（読める texture か大きさか）。O-5 の分類。
+- 担当・モデル: 判定 C は Claude（Anthropic）の新しい session で行った。モデルは Phase B と同じで、§7.1 と同じく owner が「独立性制約あり」として受け入れている。残存リスクも §7.1 と同じ。
 
 ## 8. Phase C'
 
