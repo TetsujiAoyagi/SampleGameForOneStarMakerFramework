@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: `A`（A1 初稿。未 commit）
+- status: `A`（A3 の統合案。**未凍結。** A2 入力版は commit `1c96bd8c`。owner の指示で、凍結の前に draft PR で外部レビューを受ける。採否の経緯は §5.1）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: 未固定
@@ -20,9 +20,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A2。A2 入力版を commit し、A2 の独立レビュー 2 件（§5）を起動する。
-  - 次の作業: A2 入力版を切り、目的レビューとアーキテクチャゲートを互いの指摘を見せずに依頼する。
-  - 引き継ぐ commit: A2 入力版の commit（tree の外で渡す）。
+  - 次の Phase・役割: Phase A の A3（凍結前）。draft PR の外部レビューを受け、指摘を §5.1 の表に足して採否を決め、owner の確認の後に A3 凍結版を commit する。
+  - 次の作業: 外部レビューの指摘の分類と本文への反映。目的・利用者の欄を変えたら、§5.1 の目的レビューのやり直しの規則に従う。
+  - 引き継ぐ commit: この票を含む commit（A3 の統合案。凍結版ではない。tree の外で渡す）。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: §2 の判定定義と §4 の差し戻し条件に従う。
   - 引き渡さないもの: 目的レビューには §1 の「目的」と「利用者」の欄の原文だけを渡す（他の欄・初稿・UC の表を渡さない）。
@@ -67,14 +67,20 @@
 - 判定に使う語（実測の前に固定する）:
   - **共通物:** `SharedTex`（texture）、`SharedMat`（material、自作 shader と `SharedTex`）、`SharedPrefab`（prefab、`SharedMat` の Renderer）。**中核の 3 種**と呼ぶ。
   - **同じ file:** 両 directory の出力の直下にあり、名前と sha256 が同じ file。中核の 3 種のそれぞれについて、それが帰属する file が両 directory で同じ file であることを AC1 で確かめる。
-  - **実体の数:** 1 つの Play の中で、ある共通物の名前と型を持つ `UnityEngine.Object` のうち、`Resources.FindObjectsOfTypeAll` で見える物の数。加えて、2 つの load の結果の `EntityId.ToULong(GetEntityId())` が等しいか（`GetInstanceID` は使わない）。
-  - **壊れた:** 生き残る側から載せて保持している物について、次のどれか。`== null` になる。texture の `width` が 0 か pixel の sha256 が load 直後と違う（読める texture にしておく）。material の `mainTexture` が `== null` か別の `EntityId` になる。prefab の Renderer の `sharedMaterial` が `== null` になる。生き残る側の handle から同じ asset を Release して再 load できない。Scene の Renderer の material と texture が上と同じ条件を満たさない。
-  - **拒否された:** 登録解除の呼び出しの間に Unity が Error か Exception を log に出したが、生き残る側の物は壊れていない。
-  - **無傷:** 壊れた物も拒否も無い。
+  - **実体の数:** 1 つの Play の中で、ある共通物の名前と型を持つ `UnityEngine.Object` のうち、`Resources.FindObjectsOfTypeAll` で見える物の数と、その `EntityId.ToULong(GetEntityId())` の集合（`GetInstanceID` は使わない）。加えて、load の結果（Loadable の戻り値、Scene の Renderer の参照）の `EntityId` を記録し、次の整合の規則で読む。load の結果が全て列挙の集合に含まれ、数が列挙の集合の大きさと等しい時だけ数を答えに使う。load の結果が `== null`、列挙に含まれない、数が 0 か 3 以上、のどれかなら未判定（A2 G-05）。
+  - **正の対照の範囲:** 正の対照（AC1 の `TwinA`・`TwinB`）が示すのは、texture について列挙が別の実体を 2 つと数えられることだけである。material・prefab の列挙の網羅性は、load の結果の `EntityId` が列挙に含まれることでだけ確かめ、列挙に出ない実体が無いとは主張しない（結論にこの限界を書く）。
+  - **観測の時点（登録解除）:** T0 は登録解除の呼び出しの直前、T1 は呼び出しの直後（同じ frame）、T2 は 1 frame の後、T3 は `Resources.UnloadUnusedAssets` の完了の後（A2 G-04、目的レビュー）。各時点で、登録中の directory の一覧（`GetContentDirectories`。対象の directory が残っているか）と、生き残る側の物の状態を記録する。log は、呼び出しの間（同期）と、T1 から T3 の間に出た物を分けて記録する。
+  - **壊れた:** T1〜T3 のどれかで、生き残る側から載せて保持している物について、次のどれか。`== null` になる。texture の `width` が 0 か pixel の sha256 が load 直後と違う（読める texture にしておく）。material の `mainTexture` が `== null` か別の `EntityId` になる。prefab の Renderer の `sharedMaterial` が `== null` になる。T3 の後に生き残る側の handle から同じ asset を Release して再 load できない。Scene の Renderer の material と texture が上と同じ条件を満たさない。
+  - **拒否された:** 壊れていない、かつ、登録解除の呼び出しの間に Unity が Error か Exception を log に出したか、T3 で対象の directory が登録の一覧に残っている。log と一覧のどちらに当たったかを分けて書く。
+  - **無傷:** 壊れていない、拒否されていない、T3 で対象の directory が登録の一覧に無い。
+  - **優先:** 1 つの case が壊れたと拒否されたの両方に当たる時は「壊れた」とする（A2 G-04）。
 - 判定定義。スパイクの合否は「問いに証拠付きの答えが出たか」だけで決め、答えの向き（実体が 1 つか 2 つか、壊れるか壊れないか）は合否に使わない。
-  1. **未判定（結論を出さない）:** 次のどれか。build を開始できない、終了行の無い round がある、中核の 3 種のどれかが両 directory で同じ file でない（AC1）、Play の round の開始時に fixture の source が AssetDatabase に残っている、round の開始時に共通物の名前の物が 1 件以上ある、正の対照が 2 つと数えられない（AC1）、AC2〜AC4 のどれかの round が無い、実体の数と `EntityId` の比較が食い違う。harness・fixture・環境の問題は B へ戻し、Unity の挙動が定義した語で読めない時は Phase A へ戻す。
-  2. **GO（答えが出た）:** 未判定に当たらず、record から次が一意に読める。Q1: 中核の 3 種のそれぞれについて、Loadable からの load（AC2）と直接参照からの load（AC3）の、登録の順ごとの実体の数。Q3: AC4 の各 case が、壊れた・拒否された・無傷のどれか。2 つの directory の同時登録を Unity が拒否した時も、拒否と log が record にあれば GO とし、Q1・Q3 の答えを「同時登録できない」とする。
+  上から順に当てはめる。
+  1. **同時登録の拒否（GO の一形）:** AC1 の「同時登録の確認」で、1 つ目の登録が成功し、2 つ目の `RegisterContentDirectory` が無効な handle を返すか例外を投げ、その時点の登録の一覧に 2 つ目が無く、Unity の log か例外の型が record にあり、1 つ目の登録解除と後始末が終わった記録がある（登録の順の両方で同じ）。この時は AC2〜AC4 を実行せず、record に「同時登録の拒否により適用除外」と書き、Q1・Q3 の答えを「同時登録できない」とする。path の誤り・harness の例外・type tree の欠落（AC1 の build の設定で確かめる）による失敗は拒否と区別し、未判定とする（A2 G-01）。
+  2. **未判定（結論を出さない）:** 次のどれか。build を開始できない、終了行の無い round がある、第 2 process の入力が第 1 process の同じ実行の出力だと照合できない（AC1）、中核の 3 種のどれかが両 directory で同じ file でない（AC1）、Play の round の開始時に fixture の source が AssetDatabase に残っている、round の開始時に共通物の名前の物が 1 件以上ある、正の対照が 2 つと数えられない（AC1）、実体の数が整合の規則に合わない、AC2〜AC4 のどれかの round が無い、同じ round の 2 回の反復で Q1 の数か Q3 の分類が違う、round の後始末が終わらない（登録が残る、Scene が unload されない）。harness・fixture・環境の問題は B へ戻し、Unity の挙動が定義した語で読めない時と反復で結果が違う時は Phase A へ戻す。
+  3. **GO（答えが出た）:** 未判定に当たらず、record から次が一意に読める。Q1: Loadable からの load（AC2）で中核の 3 種それぞれの、直接参照からの load（AC3）で material と texture の、登録の順ごとの実体の数（prefab は Scene に置かない fixture なので直接参照では数えない。A2 G-02）。Q3: AC4 の各 case が、壊れた・拒否された・無傷のどれか。
   - CONDITIONAL ACCEPT と NO-GO は使わない。
+  - 結論は、実測した事実（record の値）と、仕組みの推測（例: 逆順の探索で後から登録した側の file を読んだらしい）を分けて書く（目的レビュー）。
 - **S2 への含意（判定ではない。結論に添えて owner へ渡す。S2 の設計判断は S2 の A1 で行う）:**
 
 | Q1 / Q3 の答え | S2 が決めること |
@@ -97,32 +103,38 @@
   - 崩しうる経路: (a) Editor の AssetDatabase が fixture の source asset を載せ、同じ名前の物が増える（source を Play の前に消す）。(b) Domain Reload 無効で、前の Play の static と native の物が残る（round ごとに新しい Play、開始時に 0 件を確かめる）。(c) `Resources.FindObjectsOfTypeAll` が、Unity が内部で作った同じ名前の物（例: material の instance）を拾う（数える型を固定し、`EntityId` の比較と突き合わせる）。(d) 2 つの root の取得が同じ directory を指す（handle ごとの `GetRootAssets`。§1 の製品 wrapper は handle ごと）。
   - 探索した境界: `UnityContentDirectoryBackend` と S0-b の native 層の使い方、6000.6 の XML doc。未確認: `FindObjectsOfTypeAll` が Content Directory から載った物を全て見るか（AC1 の正の対照で測る）。
 - **I-2 中身が同じでない file で答えを出さない:** 問いの答えは、両 directory で名前と sha256 が同じ file に帰属する共通物だけから出す。
-  - 崩しうる経路: (a) 共通物が他の asset と同じ file に入り、その file が build の組み合わせで変わる（S2-0 の AC4 と同じ確認を AC1 で行う）。(b) shader の file が違い、material の file だけ同じ（material の答えに shader の差が混ざりうる。観測として記録する）。(c) fixture の再生成で GUID が変わる（S2-0 の固定 GUID の生成を使う）。
+  - 崩しうる経路: (a) 共通物が他の asset と同じ file に入り、その file が build の組み合わせで変わる（S2-0 の AC4 と同じ確認を AC1 で行う）。(b) shader の file が違い、material の file だけ同じ（material の答えに shader の差が混ざりうる。観測として記録する）。(c) fixture の再生成で GUID が変わる（S2-0 の固定 GUID の生成を使う）。(d) layout に同じ名前の別の asset があり、名前で対応づけると、load する asset とは別の file を「同じ file」と記録する（AC1 で固定 GUID と local id で対応づける。A2 G-06）。
   - 探索した境界: S2-0 の実測と harness。未確認: 中身の違う同じ id の file（script をまとめた file 等）が両 directory にある時、それが共通物の load に影響するか（観測。§1 対象外）。
 - **I-3 製品を変えない（S0-b・S2-0 と同じ）:** §3 の新規 file と本書以外の変更が無く、実験は assets・設定・build の出力を repo に残さない。
-  - 崩しうる経路: (a) fixture の folder と `.meta` の残り。(b) Build Settings・active target・Enter Play Mode の設定の変更。(c) Play の round が登録を解除せずに終わり、次の round か次の test に残る。
+  - 崩しうる経路: (a) fixture の folder と `.meta` の残り。(b) Build Settings・active target・Enter Play Mode の設定の変更。(c) Play の round が登録を解除せずに終わり、次の round か次の test に残る（Unity が登録解除を拒否した時、製品 wrapper は handle を捨てるので、wrapper からは再解除できない）。(d) Domain Reload 無効で、log の購読と `LogAssert.ignoreFailingMessages` が次の round か次の test に残る。(e) 開始時の残りの回収が、自分の marker の無い既存の folder を消す（A2 G-07）。
+  - 範囲: 守るのは git で追跡する file、§3 の fixture の folder、`Assets/OneStarMakerGenerated`、§4 の一時 root である。Unity が通常の import と build で更新する `Library` の cache は対象にしない（A2 G-07 の一部不採用。§5.1）。
 
 **成立条件（起きなければならないこと）**
 
 - **E1 準備:** 共通物を含む 2 つの directory が build でき、中核の 3 種が両方で同じ file に帰属する。
-- **E2 Q1:** 中核の 3 種のそれぞれについて、Loadable からの load と、Scene の直接参照からの load の両方で、実体の数が record にある。
+- **E2 Q1:** 中核の 3 種のそれぞれについて Loadable からの load で、material と texture について Scene の直接参照からの load で、実体の数が record にある。
 - **E3 Q3:** 登録解除の各 case で、生き残る側の物の状態と Unity の log が record にある。
 
 ### 2.2 受け入れ条件
 
-全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id、head、Unity の版、target、Enter Play Mode の設定、process の別を持ち、round ごとに開始行と終了行がある（終了行の無い round は未判定）。Play の round は全て新しい Play で行い、round の開始時に登録中の directory が 0 件であること（`GetContentDirectories`）と、共通物と正の対照の名前の物が 0 件であることを記録する。登録は製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って行う（`ContentDirectorySession` と `AssetManagement` は使わない。§1）。Unity の Error・Exception・Warning の log は test の失敗にせず（`LogAssert.ignoreFailingMessages`）、全件を round と呼び出し（登録、load、登録解除）に結びつけて record に残す（§2 の仮説の確認を兼ねる）。
+全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id、head、Unity の版、target、Enter Play Mode の設定、process の別を持ち、round ごとに開始行と終了行がある（終了行の無い round は未判定）。Play の round は全て新しい Play で行い、round の開始時に登録中の directory が 0 件であること（`GetContentDirectories`）と、共通物と正の対照の名前の物が 0 件であることを記録する。登録は製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って行う（`ContentDirectorySession` と `AssetManagement` は使わない。§1）。Unity の Error・Exception・Warning の log は test の失敗にせず（`LogAssert.ignoreFailingMessages`）、全件を round と呼び出し（登録、load、登録解除）に結びつけて record に残す（§2 の仮説の確認を兼ねる）。log の購読の開始と解除、`LogAssert.ignoreFailingMessages` の元の値への復元を round ごとに記録する。各 async の load・unload・`UnloadUnusedAssets` は完了を待ってから次へ進み、完了を record に書く（開始しただけで観測しない）。round の後始末は例外の時も `finally` で行い、登録が残れば `GetContentDirectories` の handle から `ContentLoadManager.UnregisterContentDirectory` を直接呼んで回収し、回収したことを記録する（後始末の未完了は観測値と分けて記録し、未判定とする。A2 G-08）。**反復:** AC2〜AC4 の round の集合を、同じ process の中で 2 回続けて行う。2 回で Q1 の数か Q3 の分類が違えば未判定とする（目的レビュー）。
 
-- **AC1（E1、I-1、I-2）準備と数え方:** 第 1 process が fixture（§3）を作り、directory `A`（`SceneA`、`SharedPrefab`、`TwinA`）と `B`（`SceneB`、`SharedPrefab`、`TwinB`）を build し、出力の全 file の名前・size・sha256 と、`ContentLayout.json` による中核の 3 種の帰属を記録し、fixture の folder を消して終わる（消したことを file system で確かめて記録する）。中核の 3 種のそれぞれが両 directory で同じ file に帰属する（そうでなければ未判定）。両方にある同じ id で sha256 が違う file を全件、種類付きで記録する（観測）。第 2 process の開始時に fixture の folder が無い。**正の対照:** `TwinA` と `TwinB` は名前と pixel が同じで GUID が違う texture で、それぞれ自分の directory の root から load すると、実体の数が 2、`EntityId` が別である（そうでなければ数え方が使えないので未判定）。**基準:** `A` だけを登録して `SharedPrefab` を load した時の中核の 3 種の実体の数が各 1 である。
+- **AC1（E1、I-1、I-2）準備と数え方:** 第 1 process が fixture（§3）を作り、directory `A`（`SceneA`、`SharedPrefab`、`TwinA`）と `B`（`SceneB`、`SharedPrefab`、`TwinB`）を build し、出力の全 file の名前・size・sha256 と、`ContentLayout.json` による中核の 3 種の帰属を記録し、fixture の folder を消して終わる（消したことを file system で確かめて記録する）。帰属は、source の固定 GUID（と local id）から layout の `SerializedFiles` の source asset と file の id を引いて決め、名前では対応づけない。候補が無い・複数ある・file が出力に実在しない時は未判定（A2 G-06）。中核の 3 種のそれぞれが両 directory で同じ file に帰属する（そうでなければ未判定）。**process の間の照合（A2 G-09）:** 第 1 process は実行 id、head、両 directory の棚卸しの digest（file の名前と sha256 の一覧の sha256）、build の完了行を record に書く。第 2 process は開始時に、同じ実行 id の第 1 process の record を読み、head が一致し、両 directory の棚卸しを取り直して digest が一致することを記録する。一致しなければ未判定。**同時登録の確認:** 第 2 process の最初の Play で、登録の順 `A`→`B` と `B`→`A` のそれぞれで 2 つ目の登録が有効な handle を返すかを記録する（拒否なら §2 判定定義の 1）。両方にある同じ id で sha256 が違う file を全件、種類付きで記録する（観測）。第 2 process の開始時に fixture の folder が無い。**正の対照:** `TwinA` と `TwinB` は名前と pixel が同じで GUID が違う texture で、それぞれ自分の directory の root から load すると、実体の数が 2、`EntityId` が別である（そうでなければ数え方が使えないので未判定）。**基準:** `A` だけを登録して `SharedPrefab` を load した時の中核の 3 種の実体の数が各 1 である。
 - **AC2（E2、Q1）Loadable からの load:** 登録の順 `A`→`B` と `B`→`A` の各 round で、各 handle の root から `SharedPrefab` を load し、両方を保持したまま、中核の 3 種の実体の数と、2 つの load の結果の prefab・その `sharedMaterial`・その `mainTexture` の `EntityId` が等しいかを記録する。両 root の `SharedPrefab` の `LoadableObjectId` が等しいかを記録する（観測）。**観測（合否にしない）:** load の前後の `Profiler.GetTotalAllocatedMemoryLong` と、`SharedTex` の `Profiler.GetRuntimeMemorySizeLong`（`SharedTex` は差が見える大きさにする）。
 - **AC3（E2、Q1）直接参照からの load:** 登録の順 `A`→`B` と `B`→`A` の各 round で、`SceneA`（`A` の `LoadableSceneId`）と `SceneB`（`B`）を additive に load し、両 Scene の Renderer の `sharedMaterial` とその `mainTexture` の `EntityId` が等しいか、中核のうち material と texture の実体の数を記録する。同じ round で続けて `A` の root から `SharedPrefab` を load し、Scene の material と `EntityId` が等しいかを記録する（Loadable と直接参照の混在）。
-- **AC4（E3、Q3）登録解除:** 次の各 case を、指定した登録の順の新しい Play で行う。各 case で、登録解除の直前と直後に、生き残る側の物を「壊れた」の語の全項目で確かめ、登録解除の呼び出しの間の log を記録し、case を壊れた・拒否された・無傷のどれかに分類する。最後に生き残る側を Release して再 load し、全て Release・unload して生き残る側も登録解除し、`Resources.UnloadUnusedAssets` の後に共通物の実体の数が 0 であることを記録する（0 でなければ観測として残す）。
-  - (U1) 順 `A`→`B`。`A` と `B` の root から `SharedPrefab` を load。`A` の物を Release して `A` を登録解除。生き残る側は `B`。
-  - (U2) 順 `A`→`B`。`B` の root から `SharedPrefab` を load。`A` からは何も load せずに `A` を登録解除。生き残る側は `B`。
-  - (U3) 順 `A`→`B`。`A` の root から `SharedPrefab` を load。`B` からは何も load せずに `B`（後から登録した側）を登録解除。生き残る側は `A`。
-  - (U4) U3 を順 `B`→`A` で行う（`A` が後から登録した側になる。`B` を登録解除）。
-  - (U5) 順 `A`→`B`。`SceneA` を load。`B` を登録解除。生き残る側は `SceneA`（Renderer の material と texture）。
-  - 失敗経路の検証例: U3 は、後から登録した側の file が先に探索される（§1 の公開文書）ので、`A` の load が `B` の file を読んでいれば、`B` の登録解除で `A` の物が壊れるか拒否される経路である。U3 と U4 の分類が違えば、登録の順に依存した結果として結論に書く。
-- **AC5（I-3）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書だけである。`pwsh tools/contract-audit.ps1` が合格する。2 つの process それぞれの前後で `git status --porcelain` が一致し、Build Settings、active target、Enter Play Mode の設定に変化が無い。各 process の終わりに、fixture の folder とその `.meta`、`Assets/OneStarMakerGenerated` が無いことを file system で確かめて record に残す。各 round の終わりに登録中の directory が 0 件であることを記録する。
+- **AC4（E3、Q3）登録解除:** 次の各 case を、指定した登録の順の新しい Play で行う。各 case で、§2 の観測の時点 T0〜T3 に生き残る側の物を「壊れた」の語の全項目で確かめ、登録の一覧と log を記録し、case を壊れた・拒否された・無傷のどれかに分類する。最後に生き残る側を Release して再 load し、全て Release・unload して生き残る側も登録解除し、`Resources.UnloadUnusedAssets` の完了の後に共通物の実体の数が 0 であることを記録する（0 でなければ観測として残す）。
+  - 各 case は、登録の順・load 元・登録解除の対象・生き残る側を次のとおり固定する（A2 G-03）。
+
+| case | 登録の順 | load 元 | 登録解除の対象 | 生き残る側 | 意図 |
+|---|---|---|---|---|---|
+| U1 | `A`→`B` | `A` と `B` の root の `SharedPrefab`（`A` の物は Release 済み） | `A`（先に登録） | `B` | 文書どおりの手順 |
+| U2 | `A`→`B` | `B` の root の `SharedPrefab` | `A`（先に登録。何も load していない） | `B` | load していない側の解除 |
+| U3 | `A`→`B` | `A` の root の `SharedPrefab` | `B`（後から登録。何も load していない） | `A` | 先に登録した側から load し、後から登録した側を解除 |
+| U4 | `B`→`A` | `B` の root の `SharedPrefab` | `A`（後から登録。何も load していない） | `B` | U3 を `A`・`B` を入れ替えて行う |
+| U5 | `A`→`B` | `SceneA`（`A` の `LoadableSceneId`） | `B`（後から登録） | `SceneA` の Renderer の material と texture | 直接参照で U3 と同じ形 |
+
+  - 失敗経路の検証例: U3・U4・U5 は、後から登録した側の file が先に探索される（§1 の公開文書）ので、先に登録した側からの load が後から登録した側の file を読んでいれば、その登録解除で生き残る側の物が壊れるか拒否される経路である。U3 と U4 の分類が違えば、`A`・`B` の違い（fixture の差）に依存した結果として結論に書く。
+- **AC5（I-3）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書だけである。`pwsh tools/contract-audit.ps1` が合格する。2 つの process それぞれの前後で `git status --porcelain` が一致し、Build Settings、active target、Enter Play Mode の設定に変化が無い。各 process の終わりに、fixture の folder とその `.meta`、`Assets/OneStarMakerGenerated` が無いことを file system で確かめて record に残す。各 round の終わりに登録中の directory が 0 件であることを記録する。各 process の開始時に fixture の folder か一時 root の残りがあれば、自分の marker がある物だけを消して記録し、marker の無い物があれば何も消さずに停止する（未判定。A2 G-07）。build の出力と record は実行 id ごとの一時 root に置き、他の実行の出力を上書きしない。
 
 ### 2.3 ここでは答えない問いと所有する後続
 
@@ -153,10 +165,21 @@
 | file | 責務 | 予想行数 | テスト境界と配置理由 |
 |---|---|---|---|
 | `RegistrationVerdict.cs` | round の観測（実体の数、`EntityId` の一致、壊れた項目、log）を受け取り、AC ごとの合否、Q1・Q3 の答え、判定定義と「S2 への含意」の行への写像を返す。入力は文字列と数値だけで、Unity の型も製品の型も受け取らない | 180 | Unity 非依存の pure。§2 の語と判定定義 |
-| `RegistrationVerdictTests.cs` | 上の写像だけの EditMode test。§2 の (b)(c)(e)(f)(g) の誤りが答えにならないこと（正の対照が 1 の時に未判定、round の開始時に残りがある時に未判定、`== null` でない物の中身が失われた時に「壊れた」、Error の log と無傷の物の組が「拒否された」、片方の順だけの時に未判定、実体の数と `EntityId` の食い違いで未判定）、答えの向きによらず GO になること（実体 1・2、無傷・拒否・壊れた、同時登録の拒否の各例）、各例が「S2 への含意」の正しい行に写ること | 200 | `[Explicit]` なし |
+| `RegistrationVerdictTests.cs` | 上の写像だけの EditMode test。§2 の (b)(c)(e)(f)(g) の誤りが答えにならないこと（正の対照が 1 の時に未判定、round の開始時に残りがある時に未判定、`== null` でない物の中身が失われた時に「壊れた」、Error の log と無傷の物の組が「拒否された」、片方の順だけの時に未判定、実体の数と `EntityId` の食い違いで未判定）、答えの向きによらず GO になること（実体 1・2、無傷・拒否・壊れた、同時登録の拒否の各例）、各例が「S2 への含意」の正しい行に写ること。A3 で足した規則: 整合の規則（load の結果が列挙に無い・数 0・3 以上で未判定）、壊れたと拒否の両方で「壊れた」、T2・T3 でだけ壊れた例、T3 で登録が残る例が「拒否された」、反復の 2 回が違えば未判定、同時登録の拒否と harness の例外の区別、process 間の digest の不一致で未判定 | 240 | `[Explicit]` なし |
 | `RegistrationFixture.cs` | fixture の asset の生成（固定 GUID、`SharedTex` は読める texture で差が見える大きさ）、所有の marker、開始時の残りの回収と終了時の削除 | 200 | Unity / `AssetDatabase` の I/O |
 | `RegistrationBuilds.cs` | `[Explicit]` の `FirstProcess`。`A`・`B` の build、出力の棚卸しと sha256、`ContentLayout.json` による中核の 3 種の帰属、JSONL の record、fixture の削除 | 180 | build と file system |
 | `RegistrationRounds.cs` | `[Explicit]` の `[UnityTest]` `SecondProcess`。AC1 の正の対照と基準、AC2〜AC4 の round を新しい Play ごとに行う。`UnityContentDirectoryBackend` を 2 つ持ち、観測と log を record に書く。Play の待ちは `EnterPlayMode` / `ExitPlayMode` の yield と load の await | 220 | 製品への依存はこの file と `RegistrationBuilds.cs` だけ |
+
+資源の所有と寿命（A2 G-10）:
+
+| 資源 | 作る・解放する所有者 | 寿命 | 失敗時 |
+|---|---|---|---|
+| fixture の folder と marker | `RegistrationFixture`（第 1 process） | 第 1 process の中 | `finally` で削除。次の process の開始時に marker のある残りだけ回収 |
+| build の出力と record | `RegistrationBuilds`（作る）、`RegistrationRounds`（読む・追記） | 実行 id ごとの一時 root。Phase C の evidence に写すまで残す | 他の実行の root に触れない |
+| 2 つの `UnityContentDirectoryBackend` と登録 | `RegistrationRounds` の round | 1 つの Play | `finally` で wrapper の `Unregister`、残れば `GetContentDirectories` から直接回収 |
+| load の token と Scene | `RegistrationRounds` の round | 登録より短い | 登録解除の前に Release・unload（case が意図して残す物を除く） |
+| log の購読と `LogAssert.ignoreFailingMessages` | `RegistrationRounds` の round | 1 つの round | `finally` で購読を解除し、元の値へ戻す |
+| Play の状態（Enter Play Mode の設定） | 変えない | — | AC5 で前後一致を確かめる |
 
 fixture（SampleGame を使わない。一時 folder `Assets/OsmSpikeSfr/` に marker と一緒に作り、第 1 process の終わりに消す）:
 
@@ -181,14 +204,46 @@ fixture（SampleGame を使わない。一時 folder `Assets/OsmSpikeSfr/` に m
 - 操作・実行時・目視条件の検証経路: 全て上の 3 コマンドで閉じる（Unity バッチで、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64、作業ツリーが clean。観測は record・XML・log。目視は無い。証拠は record・XML・log・各 build の `ContentLayout.json` の写しを evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路の疎通: EditMode の `[UnityTest]` から Play に入り、native 層で 2 つの directory を登録する経路は S0-b が成立させた。fixture の build と棚卸しは S2-0 が成立させた。**未確認:** 同じ file を持つ 2 つの directory の同時登録が受け付けられること（拒否されれば GO の「同時登録できない」）、`LogAssert.ignoreFailingMessages` の下で Unity の Error と Warning を record に結びつけられること。初回確認は Phase C（理由: Unity テストの実行は Phase C の責任。担当: Phase C の実行担当。確認地点: 最初の実行。不成立時: 基盤不備なら B、Unity の挙動なら観測として記録し、判定定義に従う）。
 - 人間の判断が必要な条件: なし（結論を受けた S2 の設計判断は S2 の A1 で owner）。
-- 高コスト証拠: なし（build 2 回で 1 分以内、Play の round は約 11 回の見込み。超えたら記録する）。
+- 高コスト証拠: なし（build 2 回で 1 分以内、Play の round は同時登録の確認と AC1 で 3 回、AC2〜AC4 の 9 回を 2 回反復して約 21 回の見込み。超えたら記録する）。
 - 判定 C の照合 script の方式: なし。判定 C は record の行を AC ごとに読む。pure の写像（`RegistrationVerdict`）の出力は補助で、判定 C は観測の行から独立に確かめる。
 - 機械検査: `contract-audit`、`docs-audit`。
 - A0/A1 主担当: 本 session（Claude）。A0 は program §2.4・§5.3・§8 を入力とした。
-- A2 独立レビュー（予定）: (1) 目的レビュー（§1 の目的と利用者の原文だけを渡す。初稿を読んでいない担当）。(2) アーキテクチャゲート兼、各不変条件を破る順序と §2 の (a)〜(g) の外の誤答の探索。入力版は A2 入力版の commit の本書（内容 sha256 を正、commit hash を補助）。
-- A3 統合担当・採否: 未実施。
+- A2 独立レビュー（実施 2026-11-12。互いの指摘を見せていない）:
+  - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `af641270fdfba8bd68c28f78945d3bc2eb7d33f2154a5aaa7497b6192f603f09`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
+  - (2) アーキテクチャゲート兼、各不変条件を破る順序と §2 の誤答の一覧の外の探索: Codex CLI（OpenAI）。入力は A2 入力版の本書（内容 sha256 `7f4b60e44e45b9c6788440b43c5cfbfd64c65e79f82921f14d5e4a7ec8d9645b`、commit `1c96bd8c`）と、program・S2-0 の事実・AGENTS.md・アーキテクチャゲート・製品の `Runtime/BuildContent` の source・Unity 6000.6 の `ContentLoadModule` の XML doc・S2-0 と S0-b の harness の写し。枠は「計画した実験 code は実装済みと仮定」「判定を答えの有無で決めること、Q2 を S4 へ送ったことは変えない」に固定した。
+- A3 統合担当・採否: 本 session（§5.1）。**未凍結**（owner の指示で、凍結の前に draft PR の外部レビューを受ける）。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー（`cursor-agent` を使う場合は AGENTS.md の契約どおり Grok 系だけ）。
 - 独立性の強化条件: risk `normal` のため必須ではない。
+
+### 5.1 A2 の独立レビューと A3 の採否
+
+A1 の段階で owner が下した裁定（判定を答えの有無だけで決める、Q2 を S4 へ送る、U-2）は §2.4・§2.5 にある。A2 の指摘の採否は次のとおり。目的・利用者の欄は変えていないので、目的レビューはやり直さない。
+
+**目的レビュー（P）。** 回答を初稿と突き合わせ、初稿に無い保証と、初稿が作る要らないものを拾った。
+
+| ID | 指摘（要約） | 採否 | 理由と反映先 |
+|---|---|---|---|
+| P-1 | 登録解除の直後だけでなく、GC や Unload が効いた後にも生き残る側を見る | 採用 | 遅れて壊れる経路を「無傷」と誤読しうる。§2 の観測の時点 T0〜T3（G-04 と統合） |
+| P-2 | 1 回の観測で結論を出さず、Play を開き直して再現する | 採用 | round は新しい Play で行っていたが各 1 回だった。§2.2 の反復（2 回、違えば未判定）。費用は Play 約 9 回の追加 |
+| P-3 | 実測した事実と仕組みの推測を分けて書く | 採用 | §2 判定定義の末尾 |
+| P-4 | 「同じ」と判定される条件（名前・path が違う場合など）の範囲を宣言する | 既に充足 | 名前は内容 hash で、名前と sha256 は一対一（S2-0）。対象は「同じ file」の語で固定済み。directory の path は 2 つで必ず違う |
+| P-5 | 作らないもの: 本番 API、重複の検出・統合の仕組み、benchmark、恒久の計測基盤、本番の Scene 等の変更 | 既に充足 | §1 対象外と §3（実験 code は Phase D で消す。`Profiler` の値は観測で合否にしない） |
+| その他 | 個数と同一性を分けて観測、順序の入れ替え、hash による同一の証明、基準、Editor の版の記録、S2 の 2 案への対応付け、再現手順と測っていない範囲 | 既に充足 | §2 の語、AC1〜AC4、「S2 への含意」、成果の範囲 |
+
+**アーキテクチャゲート（G）。**
+
+| ID | 重さ | 指摘（要約） | 採否 | 理由と反映先 |
+|---|---|---|---|---|
+| G-01 | blocker | 同時登録の拒否を GO とする特例と、round が無ければ未判定の規則が衝突する | 採用 | 判定定義に優先順位を付け、拒否の成立条件（2 つ目の handle、一覧、log、後始末、両方の順）と、harness の失敗との区別を書いた。§2 判定定義の 1、AC1 の同時登録の確認 |
+| G-02 | blocker | 直接参照の AC3 は prefab を数えないのに、GO は中核の 3 種を要求する | 採用 | 直接参照で数えるのは material と texture に限ると明記（Scene に prefab instance を置くと Scene の file に焼き込まれ、prefab の file の問いにならない）。§2 判定定義の GO、E2 |
+| G-03 | blocker | U4 の「U3 を逆順で」と括弧の指定が両立しない | 採用 | 初稿の誤り。case ごとに登録の順・load 元・解除の対象・生き残る側を表で固定した。U4 は `B`→`A`、`B` から load、後から登録した `A` を解除。§2.2 AC4 |
+| G-04 | blocker | 登録解除の成否（登録が実際に残るか）と、観測の終わりの時点が無い | 採用 | 観測の時点 T0〜T3 と、各時点の登録の一覧を足し、「拒否された」を log と一覧の 2 つで定義し、壊れたを優先した。wrapper が handle を捨てるので、後始末は一覧から直接回収する。§2 の語、§2.2 の前文、I-3 (c) |
+| G-05 | should-fix | 正の対照は texture だけで、列挙の網羅性を示さない | 採用 | load の結果が列挙の集合に含まれる時だけ数を使う整合の規則と、正の対照の範囲（texture だけ）を語に書き、結論に限界を書く。material・prefab の正の対照は足さない（同じ名前で別の GUID の物を作るだけで、列挙に出ない実体の不在は示せないため） |
+| G-06 | should-fix | 名前で帰属を対応づけると別の file を「同じ file」と記録しうる | 採用 | 固定 GUID と local id で対応づけ、曖昧なら未判定。I-2 (d)、AC1 |
+| G-07 | should-fix | git status の一致だけでは ignored file の上書きを見ない。marker の無い folder を消しうる | 一部採用 | marker の無い残りがあれば何も消さずに停止、実行 id ごとの一時 root、守る範囲の明記を採用（I-3 (e)、AC5）。ignored file 全体と `Library` の比較は不採用（Unity が通常の import と build で更新し、差を製品の変化と区別できない。実験が書く先は一時 root と fixture の folder に限っており、そこは AC5 で見る） |
+| G-08 | should-fix | 非同期の完了、後始末、log の購読と `LogAssert` の復元が曖昧 | 採用 | §2.2 の前文（完了を待つ、`finally`、購読と復元の記録、同期と後続 frame の log の区別、後始末の未完了は未判定） |
+| G-09 | should-fix | 第 2 process が古い build を読んでも気づけない | 採用 | 実行 id・head・棚卸しの digest の照合。AC1 |
+| G-10 | note | 資源ごとの所有者と寿命が file ごとに書かれていない | 採用 | §3 の資源の所有と寿命の表 |
 
 ## 6. Phase B 実装結果
 
