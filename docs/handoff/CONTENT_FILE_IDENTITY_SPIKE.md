@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: C' 1 巡目の差し戻し（head `bb4efe77`）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: 発見 C 4 巡目で阻害する指摘 0、判定 C 3 回目待ち（head `bb4efe77`）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
 - implementation head commit: f632707a2896df58046ce1868790fec357d8a909
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 判定 C 2 回目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、判断担当の別 process で取得と閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1 回目（head `0b72f0ff`）の bundle は差し戻しで無効
 - C' blind bundle の取得案内・状態: 1 巡目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、C' の担当が取得した写しで閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。差し戻しで head が変わるので判定には流用しない
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（C' 1 巡目の差し戻しの修正差分の確認。動作確認は §5 のとおり `対象なし`）。
-  - 次の作業: `bb4efe77` から implementation head までの `unity/` の修正差分と §6 の追記を見て、§8.1 の CP-01〜CP-03 が解消したことと、修正差分に凍結条件・常時契約の新しい違反が無いことを確かめる。阻害する指摘が無ければ implementation head を GO 候補とし、判定 C の 3 コマンド（§5）をやり直してから C' 2 巡目（前巡の指摘の解消と修正差分）へ進む。旧 head の判定証拠は流用しない。
+  - 次の Phase・役割: 判定 C 3 回目（GO 候補 head は implementation head 欄の commit）。その後 C' 2 巡目。判断担当と実行担当はそれぞれ新しい session。
+  - 次の作業: §5 の判定必須テスト 3 コマンドを実行担当が順に別 process で実行し、新しい判定 evidence bundle に固定する。判断担当は §2 の判定定義を record の行から AC ごとに読む。旧 head の証拠は流用しない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 発見 C は読み取りだけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
+  - 必要な権限: 判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: C' には §7 の発見 C・判定 C の結論・指摘と、§6 の差し戻し修正の記述を渡さない（C' 用の取得案内は所見と分けて渡す）。
 
@@ -377,6 +377,12 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - 現在の問いを阻害する findings: なし。
 - 後続スライスへ移送する findings: なし（問い 3 と U-3 の判断は §2.3・§2.5 のとおり）。
 - 未確認事項: 増分 cache の関与（上記）。
+
+### 7.6 発見 C 4 巡目（C' 1 巡目の差し戻しの確認。対象 implementation head `f632707a`）
+
+- 入力は `bb4efe77` から `f632707a` の `unity/` の修正差分、head の spike folder、本書（B の記録 commit の版）。
+- 結果: §8.1 の CP-01〜CP-03 は解消。CP-01 の修正は凍結した分類の規則を両側の build の file に当てるだけで、判定の語と判定定義の意味を変えない。種類ごとの比べた file の数は左の種類で数えるが、0 件で未判定にする対（`S`–`A`・`S`–`B`・`S`–`AB`）では `S` が常に左なので、中核の 3 種と shader の件数は正しい。足した 2 つの test は右にだけ Scene が加わると N4、prefab が加わると N2 になることを確かめる。修正差分に新しい違反は無い。`contract-audit` は errors 0・warnings 0。`f632707a` を GO 候補 head とする。
+- 担当: Codex CLI（発見 C の session を再開）。
 
 ## 8. Phase C'
 
