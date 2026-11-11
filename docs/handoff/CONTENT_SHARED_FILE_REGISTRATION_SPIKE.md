@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: 判定 C（1 回目）は未判定（2026-11-12。§7.3）。harness は 3 コマンドとも最後まで動いたが、AC1 の `SharedTex` の `.resS` を layout から特定できない（J-1）。判定 C は未完了で、C' へ進まない。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は owner の判断（J-1 の戻し先。§7.3 の (a)〜(c)）
+- status: 判定 C（1 回目）は未判定（2026-11-12。§7.3）。harness は 3 コマンドとも最後まで動いたが、AC1 の `SharedTex` の `.resS` を layout から特定できない（J-1）。判定 C は未完了で、C' へ進まない。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。owner は J-1 の戻し先に §7.3 の (a) を選んだ（2026-11-12）。次は Phase A の revision 1
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
 - implementation head commit: `0b2b6625`
@@ -20,7 +20,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner の判断。判定 C（1 回目）は未判定で、J-1（§7.3）の戻し先を owner が決める。推奨は Phase A（§2 の手順 2 の「Unity の挙動が定義した語で読めない時」）。選択肢は §7.3 の (a)〜(c)。Phase A の新しい revision か B の限定 build を経て、新しい GO 候補 head で判定 C をやり直す（§7.3 の record は新しい head の判定に流用しない）。C' は起動しない。以下の「次の作業（判定 C）」は、やり直しの判定 C の手順として残す。
+  - 次の Phase・役割: Phase A の新しい revision（revision 1）。判定 C（1 回目）は未判定で、J-1（§7.3）の戻し先として owner が 2026-11-12 に §7.3 の (a) を選んだ（texture の項目に `ArtifactReferences` が無い時は pixel が `.cf` にあるとし、`.cf` の一致で「同じ file」とする）。Phase A の担当は (a) を凍結条件へ反映し（§2 の「同じ file」、AC1、手順 2 の該当項目、§3 の `RegistrationVerdictTests` の規則。pixel が `.cf` にあると読む根拠を record から確かめる方法も決める）、A2・A3 の規模を判断して revision 1 を凍結し、票を Phase B へ更新する。その後は B の修正 → 発見 C → 新しい GO 候補 head で判定 C のやり直し → C' と進む（§7.3 の record は新しい head の判定に流用しない）。進行役（Phase C〜C'）が各担当を新しい session で起こす。C' は起動しない。以下の「次の作業（判定 C のやり直し）」は、やり直しの判定 C の手順として残す。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は SHA なので、それが HEAD の祖先で（`git merge-base --is-ancestor`）、implementation head から HEAD までの差分が本書だけであること。PR #179 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が本欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
   - 次の作業（B）: 完了（§6.1。F-1 の修正は commit `0b2b6625`）。
   - 次の作業（発見 C の再レビュー）: 完了（§7.2。阻害する指摘なし）。
