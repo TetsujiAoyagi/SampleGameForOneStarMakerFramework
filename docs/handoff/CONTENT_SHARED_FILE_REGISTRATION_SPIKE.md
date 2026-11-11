@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: `B` 完了（2026-11-12。§6）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は発見 C
+- status: `B` 完了（2026-11-12。§6）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は Phase C から C' までの進行役（最初は発見 C）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `a1c211d7`
 - risk: `normal`（製品 code を変えない。Editor の Play の中で、製品の native 層の wrapper を 2 つ使うだけ）
 - owner: root（依頼者）
 - created: 2026-11-12
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（Phase C の欠陥発見。動作確認は §5 のとおり `対象なし`）。新しい session で、Phase B の会話ではなく本書と implementation head の差分を入力にする。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は「この票を含む commit」なので、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file（本スライスの Spikes の folder）があることを確かめる。PR #179 の状態ブロックの `引き継ぐ commit` と implementation head が同じ SHA であること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 次の Phase・役割: Phase C から C' までの進行役（動作確認は §5 のとおり `対象なし`）。owner が desktop から直接起こす新しい session で、Phase B の会話ではなく本書を入力にする。進行役は発見 C → (B との往復) → 判定 C → C' の各担当をそれぞれ新しい session で起こし、各担当の出口の記録と票の更新を確かめて次へ進める。各担当の起動指示には、その時点の引き継ぐ commit の SHA を渡す。進行役自身はレビュー・判定・監査をしない。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は SHA なので、それが HEAD の祖先で（`git merge-base --is-ancestor`）、implementation head から HEAD までの差分が本書だけであること。PR #179 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が本欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
   - 次の作業: implementation base `aa6b9488` から implementation head までの差分を、§2.1 の不変条件・§2.2 の受け入れ条件・§2 の誤答の経路 (a)〜(g)・§3 の責務マップに照らしてレビューする（構造を先に）。§6 の「HANDOFF との差」9 件が §4 の B 適応の範囲に収まるかと、`RegistrationRounds.cs` の行数（§6）の説明も確かめる。差し戻し中のテストは §5 の起点 filter を使う。明確な差し戻しが無くなれば、GO 候補 head を固定して判定 C（§5 の 3 コマンド）へ進める。
-  - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。
+  - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。C' の担当の手段: 2026-11-12 時点で Codex CLI は使えず、`cursor-agent` は使える（AGENTS.md の契約どおり Grok 系だけ）。§5 の「Phase A・B・C に関与していないベンダー」に当たるかは C' を起こす時に確かめ（Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを含む）、当たらなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない。§5）。
   - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B 適応で足りる欠陥は B へ戻す。B と発見 C の往復は 4 巡まで。
   - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
 
