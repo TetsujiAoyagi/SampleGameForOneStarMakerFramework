@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: 発見 C 3 巡目で阻害する指摘 0、判定 C 2 回目待ち（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: 判定 C 完了（2 回目、head `bb4efe77`）、C' 待ち（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
 - implementation head commit: bb4efe7767c825ac3de3d4d2bc458e47c750ff8e
@@ -17,15 +17,15 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§2.4、§5.3、D10）。保留中の S2 計画 `CONTENT_PACKAGE_DISCOVERY.md` はブランチ `claude/content-package-discovery` にあり、本ブランチには無い（本スライスの結論が再開条件）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 判定 C 1 回目（head `0b72f0ff`）の bundle はローカル固定済み（未昇格）、取得と閲覧を判断担当の別 process で確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。差し戻しで head が変わるので判定には流用しない
+- evidence bundle の取得案内・状態: 判定 C 2 回目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、判断担当の別 process で取得と閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1 回目（head `0b72f0ff`）の bundle は差し戻しで無効
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C 2 回目（GO 候補 head は implementation head 欄の commit）。判断担当と実行担当はそれぞれ新しい session。
-  - 次の作業: §5 の判定必須テスト 3 コマンドを実行担当が順に別 process で実行し、生の XML・log・step と record を新しい判定 evidence bundle に固定する。判断担当は §2 の判定定義を record の行から AC ごとに読む。1 回目（§7.3）の証拠は流用しない。
+  - 次の Phase・役割: Phase C'（最終 C'。高コスト証拠は無い。新しい session で、Phase A・B・C に関与していない系列の担当）。
+  - 次の作業: C' 用の blind bundle だけを入力に、implementation head 欄の commit を監査する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
+  - 必要な権限: なし（読み取りだけ）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
-  - 引き渡さないもの: なし。
+  - 引き渡さないもの: C' には §7 の発見 C・判定 C の結論・指摘と、§6 の差し戻し修正の記述を渡さない（C' 用の取得案内は所見と分けて渡す）。
 
 ## 1. 目的と対象外
 
@@ -354,6 +354,18 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - 結果: 現在の問いを阻害する指摘 0 件。YAML 文書を固定後の fileID の順に並べ直す修正は、乱数の fileID に由来する文書順の差を除き、重複 ID は並べ替えの前に止める。`LitEmissive` の `RealtimeEmissive` は §3 の「emission の keyword」に fixture を合わせる修正。どちらも §4 の B 適応（fixture の決定性、keyword の選び方）の範囲で、§3 の参照の形と判定の語を変えない。`contract-audit` は errors 0・warnings 0。`bb4efe77` を GO 候補 head とする。
 - 後続スライスへ移送する findings: なし。
 - 担当: Codex CLI（1 巡目と同じ session を再開）。
+
+### 7.5 判定 C 2 回目（対象 implementation head `bb4efe77`、local tag `evidence/content-file-identity-spike/2`）
+
+- 種別: 判定。実行担当は進行役の session（§5 の凍結済み 3 コマンドだけを順に、別々の Unity process で sandbox 外から実行）。判断担当は Codex CLI（read-only、新規 session）で、bundle を Storage から hash 照合で取得した写しだけを読んだ。
+- 実行したコマンドと結果（XML）: (1) `FileInventoryTests` total 13・failed 0・`Passed`。(2) `IdentityBuilds.FirstProcess` total 1・failed 0・`Passed`。(3) `IdentityBuilds.SecondProcess` total 1・failed 0・`Passed`。15 build 全てに `build-end` がある。
+- **(2) の Unity の終了 stall:** XML の完成後、Unity の process が終わらなかった（thread 1 本で CPU 時間が増え続けた。`tools/Harness/README.md` の既知の native 終了 stall と同じ形）。約 6 分 30 秒待ってから、実行担当がその PID だけを `Win32_Process.Terminate` で止めた。Terminate は終了コードを 0 にするので、(2) の `step.json` の passed・exit 0 は自然終了の証拠ではない。この事実は bundle の `executor-note.md` に置いた。§5 のゲートは XML と record の終了行で、process の自然終了を含まないので、判断担当はゲートの成否を変えないと判断した。停止規則に従い、dump も原因調査もしていない。(1) と (3) は自然に終了した。
+- 結論: **CONDITIONAL ACCEPT**。結論に付ける文: 対象はこの PC、Unity 6000.6.0f1、StandaloneWindows64、loose file、fixture に限る。texture・material・prefab の file は hash でまとめられる。build ごとに別の file になったのは shader（URP の `Lit`）と script をまとめた file。`SharedShader` は違っておらず、別の file にも入っていない。**名前ではなく sha256 でだけまとめられる**（`BuildManifestHash.txt` は同じ名前で中身が build ごとに違う）。`CleanBuildCache` の build の log に cache を使わなかったことを示す行が無く、増分 cache の関与は不明。N1 は該当なし。bytes は fixture の比率で、実 project の代表値ではない。
+- AC ごとの読み: AC1〜AC7 を全て満たす。AC2 の 5 対に違った file・別の file に入った source asset は無く、2 つの process の source の sha256・GUID と import 後の hash も一致した。AC3 で違った file は `S`–`A` で shader 1 件、`S`–`B`・`S`–`AB`・`A`–`B`・`A`–`AB` で shader と script 各 1 件、`B`–`AB` は 0 件、別の file に入った source asset は 0 件。AC4 の未知の file は 0 件。AC5 の各 round は想定した変更だけで、`A-back` は 0 件。AC7 の後始末と設定の前後一致を満たす。
+- AC6 の数値（fixture の比率）: `A` と `B` の合計 2,521,007 bytes、sha256 の和集合 1,574,899 bytes（hash でまとめて減る量 946,108 bytes）。違った file は shader 5 件 1,679,044 bytes、script 4 件 7,984 bytes。`P1`・`P2` の transport manifest の `sha256` で計算した和集合と棚卸しの和集合は同じ（1,171,553 bytes）。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし（問い 3 と U-3 の判断は §2.3・§2.5 のとおり）。
+- 未確認事項: 増分 cache の関与（上記）。
 
 ## 8. Phase C'
 
