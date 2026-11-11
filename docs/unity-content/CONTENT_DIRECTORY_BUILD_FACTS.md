@@ -25,11 +25,12 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 |---|---:|
 | 別々の build `A` と `B` の合計 | 2,521,007 |
 | 同じ 2 つの sha256 の和集合 | 1,574,899（946,108 減る） |
-| `A` と `B` の root をまとめた 1 build | 1,374,182 |
-| 組み合わせで変わった file（shader 5 件 / script 4 件） | 1,679,044 / 7,984 |
-| 依存先 1 つの変更で配り直す量（texture / material / prefab） | 48,488〜48,916 / 6,764 / 8,544 |
+| `A` と `B` の root をまとめた 1 build | 1,374,182（和集合より 200,717 小さい） |
+| 組み合わせで変わった file の延べ（shader 5 件 / script 4 件。下の注） | 1,679,044 / 7,984 |
+| 依存先 1 つの変更で配り直す量（texture は `A` で 48,488・`B` で 48,916 / material / prefab / 元に戻した時） | 48,488・48,916 / 6,764 / 8,544 / 0 |
 
-OSM の `ContentTransportManifest.files` の `sha256` だけで、棚卸しと同じ和集合を計算できた。
+- 「組み合わせで変わった file」は一意の file の量ではなく、root 集合の違う 6 対で違った file を対ごとに数えた延べ。内訳は `S`–`A` が shader 1 件、`S`–`B`・`S`–`AB`・`A`–`B`・`A`–`AB` が shader と script 各 1 件、`B`–`AB` が 0 件。
+- OSM の製品経路で build した `P1` と `P2` を `ContentTransportPublisher.Publish` に通し、その `ContentTransportManifest.files` の `sha256` だけで、2 つの和集合を棚卸しと同じ 1,171,554 bytes に計算できた（`A` と `B` の和集合とは別の数。実行ごとに 1 byte 前後違うのは、毎回 identity が変わる root の file による）。
 
 ## 確かめていないこと
 
