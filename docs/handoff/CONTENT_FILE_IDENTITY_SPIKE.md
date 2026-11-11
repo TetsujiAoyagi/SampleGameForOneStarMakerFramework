@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: `A`（A3 の統合版、**未凍結**。2026-11-11 に A2 の 3 件を反映した。A2 入力版は revision 0、commit `179012dd`。同日 owner が §2.5 の 3 件を推奨どおり裁定し、外部レビューに出すためにこの版の commit と PR 作成を指示した。この commit は外部レビューの入力で、A3 凍結版ではない）
+- status: `A`（A3 凍結版、revision 0。2026-11-11 に owner が凍結を指示した。A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
 - implementation head commit: `未固定`
@@ -20,10 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner 経由の外部レビュー（PR 上）。その後、A3 の凍結。
-  - 次の作業: 外部レビューの指摘を §5.1 と同じ形で採否へ足し、本書を A3 凍結版として commit する（implementation head 欄は `未固定` のまま。引き継ぐ commit の SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結前に Phase B を始めない。目的・利用者の 2 欄を変えたら目的レビューを 1 回やり直す。
+  - 次の Phase・役割: Phase B（実装）。新しい session で始める。
+  - 次の作業: §3 の 4 file を §4 の順に実装し、Unity のコンパイル確認と `pwsh tools/contract-audit.ps1` を行う。build と Unity テストは実行しない（Phase C）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
+  - 必要な権限: Unity Editor のコンパイル確認（`osm-unity-editor` Skill に従う）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。判定定義と判定に使う語（§2）を B が変えない。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -66,14 +67,21 @@
   - (h) 製品の adapter を通さない build だけで結論し、`name = identity` や root の違いが共通物に漏れる場合を見ない（AC2 の製品経路）。
   - (i) 同じ process の中の比較だけで決定性を主張する（AC2）。
 - 判定に使う語（実測の前に固定する）:
-  - **違った file:** 比べる 2 つの build の両方に同じ id（`ContentLayout.json` の `ID`。`.resS` / `.resource` は帰属する source asset）があり、sha256 が違う file。**片方の build にしか無い file は「違った」に数えず、別に集計する。**
+  - **棚卸しの対象:** Unity の出力 directory（`BuildManifestHash.txt` のある directory）の直下の全 file。`P1`・`P2` は coordinator が返すその directory。
+  - **file の id:** content file（`.cf`）は `ContentLayout.json` の `SerializedFiles` の `ID`。`.resS` / `.resource` は、`BinaryArtifacts` の `ArtifactReferences` でそれを参照する content file の `ID` と `Category` の組（同じ組に複数あれば sha256 の多重集合で比べる）。`Library/unity default resources` は内容 hash を持たない仮想の項目で、file ではないので比較にも集合の照合にも入れない。
+  - **違った file:** 比べる 2 つの build の両方に同じ id があり、sha256 が違う file。**片方の build にしか無い id は「違った」に数えず、`片方だけ` として別に集計する。**
+  - **別の file に入った:** 比べる 2 つの build の両方の `ContentLayout.json` に同じ source asset が載っていて、その source asset が帰属する content file の id の集合が 2 つの build で違うこと。id ではなく source asset を軸にした比較で、「違った file」とは別に、全ての対・全ての種類について数える（id が変わると「違った file」には現れないため）。
+  - **不在（fixture の不備）:** `S` の中核の 3 種か shader の source asset が、相手の build の `ContentLayout.json` に載っていないこと。
   - **比べる対:** AC2・AC3・AC5 が名指しした対だけ。
-  - **除外する file:** `ContentLayout.json` の `RootAssets` に帰属する file（root 自身）と、Unity の manifest（`BuildManifestHash.txt` と、それが指す hash 名の `.json`）だけ。それ以外の file は全て比べる。
-  - **種類の分類は source asset で事前に決め、結果を見て変えない:** `SharedTex` は texture、`SharedMat`・`LitPlain` は material、`SharedPrefab` は prefab、`SharedShader` は variant の無い shader。URP の `Lit.shader` は variant を持つ shader。`Resources/unity_builtin_extra` と `Library/unity default resources` は built-in。source asset が `.cs` だけの file は script。
-- 判定定義（列挙に当たらない結果は NO-GO。環境の不調、harness の不備、record の欠落、harness が読めない欄で AC の観測が無い時と、build を開始できなかった時は、判定せず未判定として B へ戻す。実行できた build の観測が前提に反する時だけ NO-GO とする）。3 つとも証拠が揃えばスパイクの正常な終了である:
-  - **GO（前提は成立）:** §2.1 と §2.2 を全て満たし、違った file が 1 件も無い。
-  - **CONDITIONAL ACCEPT（条件付きで成立）:** AC1・AC2・AC5・AC6・AC7 を満たし、AC3 が texture・material・prefab・variant の無い shader の 4 種について成立し、違った file が全件、script、built-in、variant を持つ shader のどれかである（AC4）。意味は「共通の asset の file は hash でまとめられる。ただし列挙した種類は build ごとに別の file になる」。配布側で足りるかは owner が決める（§2.5 U-3）。
-  - **NO-GO（前提は不成立）:** 同じ source の再 build で違った file がある（AC2）、4 種の file が root 集合で違う（AC3）、依存先の変更で参照元の file が変わる（AC5）、`ContentLayout.json` に記載の無い file がある（AC4）、のいずれか。program §5.3 に従い、F1〜F3 のままの S2 か縮退かを owner に返す。
+  - **除外する file（事前に定義した 3 つだけ。それ以外は全て比べる）:** (1) root 自身（`RootAssets` の id を `LoadableObjectIds` で引いた `SerializedFile`）。**その file の source asset が生成した root の asset 1 つだけである時に限って除外する。** 他の source asset が同居していれば除外せず、未判定とする。(2) Unity の manifest（`BuildManifestHash.txt` が指す hash 名の `.json`）。(3) `BuildManifestHash.txt`（`ContentLayout.json` に載らない既知の制御 file。中身が `ContentLayout.json` の `BuildManifestHash` と一致することを build ごとに確かめる）。除外する file も size と sha256 は棚卸しと bytes の集計に入れる。
+  - **未知の file:** 棚卸しの対象のうち、`ContentLayout.json` の `BinaryArtifacts` に内容 hash が無く、除外する file の (3) でもない file。
+  - **種類の分類は source asset で事前に決め、結果を見て変えない:** `SharedTex` は texture、`SharedMat`・`LitPlain` は material、`SharedPrefab` は prefab（この 3 つを**中核の 3 種**と呼ぶ）。source asset に `.shader` / `.shadergraph` を含む file は shader（`SharedShader` も URP の `Lit` も同じ種類。`SharedShader` の結果は別の行にも書く）。`Resources/unity_builtin_extra` は built-in。source asset が `.cs` だけの file は script。`.unity` は Scene。どれでもなければ `その他`。
+  - **想定した変更:** AC5 の各 round で、書き換えた source asset に帰属する file が違うこと。これは違った file の集計から外す。
+- 判定定義。上から順に当てはめ、最初に当たったものを結論とする。どの結論も、証拠が揃えばスパイクの正常な終了である:
+  1. **未判定（結論を出さない）:** 次のどれか。build を開始できない、終了行の無い build がある、build の前後で source が一致しない（AC1）、別 process の source が第 1 process と一致しない（AC2）、`ContentLayout.json` を対応づけられない・読めない欄や未対応の Version がある（AC4）、未知の file がある（AC4）、root 自身の file に root 以外の source asset が同居している（AC4。原因と帰属を記録して Phase A へ戻す）、`BuildManifestHash.txt` と layout が一致しない、`S` に `.resS` が無い（AC1）、中核の 3 種か shader に実際に比べた file が 0 件の対がある（AC3）、`不在（fixture の不備）` がある（AC3）、AC5 の round で想定した変更が起きていない、AC6 の数値が無い、AC7 を満たさない。harness・fixture・環境の問題は B へ戻し、未知の file と読めない欄は Phase A へ戻す。
+  2. **NO-GO（前提は不成立）:** 次のどれか。(N1) AC2 の対に違った file か、別の file に入った source asset がある。(N2) AC3 の対で、中核の 3 種に違った file か、別の file に入った source asset がある。(N3) AC5 の round で、想定した変更以外に違った file か、別の file に入った source asset がある。(N4) AC3 の対で、種類が Scene か `その他` の違った file か、別の file に入った source asset がある。program §5.3 に従い、F1〜F3 のままの S2 か縮退かを owner に返す。N1 が別 process の対だけで起きた時は、「再 import と再 build のどちらの差かは分けていない」と結論に付ける。
+  3. **GO（前提は成立）:** AC3 の対に、違った file も、別の file に入った source asset も 1 件も無い。
+  4. **CONDITIONAL ACCEPT（条件付きで成立）:** AC3 の対の違った file と、別の file に入った source asset が全件、script・built-in・shader のどれかである。意味は「texture・material・prefab の file は hash でまとめられる。ただし列挙した種類は build ごとに別の file になる」。`SharedShader` が違ったかどうかを結論に書く。配布側で足りるかは owner が決める（§2.5 U-3）。
 - 停止規則: 進める最低条件を満たし、問いに致命的な反証がなければ GO / CONDITIONAL ACCEPT で終了する。NO-GO も証拠が揃えば終了する。最低条件未達（未判定）のまま終了しない。
 - A3 後の例外承認: なし
 - 決定記録: なし
@@ -87,7 +95,7 @@
   - 探索した境界: `UnityContentDirectoryAdapter`、Unity の文書の増分 build の記述。未確認: 増分 cache が別の出力先・別の `name` にどう効くか（AC2 で測る）。
 - **I-2 帰属を確かめていない差を無害と読まない:** build の間で名前か bytes が違う file は、全件が source asset か種類（root、manifest、script、built-in）に帰属し、record に残る。
   - 崩しうる経路: (a) `ContentLayout.json` と build の対応を取り違える（`Library/BuildHistory` には過去の build が残る。`BuildManifestHash` で対応を取る）。(b) `.resS` / `.resource` が `SerializedFiles` ではなく `BinaryArtifacts` に居て帰属から漏れる。(c) `ContentLayout.json` の形が版で変わる（Version 2 を確認して読む。違えば未判定）。
-  - 探索した境界: 手元の `ContentLayout.json` の上位の key（`SerializedFiles`、`RootAssets`、`LoadableObjectIds`、`LoadableSceneIds`、`BinaryArtifacts`）。未確認: `BinaryArtifacts` の欄の形。
+  - 探索した境界: 手元の `ContentLayout.json`（Version 2）と実際の出力 directory 1 件。`SerializedFiles` は `ID`・`SourceAssets`・`ContentHash` を持ち、`Library/unity default resources` だけ `ContentHash` が無い。`RootAssets` は id の一覧で、`LoadableObjectIds` が id から `SerializedFile` を引く。`BinaryArtifacts` は `ContentHash`・`Category`（手元では `contentfile`・`texture`・`manifest`）・`Size`・`ArtifactReferences` を持ち、manifest の `.json` も載る。出力 directory の file 名は内容 hash + 拡張子で、`BuildManifestHash.txt` だけが layout に載らない。未確認: `texture` 以外の binary の `Category`、fixture の build で同じ形になるか。
 - **I-3 製品を変えない（S0-b と同じ）:** §3 の新規 file と本書以外の変更が無く、実験は assets・設定・build の出力を repo に残さない。
   - 崩しうる経路: (a) fixture の folder と `.meta` の残り。(b) `Assets/OneStarMakerGenerated` の残り。(c) Build Settings、active target、shader の設定（Graphics Settings の variant の設定）を変える。(d) 2 つの process の間に fixture を残す設計。
 
@@ -102,11 +110,11 @@
 
 全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id、head、Unity の版、target、process の別を持ち、build ごとに終了行がある（無い build は未判定）。build は全て loose file（`Uncompressed`、`BuildContentOptions.None`。`CleanBuildCache` を付ける build だけ明記）で、出力先は build ごとに別にする。build の名前は §3 の表による。
 
-- **AC1（E1、E2、I-1）fixture と棚卸し:** fixture は §3 の形である。各 build の**直前と直後**に source の file と `.meta` の sha256 と GUID を採り、両者が一致する（build の間に source が動いていない。一致しなければその build は未判定）。全 build の出力の全 file に名前・size・sha256 がある。build `S` に `.resS` が 1 つ以上ある。**観測（合否にしない）:** 同じ名前の file が全 build を通じて同じ sha256 か、同じ sha256 の file が同じ名前か。破れがあれば record に残し、結論に「名前ではなく sha256 でだけまとめられる」と付ける。以降の比較は全て sha256 で行う。
-- **AC2（E3、I-1）同じ source の再 build:** 次の対に違った file が無く、片方にしか無い file も除外する file だけである。`A` と `A-same`（同じ引数、別の出力先）。`A` と `A-name`（`name` と root の identity だけ別）。`A` と別 process の `A-clean`（`CleanBuildCache`）。`B` と別 process の `B-clean`。製品の `BuildContentCoordinator.Build`（無改変。公開の入口で、既存の `BuildContentDirectoryIntegrationTests` と同じ呼び方）を通した `P1` と `P2`（identity が別）。別 process の build の source の sha256 と GUID が第 1 process と一致する（一致しなければ未判定）。build ごとの所要時間と、`CleanBuildCache` の build が cache を使わなかったことを示す log の行を record に入れる（取れなければ「増分 cache の関与は不明」と結論に付ける）。**観測（合否にしない）:** `P1` と `A` の対。
-- **AC3（E3）別の root 集合:** `S`（共通物だけ）と `A`、`S` と `B`、`S` と `AB`、`A` と `B` の各対について、4 種（texture、material、prefab、variant の無い shader）に帰属する file に違った file が無く、`S` の 4 種の file は相手の build に全て存在する。存在しない時は「違った」と区別して `不在` と記録し、AC3 は未達とする。4 種それぞれに、実際に比べた file が各対で 1 件以上ある（0 件の種類があれば未判定）。`B` には `A` に無い file があり、`A` には `B` に無い file がある（組み合わせが実際に違うことの確認）。
-- **AC4（E2、E3、I-2）粒度と帰属:** 各 build の `ContentLayout.json` を `BuildManifestHash` で対応づける。**出力の全 file の集合と、帰属を付けた file の集合が一致する。** `ContentLayout.json` に記載の無い出力 file があれば NO-GO、記載はあるが harness が読めない欄や未対応の Version があれば未判定とし、record にどちらかを書く。全 file を source asset の数で分類し、source asset を 2 つ以上持つ file と、違った file（AC2・AC3・AC5 の全ての対）を全件、種類・source asset の一覧・size 付きで列挙する。4 種の asset が他の source asset と同じ file に入っていない（入っていれば列挙に出し、その file の合否は AC3 で読む）。
-- **AC5（E3、I-1）変更の波及:** 第 1 process の最後に次を行う。各 round は元の `A`（`B`）との対で読み、除外する file は判定の語のとおり。(1) `SharedTex` の pixel を変えて `A-tex`・`B-tex` を build する。`SharedTex` に帰属する file が 1 つ以上違い（違わなければ round は無効で未判定）、material・prefab・Scene・shader に帰属する file に違った file が無い。(2) texture を戻し、`SharedMat` の色を変えて `A-mat` を build する。`SharedMat` に帰属する file が 1 つ以上違い、他の source asset に帰属する file に違った file が無い。(3) material を戻し、`SharedPrefab` の component の値を変えて `A-prefab` を build する。`SharedPrefab` に帰属する file が 1 つ以上違い、他に違った file が無い。(4) prefab を戻して `A-back` を build すると、最初の `A` との対に違った file が無い。
+- **AC1（E1、E2、I-1）fixture と棚卸し:** fixture は §3 の形である。各 build の**直前と直後**に source の file と `.meta` の sha256 と GUID を採り、両者が一致する（build の間に source が動いていない。一致しなければその build は未判定）。全 build の出力の全 file に名前・size・sha256 がある。build `S` に `.resS` が 1 つ以上ある。**観測（合否にしない）:** fixture の asset の import 後の hash（`AssetDatabase` で取れる範囲）を process ごとに記録する（第 2 process は fixture を作り直すので、差が出た時に再 import と再 build を切り分ける材料にする）。同じ名前の file が全 build を通じて同じ sha256 か、同じ sha256 の file が同じ名前か。破れがあれば record に残し、結論に「名前ではなく sha256 でだけまとめられる」と付ける。以降の比較は全て sha256 で行う。
+- **AC2（E3、I-1）同じ source の再 build:** 次の対に違った file が無く、`片方だけ` の id も除外する file だけである（除外する file 以外に `片方だけ` があれば N1 と同じに扱う）。`A` と `A-same`（同じ引数、別の出力先）。`A` と `A-name`（`name` と root の identity だけ別）。`A` と別 process の `A-clean`（`CleanBuildCache`）。`B` と別 process の `B-clean`。製品の `BuildContentCoordinator.Build`（無改変。公開の入口で、既存の `BuildContentDirectoryIntegrationTests` と同じ呼び方）を通した `P1` と `P2`（identity が別。coordinator は出力の root を `artifacts/bs2b` か `TestResults/bs3-fixture` の下に限るので、`P1`・`P2` の `ArtifactsRoot` は `TestResults/bs3-fixture/` の下の専用 directory に固定する）。別 process の build の source の sha256 と GUID が第 1 process と一致する（一致しなければ未判定）。build ごとの所要時間と、`CleanBuildCache` の build が cache を使わなかったことを示す log の行を record に入れる（取れなければ「増分 cache の関与は不明」と結論に付ける）。**観測（合否にしない）:** `P1` と `A` の対。
+- **AC3（E3）別の root 集合:** 対は `S`–`A`、`S`–`B`、`S`–`AB`、`A`–`B`、`A`–`AB`、`B`–`AB` の 6 つ。各対で 2 つの軸の比較を行う。(i) 両方にある id の file を全種類について比べ、違った file を種類付きで全件記録する。(ii) 両方の layout に載っている source asset を全種類について比べ、別の file に入った source asset を種類付きで全件記録する（6 対の全て。`A`–`AB` の `SceneA` のような固有物を含む）。`S` を含む 3 対では、`S` の中核の 3 種と shader の source asset が相手の layout に全て載っているかを見て、載っていなければ `不在（fixture の不備）` と記録する。中核の 3 種と shader のそれぞれに、実際に比べた file が `S` を含む各対で 1 件以上ある。`B` には `A` に無い id があり、`A` には `B` に無い id がある（組み合わせが実際に違うことの確認。無ければ未判定）。結論への写像は判定定義による。**観測（合否にしない）:** 上の 6 対は全て第 1 process の build で、増分 cache の上の比較である。別 process の `A-clean`–`B-clean` の対でも同じ 2 つの軸を記録し、`A`–`B` の結果と食い違えば結論に付ける。
+- **AC4（E2、E3、I-2）粒度と帰属:** 各 build の**直後**に、その build で `Library/BuildHistory` に増えた項目の `ContentLayout.json` を record の置き場へ写し、その build の record に結びつける（後から `BuildManifestHash` だけで探さない。`A` と `A-same` のように同じ hash の build がありうる）。写した layout の `BuildManifestHash` が、その build の `BuildManifestHash.txt` の中身と一致することを確かめる。build の間に項目が増えていない、または 2 つ以上増えた時は、hash が一致する項目の layout の bytes が全て同じ時だけそれを使い、そうでなければ未判定とする。**棚卸しの対象から除外する file の (3) を除いた集合と、`BinaryArtifacts` の内容 hash の集合が一致する**（file 名から拡張子を除いた部分が内容 hash）。一致しない file は未知の file として名前を record に列挙する。全 content file を source asset の数で分類し、source asset を 2 つ以上持つ file と、違った file・`片方だけ`・別の file に入った source asset・`不在（fixture の不備）`（AC2・AC3・AC5 の全ての対）を全件、種類・source asset の一覧・size 付きで列挙する。除外する file の (1) について、root 自身の file の source asset の一覧を build ごとに記録し、生成した root の asset 以外が同居していれば未判定とする。中核の 3 種の asset が他の source asset と同じ file に入っているかを記録する（入っていても、それだけでは合否にしない。その file が build の間で変わるかは AC3 で読む）。
+- **AC5（E3、I-1）変更の波及:** 第 1 process の最後に次を行う。各 round は第 1 process の最初の `A`（`B-tex` は `B`）との対で読み、除外する file は判定の語のとおり。**変更 round (1)〜(3):** 書き換えた source asset に帰属する file が 1 つ以上違い（想定した変更。違わなければその round は未判定）、それ以外に違った file も、別の file に入った source asset も、除外する file 以外の `片方だけ` も無い。(1) `SharedTex` の pixel を変えて `A-tex`・`B-tex` を build する。(2) texture を戻し、`SharedMat` の色を変えて `A-mat` を build する。(3) material を戻し、`SharedPrefab` の component の値を変えて `A-prefab` を build する。**復元 round (4):** prefab を戻して `A-back` を build する。これは上の条件の例外で、最初の `A` との対に違った file も、別の file に入った source asset も、除外する file 以外の `片方だけ` も 0 件である（差が無いことが合格）。
 - **AC6（E4）数値:** record に次がある（全て sha256 で数える）。各 build の合計 bytes。`A` と `B` の file の和集合の bytes と、単純な合計との差（hash でまとめた時に減る量）。`AB`（1 build）の bytes との差。違った file の種類ごとの件数と bytes。AC5 の各 round で配り直しになる bytes。`P1`・`P2` を `ContentTransportPublisher.Publish` に通せた時は、transport manifest の `files` の `sha256` だけで同じ和集合が計算できること（通せなければ「製品の manifest での確認は未実施」と書く。合否にしない）。record と結論に「bytes は fixture の比率で、実 project の代表値ではない」と書く。
 - **AC7（I-3）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書だけである。`pwsh tools/contract-audit.ps1` が合格する。2 回の実行それぞれの前後で `git status --porcelain` が一致し、Build Settings、active target、Graphics Settings に変化が無い。**git とは別に file system を直接見て**、各 process の終わりに fixture の folder とその `.meta`、`Assets/OneStarMakerGenerated` が存在しないことを record に残す。各 process は開始時に前回の fixture の folder の残り（自分の marker がある物だけ）を消してから始め、消した事実を record に残す。
 
@@ -117,7 +125,7 @@
 | 問い 3: 同じ file を持つ 2 directory を登録した時のメモリ上の実体の数、`Loadable` の解決先、片方の登録解除の影響 | GO / CONDITIONAL ACCEPT の時だけ要る。推奨は保留中の S2-a を新しい revision で再開し、その AC6（直接参照の共有の実測）に足す（§2.5 U-2）。NO-GO なら不要 |
 | 問い 4 の実装: 配布・保存を hash でまとめる transport・cache・索引の形 | S2-b / S4（本スライスは AC6 の数値と §1 の現況までを入力として残す） |
 | 別の PC・別の `Library`・別の版・別の target の間の同一性 | CI が publish を始める時の後続（program §8「外部依存の gate」） |
-| variant を持つ shader を build の間で同じにする方法（variant の集合の固定等） | CONDITIONAL ACCEPT で量が問題になった時に owner が切る後続 |
+| shader・script・built-in の file を build の間で同じにする方法（variant の集合の固定等） | CONDITIONAL ACCEPT で量が問題になった時に owner が切る後続 |
 | 実データでの重複の量 | S2-b の前に owner（読み取りの集計で足りる） |
 
 ### 2.4 スライス分割の判断
@@ -139,7 +147,7 @@
 | file | 責務 | 予想行数 | テスト境界と配置理由 |
 |---|---|---|---|
 | `FileInventory.cs` | build 1 件の棚卸しの型（file の名前・size・sha256・id・帰属・種類、source の sha256 と GUID）と、棚卸しの対の比較（違った・片方だけ・不在、和集合の bytes）、判定定義への写像。入力は文字列と数値だけで、Unity の型も製品の型も受け取らない | 240 | Unity 非依存の pure。§2 の判定の語と AC1〜AC6 の比較の規則 |
-| `FileInventoryTests.cs` | 上の比較と写像だけの EditMode test。合成の棚卸しで §2 の (b)(e)(f)(g) の誤った YES が YES にならないこと、片方だけの file を「違った」に数えないこと、比べた file が 0 件の種類が未判定になることを含む | 220 | `[Explicit]` なし |
+| `FileInventoryTests.cs` | 上の比較と写像だけの EditMode test。合成の棚卸しで §2 の (b)(e)(f)(g) の誤った YES が YES にならないこと、片方だけの file を「違った」に数えないこと、比べた file が 0 件の種類が未判定になること、`SharedShader` だけが別の id に入った時は CONDITIONAL ACCEPT・`SceneA` が `A`–`AB` で別の id に入った時は NO-GO・全て同じ id と hash なら GO になること、root 自身の file に共通物が同居した時に GO / CONDITIONAL ACCEPT にならないことを含む | 220 | `[Explicit]` なし |
 | `IdentityFixture.cs` | fixture の asset の生成（`.meta` の GUID を固定し、内容を決定的にする）、所有の marker、変更 round の書き換えと復元、開始時の残りの回収と終了時の削除 | 220 | Unity / `AssetDatabase` の I/O |
 | `IdentityBuilds.cs` | build の行列の実行（直接の `BuildPipeline.BuildContentDirectory` と製品の `BuildContentCoordinator`）、build の前後の source の採取、出力の走査と sha256、`ContentLayout.json` の対応づけと帰属、JSONL の record | 300 | `[Explicit]` の EditMode test `FirstProcess` / `SecondProcess`。製品への依存はこの file だけ |
 
@@ -165,7 +173,7 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 ## 4. 実装計画
 
 - 順序: (1) pure の 2 file。(2) fixture。(3) build の行列と record。(4) 実行は Phase C。
-- 対象外を維持する方法: 製品 file を変えない（AC7）。record と build の出力は `TestResults/` 下の一時 root（git 管理外、path 予算内）に置く。file の名前と hash の一覧は機械向けのデータなので git に入れず、evidence bundle に置く。
+- 対象外を維持する方法: 製品 file を変えない（AC7）。record と直接の build の出力は `TestResults/` 下の一時 root（git 管理外、path 予算内）に置き、`P1`・`P2` の出力は `TestResults/bs3-fixture/` の下の専用 directory に置く（AC2）。file の名前と hash の一覧は機械向けのデータなので git に入れず、evidence bundle に置く。
 - Phase B から Phase A へ差し戻す条件: 製品 code か asmdef の変更が要る。`BuildContentCoordinator.Build` を fixture の root で無改変のまま呼べない（`P1`・`P2` が作れない。`OneStarMaker.Tests.Editor` は `OneStarMaker.Build.Content` を参照済みで、同 asmdef は `InternalsVisibleTo` を持つ）。`ContentLayout.json` から帰属が取れず、代わりの帰属の方法が要る。§3 の参照の形を変えないと fixture が作れない。
 - B 適応の範囲: fixture の asset の細部（keyword の選び方、component の選び方）、record の項目名、build の順序、`SecondProcess` が第 1 process の record を読む方法。
 
@@ -174,11 +182,11 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - 単体テスト: `FileInventoryTests`。
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity.FileInventoryTests`。
 - 判定必須テスト（GO 候補 head）: 次の 3 つを順に、それぞれ別の Unity process で実行する。(1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity.FileInventoryTests`。(2) `-Filter OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity.IdentityBuilds.FirstProcess`。(3) `-Filter OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity.IdentityBuilds.SecondProcess`。各 XML の total が 1 以上で failed 0、root result `Passed`、record に §3 の全 build の終了行がある。
-- 全 EditMode 回帰の適用除外: **適用除外する。** 理由: 製品 code を変えず（AC7）、実験 test は通常の回帰に混ぜない。代替証拠: AC7、Unity のコンパイル確認、`contract-audit`。
+- 全 EditMode 回帰の適用除外: **適用除外する。** 理由: 製品 code を変えず（AC7）、build を行う `[Explicit]` の実験 test は通常の回帰に混ぜない。pure の `FileInventoryTests` は `[Explicit]` を付けないので、Phase D で削除するまで通常の回帰にも入る（Unity も file も触らない）。代替証拠: AC7、Unity のコンパイル確認、`contract-audit`。
 - 操作・実行時・目視条件の検証経路: 全て上の 3 コマンドで閉じる（Unity バッチで、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64 Player、作業ツリーが clean。観測は record と XML。目視は無い。証拠は record・XML・log・各 build の `ContentLayout.json` の写しを evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路の疎通: batch の EditMode test から Content Directory を build する経路は既存の `BuildContentDirectoryIntegrationTests` が成立させている。**未確認:** `[Explicit]` の test を完全名の filter で選べること、build と `Library/BuildHistory` の `ContentLayout.json` を `BuildManifestHash` で対応づけること、`CleanBuildCache` の所要時間。初回確認は Phase C（理由: Unity テストと Build の実行は Phase C の責任。担当: Phase C の実行担当。確認地点: 最初の実行。不成立時: 基盤不備なら B、Unity の挙動なら観測として記録）。
 - 人間の判断が必要な条件: なし（CONDITIONAL ACCEPT の受け入れは Phase D の後に owner。§2.5 U-3）。
-- 高コスト証拠: なし（fixture の build は S0-b の実測で 1 回約 21〜25 秒。17 build で 10 分前後の見込み。超えたら記録する）。
+- 高コスト証拠: なし（fixture の build は S0-b の実測で 1 回約 21〜25 秒。15 build で 10 分以内の見込み。超えたら記録する）。
 - 判定 C の照合 script の方式: なし。判定 C は record の行を AC ごとに読む。pure の比較の出力（`FileInventory` の写像）は補助で、判定 C は棚卸しの行から独立に確かめる。
 - 機械検査: `contract-audit`、`docs-audit`。
 - A0/A1 主担当: A3 と同じ session（Claude）。
@@ -201,7 +209,7 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 | G-01 adapter を test から呼べない | 一部 | 可視性は実 repo で成立している（レビューの写しに asmdef と `AssemblyInfo` が無かった）。呼び方が未定だった点は採用し、公開の `BuildContentCoordinator.Build` に固定（AC2、§3、§4） |
 | G-02 pure の入力 | 採用 | `FileInventory` の入力を文字列と数値に限定し、製品への依存を `IdentityBuilds` だけにした（§3） |
 | G-03 source の採取の時点 | 採用 | build の直前と直後に採る（AC1） |
-| G-04 棚卸しと帰属の集合の一致、X-04 読めない欄 | 採用 | AC4。記載なしは NO-GO、読めない欄は未判定 |
+| G-04 棚卸しと帰属の集合の一致、X-04 読めない欄 | 採用 | AC4。読めない欄は未判定。記載の無い file は当初 NO-GO としたが、S-06 で未判定に改めた |
 | G-05 git に出ない残り | 採用 | file system の直接の確認と、開始時の回収（AC7）。fixture の folder は ignore 対象でないことを確かめた（§3） |
 | G-06 build を開始できない時 | 採用 | 判定定義（未判定） |
 | G-07 判定の重なり | 指摘なし | X-01 で別の穴が出たので判定の語を足した |
@@ -220,6 +228,41 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 | P-01〜P-12 | 既に計画の内容 | P-04 は AC3 の種類ごとの記録、P-08 の「変更 1 件で配り直す量」は AC6 に足した |
 | P-13〜P-20、P-22 | 既に計画の内容 | 対象外と §2.3 |
 | P-21 生データを履歴に残さない | 既に計画の内容 | §4（evidence bundle に置き git に入れない） |
+
+**外部レビュー（2026-11-11、owner 経由、PR 上。入力は commit `a02f05d6` の未凍結の統合版）と、主担当による判定の再点検。** 外部レビューの 3 件は、coordinator の source、手元の実際の出力 directory、`ContentLayout.json` で事実を確かめてから採用した。
+
+| 指摘 | 分類 | 理由と反映先 |
+|---|---|---|
+| E-01 `BuildManifestHash.txt` と仮想の built-in 項目で、正常な出力が NO-GO になる | 採用 | 判定に使う語（除外する file の (3)、file の id）、AC4。pointer と layout の一致を別に確かめる |
+| E-02 `不在` がどの判定にも入らない | 採用 | `不在` を 2 つに分け、別の file に入った時は NO-GO（N2）、fixture の不備は未判定 |
+| E-03 coordinator の出力 root の制限 | 採用 | AC2、§4（`TestResults/bs3-fixture/` の下） |
+| E-04 build の数 | 採用 | 15（§5） |
+| S-01 AC5 は必ず違った file を生むので、「違った file が無い」の GO に到達できなかった | 採用 | 「想定した変更」を定義して集計から外し、GO / CONDITIONAL ACCEPT は AC3 の対で決める |
+| S-02 「列挙に当たらない結果は NO-GO」で、後始末の不備（AC7）や数値の欠落（AC6）まで「前提は不成立」になった | 採用 | 判定定義を順序付きにし、証拠の不備は全て未判定へ |
+| S-03 Scene と固有物の file を比べる対が無かった（`A`–`B` は Scene を共有しない） | 採用 | AC3 に `A`–`AB`、`B`–`AB`。Scene・`その他` の違った file は N4 |
+| S-04 「variant の無い shader」が違った時、分類を固定したままだと shader だけの差で NO-GO になり、緩めると事後の分類になる | 採用 | shader を 1 つの種類にして CONDITIONAL ACCEPT の側に置き、NO-GO の根拠は中核の 3 種（texture・material・prefab）に限る。`SharedShader` の結果は結論に別に書く。判定の意味の変更なので owner に確認し、2026-11-11 に承認を得た |
+| S-05 `.resS` の「同じ id」が未定義 | 採用 | file の id（参照する content file の id と `Category`） |
+| S-06 layout に無い file を NO-GO にしていた（前提の反証ではなく説明できない物） | 採用 | 未知の file は未判定で Phase A へ |
+| S-07 AC2 の `片方だけ`、別 process の差の読み | 採用 | AC2、N1 の付記 |
+
+**外部レビューの 2 巡目（2026-11-11、owner 経由。入力は上の表までを反映した未 commit の版で、owner が直接渡した）。** 判定は「R-01 を直せば凍結に条件付きで賛成。fixture とスライスは広げない」。
+
+| 指摘 | 分類 | 理由と反映先 |
+|---|---|---|
+| R-01 id が変わった共通 asset が GO に紛れ込む | 採用 | 「別の file に入った」を source asset を軸にした比較として定義し直し、全ての対・全ての種類で数える。中核の 3 種は N2、Scene・`その他` は N4、shader・script・built-in は CONDITIONAL ACCEPT、GO は 0 件（判定に使う語、判定定義、AC3、AC5）。合成の棚卸しの 3 例を `FileInventoryTests` に足した（§3） |
+| R-02 root 自身の file の一括除外 | 採用 | source asset が root 1 つだけの時に限って除外し、同居があれば未判定で Phase A へ（判定に使う語、判定定義、AC4） |
+| R-03 `A-back` と AC5 の一律条件 | 採用 | 変更 round と復元 round を書き分けた（AC5） |
+
+**PR 上の bot レビュー（2026-11-11、owner 経由）。** この反映の後、owner が「これ以上細かくしない」として凍結を指示した。
+
+| 指摘 | 分類 | 理由と反映先 |
+|---|---|---|
+| layout と build の対応づけが同じ hash で曖昧になる | 採用 | build の直後に写して record に結びつける（AC4）。手元の `Library/BuildHistory` の項目名は時刻と hash で、`name` 由来の上書きは起きない |
+| AC3 の比較が増分 cache の上だけ | 採用（観測） | `A-clean`–`B-clean` を観測の対に足した（AC3）。build は増やさない |
+| §5.1 の G-04 の行が古い | 採用 | 行を直した |
+| `FileInventoryTests` が通常の回帰に入る | 採用（文言） | §5 の適用除外の理由 |
+| import 後の hash の記録 | 採用（観測） | AC1。合否にしない |
+| status 行が長い | 採用 | 凍結版で短くした |
 
 ## 6. Phase B 実装結果
 
