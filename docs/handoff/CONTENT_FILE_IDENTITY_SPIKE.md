@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: C' 1 巡目で `B` へ差し戻し（2 回目、head `bb4efe77`）、C' 待ち（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: C' 1 巡目の差し戻し（head `bb4efe77`）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
-- implementation head commit: bb4efe7767c825ac3de3d4d2bc458e47c750ff8e
+- implementation head commit: f632707a2896df58046ce1868790fec357d8a909
 - risk: `normal`（製品 code を変えない。build だけで、Play も登録もしない）
 - owner: root（依頼者）
 - created: 2026-11-11
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 判定 C 2 回目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、判断担当の別 process で取得と閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1 回目（head `0b72f0ff`）の bundle は差し戻しで無効
 - C' blind bundle の取得案内・状態: 1 巡目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、C' の担当が取得した写しで閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。差し戻しで head が変わるので判定には流用しない
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（C' 1 巡目の差し戻し。新しい session）。
-  - 次の作業: §8.1 の CP-01〜CP-03 を直し、`FileInventoryTests` に CP-01 の合成の例を足し、`contract-audit` とコンパイル確認を済ませ、§6 に追記して commit する。修正後は発見 C で修正差分を見てから、新しい GO 候補 head で判定 C の 3 コマンドをやり直し、C' 2 巡目（前巡の指摘の解消と修正差分）へ進む。旧 head の判定証拠は流用しない。
+  - 次の Phase・役割: 発見 C（C' 1 巡目の差し戻しの修正差分の確認。動作確認は §5 のとおり `対象なし`）。
+  - 次の作業: `bb4efe77` から implementation head までの `unity/` の修正差分と §6 の追記を見て、§8.1 の CP-01〜CP-03 が解消したことと、修正差分に凍結条件・常時契約の新しい違反が無いことを確かめる。阻害する指摘が無ければ implementation head を GO 候補とし、判定 C の 3 コマンド（§5）をやり直してから C' 2 巡目（前巡の指摘の解消と修正差分）へ進む。旧 head の判定証拠は流用しない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: Phase B はコンパイル確認の Editor 操作だけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
+  - 必要な権限: 発見 C は読み取りだけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: C' には §7 の発見 C・判定 C の結論・指摘と、§6 の差し戻し修正の記述を渡さない（C' 用の取得案内は所見と分けて渡す）。
 
@@ -311,6 +311,17 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - 行数は `IdentityFixture.cs` 335（他の 3 file は変えていない）。
 - Editor はこの session で起動し（2 回）、`EditorApplication.Exit(0)` で終了させ、Editor の process が消えたことをプロセス一覧で確かめた。判定 C 1 回目の record（`TestResults/cfi/20261111T152153Z/`）は読んだだけで変えていない。
 - **未実行:** Unity テストと build（Phase C）。
+
+**C' 1 巡目の差し戻しの修正（§8.1 の CP-01〜CP-03。判定の語・判定定義・§3 の参照の形・製品 code・asmdef は変えていない）:**
+
+- **違った file の種類を両側の build から決める（`FileInventory.Compare`）:** 両方の build にある id の sha256 が違う時、以前は種類と source asset の一覧を左の build の file だけから取っていた。同じ id でも source asset の一覧は build ごとに違いうるので、右の build でその id に中核の asset や Scene が加わっていても、左が script か shader なら CONDITIONAL ACCEPT 側に読まれえた。`PairItem` に右の build の file の種類 `KindB` を足し、`Kind`（左）と `KindB` の両方を `FindingKinds` に入れる（どちらかが中核なら N2、Scene か `その他` なら N4）。source asset は両側の和集合を記録する。各側の種類は `Read` が凍結した分類（§2 の順）で付けた値をそのまま使い、分類の規則は変えていない。record と判定の理由の文字列では、両側の種類が違えば `script/scene` のように `/` で並べる（`KindLabel`。AC6 の種類ごとの件数もこの表示で集計する）。比べた file の数（`compared`、種類ごとの 1 件以上の確認）は以前どおり左の file の種類で数える。
+- **AC7 の `git status` の取得の失敗（`IdentityBuilds.Begin` / `End`）:** 以前は `git` が失敗すると前後が同じ失敗の文字列になり、一致と読まれえた。`TryGit` で取得の成否を返し、record の `process-start` / `process-aftercare` に `GitStatusBeforeRead`・`GitStatusAfterRead` を足した。どちらかが失敗なら `AC7: git status could not be read` で未判定にし、前後の比較はしない。
+- **直接 build の失敗の message（`IdentityBuilds.Direct`）:** `BuildReport`（`UnityEngine.Object`）に `?.` を使っていたので、`report == null` の分岐と結果の分岐に分けた（偽 null の契約）。
+- 同じ修正で、`IdentityFixture.cs` の code のコメントから本書の指摘の記号への参照を外した（本書は Phase D で消えるので、コメントは理由だけを書く）。
+- **足したテスト（`FileInventoryTests`、13 件から 15 件）:** `SceneJoiningTheScriptIdOnTheRightOnly_IsNoGo`（`B` だけで script の id に Scene が加わり bytes が違う時、`A`–`B` と `S`–`B` が N4 になる。以前の左だけの分類では script の差になり、この 2 対は N4 に入らなかった）。`CoreAssetJoiningTheScriptIdOnTheRightOnly_IsDifferedAsCore`（同じ形で prefab が加わった時、違った file の `Kind` が script・`KindB` が prefab・source が和集合で、`A`–`B` が N2 になる）。
+- 行数は `FileInventory.cs` 465、`FileInventoryTests.cs` 280、`IdentityBuilds.cs` 525、`IdentityFixture.cs` 335。
+- **確認したこと:** `pwsh tools/contract-audit.ps1` は errors 0・warnings 0。Unity 6000.6.0f1 の Editor でコンパイル成功（`scriptCompilationFailed` が false、4 つの型と `PairItem.KindB` がロードされ、`FileInventoryTests` の `[Test]` が 15 件。Editor.log に spike の file の警告・エラーは 0）。Editor はこの session で起動し、`EditorApplication.Exit(0)` で正常終了させ、Editor と asset worker の `Unity.exe` が消えたことをプロセス一覧で確かめた（強制終了はしていない）。終了後に `Assets/OsmSpikeCfi` と `Assets/OneStarMakerGenerated` が無いことを file system で確かめた。
+- **未実行:** Unity テスト（足した 2 件を含む）と build（Phase C）。判定 C 2 回目の record は旧 head のもので流用しない（今回の修正は判定の写像と AC7 の記録を変えるので、新しい head で取り直す）。
 
 ## 7. Phase C
 
