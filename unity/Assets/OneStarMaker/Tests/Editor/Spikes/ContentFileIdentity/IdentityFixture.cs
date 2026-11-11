@@ -7,10 +7,6 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using OneStarMaker.Runtime.AssetManagement.Components;
-using OneStarMaker.Runtime.BuildContent;
-using OneStarMaker.Runtime.Rendering.Vfx;
-using Unity.Loading;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -29,6 +25,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
     /// 各 asset を一度 Unity に作らせ、その text の fileID を class ごとの固定値に、.meta の GUID を名前から決まる値に
     /// 置き換えてから最終の path に書く（prefab と URP material の fileID は作るたびに乱数になることを Editor で確認した）。
     /// fixture の folder は marker で所有を示し、marker の無い folder には触れない。process の終わりに必ず消す。
+    /// 製品の型（BuildContentRoot と Runtime の component）は参照しない。製品への依存は IdentityBuilds だけに置き（HANDOFF §3）、
+    /// component は System.Type で、root は作り終えた ScriptableObject で受け取る。
     /// </summary>
     internal sealed class IdentityFixture
     {
@@ -52,6 +50,19 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
 
         private readonly List<string> _assets = new List<string>();
         private readonly Dictionary<string, byte[]> _original = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+        private readonly Type _sharedPrefabComponent;
+        private readonly Type _onlyBComponent;
+
+        // SharedPrefab と OnlyB に付ける component の型。互いに別の Runtime の既存 component を渡す（HANDOFF §3）。
+        public IdentityFixture(Type sharedPrefabComponent, Type onlyBComponent)
+        {
+            if (!typeof(Component).IsAssignableFrom(sharedPrefabComponent) || !typeof(Component).IsAssignableFrom(onlyBComponent))
+                throw new ArgumentException("Prefab components must derive from UnityEngine.Component.");
+            if (sharedPrefabComponent == onlyBComponent)
+                throw new ArgumentException("SharedPrefab and OnlyB must carry different components.");
+            _sharedPrefabComponent = sharedPrefabComponent;
+            _onlyBComponent = onlyBComponent;
+        }
 
         public KindClassifier Classifier => new KindClassifier(SharedTex, SharedMat, LitPlain, SharedPrefab, SharedShader);
 
@@ -106,9 +117,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             CreateNative(emissive, "LitEmissive.mat");
 
             var mats = new[] { AssetDatabase.LoadAssetAtPath<Material>(SharedMat), AssetDatabase.LoadAssetAtPath<Material>(LitPlain) };
-            CreatePrefab("SharedPrefab.prefab", mats, go => go.AddComponent<AssetReleaseOnDestroy>());
-            CreatePrefab("OnlyB.prefab", new[] { AssetDatabase.LoadAssetAtPath<Material>(LitEmissive) },
-                go => go.AddComponent<VfxOwnerDestroyNotifier>());
+            CreatePrefab("SharedPrefab.prefab", mats, _sharedPrefabComponent);
+            CreatePrefab("OnlyB.prefab", new[] { AssetDatabase.LoadAssetAtPath<Material>(LitEmissive) }, _onlyBComponent);
             // Scene は prefab instance を置かず、Scene 内の Renderer が共通の material を直接参照する（HANDOFF §3 の参照の形）。
             // Scene の作成は開いている Scene を置き換える。人の未保存の変更を消さないよう、dirty なら始めない。
             var previous = EditorSceneManager.GetSceneManagerSetup();
@@ -127,28 +137,11 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             }
         }
 
-        // root は製品の BuildContentRoot を無改変で使う。Scene は LoadableSceneId、Object は Loadable<Object> で持つ。
-        public string CreateRoot(string build, string identity, IEnumerable<string> members)
+        // build の root（呼び出し側が作った ScriptableObject）を fixture の folder に固定 GUID で置き、source の採取に含める。
+        // root の中身は IdentityBuilds が決める。fixture は他の asset と同じ決定性の処理を通すだけ。
+        public string AddRoot(string build, ScriptableObject root)
         {
-            var entries = new List<BuildContentEntry>();
-            foreach (var path in members)
-            {
-                if (path.EndsWith(".unity", StringComparison.Ordinal))
-                    entries.Add(new BuildContentEntry(path, path, "", LoadableSceneIdEditorUtility.CreateLoadableSceneId(path)));
-                else
-                {
-                    var asset = AssetDatabase.LoadMainAssetAtPath(path);
-                    if (asset == null) throw new InvalidOperationException("missing " + path);
-                    entries.Add(new BuildContentEntry(path, path, "",
-                        new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset))));
-                }
-            }
-            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
-            root.Initialize(identity, "StandaloneWindows64-Player", entries);
-            var name = Path.GetFileName(RootPath(build));
-            AssetDatabase.CreateAsset(root, Stage + "/" + name);
-            AssetDatabase.SaveAssets();
-            Commit(name, true);
+            CreateNative(root, Path.GetFileName(RootPath(build)));
             return RootPath(build);
         }
 
@@ -213,14 +206,14 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             Commit(name, true);
         }
 
-        private void CreatePrefab(string name, Material[] materials, Action<GameObject> addComponent)
+        private void CreatePrefab(string name, Material[] materials, Type component)
         {
             var go = new GameObject(Path.GetFileNameWithoutExtension(name), typeof(MeshFilter), typeof(MeshRenderer));
             try
             {
                 go.GetComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Cube.fbx");
                 go.GetComponent<MeshRenderer>().sharedMaterials = materials;
-                addComponent(go);
+                go.AddComponent(component);
                 PrefabUtility.SaveAsPrefabAsset(go, Stage + "/" + name);
             }
             finally { UnityEngine.Object.DestroyImmediate(go); }

@@ -10,7 +10,11 @@ using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime.AssetManagement.Components;
+using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.BuildContent.Distribution;
+using OneStarMaker.Runtime.Rendering.Vfx;
+using Unity.Loading;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -22,7 +26,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
     /// build の行列（HANDOFF §3）を実行し、JSONL の record を書く実験 test。通常の回帰に混ぜないので [Explicit]。
     /// Phase C が FirstProcess と SecondProcess を別の Unity process で順に実行する。判定の結論（GO / NO-GO 等）は
     /// record の verdict 行に書き、test の合否にしない。test が失敗するのは harness が record を書けなかった時だけ。
-    /// 製品への依存はこの file だけで、BuildContentCoordinator と ContentTransportPublisher は無改変で呼ぶ。
+    /// 製品への依存はこの file だけで（root の BuildContentRoot、fixture の prefab に付ける Runtime の component を含む）、
+    /// BuildContentCoordinator と ContentTransportPublisher は無改変で呼ぶ。
     /// </summary>
     public sealed class IdentityBuilds
     {
@@ -100,7 +105,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             public List<string> Undecided { get; } = new List<string>();
             // build ごとの、BuildLog から抜き出した cache の行の数（AC2 の CleanBuildCache の材料）。
             public Dictionary<string, int> CacheLines { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
-            public IdentityFixture Fixture { get; } = new IdentityFixture();
+            // component は SharedPrefab と OnlyB で別の既存の Runtime 型。どちらも直列化する値を持たない（HANDOFF §6 の B 適応 2）。
+            public IdentityFixture Fixture { get; } = new IdentityFixture(typeof(AssetReleaseOnDestroy), typeof(VfxOwnerDestroyNotifier));
 
             // 1 行 = header と JsonUtility の payload。process の別と head を全行に持たせる。
             public void Write(string type, object payload)
@@ -130,11 +136,11 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                 var b = new[] { f.SceneB, f.SharedPrefab, f.OnlyB };
                 var roots = new Dictionary<string, string>
                 {
-                    ["S"] = f.CreateRoot("S", "cfi-S", new[] { f.SharedPrefab }),
-                    ["A"] = f.CreateRoot("A", "cfi-A", a),
-                    ["A-name"] = f.CreateRoot("A-name", "cfi-A-name", a),
-                    ["B"] = f.CreateRoot("B", "cfi-B", b),
-                    ["AB"] = f.CreateRoot("AB", "cfi-AB", a.Concat(b).Distinct()),
+                    ["S"] = CreateRoot(f, "S", "cfi-S", new[] { f.SharedPrefab }),
+                    ["A"] = CreateRoot(f, "A", "cfi-A", a),
+                    ["A-name"] = CreateRoot(f, "A-name", "cfi-A-name", a),
+                    ["B"] = CreateRoot(f, "B", "cfi-B", b),
+                    ["AB"] = CreateRoot(f, "AB", "cfi-AB", a.Concat(b).Distinct()),
                 };
                 // 第 2 process はこの一覧（root を含む）と照合する（AC2）。
                 state.Sources = f.CaptureSources();
@@ -194,8 +200,8 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                 var f = run.Fixture;
                 f.Create();
                 run.Write("import-hashes", new TextList { Items = f.ImportHashes() });
-                var rootA = f.CreateRoot("A", "cfi-A", new[] { f.SceneA, f.SharedPrefab });
-                var rootB = f.CreateRoot("B", "cfi-B", new[] { f.SceneB, f.SharedPrefab, f.OnlyB });
+                var rootA = CreateRoot(f, "A", "cfi-A", new[] { f.SceneA, f.SharedPrefab });
+                var rootB = CreateRoot(f, "B", "cfi-B", new[] { f.SceneB, f.SharedPrefab, f.OnlyB });
                 // 第 2 process は root を A と B の分だけ作る。作った全 file が第 1 process と同じ bytes と GUID で、
                 // 第 1 process の root 以外の file が全てあることを確かめる。
                 var sources = f.CaptureSources();
@@ -353,6 +359,28 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
         }
 
         // 製品の公開の入口（無改変）。既存の BuildContentDirectoryIntegrationTests と同じく plan と snapshot を合成する。
+        // root は製品の BuildContentRoot を無改変で使う。Scene は LoadableSceneId、Object は Loadable<Object> で持つ（HANDOFF §3）。
+        // fixture は作った root を他の asset と同じく固定 GUID で置く。
+        private static string CreateRoot(IdentityFixture fixture, string build, string identity, IEnumerable<string> members)
+        {
+            var entries = new List<BuildContentEntry>();
+            foreach (var path in members)
+            {
+                if (path.EndsWith(".unity", StringComparison.Ordinal))
+                    entries.Add(new BuildContentEntry(path, path, "", LoadableSceneIdEditorUtility.CreateLoadableSceneId(path)));
+                else
+                {
+                    var asset = AssetDatabase.LoadMainAssetAtPath(path);
+                    if (asset == null) throw new InvalidOperationException("missing " + path);
+                    entries.Add(new BuildContentEntry(path, path, "",
+                        new Loadable<UnityEngine.Object>(LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset))));
+                }
+            }
+            var root = ScriptableObject.CreateInstance<BuildContentRoot>();
+            root.Initialize(identity, "StandaloneWindows64-Player", entries);
+            return fixture.AddRoot(build, root);
+        }
+
         private static BuildContentResult Coordinated(Run run, string build, string[] members, Dictionary<string, BuildInventory> builds)
         {
             BuildContentResult? result = null;
@@ -412,7 +440,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             var end = new BuildEnd { Build = build, Succeeded = true, Options = options, ElapsedMs = watch.ElapsedMilliseconds,
                 OutputPath = output, SourcesStable = Same(before, after) };
             if (!end.SourcesStable) run.Undecided.Add("AC1: sources moved during build " + build);
-            run.Write("sources-" + build, new TextList { Items = before.Select(x => x.Path + " " + x.Sha256 + " " + x.Guid).ToArray() });
+            // AC1 の「直前と直後に採り、両者が一致する」を record から確かめられるよう、両方の一覧を書く。
+            run.Write("sources-before-" + build, new TextList { Items = before.Select(x => x.Path + " " + x.Sha256 + " " + x.Guid).ToArray() });
+            run.Write("sources-after-" + build, new TextList { Items = after.Select(x => x.Path + " " + x.Sha256 + " " + x.Guid).ToArray() });
 
             var pointer = File.ReadAllText(Path.Combine(output, FileInventory.PointerName)).Trim();
             var added = Directory.GetDirectories(history).Where(x => !known.Contains(x)).ToArray();

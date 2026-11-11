@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: 発見 C 1 巡目で `B` へ差し戻し（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: 発見 C 1 巡目の差し戻しを B で修正済み、発見 C 2 巡目待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
-- implementation head commit: df21b8178bb8d798ddce5eab3d0f532301bd9515
+- implementation head commit: この票を含む commit
 - risk: `normal`（製品 code を変えない。build だけで、Play も登録もしない）
 - owner: root（依頼者）
 - created: 2026-11-11
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C 1 巡目の差し戻し。新しい session）。
-  - 次の作業: §7.1 の DC-01 と DC-03 を直し、`contract-audit` とコンパイル確認を済ませ、§6 に修正を追記して commit する。修正後は発見 C 2 巡目（修正差分と DC-01・DC-03 の解消を見る）。build と Unity テストは判定 C で §5 の 3 コマンドを実行する。
+  - 次の Phase・役割: Phase C の発見 C 2 巡目（新しい session）。動作確認は §5 のとおり `対象なし`。
+  - 次の作業: 前の implementation head `df21b817` からこの票を含む commit までの修正差分を見て、§7.1 の DC-01 と DC-03 が解消したか（§6 の「発見 C 1 巡目の修正」）を確かめる。阻害する指摘が無ければ GO 候補 head として判定 C へ進め、build と Unity テストは判定 C で §5 の 3 コマンドを実行する。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: Phase B はコンパイル確認の Editor 操作だけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路（`osm-workflow` の Phase C）。
+  - 必要な権限: 発見 C は無し（静的レビュー）。判定 C の Unity バッチテストは sandbox 外の承認済み経路（`osm-workflow` の Phase C）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: なし。
 
@@ -292,6 +292,14 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 **確認したこと:** Unity 6000.6.0f1 の Editor でコンパイル成功（新しい file の警告 0、全ての型がロードされた）。`BuildContentOptions.CleanBuildCache` が存在することを Editor で確かめた。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。確認に使った Editor はこの session で起動し、正常終了させた。
 
 **未実行:** Unity テスト（`FileInventoryTests` を含む）と build は一度も実行していない（Phase C）。§5 の「未知の操作経路の疎通」の 3 点（`[Explicit]` の完全名の filter、`BuildManifestHash` による layout の対応づけ、`CleanBuildCache` の所要時間）は未確認のまま。fixture の生成が別 process で同じ bytes になるかは、判定 C の第 2 process で初めて分かる（ならなければ AC2 で未判定となり B へ戻る）。
+
+**発見 C 1 巡目の修正（§7.1。判定の語・判定定義・§3 の参照の形は変えていない）:**
+
+- **DC-01:** `IdentityBuilds.Measure` が build ごとに、直前の一覧を `sources-before-<build>`、直後の一覧を `sources-after-<build>` の 2 行で record に書く（以前は直前だけを `sources-<build>` に書いていた）。各行は path・sha256・GUID。`build-end` の `SourcesStable` は従来どおり両者の一致で、判定 C は 2 行から独立に確かめられる。
+- **DC-03:** root の生成（`BuildContentRoot`・`BuildContentEntry`・`Loadable` の組み立て）を `IdentityFixture.CreateRoot` から `IdentityBuilds.CreateRoot` へ移した。fixture は作り終えた root を `AddRoot`（`ScriptableObject` を受け、他の asset と同じ固定 GUID の処理で置く）で受け取るだけにした。prefab の component は `IdentityFixture` の constructor が `System.Type` で受け（`Component` の派生で、2 つが別の型であることを確かめる）、`IdentityBuilds` が `AssetReleaseOnDestroy` と `VfxOwnerDestroyNotifier` を渡す。`IdentityFixture` から `OneStarMaker.Runtime.*` と `Unity.Loading` の using は無くなり、製品への依存は `IdentityBuilds` だけになった。新しい Runtime の型は足していない。
+- 行数は `IdentityBuilds.cs` 507、`IdentityFixture.cs` 315（他の 2 file は変えていない）。
+- **確認したこと:** Unity 6000.6.0f1 の Editor でコンパイル成功（`scriptCompilationFailed` が false、4 つの型がロードされ、`IdentityFixture` の constructor が `Type, Type` であることを確認。Editor.log に spike の file の警告・エラーは 0）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。確認の Editor はこの session で起動し、`EditorApplication.Exit(0)` で正常終了させ、Editor の process が消えたことをプロセス一覧で確かめた（強制終了はしていない）。Unity CLI 自身の常駐 process（`unity.exe --internal-identity-serve`）は Editor ではないので残している。
+- **未実行:** Unity テストと build（Phase C）。
 
 ## 7. Phase C
 
