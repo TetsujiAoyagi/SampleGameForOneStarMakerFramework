@@ -89,7 +89,7 @@
 - **source と directory の同居。** 起動は source か directory かを BeforeSceneLoad で 1 つ選び、directory なら Addressables を封じる。表現は起動時に固定。`EditorSceneManager` で Scene を開けることと、OSM の所有・unload・依存・native handle を混ぜて正しく解放できることは別の問題。現行は保証していない。Verify Play はこの衝突を「開いている Scene を閉じる」で避けている。
 - **旧 Hybrid Play の前例。** [§20](../../unity/Assets/Docs/Architecture/20-variant-checkout-workflow.md) §1「Checkout 済みかつ依存閉包が完結するアセットは AssetDatabase 直読み、未 Checkout は remote catalog」は 2026-09-20 に切断された。新しい混成は同じ技術ではないが、廃止理由の回顧を S0-b の A1 に含める。
 - **Unity の複数 Content Directory。** `ContentLoadManager.RegisterContentDirectory` は複数登録でき、Editor では Play 中だけ登録できる（Unity 6.6 公開文書。OSM での適合は未実証）。横断探索は後から登録した directory が先になり、直接参照の依存は元の directory に閉じ、同じ asset を別 directory に入れると重複ロードされうる。**「複数登録できる」は「異なる build を安全に合成できる」を意味しない。**
-  - **別々の build の間の同じ file（2026-11-12 実測、`CONTENT_FILE_IDENTITY_SPIKE`、PR #177）:** 共通の asset の content file は、別々に build した Content Directory の間で同じ bytes になる（texture・material・prefab と、variant の無い自作 shader）。build の組み合わせで中身が変わるのは URP の `Lit` の shader と、script をまとめた file だけで、配布と保存は sha256 で 1 つにまとめられる。名前ではまとめられない（`BuildManifestHash.txt` は同じ名前で中身が build ごとに違う）。同じ file を持つ 2 directory を両方登録した時の扱い（メモリ上の実体の数、`Loadable` の解決先、片方の登録解除の影響）は未実証（§8 の `CONTENT_SHARED_FILE_REGISTRATION_SPIKE`）。
+  - **別々の build の間の同じ file（2026-11-12 実測、PR #177）:** 共通の asset の file は同じ bytes になり、sha256 でまとめられる（§5.3、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)）。同じ file を持つ 2 directory を両方登録した時の扱い（メモリ上の実体の数、`Loadable` の解決先、片方の登録解除の影響）は未実証（§8 の `CONTENT_SHARED_FILE_REGISTRATION_SPIKE`）。
 - **宣言名の一致は互換を意味しない。** manifest の `declaration` は optional で検証されない。既存の消費者は contentSet / revision / target / Unity version / root schema / digest を検証するが、要求した実行内容と同じかまでは示さない。
 - **local object store と installed cache は別の層。** Artifacts の store に置いただけでは Play に使えず、cache root への install と verify が要る。
 - **`ExitingEditMode` は Play への移行途中。** 探索、install、hash を同期で置けるとは限らず、取り消し → 準備 → 再 Play、重複 event、compile / import 中、domain reload、crash を含む状態機械が要る。
@@ -227,13 +227,8 @@ Rev2 の UX 要求は、core ではなく Editor adapter の**要求**として�
 
 - **Stage I（暫定）:** 1 つの full revision を最初の要求で丸ごと install。順序・互換・所有・失敗の証明に使う。性能の合格には使わない。
 - **Stage II（目標）:** 1 Scene の要求に対し、必要な Scene と依存を含む配布単位（Scene package / cell group / shared package）を索引で特定して取得する。単位は 1 Scene に固定しない。`Region` / `Season` / `Cell group` は host が自分の package 定義を作る場合の例示で、OSM の標準単位にしない。
-- **build をまたぐ file の同一性（2026-11-12、`CONTENT_FILE_IDENTITY_SPIKE` の結論 CONDITIONAL ACCEPT）:** 範囲はこの PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（`Uncompressed`、`BuildContentOptions.None`）、SampleGame を使わない fixture。15 build（同じ root 集合の再 build、`name` と root の identity だけ違う build、別 process の `CleanBuildCache`、製品の `BuildContentCoordinator` 経由、root 集合の違う 6 対、依存先の変更 3 round と復元）を比べた。
-  - texture・material・prefab の file は、root 集合と build の回によらず同じ id・同じ sha256 だった。依存先（texture、material、prefab の値）を変えても、変わったのは書き換えた asset の file だけで、参照元の file は変わらなかった。
-  - build の組み合わせで中身が変わった file は 2 種類: URP の `Lit` の shader（理由は未確認。build 内の material の keyword で variant の集合が変わるという仮説）と、build 内の全 MonoScript をまとめた file。自作の variant の無い shader は変わらなかった。root 自身の file と manifest は除外して数えた。
-  - 数値（fixture の比率で、実 project の代表値ではない）: 別々の build `A` と `B` の合計 2,521,007 bytes が sha256 の和集合で 1,574,899 bytes（946,108 bytes 減る）。組み合わせで変わった file は shader 5 件 1,679,044 bytes、script 4 件 7,984 bytes。依存先 1 つの変更で配り直す量は texture 約 48 KB、material 約 7 KB、prefab 約 9 KB。製品の `ContentTransportManifest.files` の `sha256` だけで同じ和集合を計算できた。
-  - 未確認: 増分 build cache の関与（`CleanBuildCache` の build の log に cache を使わなかったことを示す行が無い）、別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`）、実データでの重複の量。測っていないもの: sprite atlas、共通物と固有物をまたぐ循環参照、lightmap と lighting data、Scene に置いた prefab instance・nested prefab・prefab variant、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
+- **build をまたぐ file の同一性（2026-11-12、`CONTENT_FILE_IDENTITY_SPIKE` の結論 CONDITIONAL ACCEPT）:** 共通の texture・material・prefab の content file は、別々に build した directory の間で同じ bytes になり、配布と保存は sha256 で 1 つにまとめられる。build の組み合わせで中身が変わるのは URP の `Lit` の shader と script をまとめた file だけ。事実・数値・範囲・測っていないもの・測り直しの手順は [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) を正とする。
   - 「配布側で足りるか」（shader と script の file が build ごとに別になることを受け入れるか）は、SampleGame の build 履歴の読み取り集計を取ってから owner が決める（S2-b の前。2026-11-12 の owner 裁定）。
-  - 実験 code は製品に残さず、git 履歴の commit `f632707a`（`unity/Assets/OneStarMaker/Tests/Editor/Spikes/ContentFileIdentity/`）にある。
 - Unity の内部 content file を切り貼りする案は不可。BuildPipeline が生成する正規の directory の単位で検証する。Stage II が不成立なら owner に戻し、大きな chunk + 先読みか、全 revision 取得への縮退かを決める。
 
 ## 6. 不変条件（Rev4 §7。各 A1 が自分の範囲の物を不変条件として採る）
