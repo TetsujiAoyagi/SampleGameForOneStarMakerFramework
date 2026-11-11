@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: 判定 C 完了（3 回目、head `f632707a`）、C' 2 巡目待ち（head `bb4efe77`）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: C' 完了（2 巡目、head `f632707a`。判定 C・C' とも CONDITIONAL ACCEPT）、Phase D 待ち（3 回目、head `f632707a`）、C' 2 巡目待ち（head `bb4efe77`）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
 - implementation head commit: f632707a2896df58046ce1868790fec357d8a909
@@ -20,12 +20,12 @@
 - evidence bundle の取得案内・状態: 判定 C 3 回目（head `f632707a`）の bundle はローカル固定済み（未昇格）、判断担当の別 process で取得と閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1・2 回目（head `0b72f0ff`・`bb4efe77`）の bundle は差し戻しで無効
 - C' blind bundle の取得案内・状態: 2 巡目（head `f632707a`）の bundle はローカル固定済み（未昇格）、取得した写しで閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1 巡目（head `bb4efe77`）の bundle は差し戻しで無効
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C' 2 巡目（最終 C'。新しい session、1 巡目と同じ系列の担当）。
-  - 次の作業: C' 用の blind bundle（2 巡目）だけを入力に、前巡の自分の指摘の解消と修正差分、新しい head の証拠を監査する。
+  - 次の Phase・役割: Phase D（owner による判定 C と C' の突き合わせ、マージ判断、Evidence の保存・引渡し確認、harvest）。
+  - 次の作業: §7.7 と §8.2 を突き合わせ、CONDITIONAL ACCEPT の受け入れ（§2.5 U-3。実データの build 履歴の読み取り集計を先に取る推奨）と問い 3 の置き場（U-2）を決める。PR の push と状態ブロックの更新は owner の指示で行う（C' 完了時点では未 push）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: なし（読み取りだけ）。
+  - 必要な権限: Evidence の取得確認と `evidence schedule status` は Artifact Storage の通常操作。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
-  - 引き渡さないもの: C' には §7 の発見 C・判定 C の結論・指摘と、§6 の差し戻し修正の記述を渡さない（C' 用の取得案内は所見と分けて渡す）。
+  - 引き渡さないもの: なし（C' は完了）。
 
 ## 1. 目的と対象外
 
@@ -409,6 +409,17 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 - 後続スライスへ移送する findings: なし。残存リスクとして job 1 が挙げたもの: `LitEmissive` と `OnlyB` は分類で `その他` になり、build の間で変われば N4 になる。fileID の置換が GUID の 16 進の列に数字として一致しうる（今回の layout に参照が壊れた形跡は無い）。出力の直下に directory があると未知の file として未判定になる（今回の出力は平坦）。
 - 監査できなかった範囲: command を実行していない（読み取りだけ）。`out/` の全 file の sha256 の再計算と、全 source の行の全文比較はしていない。
 - 独立性: Phase A（Claude・Codex）、B（Claude）、C（Codex）のどれにも関与していない系列。発見 C・判定 C の結論を読んでいない。
+
+### 8.2 C' 2 巡目（最終 C'。対象 implementation head `f632707a`）
+
+- 担当方式: AI。cursor-agent CLI の `grok-4.7-high`（`--mode=ask`、読み取りだけ）で新規 session を 1 つ。
+- 受け取った決定記録の版: なし（1 巡目の指摘に人間の裁定は無く、全件を B が直した）。入力に自分の 1 巡目の指摘（2 job の最終回答の原文）を入れた。
+- 入力: C' 用の blind bundle（2 巡目）。A3 凍結版の本書、Phase B の最初の実装報告、`docs/handoff/` を除いた base..head の diff と 1 巡目の head からの修正差分、head の source、判定 C 3 回目と同じ 3 実行の生の出力と record、coordinator の出力、`contract-audit`。Storage から hash 照合で取得した写しを workspace にした。発見 C・判定 C の結論と指摘は入れていない。
+- 判定: blocker 0。1 巡目の指摘（種類を両側で決めること、`BuildReport` の偽 null、`git status` の取得失敗、record の head の違い）は全て解消し、修正は判定定義の順序と事前の分類を保つ（種類ごとの比べた件数は左の種類で数え、0 件の規則は N2/N4 より前に効く）。足した 2 つの test は `results.xml` で `Passed`（total 15）。§5 のゲートを満たし、run 2 の強制終了は XML と `process-end` の後なのでゲートの証拠は欠けない。判定定義の順に読むと **CONDITIONAL ACCEPT**。結論に付ける文は §7.7 と同じ。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし。残存リスク: 両側の種類が違う file の bytes は 1 つの表示の鍵にまとまる（今回の違った file は両側が同じ種類で、件数は変わらない）。増分 cache を使わなかったことは log で示せていない。transport の和集合が前の実行より 1 byte 違うのは、実行ごとに identity が変わる root の file による（`P1` と `A` に違った file は無い）。
+- 監査できなかった範囲: command を実行していない。`out/` の全 file の sha256 の再計算と、全 source の行の全文比較はしていない。
+- 独立性: 1 巡目と同じ。Phase A・B・C に関与していない系列で、発見 C・判定 C の結論を読んでいない。
 
 ## 9. Phase D
 
