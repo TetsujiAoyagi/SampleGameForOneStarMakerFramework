@@ -1,6 +1,6 @@
 # Content Directory の build の出力（実測の事実）
 
-Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build の出力について、Unity の公開文書に書かれておらず、OSM の配布と保存の設計が前提にする事実を、実測で確かめた範囲だけ置く。OSM の設計の正本ではない（設計は [Architecture](../../unity/Assets/Docs/Architecture/) と、進行中の計画 [PLAY_CONTENT_RESOLUTION_PROGRAM.md](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md)）。
+Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build の出力について、Unity の公開文書に書かれておらず、OSM の配布と保存の設計が前提にする事実を、実測で確かめた範囲だけ置く。OSM の設計の正本ではない（設計は [Architecture](../../unity/Assets/Docs/Architecture/)）。
 
 **範囲:** Unity 6000.6.0f1、StandaloneWindows64、loose file（`BuildCompression.Uncompressed`、`BuildContentOptions.None`。`CleanBuildCache` を付けた build を含む）、1 台の PC と 1 つの `Library`、SampleGame を使わない小さな fixture。Unity の版を上げたら、下の「測り直し」で確かめ直すか、この文書を直すか消す。
 
@@ -15,8 +15,8 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 別々に build した Content Directory の間で、共通の asset の content file は同じ id・同じ bytes になる。比べたのは、同じ root 集合の再 build（別の出力先、`name` と root の identity だけ別、別 process の `CleanBuildCache`、OSM の `BuildContentCoordinator` 経由）、root 集合の違う 6 対、依存先を変えた 3 回と元に戻した 1 回の、計 15 build。
 
 - **同じになる:** texture、material、asset として参照される prefab、variant の無い自作 shader。root 集合と build の回によらない。
-- **build の組み合わせで中身が変わる:** URP の `Lit` の shader と、build 内の全 MonoScript をまとめた file の 2 種類だけ。`Lit` が変わる理由は確かめていない（build 内の material の keyword で variant の集合が変わる、という仮説）。build ごとに生成する root の file と manifest は毎回変わる。
-- **依存先を変えた時:** 変わるのは書き換えた asset の file だけで、参照元の file は変わらない（file 間の参照は相手の hash ではなく安定した id で持つ）。
+- **build の組み合わせで中身が変わる:** URP の `Lit` の shader と、build 内の全 MonoScript をまとめた file の 2 種類だけ。`Lit` が変わる理由は確かめていない（build 内の material の keyword で variant の集合が変わる、という仮説）。root の identity が違う build の間では、root の file と manifest も変わる（OSM の製品経路 `BuildContentCoordinator` は build ごとに identity を作り直すので、毎回変わる）。同じ root を別の出力先へ build し直した時は、比較から除外しており測っていない。
+- **依存先を変えた時:** 変わるのは書き換えた asset の file だけで、参照元の file の bytes は変わらなかった。UnityDataTools の形式文書は、その理由を「file 間の参照は相手の hash ではなく安定した id（`.cfid`）で持つ」と説明している（実測で確かめたのは bytes が変わらなかったことだけ）。
 - **名前ではまとめられない:** `BuildManifestHash.txt` は同じ名前で、中身が build ごとに違う。まとめるのは sha256 で行う。content file の名前は内容 hash なので、それ以外の file では名前と sha256 が一致した。
 
 ## 数値（fixture の比率で、実 project の代表値ではない）
