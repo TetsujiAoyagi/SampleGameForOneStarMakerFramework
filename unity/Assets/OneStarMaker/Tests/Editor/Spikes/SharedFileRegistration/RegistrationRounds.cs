@@ -237,7 +237,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                     Phase(spec, order + "/after-register");
                     var listed = Listed();
                     check.SecondListed = listed.Contains(RegistrationBuilds.BuildName(names[1]));
-                    check.FailureRecorded = check.SecondThrew || ErrorIn(spec, order + "/register-second");
+                    check.FailureRecorded = check.SecondThrew || LoggedIn(spec, order + "/register-second", RegistrationFailureLogTypes);
                     check.ExcludedCause = pathOk ? "" : "path";
                     _run.Write("order-check", ("order", order), ("firstRegistered", check.FirstRegistered), ("secondValid", check.SecondValid),
                         ("secondThrew", check.SecondThrew), ("error", error), ("listed", listed), ("failureRecorded", check.FailureRecorded),
@@ -366,7 +366,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                 try { target.Backend.Unregister(); }
                 catch (Exception ex) { threw = ex.GetType().FullName + ": " + ex.Message; }
                 Phase(spec, "t1-t3");
-                u.CallLoggedError = threw.Length != 0 || ErrorIn(spec, "unregister-call");
+                u.CallLoggedError = threw.Length != 0 || LoggedIn(spec, "unregister-call", UnregisterRefusalLogTypes);
                 u.T1Broken = probe.Broken();
                 _run.Write("t1", ("round", spec.Key), ("rep", spec.Rep), ("broken", u.T1Broken), ("listed", Listed()), ("threw", threw));
                 await UniTask.NextFrame();
@@ -530,10 +530,21 @@ namespace OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration
                 }
             }
 
-            private bool ErrorIn(Spec spec, string phase)
+            // log の種類の集合は、§2 の語ごとに違う。用途の間で 1 つの集合を共有しないこと。
+            // - 同時登録の拒否の条件は「Unity の log か例外の型が record にある」で種類を限らないので、
+            //   捕捉する全ての種類（Warning・Error・Assert・Exception）を数える。Warning だけを出して
+            //   無効な handle を返す拒否を見落とすと、その順の round を実行して中止し、未判定に落ちる。
+            // - 登録解除の「拒否された」は「Error か Exception」なので、Assert と Warning は数えない。
+            //   数えると、Assert だけを出した無傷の case を拒否に分類する。
+            private static readonly string[] RegistrationFailureLogTypes =
+                { nameof(LogType.Warning), nameof(LogType.Error), nameof(LogType.Assert), nameof(LogType.Exception) };
+
+            private static readonly string[] UnregisterRefusalLogTypes = { nameof(LogType.Error), nameof(LogType.Exception) };
+
+            private bool LoggedIn(Spec spec, string phase, string[] types)
             {
                 Flush();
-                return _roundLogs.Any(x => x.phase == spec.Key + "/" + phase && (x.type == "Error" || x.type == "Exception" || x.type == "Assert"));
+                return _roundLogs.Any(x => x.phase == spec.Key + "/" + phase && types.Contains(x.type));
             }
 
             // ───── 終了 ─────
