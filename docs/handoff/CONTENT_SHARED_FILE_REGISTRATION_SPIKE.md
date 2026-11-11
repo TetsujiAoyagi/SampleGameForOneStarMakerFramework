@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: 発見 C の 1 回目が完了し、B へ差し戻した（2026-11-12。§7.1。B と発見 C の往復の 1 巡目）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は B の修正（進行役が起こす）
+- status: 発見 C の差し戻し F-1 を B で修正した（2026-11-12。§6.1。B と発見 C の往復の 1 巡目）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は発見 C の再レビュー（進行役が起こす）
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
-- implementation head commit: `a1c211d7`
+- implementation head commit: `0b2b6625`
 - risk: `normal`（製品 code を変えない。Editor の Play の中で、製品の native 層の wrapper を 2 つ使うだけ）
 - owner: root（依頼者）
 - created: 2026-11-12
@@ -20,10 +20,10 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の差し戻しの修正。B と発見 C の往復の 1 巡目）。Phase C から C' までの進行役が新しい session で起こし、起動指示で引き継ぐ commit の SHA を渡す。B の担当は Phase B の会話ではなく本書を入力にする。B の修正の後は、進行役が発見 C の担当を新しい session で起こして再レビューさせ、明確な差し戻しが無くなれば判定 C、C' と進める。進行役自身はレビュー・判定・監査をしない（動作確認は §5 のとおり `対象なし`）。
+  - 次の Phase・役割: 発見 C の再レビュー（B と発見 C の往復の 1 巡目の後半。F-1 の修正は §6.1）。Phase C から C' までの進行役が新しい session で起こし、起動指示で引き継ぐ commit の SHA を渡す。担当は会話ではなく本書を入力にする。明確な差し戻しが無くなれば判定 C、C' と進める。進行役自身はレビュー・判定・監査をしない（動作確認は §5 のとおり `対象なし`）。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は SHA なので、それが HEAD の祖先で（`git merge-base --is-ancestor`）、implementation head から HEAD までの差分が本書だけであること。PR #179 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が本欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 次の作業（B）: §7.1 の F-1 を直す（`RegistrationRounds.cs` の log の種類の集合を、同時登録の確認と登録解除の用途ごとに §2 の語へ合わせる）。N-1〜N-3 は判定 C への注意で、B の修正対象ではない。Editor のコンパイル確認と `pwsh tools/contract-audit.ps1` を行い、修正の commit を切って implementation head 欄をその SHA に更新し、§6 に修正の記録を足して票を発見 C の再レビューへ更新する。Unity テストは実行しない（SKILL の Phase B）。
-  - 次の作業（発見 C の再レビュー、修正の後）: B の修正の差分と F-1 の解消を中心に見る。初回の観点は次のとおり。implementation base `aa6b9488` から implementation head までの差分を、§2.1 の不変条件・§2.2 の受け入れ条件・§2 の誤答の経路 (a)〜(g)・§3 の責務マップに照らしてレビューする（構造を先に）。§6 の「HANDOFF との差」9 件が §4 の B 適応の範囲に収まるかと、`RegistrationRounds.cs` の行数（§6）の説明も確かめる。差し戻し中のテストは §5 の起点 filter を使う。明確な差し戻しが無くなれば、GO 候補 head を固定して判定 C（§5 の 3 コマンド）へ進める。
+  - 次の作業（B）: 完了（§6.1。F-1 の修正は commit `0b2b6625`）。
+  - 次の作業（発見 C の再レビュー）: B の修正の差分（`a1c211d7..0b2b6625`）と F-1 の解消を中心に見る。初回の観点は次のとおり。implementation base `aa6b9488` から implementation head までの差分を、§2.1 の不変条件・§2.2 の受け入れ条件・§2 の誤答の経路 (a)〜(g)・§3 の責務マップに照らしてレビューする（構造を先に）。§6 の「HANDOFF との差」9 件が §4 の B 適応の範囲に収まるかと、`RegistrationRounds.cs` の行数（§6）の説明も確かめる。差し戻し中のテストは §5 の起点 filter を使う。明確な差し戻しが無くなれば、GO 候補 head を固定して判定 C（§5 の 3 コマンド）へ進める。
   - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。C' の担当の手段: 2026-11-12 時点で Codex CLI は使えず、`cursor-agent` は使える（AGENTS.md の契約どおり Grok 系だけ）。§5 の「Phase A・B・C に関与していないベンダー」に当たるかは C' を起こす時に確かめ（Phase A の凍結前の外部レビュー（cursor の background agent、§5.1）が使ったモデルを含む）、当たらなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない。§5）。
   - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B 適応で足りる欠陥は B へ戻す。B と発見 C の往復は 4 巡まで。
   - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
@@ -320,7 +320,7 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
 | `RegistrationVerdictTests.cs` | 395（320） | §3 に列挙した規則の全例（GO の各向き、(r1)・(r2)、拒否から除く 4 原因、R0・R1、反復、整合の規則、含意の複数行） |
 | `RegistrationFixture.cs` | 256（200） | fixture の生成（固定 GUID・固定 fileID・文書の並べ替え）、marker、残りの回収と削除 |
 | `RegistrationBuilds.cs` | 410（180） | `FirstProcess`。build、棚卸し、帰属と `.resS` の 4 段の引き方、digest。共通の record（`SpikeRun`）、process の前後の比較（`Aftercare`） |
-| `RegistrationRounds.cs` | 658（220） | `SecondProcess`。照合、Play の round（同時登録の確認、基準 A・B、正の対照、AC2〜AC4 の 11 round × 2 反復）、R0・R1・T0〜T3 の観測、log の捕捉、後始末、補助の判定の行 |
+| `RegistrationRounds.cs` | 658（220）。§6.1 の修正の後は 669 | `SecondProcess`。照合、Play の round（同時登録の確認、基準 A・B、正の対照、AC2〜AC4 の 11 round × 2 反復）、R0・R1・T0〜T3 の観測、log の捕捉、後始末、補助の判定の行 |
 
 **行数の差（予想 950、実際 2011）。** `RegistrationRounds.cs` が 500 行を超えた。増えたのは、§2.2 の前文が要求する手順（round の開始時の 0 件の確認、R0・R1・T0〜T3 の各時点の記録、log の phase への結びつけ、`finally` の後始末と一覧からの直接回収、T3 の後の再 load）を case ごとに分けずに 1 つの表（`CaseTable`）と共通の部品で書いた結果で、責務は §3 のとおり 1 つ（Play の round と record）である。file を分けると §3 の責務マップに無い file が増えるので分けなかった。`RegistrationBuilds.cs` の増分は、§3 では置き場所を決めていなかった record・process の前後の比較・git の読み取りを、両 process が共有するのでここに置いたためである。
 
@@ -346,6 +346,17 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
 **確認したこと。** Unity Editor（6000.6.0f1、この session で起動して正常終了させた）でコンパイルが成功し（`scriptCompilationFailed=False`、Editor.log に `error CS` なし）、5 つの型が `OneStarMaker.Tests.Editor` に読み込まれた。`pwsh tools/contract-audit.ps1` は errors 0、warnings 0。
 
 **未実行（Phase C の責任）。** `RegistrationVerdictTests`、`FirstProcess`、`SecondProcess` は一度も実行していない（§5 の 3 コマンドを実行していない）。したがって、fixture の build、`.resS` の一意な対応、同時登録が受け付けられるか、`LogAssert.ignoreFailingMessages` の下で log を record に結びつけられるか、Game の bootstrap の非同期の初期化が round の log や Scene に混ざらないかは未確認である（§5 の「未知の操作経路の疎通」）。
+
+### 6.1 発見 C の差し戻しの修正（1 巡目、2026-11-12）
+
+- 開始時の照合: 渡された SHA（`e4e92ec4`）と HEAD が一致、作業ツリーは clean、ブランチ一致。`a1c211d7` は HEAD の祖先で、`a1c211d7` から HEAD までの差分は本書だけ。PR #179 の状態ブロックの `引き継ぐ commit` と implementation base / head は §0 と一致。
+- **F-1 の修正（commit `0b2b6625`、`RegistrationRounds.cs` だけ）:** `ErrorIn` を、log の種類の集合を引数に取る `LoggedIn` に置き換え、用途ごとに集合を分けた。
+  - 同時登録の確認（`CheckAsync` の `FailureRecorded`）: `RegistrationFailureLogTypes`（Warning・Error・Assert・Exception。`OnLog` が捕捉する全ての種類）。§2「同時登録の拒否の条件」が log の種類を限らないため。
+  - 登録解除の呼び出し（`UnregisterAsync` の `CallLoggedError`）: `UnregisterRefusalLogTypes`（Error・Exception）。§2「拒否された」の定義のとおり。
+  - 集合の定義の上に、用途の間で集合を共有しない理由をコメントで残した。record の項目名（`failureRecorded`・`callLoggedError`）は変えていない。`RegistrationVerdict` と pure テストは変えていない（真偽を受け取るだけなので、§7.1 の「直す向き」のとおり）。
+- N-1〜N-3 は判定 C への注意で、修正していない。
+- 確認したこと: Unity Editor（6000.6.0f1、この session で起動し、未保存の変更が無いことを確かめて正常終了させた）でコンパイルが成功し（`scriptCompilationFailed=False`）、新しい集合のフィールドが `RegistrationRounds+Session` に読み込まれた。`pwsh tools/contract-audit.ps1` は errors 0、warnings 0。
+- 未実行: Unity テストは実行していない（SKILL の Phase B）。修正の効果は、判定 C の record の `order-check` 行の `failureRecorded` と `case` 行の `callLoggedError` を、同じ phase の `unity-log` 行の `logType` と突き合わせて確かめる。
 
 ## 7. Phase C
 
