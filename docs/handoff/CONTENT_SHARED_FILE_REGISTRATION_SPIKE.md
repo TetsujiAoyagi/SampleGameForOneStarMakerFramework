@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-0b。S2 `CONTENT_PACKAGE_DISCOVERY` の再開条件）
-- status: `A` 完了（**A3 凍結、revision 0、2026-11-12 に owner が凍結を指示。** 凍結版はこの票を含む commit。A2 入力版は commit `1c96bd8c`。凍結の前に draft PR #179 で外部レビュー 6 巡と PR の独立レビューを受け、最後の巡はどちらも blocker なし。採否の経緯は §5.1）。次は Phase B
+- status: `B` 完了（2026-11-12。§6）。Phase A は revision 0（A3 凍結版は commit `68b4fe3b`、A2 入力版は commit `1c96bd8c`。採否の経緯は §5.1）。次は発見 C
 - branch: `claude/content-shared-file-registration-spike`（PR の base は `develop`）
 - implementation base commit: `aa6b9488`（`develop` の head、2026-11-12。§1 の現況はこの base）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - risk: `normal`（製品 code を変えない。Editor の Play の中で、製品の native 層の wrapper を 2 つ使うだけ）
 - owner: root（依頼者）
 - created: 2026-11-12
@@ -16,15 +16,15 @@
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（「確かめていないこと」の該当行を実測の事実へ置き換え、登録の事実の節を足す。文書の冒頭の範囲は build の出力だけを言うので、登録と load の事実を含む範囲へ一文を改める。新しい文書は作らない。自己点検 S-5）、program §2.4「Unity の複数 Content Directory」・§5.3・§8（本スライスの行と S2 の再開条件）。実験 code は製品に残さず git 履歴に置く（S0-b・S2-0 と同じ）。program の本文は Phase D まで変えない
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§2.4、§5.3、§8 の S2-0 の移送、§9 の G11・G24）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（S2-0 の実測と測り直しの harness の所在）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結の入力は、この票を含む commit の本書だけ）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 該当なし（同じ PC の発見 C へ commit の SHA で引き継ぐ。Phase B は Unity のテストも build も実行していないので、渡す実行結果は無い）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。新しい session で、Phase A の会話ではなく本書を入力にする。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は `未固定`（Phase A の出口）なので、Phase B の担当としてだけ引き継ぐ。PR #179 の状態ブロックの `引き継ぐ commit` も同じ SHA であること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 次の作業: §3 の 5 file を §4 の順で、`unity/Assets/OneStarMaker/Tests/Editor/Spikes/SharedFileRegistration/` に実装する。S2-0（commit `f632707a`）と S0-b（commit `94b0c4a6`）の harness は §3 のとおり git 履歴から写して縮めてよく、写した元を §6 に書く。製品 code・asmdef・既存の test は変えない（AC5）。実装を終えたら Unity Editor でコンパイルを確かめ、`pwsh tools/contract-audit.ps1` を通し、§6 に実装結果・HANDOFF との差・未実行を書いて commit する。implementation head 欄と本票の書き方は「引継ぎ票」の (a) か (b) に従う。本票の次の担当は発見 C とする（§5 のとおり動作確認は `対象なし`）。PR が存在するので、出口で PR #179 の状態ブロックも更新する。
-  - 必要な権限: Unity Editor の起動・操作とコンパイル確認（`.agents/skills/osm-unity-editor/SKILL.md` に従う。起動前に対象 project と既存の Editor を確かめる）。Unity のバッチテスト（`run-tests.ps1`）と Content Directory の build は Phase B では実行しない（Phase C の責任。§5 の 3 コマンドも実行しない）。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従い、同じ PC の発見 C へは commit の SHA で引き継ぐ。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。新しい事実は SKILL の「新しい事実の分類」で、A 再開・B 適応・スパイク・後続スライスに分ける。B 適応の範囲は §4 に書いたものだけ。Phase B は判定をしない（§2 の判定定義は判定 C が record に当てる）。
+  - 次の Phase・役割: 発見 C（Phase C の欠陥発見。動作確認は §5 のとおり `対象なし`）。新しい session で、Phase B の会話ではなく本書と implementation head の差分を入力にする。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-shared-file-registration-spike` であること。implementation head 欄は「この票を含む commit」なので、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file（本スライスの Spikes の folder）があることを確かめる。PR #179 の状態ブロックの `引き継ぐ commit` と implementation head が同じ SHA であること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 次の作業: implementation base `aa6b9488` から implementation head までの差分を、§2.1 の不変条件・§2.2 の受け入れ条件・§2 の誤答の経路 (a)〜(g)・§3 の責務マップに照らしてレビューする（構造を先に）。§6 の「HANDOFF との差」9 件が §4 の B 適応の範囲に収まるかと、`RegistrationRounds.cs` の行数（§6）の説明も確かめる。差し戻し中のテストは §5 の起点 filter を使う。明確な差し戻しが無くなれば、GO 候補 head を固定して判定 C（§5 の 3 コマンド）へ進める。
+  - 必要な権限: 差し戻し中の限定のテストと判定 C の Unity バッチテスト・Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。Unity Editor は閉じてある。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。
+  - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B 適応で足りる欠陥は B へ戻す。B と発見 C の往復は 4 巡まで。
   - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
 
 ## 1. 目的と対象外
@@ -311,7 +311,40 @@ commit `ccf043fb` に対して、6 巡目の外部レビュー（同じ担当）
 
 ## 6. Phase B 実装結果
 
-未着手。
+§3 の 5 file を `unity/Assets/OneStarMaker/Tests/Editor/Spikes/SharedFileRegistration/` に新規で置いた（2026-11-12）。製品 code・asmdef・既存の test は変えていない。製品への依存は `RegistrationBuilds.cs`（`BuildContentRoot`）と `RegistrationRounds.cs`（`UnityContentDirectoryBackend`、`AbstractApplicationInitializer` の発見）だけである。
+
+| file | 行数（予想） | 内容 |
+|---|---|---|
+| `RegistrationVerdict.cs` | 292（180） | §2 の語（整合の規則、同時登録の拒否の条件、AC4 の分類）と判定の手順 1〜3、含意の表の行への写像。入力は文字列・数値・真偽だけ |
+| `RegistrationVerdictTests.cs` | 395（320） | §3 に列挙した規則の全例（GO の各向き、(r1)・(r2)、拒否から除く 4 原因、R0・R1、反復、整合の規則、含意の複数行） |
+| `RegistrationFixture.cs` | 256（200） | fixture の生成（固定 GUID・固定 fileID・文書の並べ替え）、marker、残りの回収と削除 |
+| `RegistrationBuilds.cs` | 410（180） | `FirstProcess`。build、棚卸し、帰属と `.resS` の 4 段の引き方、digest。共通の record（`SpikeRun`）、process の前後の比較（`Aftercare`） |
+| `RegistrationRounds.cs` | 658（220） | `SecondProcess`。照合、Play の round（同時登録の確認、基準 A・B、正の対照、AC2〜AC4 の 11 round × 2 反復）、R0・R1・T0〜T3 の観測、log の捕捉、後始末、補助の判定の行 |
+
+**行数の差（予想 950、実際 2011）。** `RegistrationRounds.cs` が 500 行を超えた。増えたのは、§2.2 の前文が要求する手順（round の開始時の 0 件の確認、R0・R1・T0〜T3 の各時点の記録、log の phase への結びつけ、`finally` の後始末と一覧からの直接回収、T3 の後の再 load）を case ごとに分けずに 1 つの表（`CaseTable`）と共通の部品で書いた結果で、責務は §3 のとおり 1 つ（Play の round と record）である。file を分けると §3 の責務マップに無い file が増えるので分けなかった。`RegistrationBuilds.cs` の増分は、§3 では置き場所を決めていなかった record・process の前後の比較・git の読み取りを、両 process が共有するのでここに置いたためである。
+
+**写した元（§3・§4 の B 適応）。**
+
+- S2-0（commit `f632707a`）の `IdentityFixture`: 固定 GUID（名前の MD5）、fileID の固定と文書の並べ替え、marker の所有、自作 shader の source。URP の material と component を除いて縮めた。
+- S2-0 の `IdentityBuilds`: 実行 id の root、`BuildHistory` の増分から `BuildManifestHash` で layout を対応づける方法、process の前後の git status と設定の比較、git の読み取り。record の writer は、JsonUtility の payload の型を並べる代わりに key と値の組を書く形にした。
+- S2-0 の `FileInventory`: `ContentLayout.json` の欄の写し（帰属に使う欄だけ）と、`contentfile` の `ArtifactReferences` が `texture` の `Index` を指す向き。
+- S0-b（commit `94b0c4a6`）の `PlayEnvironment`: Game の bootstrap に process の環境変数で addressables mode を与える方法（addressables mode では bootstrap は Content Directory を登録せず、最初の Scene も読まないことを `AbstractApplicationInitializer` で確かめた）と、Play の初期 Scene の退避と復元。
+
+**HANDOFF との差（B 適応。契約・責務配置は変えていない）。**
+
+1. **帰属の引き方:** layout の `SourceAssets` は GUID ではなく asset の path なので、固定 GUID を `AssetDatabase.GUIDToAssetPath` で path に戻し、それが固定の path と一致することを確かめてから `SourceAssets` と照合する（名前（`Object.name`）では対応づけない）。local id は `LoadableObjectIds` に載る物（root の entry の `SharedPrefab` と `Twin`）にだけあるので、それらは GUID と LFID が指す `SerializedFile` が同じ file であることも確かめる。
+2. **fixture の細部:** `SharedTex` は 1024×1024、圧縮なし、mipmap なし、読める設定。正の対照は `A/Twin.png` と `B/Twin.png`（`Object.name` は 2 つとも `Twin`、256×256、pixel は variant で変える）。component は `MeshFilter` と `MeshRenderer` だけで、自作の script は持たせない。root の logical key は両 directory で同じ `Scene`・`SharedPrefab`・`Twin` にし、Play 中は handle ごとの root からこの key で引く。
+3. **round の順序:** 同時登録の確認 → 基準 A → 基準 B → 正の対照（登録できた順の 1 つ目）→ 反復 1・2 のそれぞれで AC2（2 順）・AC3（2 順）・AC4（U1〜U7）。拒否された順の round は Play に入らず、開始行と終了行（`exclusion: r1`）だけを書く。両方の順で拒否されたら正の対照と AC2〜AC4 を適用除外と書いて終える。
+4. **拒否から除く原因の判定:** `path` は 2 つ目の directory の出力に `BuildManifestHash.txt` が無いことで判定する。manifest と type tree は、第 1 process の build の設定（`BuildContentOptions.None`、type tree を書く）と build の成功の記録で確かめる。harness の例外は round の中止（`round-abort`）にし、test を失敗させる（拒否の観測にしない）。
+5. **T3 の後の再 load:** prefab は生き残る側の token を Release して同じ handle の root から load し直す。Scene は生き残る側の Scene を unload して同じ handle から load し直す。どちらも、結果の Renderer・material・texture・shader が `== null` でないことを見る。
+6. **「壊れた」の項目:** §2 の定義の項目だけを数える。Scene の Renderer の `sharedMaterial` が別の `EntityId` に変わったことは定義に無いので数えず、各時点の行（`survivor` の欄）に記録する。生き残る側の参照は probe が T3 まで保持するので、`ReferencesHeldToT3` は構成上つねに真である。
+7. **log:** `Application.logMessageReceivedThreaded` で `Log` 以外（Warning・Error・Assert・Exception）を、その時点の phase（`<round>/<呼び出し>`）と main thread かどうかと一緒に記録する。round ごとに Play に入る前に購読と `LogAssert.ignoreFailingMessages = true` を始め、Play を出た後に元の値へ戻して記録する（Test Framework の `LogScope` は log の時点の値で失敗の log を数えることを確かめた）。
+8. **一時 root:** `TestResults/sfr/<実行 id>/`（marker 付き）と `TestResults/sfr/first-process.txt`（最後の第 1 process の実行 id）。同じ実行 id の root があれば上書きせずに止め、他の実行の root には触れない。開始時の残りの回収の対象は fixture の folder だけである（実行 id は毎回新しいので、自分の実行の一時 root の残りは生じない）。
+9. **前提の確認:** 第 2 process は Enter Play Mode の Domain Reload が無効でなければ開始時に止める（有効だと test の enumerator の位置と局所変数が Play の出入りで失われる）。
+
+**確認したこと。** Unity Editor（6000.6.0f1、この session で起動して正常終了させた）でコンパイルが成功し（`scriptCompilationFailed=False`、Editor.log に `error CS` なし）、5 つの型が `OneStarMaker.Tests.Editor` に読み込まれた。`pwsh tools/contract-audit.ps1` は errors 0、warnings 0。
+
+**未実行（Phase C の責任）。** `RegistrationVerdictTests`、`FirstProcess`、`SecondProcess` は一度も実行していない（§5 の 3 コマンドを実行していない）。したがって、fixture の build、`.resS` の一意な対応、同時登録が受け付けられるか、`LogAssert.ignoreFailingMessages` の下で log を record に結びつけられるか、Game の bootstrap の非同期の初期化が round の log や Scene に混ざらないかは未確認である（§5 の「未知の操作経路の疎通」）。
 
 ## 7. Phase C
 
