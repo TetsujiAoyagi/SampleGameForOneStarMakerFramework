@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>同じ file を持つ 2 つの Content Directory</title>
+<meta name="description" content="Unity 6000.6 の Content Directory を、中身が同じ file を持つ 2 つ分同時に登録したとき、実体はいくつ載り、片方の登録解除は何を壊すかを Editor の Play で実測した記録。">
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1c1a; --muted:#5f5b54; --line:#dcd7cd; --card:#ffffff;
+  --accent:#2f5d8a; --ok:#2e7d4f; --bad:#b3412f; --code:#f1eee7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+    --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+  --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 80px}
+h1{font-size:1.75rem;line-height:1.4;margin:0 0 .4em}
+h2{font-size:1.25rem;margin:2.4em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.6em 0 .4em}
+p,li{color:var(--fg)}
+.lede{color:var(--muted);margin:0 0 1.6em}
+.scope{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:.92rem;color:var(--muted)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.88em;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:1.2em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .k{font-size:.8rem;color:var(--muted)}
+.card .v{font-size:1.9rem;font-weight:700;line-height:1.2;margin:.15em 0}
+.card .d{font-size:.85rem;color:var(--muted)}
+.table-wrap{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--bad);font-weight:700}
+figure{margin:1.4em 0}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.4em}
+svg{width:100%;height:auto;display:block}
+.note{font-size:.9rem;color:var(--muted)}
+footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>同じ file を持つ 2 つの Content Directory を同時に登録すると何が起きるか</h1>
+<p class="lede">Unity 6000.6 の Content Directory を、中身が同じ content file を持つ 2 つ分登録して、Editor の Play の中で実測した記録です。対象は OneStarMaker（OSM）の配布単位の設計です。</p>
+
+<div class="scope">範囲: 1 台の PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（非圧縮）、Editor の Play（Domain Reload 無効）、小さな fixture。Player・archive・実データでは測っていません。「実体の数」は load の結果として区別できる <code>UnityEngine.Object</code> の数（相異なる <code>EntityId</code>）で、物理メモリの量ではありません。</div>
+
+<h2>問い</h2>
+<p>別々に build した 2 つの Content Directory <code>A</code> と <code>B</code> は、共通の texture・material・shader・prefab について、名前も sha256 も同じ file を持ちます（<a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/177">前のスパイク</a>で確認済み）。では、両方を <code>ContentLoadManager.RegisterContentDirectory</code> で登録したら、</p>
+<ol>
+<li>その asset の実体は 1 つか、2 つか。</li>
+<li>片方を登録解除すると、もう片方から載せて持っている物は壊れるか。</li>
+</ol>
+<p>Unity の公開文書は「登録中の directory は登録の逆順に探索される」とだけ言い、この 2 つには答えていません。</p>
+
+<h2>答え</h2>
+<div class="cards">
+  <div class="card"><div class="k">Loadable から load</div><div class="v">1</div><div class="d">両方の root から同じ prefab を load しても、prefab・material・texture は 1 つ</div></div>
+  <div class="card"><div class="k">Scene の直接参照から load</div><div class="v">2</div><div class="d">A の Scene と B の Scene が参照する material・texture は directory ごとに別の実体</div></div>
+  <div class="card"><div class="k">登録解除で壊れた case</div><div class="v">3 / 7</div><div class="d">Error の log は出ないまま、持っている参照が <code>== null</code> になる</div></div>
+</div>
+<p>登録はどちらの順でも成功し、同じ名前の file が重複していることを知らせる Warning も Error も出ませんでした。各 round を 2 回繰り返し、同じ値になっています。</p>
+
+<h2>登録解除の 7 case</h2>
+<div class="table-wrap">
+<table>
+<thead><tr><th>case</th><th>登録の順</th><th>持っている物</th><th>解除する側</th><th>結果</th></tr></thead>
+<tbody>
+<tr><td>U1</td><td>A → B</td><td>B の root の prefab（A の物は Release 済み）</td><td>A（先）</td><td class="ok">無傷</td></tr>
+<tr><td>U2</td><td>A → B</td><td>B の root の prefab</td><td>A（先）</td><td class="ok">無傷</td></tr>
+<tr><td>U3</td><td>A → B</td><td>A の root の prefab</td><td>B（後）</td><td class="bad">壊れた</td></tr>
+<tr><td>U4</td><td>B → A</td><td>B の root の prefab</td><td>A（後）</td><td class="bad">壊れた</td></tr>
+<tr><td>U5</td><td>A → B</td><td>A の Scene の Renderer</td><td>B（後）</td><td class="ok">無傷</td></tr>
+<tr><td>U6</td><td>A → B</td><td>A の root の prefab（B の物は Release 済み）</td><td>B（後）</td><td class="bad">壊れた</td></tr>
+<tr><td>U7</td><td>A → B</td><td>A の Scene の Renderer（B の Scene は unload 済み）</td><td>B（後）</td><td class="ok">無傷</td></tr>
+</tbody>
+</table>
+</div>
+<p>壊れた 3 case は全て「<strong>先に登録した側から Loadable で載せた物を持ったまま、後から登録した側を解除した</strong>」場合です。解除の直後（同じ frame）に prefab・Renderer・material・texture の参照が <code>== null</code> になり、Unity は何も log に出さず、解除された directory は登録の一覧から消えました。解除の後に、生き残った側の handle から同じ asset を load し直すことはできました。</p>
+
+<figure>
+<svg viewBox="0 0 680 270" role="img" aria-label="Loadable は後から登録した directory の file に解決されるという推測の図">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+  </defs>
+  <g style="color:var(--muted)" font-size="13" fill="var(--fg)">
+    <rect x="20" y="30" width="260" height="200" rx="10" fill="var(--card)" stroke="var(--line)"/>
+    <text x="36" y="56" font-weight="700">directory A（先に登録）</text>
+    <rect x="40" y="76" width="220" height="38" rx="6" fill="none" stroke="var(--line)"/>
+    <text x="54" y="100">root の Loadable（prefab）</text>
+    <rect x="40" y="130" width="220" height="38" rx="6" fill="none" stroke="var(--line)"/>
+    <text x="54" y="154">SceneA の直接参照</text>
+    <rect x="40" y="184" width="220" height="34" rx="6" fill="none" stroke="var(--accent)" stroke-dasharray="4 3"/>
+    <text x="54" y="206">共通の file（A の複製）</text>
+
+    <rect x="400" y="30" width="260" height="200" rx="10" fill="var(--card)" stroke="var(--line)"/>
+    <text x="416" y="56" font-weight="700">directory B（後から登録）</text>
+    <rect x="420" y="76" width="220" height="38" rx="6" fill="none" stroke="var(--line)"/>
+    <text x="434" y="100">root の Loadable（prefab）</text>
+    <rect x="420" y="130" width="220" height="38" rx="6" fill="none" stroke="var(--line)"/>
+    <text x="434" y="154">SceneB の直接参照</text>
+    <rect x="420" y="184" width="220" height="34" rx="6" fill="none" stroke="var(--accent)"/>
+    <text x="434" y="206">共通の file（B の複製）</text>
+
+    <path d="M260 95 C 340 95, 360 200, 418 200" fill="none" stroke="var(--bad)" stroke-width="2" marker-end="url(#ar)"/>
+    <path d="M530 114 L530 182" fill="none" stroke="var(--bad)" stroke-width="2" marker-end="url(#ar)"/>
+    <path d="M150 168 L150 182" fill="none" stroke="var(--ok)" stroke-width="2" marker-end="url(#ar)"/>
+    <path d="M600 168 L600 182" fill="none" stroke="var(--ok)" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="300" y="250" fill="var(--muted)" font-size="12">赤: Loadable の解決先（推測）　緑: Scene の直接参照（推測）</text>
+  </g>
+</svg>
+<figcaption>実測と合う読み方（推測）。どちらの root の Loadable も後から登録した B の file に解決されるなら、実体は 1 つになり、B を解除すると A から載せた物も消えます。Scene の直接参照は自分の directory の中で解決されるなら、実体は 2 つになり、もう片方の解除では壊れません。どの directory の file を読んだかを返す API は無いので、これは確かめていません。</figcaption>
+</figure>
+
+<h2>設計への含意</h2>
+<p>共通の asset を各 directory に複製したまま両方を登録する形は、保存と配布を hash で 1 つにまとめても、登録の単位では共有されません。</p>
+<ul>
+<li>Scene の直接参照の経路では、同じ asset の実体が directory の数だけできる。</li>
+<li>後から登録した directory の登録解除が、先に登録した directory から Loadable で載せた物を黙って壊す。</li>
+</ul>
+<p>このため OSM では、共有する asset を共有の package に分けるか、登録の寿命を package の間で結びつけるかを、配布単位の設計（次のスライス）で決めます。</p>
+
+<h2>途中で分かった副産物</h2>
+<p><strong>読める texture（<code>isReadable</code>）は <code>.resS</code> を持ちませんでした。</strong> 1024×1024・RGB24・非圧縮の読める texture は、<code>.cf</code> が 3,147,948 bytes（pixel の raw 3,145,728 bytes を上回る）で、layout の <code>ContentLayout.json</code> に、それを指す <code>texture</code> の項目がありません。256×256 の読めない texture は、普通に <code>.cf</code> と <code>.resS</code> に分かれました。最初の判定はこのせいで未判定になり、「同じ file」の条件を改めてから測り直しています（大きさと読める設定のどちらが効いたかは切り分けていません）。</p>
+
+<h2>どう測ったか</h2>
+<ul>
+<li>SampleGame を使わない fixture を固定 GUID で生成し、2 つの directory を別々に build。両方で共通物の file の名前と sha256 が一致することを layout から確かめてから使う。</li>
+<li>名前だけが同じで pixel の違う texture を正の対照にして、「同じ名前の別の実体を 2 つと数えられる」ことを先に確かめる。</li>
+<li>round ごとに新しい Play に入り、開始時に登録 0 件・共通物の名前の物 0 件を確かめる。製品の native wrapper（<code>UnityContentDirectoryBackend</code>）を無改変で 2 つ持って登録する。</li>
+<li>登録解除は、呼び出しの直後・1 frame 後・<code>Resources.UnloadUnusedAssets</code> の後の 3 時点で、生き残る側の物を確かめる。偽 null を見落とさないよう <code>== null</code> で判定する。</li>
+<li>テストの合格は「harness が最後まで動いた」ことだけを意味し、答えは record（JSONL）の観測の行から、事前に固定した判定の手順で読む。独立した別の監査（別ベンダーのモデル）も同じ答えを出した。</li>
+</ul>
+
+<h2>測っていないこと</h2>
+<p class="note">Player、archive（圧縮）、3 つ以上の directory、Scene に置いた prefab instance、sprite atlas、audio・video、中身が違う同じ id の file、片方の directory の file が disk から消えた時、Domain Reload 有効の Play、process をまたいだ再現（2 回の繰り返しは同じ Unity process の中）。</p>
+
+<footer>
+<p>実測の事実と測り直しの手順: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/blob/develop/docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md">CONTENT_DIRECTORY_BUILD_FACTS.md</a>。計画・判定・監査の記録: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/179">PR #179</a>。2026-11-12。</p>
+</footer>
+</main>
+</body>
+</html>
