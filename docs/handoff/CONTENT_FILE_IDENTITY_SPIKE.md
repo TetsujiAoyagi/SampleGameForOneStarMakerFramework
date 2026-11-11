@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3 の Stage II の前提の確認。§8 の S2-a より前に置く）
-- status: 判定 C 完了（2 回目、head `bb4efe77`）、C' 待ち（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
+- status: C' 1 巡目で `B` へ差し戻し（2 回目、head `bb4efe77`）、C' 待ち（EC-01）を `B` で修正済み、発見 C の確認待ち（A3 凍結版 revision 0 は commit `d1174709`、A2 入力版は commit `179012dd`、採否の経緯は §5.1）
 - branch: `claude/content-file-identity-spike`（PR の base は `develop`）
 - implementation base commit: `f8ffd023`（`develop` の head、2026-11-11。§1 の実測はこの base）
 - implementation head commit: bb4efe7767c825ac3de3d4d2bc458e47c750ff8e
@@ -18,12 +18,12 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 判定 C 2 回目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、判断担当の別 process で取得と閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。1 回目（head `0b72f0ff`）の bundle は差し戻しで無効
-- C' blind bundle の取得案内・状態: 未生成
+- C' blind bundle の取得案内・状態: 1 巡目（head `bb4efe77`）の bundle はローカル固定済み（未昇格）、C' の担当が取得した写しで閲覧を確認済み。取得案内は進行役が repo 外の Storage 引渡し先に置いた。差し戻しで head が変わるので判定には流用しない
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C'（最終 C'。高コスト証拠は無い。新しい session で、Phase A・B・C に関与していない系列の担当）。
-  - 次の作業: C' 用の blind bundle だけを入力に、implementation head 欄の commit を監査する。
+  - 次の Phase・役割: Phase B（C' 1 巡目の差し戻し。新しい session）。
+  - 次の作業: §8.1 の CP-01〜CP-03 を直し、`FileInventoryTests` に CP-01 の合成の例を足し、`contract-audit` とコンパイル確認を済ませ、§6 に追記して commit する。修正後は発見 C で修正差分を見てから、新しい GO 候補 head で判定 C の 3 コマンドをやり直し、C' 2 巡目（前巡の指摘の解消と修正差分）へ進む。旧 head の判定証拠は流用しない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: なし（読み取りだけ）。
+  - 必要な権限: Phase B はコンパイル確認の Editor 操作だけ。判定 C の Unity バッチテストは sandbox 外の承認済み経路。evidence bundle は Artifact Storage の `evidence stage`（ローカル固定）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、§2 の判定定義（未知の file・読めない欄・root の同居は Phase A へ）に従う。
   - 引き渡さないもの: C' には §7 の発見 C・判定 C の結論・指摘と、§6 の差し戻し修正の記述を渡さない（C' 用の取得案内は所見と分けて渡す）。
 
@@ -369,7 +369,19 @@ fixture（SampleGame を使わない。D10。一時 folder `Assets/OsmSpikeCfi/`
 
 ## 8. Phase C'
 
-未着手。
+### 8.1 C' 1 巡目（最終 C'。対象 implementation head `bb4efe77`）
+
+- 担当方式: AI。cursor-agent CLI の `grok-4.7-high`（`--mode=ask`、読み取りだけ）で新規 session を 2 つ。論点を分けた（job 1: code と凍結計画、job 2: 証拠と結論の導き直し）。
+- 入力: C' 用の blind bundle（A3 凍結版の本書、Phase B の最初の実装報告、`docs/handoff/` を除いた base..head の diff、head の source、判定 C 2 回目と同じ 3 実行の生の出力と record、coordinator の出力、`contract-audit`）。Storage から hash 照合で取得した写しを workspace にした。発見 C・判定 C の結論と指摘、§6 の差し戻し修正の記述は入れていない。ただし head の code のコメント 1 箇所が過去の差し戻しの記号（EC-01）に触れている（code の一部なので除いていない）。
+- 判定（job 2 の導き直し）: 判定定義の順に読むと CONDITIONAL ACCEPT。§5 のゲートは満たし、run 2 の強制終了は §5 の条件（XML と終了行）に入らないのでゲートを変えない。
+- 現在の問いを阻害する findings（B へ差し戻し）:
+  - **CP-01**（§2 の判定定義 N2・N4、種類の事前の分類）: 両方の build にある id の sha256 が違う時、種類と source の一覧を左の build の file だけから決める（`FileInventory.cs` の `Compare`。`sample = (l ?? r)![0]`）。右の build で同じ id に中核の asset か `.unity` が加わっていても、左が script か shader なら N2 / N4 に入らず CONDITIONAL ACCEPT になりうる。今回の証拠では該当する対の両側が script で、結論は変わらない（job 2 と同じ読み）。修正: 両側の source で種類を決め、どちらかが中核なら N2、Scene か `その他` なら N4 に入れ、source は両側の和集合を記録する。合成の例を `FileInventoryTests` に足す。
+  - **CP-02**（AGENTS.md の偽 null の契約）: `IdentityBuilds.cs` の直接 build の失敗の message が、`BuildReport`（`UnityEngine.Object`）に `report?.summary` を使う。修正: `== null` の分岐で message を作る。
+  - **CP-03**（AC7 の `git status --porcelain` の前後一致）: `git` が失敗した時は前後が同じ失敗の文字列になり、一致と読まれる。修正: 取得に失敗したら AC7 を未判定にする。
+- 阻害しない findings: record の `head` は実行時の HEAD（`c9d65b3a`）で、bundle の implementation head（`bb4efe77`）と違う。`c9d65b3a` は `bb4efe77` に本書だけを足した記録 commit なので、実行した code は implementation head と同じ。
+- 後続スライスへ移送する findings: なし。残存リスクとして job 1 が挙げたもの: `LitEmissive` と `OnlyB` は分類で `その他` になり、build の間で変われば N4 になる。fileID の置換が GUID の 16 進の列に数字として一致しうる（今回の layout に参照が壊れた形跡は無い）。出力の直下に directory があると未知の file として未判定になる（今回の出力は平坦）。
+- 監査できなかった範囲: command を実行していない（読み取りだけ）。`out/` の全 file の sha256 の再計算と、全 source の行の全文比較はしていない。
+- 独立性: Phase A（Claude・Codex）、B（Claude）、C（Codex）のどれにも関与していない系列。発見 C・判定 C の結論を読んでいない。
 
 ## 9. Phase D
 
