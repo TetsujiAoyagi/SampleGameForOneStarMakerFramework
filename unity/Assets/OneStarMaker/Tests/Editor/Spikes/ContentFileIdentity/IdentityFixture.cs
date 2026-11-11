@@ -113,6 +113,9 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
             var emissive = new Material(lit);
             emissive.EnableKeyword("_EMISSION");
             emissive.SetColor("_EmissionColor", Color.green);
+            // 新しい material の既定の GI flag は EmissiveIsBlack で、URP の material の検証がそれを見て _EMISSION を外す
+            // （Editor で、保存した LitEmissive.mat の m_ValidKeywords が空になることを確かめた）。keyword を残すため emission を有効にする。
+            emissive.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             emissive.SetTexture("_BaseMap", tex);
             CreateNative(emissive, "LitEmissive.mat");
 
@@ -262,7 +265,24 @@ namespace OneStarMaker.Tests.Editor.Spikes.ContentFileIdentity
                 if (group.Count() > 1) throw new InvalidOperationException(name + ": class " + group.Key + " appears twice; fileIDs cannot be fixed.");
             foreach (var (cls, id) in anchors)
                 yaml = Regex.Replace(yaml, @"(?<![0-9-])" + Regex.Escape(id) + @"(?![0-9])", cls + "001");
-            return yaml;
+            return SortDocuments(yaml);
+        }
+
+        // Unity は object の文書を元の乱数の fileID の順に書く。fileID を固定値に置き換えても文書の順は乱数のままなので、
+        // 固定後の fileID の昇順に並べ直す（URP material の AssetVersion が Material の前に来るか後に来るかが
+        // process ごとに変わり、別 process で LitEmissive.mat の bytes が一致しなかった。HANDOFF §6 の EC-01）。
+        // 文書の順は読み込みの意味を変えない。
+        private static string SortDocuments(string yaml)
+        {
+            var starts = Regex.Matches(yaml, @"(?m)^--- !u!\d+ &(-?\d+)").Cast<Match>().ToArray();
+            if (starts.Length < 2) return yaml;
+            var header = yaml.Substring(0, starts[0].Index);
+            var documents = starts.Select((m, i) => (id: long.Parse(m.Groups[1].Value),
+                text: yaml.Substring(m.Index, (i + 1 < starts.Length ? starts[i + 1].Index : yaml.Length) - m.Index))).ToArray();
+            if (documents.Select(x => x.id).Distinct().Count() != documents.Length)
+                throw new InvalidOperationException("Duplicate fileIDs after fixing; documents cannot be ordered.");
+            // 末尾の文書が改行で終わらないと、並べ替えで次の文書の区切りと同じ行になる。
+            return header + string.Concat(documents.OrderBy(x => x.id).Select(x => x.text.EndsWith("\n", StringComparison.Ordinal) ? x.text : x.text + "\n"));
         }
 
         private static string FixedGuid(string name)
