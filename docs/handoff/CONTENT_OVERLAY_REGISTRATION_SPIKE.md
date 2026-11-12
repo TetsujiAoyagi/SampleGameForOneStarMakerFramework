@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: `A`（revision 0 の A3 の統合版。**未凍結。** A2 の 3 件と、draft PR #182 の外部レビュー 2 巡と owner のレビュー、主担当の見直しを反映した（§5.1）。A2 入力版は commit `1cfcad07`）
+- status: `A` の出口（revision 0 を 2026-11-13 に凍結した。owner の指示。次は Phase B）。A2 入力版は commit `1cfcad07`、A3 凍結版はこの票を含む commit である。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: 未固定
@@ -20,11 +20,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（凍結）。**凍結していない。** 外部レビューの指摘を反映し、owner の凍結の指示で A3 凍結版を切る（§2.5 の U-1・U-2 は裁定済み）。
-  - 次の作業: 外部レビューの指摘を §5.1 に採否付きで記録する。目的・利用者の欄を変えたら目的レビューをやり直す。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結の指示があるまで Phase B を始めない。
-  - 引き渡さないもの: なし。
+  - 次の Phase・役割: Phase B（実装）。§3 の file を §4 の順で作る。Unity のテストと build は実行しない（SKILL の Phase B）。コンパイル確認と `pwsh tools/contract-audit.ps1` を行い、§6 に記録する。B の出口で commit し、implementation head 欄を固定して、票を発見 C へ更新する（動作確認は `対象なし`。§5）。その後は発見 C → 判定 C → C' と進む。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄が `未固定` の間は Phase A の出口であり、Phase B の担当だけが引き継ぐ。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 必要な権限: Phase B は Unity Editor のコンパイル確認まで。判定 C の Unity バッチテストと Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける。B と発見 C の往復は 4 巡まで。
+  - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
 
 ## 1. 目的と対象外
 
@@ -147,7 +148,7 @@
   - 境界: 「Play の終わりまで」は (6) の解除の完了までを指す。Play を抜けた後の Editor の状態は AC8 が見る。
 - **AC6（E3、対照）対照の順:** 上書き → base の順で、AC4 と同じ観測（AC6-class）と、AC3 と同じ観測（AC6-read）の 2 つの round を行う。答えは対照として記録し、スパイクの答えには使わない。AC6-class の答えは `ControlClassFirst` の最初の Play から、AC6-read の答えは `ControlReadFirst` の最初の Play から採る。主の順との差も一致も、この 2 つの回の答えでだけ読む。
 - **AC7（I-2）数え方の成立:** AC3〜AC6 の各 round（AC5 は (1) の計数の時点）で、load の結果の `EntityId` の集合が列挙の集合と一致する。一致しない round は未判定。
-  - 補足（AC4・AC5 に共通）: `SceneKeep` と `SharedPrefab` は上書きに無い。上書きを登録した下でこれらを要求して load できない時は、単独の基準で load できていれば「NO（load できない）」という答えである（Unity が、後から登録した directory に無い物を先に登録した directory へ探しに行かない、という事実になる）。
+  - 補足（AC4・AC5 に共通）: `SceneKeep` と `SharedPrefab` は上書きに無い。上書きを登録した下でこれらを要求して load できない時は、同じ呼び出しが `BaseAloneFirst`（base だけを登録した、process の最初の Play）で成功していれば「NO（load できない）」という答えである（Unity が、後から登録した directory に無い物を先に登録した directory へ探しに行かない、という事実になる）。`BaseAloneFirst` を実行していない間は未判定とし、AC2 の成功は根拠にしない（§2 の GO）。
 - **AC8（I-3）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書、program だけである。`pwsh tools/contract-audit.ps1` が合格する。全ての process それぞれの前後で `git status --porcelain` が一致し、fixture の folder が無く、Build Settings・active target・Enter Play Mode の設定が前後で同じである。marker の無い残りがあれば何も消さずに止まる。
 
 ### 2.3 ここでは答えない問いと所有する後続
@@ -235,8 +236,8 @@
   - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude Opus、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `4b072c253db3e532693773377896e0ac790bb8d00da101ba0b65c88545a8bfe7`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
   - (2) A0 だけからの代替構成: (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は program §5.3・§8、事実の文書、製品の native 層の source、前例の harness の file 一覧。本書は読んでいない。
   - (3) アーキテクチャゲート兼、各不変条件を破る順序と §2 の誤答の一覧の外の探索: 本 session が起動した別の新しい subagent（Claude Fable、Anthropic）。入力は A2 入力版の本書（内容 sha256 `561cc79f03995623d6562928a338eda957abc6454fa38ed3a3d0456650e72767`、commit `1cfcad07`）と、アーキテクチャゲート、事実の文書、program、製品の `Runtime/BuildContent` の source、asmdef、前例の harness、AGENTS.md。枠は「計画した実験 code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。
-  - (4) 凍結前の外部レビュー（draft PR #182、2026-11-13）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）が 2 巡。対象は 1 巡目が commit `28ea0846`、2 巡目が `e1c3e234` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。同じ PR に owner のレビュー（対象 `e1c3e234`）が 1 件。
-- A3 統合担当・採否: 本 session（§5.1）。未凍結。
+  - (4) 凍結前の外部レビュー（draft PR #182、2026-11-13）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）が 3 巡。対象は 1 巡目が commit `28ea0846`、2 巡目が `e1c3e234` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。3 巡目の対象は `713e283a`。同じ PR に owner のレビュー（対象 `e1c3e234`）が 1 件。
+- A3 統合担当・採否: 本 session（§5.1）。2026-11-13 に owner が凍結を指示し、revision 0 として凍結した。目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー（`cursor-agent` を使う場合は AGENTS.md の契約どおり Grok 系だけ）。A2 では Grok 系を使わない。
 - 独立性の強化条件を満たせない場合の理由: A2 は 1 つのベンダーの 2 つのモデルで行った（A1 の主担当は (3) と同じモデルの別 session）。別ベンダーの目は、凍結前の外部レビューと C' で入れる。凍結前の外部レビューが Grok 系を使ったので、C' に Grok 系を使う時は、Phase A に関与した系列として独立性の制約を §8 に記録する。C' の充足は起こす時に確かめて記録する。
 
@@ -274,7 +275,7 @@
 | G-03 | should-fix | 基準と本番が同じ process で、前の Play が読んだ script の file が残ると Q2 が正しく見える | 採用 | round の順（Q2 を process の最初に、基準を最後に）と、別々の process（その後、見直し S-1 で全 round に広げた）。§2 の (i)、I-2 (f)、§2.2 の前文 |
 | G-04 | should-fix | base と上書きの root が同じ asset の書き換えだと、base の handle が上書きの root を返しうる | 採用 | root を別の固定 GUID の asset にし、handle ごとの `BuildIdentity` を照合する。§2 の (j)、I-1 (e)、§3 |
 | G-05 | should-fix | 「別の `EntityId`」の基準の時点が無く、load し直した Scene の物が合格にも不合格にも読める | 採用 | §2 の「壊れた」に比較の区間を書いた |
-| G-06 | should-fix | Unity の拒否（答え）と、type tree の欠落などの失敗（未判定）が分けられない | 採用 | 単独の基準で成功し 2 つの登録でだけ失敗した時に限って答えにする。§2 の GO、AC2 |
+| G-06 | should-fix | Unity の拒否（答え）と、type tree の欠落などの失敗（未判定）が分けられない | 採用 | 単独の登録で成功し 2 つの登録でだけ失敗した時に限って答えにする（単独の成功の根拠は、その後 N-3 で条件付きのコマンドへ移した）。§2 の GO、AC2 |
 | G-07 | note | Scene の file の帰属を layout から引いた前例が無い。AC4 の「同時に」の順が無い。`LoadableObjectId` が等しければ `EditedTex` に弱は無い | 採用 | I-1 の未確認、§5 の未確認、AC3、AC4 |
 
 **(4) 凍結前の外部レビュー（PR #182、1 巡目。blocker なし）**
@@ -295,7 +296,7 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 | S-1 | 前の Play の残りから守られていたのは Q2 の round（process の最初）だけで、Q1・Q4・対照の答えは守られていなかった。同じ並びの process を 2 回繰り返しても、残りが効くなら 2 回とも同じ誤りになる | 最初の round だけが違う process に替えた（この時点で 4 つ。N-2 で 5 つ）。各 round の答えは、それが最初の Play になった回から採り、他の回と違えば未判定。残りが答えを変えるかどうか自体も、この照合で分かる。§2 の (h)(i)(l)、§2.2 の前文、§5 |
 | S-2 | Scene の id は path から作られ、load は handle を取らない。base の root の id と上書きの root の id は同じ要求になる見込みで、初稿の「弱」と「条件付き YES」は、id が違った時にしか起こらない | 現況に事実を足し、Q1 の語に「id が等しい時は強か不成立」を書いた。含意の表に「上書きを登録している間は base の版を選べない」を足した |
 | S-3 | script をまとめた file が「先に読んだ側」で固定される作りだと、Scene を読む順で壊れる側が変わる。初稿はその順を意識していなかった | 両方の Scene の probe を見ることと、AC4 と AC5 で両方の順が入ることを (k) に書いた |
-| S-4 | 上書きに無い物（`SceneKeep`・`SharedPrefab`）が、上書きを登録した下で load できない場合の読み方が無かった | AC7 の補足（単独の基準で成功していれば NO という答え） |
+| S-4 | 上書きに無い物（`SceneKeep`・`SharedPrefab`）が、上書きを登録した下で load できない場合の読み方が無かった | AC7 の補足（単独の登録で成功していれば NO という答え。根拠は、その後 N-3・R3-1 で `BaseAloneFirst` へ移した） |
 | S-5 | 「未確認」のうち 3 つは、Unity を起動せずに build 履歴から確かめられた（script の file の id が build によらず同じ、一覧は使う script だけ、Scene の帰属は GUID で引ける） | §1 の現況に事実として書き、I-1 の未確認から外した |
 | S-6 | `EditedMat` が両方で同じ file であることを前提にしていなかった（`SceneKeep` の `EditedTex` の観測を読む時に要る） | P3 に足した |
 
@@ -308,6 +309,12 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 | N-1 | should-fix | Q3 の計数に、両方の directory にある `EditedTex`・`EditedMat` が入っておらず、3 実体になっても「収まる」になる | 採用 | Q3 の対象に足し、AC4 と AC5 の (1) の両方の時点で数える。AC4 でも `EditedTex` の `Loadable` を保持する。§2 の Q3、AC4、AC5、AC7 |
 | N-2 | should-fix | 対照の版の観測（AC6 の AC3 相当）は必ず対照の class の round の後で、差が出ても登録の順だけの効果と言えない | 採用（process を足す側） | `ControlReadFirst` を足し、対照の 2 つの round のそれぞれに最初の Play になる回を持たせた。参考観測へ下げる案より、owner が測ると決めた対照（U-2）を使える形にする方を採った。Unity の起動が 1 回増える |
 | N-3 | note | AC2 は全ての round の後なので、「単独では成功する」の根拠として弱い。拒否を NO にする根拠が切り分けられない | 採用 | 拒否が出た時だけ、単独の登録を最初の Play で行う条件付きのコマンドを実行し、その結果でだけ拒否を答えにする。実行しない間は未判定。§2 の GO、AC2、§5 |
+
+**(7) 外部レビュー 3 巡目（PR #182、対象 `713e283a`。blocker なし）**
+
+| ID | 重さ | 指摘（要約） | 採否 | 理由と反映先 |
+|---|---|---|---|---|
+| R3-1 | should-fix | AC7 の補足だけが「単独の基準で load できていれば NO」のままで、全ての round の後の AC2 の成功で拒否を NO にできる | 採用 | N-3 の反映の取り残し。補足の根拠を `BaseAloneFirst` に替え、実行していない間は未判定と書いた。AC7 の補足 |
 
 **A1 の自己点検（A2 の前）:** 目的の 4 項目と Q1〜Q4、AC3〜AC5 が 1 対 1 に対応すること、利用者の入力が無いこと、結果に依存する文書（事実の文書と program の改訂）を受け入れ条件に入れず harvest に置いたことを確かめた。
 
