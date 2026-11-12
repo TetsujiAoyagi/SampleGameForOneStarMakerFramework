@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `research`（事実の測定。合否の判定を持たず、Phase B・C・C' の欄を持つスライスではない。2026-11-12 に owner が、A2 の外部レビューを受けて slice から改めた。§5）
-- status: 手順を固定した版（revision 1）。測定は未実行
+- status: 測定済み（revision 1。結果は §6）。harvest は未実施
 - branch: `claude/content-incremental-build-spike`（PR の base は `develop`）
 - base commit: `0b3e1cea`（`develop` の head、2026-11-12）
 - risk: `low`（追跡する code を変えない。設計判断を含まない）
@@ -11,7 +11,7 @@
 - created: 2026-11-12
 - expires: 2026-12-31、または結果を harvest して削除した時点
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（「確かめていないこと」の増分 build cache の行を、測った範囲の数値に置き換える）、[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8（次のスライスの行）
-- 次の作業: §3 の手順を実行し、§6 に数値を書く。owner が結果を読み、harvest する文を決める。
+- 次の作業: owner が §6 を読み、harvest する文を決める。
 
 ## 1. 目的と範囲
 
@@ -78,9 +78,36 @@
 - 計画の主担当: Claude Fable 5.2（Anthropic）。
 - 凍結の前に実行した物: fixture の生成（準備）だけを 1 回（2026-11-12。harness が compile し fixture が import される事の確認）。
 
-## 6. 結果
+## 6. 結果（2026-11-12〜13、各番 1 回ずつ）
 
-未実行。
+出力は X・Y とも 660 file、約 142 MB。stopwatch と `totalTime` は全ての番で 1 秒以内に一致した。
+
+| 番 | 操作 | 所要（秒） | 番 0 比 | 同じ集合の直前の出力に無い file |
+|---|---|---:|---:|---|
+| 0 | X、`CleanBuildCache` | 336 | 100% | — |
+| 1 | X、変更なし | 158 | 47% | （一覧を取り損ねた。番 0 の一覧を消したため） |
+| 2 | X、texture 1 枚変更 | 57 | 17% | 5 file、799,353 bytes |
+| 3 | Y、初回 | 250 | 74% | —（番 2 の X と同じ sha256 の file は 308、68,062,048 bytes） |
+| 4 | X、Y を挟んだ後 | 82 | 24% | 番 1 に対し 5 file、799,353 bytes（番 2 の変更の分） |
+| 5 | Y、変更なし | 48 | 14% | 番 3 に対し 3 file、98,038 bytes |
+| 6 | X、`CleanBuildCache` | 437 | 130% | 番 1 に対し 5 file、799,353 bytes |
+
+読める事（この PC、合成 fixture、各 1 回の範囲）:
+
+- 変更の無い再 build は cache なしの build より短いが、0 にはならない。48〜158 秒（番 0 の 14〜47%）で、ばらつきが大きい。
+- 別の root の集合を挟んでも cache は失われない（番 4 が 24%、番 5 が 14%。切り替えた先の初回の番 3 は 74%）。
+- 番 3 は、出力の約半分（308 file、bytes で 48%）が X と同じ sha256 なのに 74% かかった。集合をまたいだ共有による短縮は小さい。
+- texture 1 枚の変更で変わった file は 5 つ、約 0.8 MB。変更の無い番 5 でも 3 file・約 98 KB が変わるので（毎回新しい identity の root と manifest の分と読める）、texture の分は 2 file・約 0.7 MB と読める。
+- cache なしの build 自体が 336 秒と 437 秒で 3 割違う。比は目安で、1 割単位の差は読めない。番 6 が番 0 より短くならなかったので、「番 0 にだけ掛かる初回の費用」は見えなかった。
+
+無効の条件（§2）: どれにも当たらない（番 0 は 60 秒以上、番 2 に新しい file あり、番 0 は番 1 の 2.1 倍）。
+
+測定の条件で記録しておく事:
+
+- 番 0 と番 1 の間が約 7 時間空いた（番 0 の後に Unity が終了処理で止まり、続きが流れなかった）。番 1 の 158 秒が他の変更なしの番（48〜82 秒）より長いのは、この間隔（OS の file cache が冷えた等）の影響かもしれず、切り分けていない。
+- 番 0 の test は、build 中の Burst の Error log（pipe が見つからない）で失敗扱いになった。build は成功し record は書かれた。番 1 以降は harness がこの種の log で失敗しないようにした。
+- 全ての番で、record が書かれた後に Unity を強制終了した（既知の native 終了 stall を待たないため）。自然終了は確認していない。
+- 各番は別の Unity process、所要に import と hash の計算は入っていない、target は StandaloneWindows64 / Player、texture は読めない設定、を record と harness で確かめた。
 
 ## 7. この文書の終了
 
