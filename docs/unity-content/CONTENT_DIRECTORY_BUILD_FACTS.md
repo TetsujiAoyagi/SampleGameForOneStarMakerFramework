@@ -46,9 +46,30 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 測っていないもの（結果を変えうる）: Player、archive、3 つ以上の directory、Scene に置いた prefab instance、sprite atlas、audio・video の `.resource`、中身が違う同じ id の file を両方登録した時、片方の directory の file が disk から消えた時、Domain Reload 有効の Play、process をまたいだ再現（2 回の繰り返しは同じ Unity process の中）。
 
+## 同じ `Library` での再 build の所要
+
+同じ `Library` のまま、製品の publish と同じ条件で build を繰り返した時の所要を測った（2026-11-12〜13、各番 1 回ずつ）。条件: root の集合ごとに固定の出力先を毎回空にしてから書く、`name` と root asset は毎回新規、`Uncompressed`、1 build = 1 つの Unity process（batch）。所要は `BuildPipeline.BuildContentDirectory` の呼び出しだけで、Unity の起動と import を含まない。製品の `BuildContentCoordinator` は通していない。fixture は合成で、1024×1024 の読めない texture 300 枚、それを持つ URP `Lit` の material 300、Scene 100（各 Scene が material 20 を直接参照）。root の集合は X（Scene 0〜59）と Y（Scene 40〜99）で、出力はどちらも 660 file・約 142 MB。
+
+| 番 | 操作 | 所要（秒） | 番 0 比 |
+|---|---|---:|---:|
+| 0 | X、`CleanBuildCache` | 336 | 100% |
+| 1 | X、変更なし | 158 | 47% |
+| 2 | X、texture 1 枚（Scene 4 つが参照）を変更 | 57 | 17% |
+| 3 | Y、この `Library` で初回 | 250 | 74% |
+| 4 | X、Y を挟んだ後 | 82 | 24% |
+| 5 | Y、変更なし | 48 | 14% |
+| 6 | X、`CleanBuildCache` | 437 | 130% |
+
+- **変更の無い再 build は cache なしの build より短いが、0 にはならない。** 48〜158 秒（番 0 の 14〜47%）で、ばらつきが大きい。
+- **別の root の集合を挟んでも、短さは失われなかった**（番 4・番 5）。
+- **root の集合をまたいだ共有による短縮は小さかった。** 番 3 の出力は 308 file・68,062,048 bytes（bytes で 48%）が X の出力と同じ sha256 だが、所要は 74% だった。
+- **texture 1 枚の変更で変わった file は 5 つ、799,353 bytes。** 変更の無い番 5 でも 3 file・98,038 bytes が変わる（毎回新しい identity の root と manifest の分と読める）ので、texture の分は 2 file・約 0.7 MB と読める。
+- **読み方の限界:** `CleanBuildCache` の build 自体が 336 秒と 437 秒で 3 割違い、1 割単位の差は読めない。番 0 と番 1 の間は約 7 時間空いており、番 1 が他の変更なしの番より長い理由は切り分けていない。番 1 の出力と番 0 の出力の file の比較は取っていない。所要が短いことは「作り直していない」ことの証明ではない（時間から仕組みは読めない）。この PC・合成 fixture の範囲の数値で、実 project の絶対時間、別の PC、CI の agent をまたぐ cache は言えない。全ての番で、結果を書いた後に Unity を強制終了した（[Harness README](../../tools/Harness/README.md) の既知の native 終了 stall を待たないため）。
+- **測り直し:** harness は git に残していない。上の条件と fixture で、EditMode の `[Explicit]` の test 1 件を 1 番として `pwsh tools/run-tests.ps1 -Filter <test の完全名>` で順に実行し、呼び出しの前後を stopwatch で測り、出力の file の sha256 を番ごとに控える。番 0 が 60 秒に満たない fixture では差が固定費に埋もれる。build 中に Burst の Error log が出ることがあり、test の枠組みに失敗と数えさせない設定が要る。
+
 ## 確かめていないこと
 
-- 増分 build cache の関与（`CleanBuildCache` の build の log に、cache を使わなかったことを示す行が無い）。
+- 増分 build cache の仕組み（何を単位に、どこに持つか。上の節は所要の実測だけで、`CleanBuildCache` の build の log に cache を使わなかったことを示す行は無い）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
 - 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（上の節の推測を実測で確かめていない）。
 - 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、Scene に置いた prefab instance・nested prefab・prefab variant（instance は置いた側の file に焼き込まれる）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
