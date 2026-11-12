@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-a。分割は §2.4）
-- status: `A`（**revision 1 の A2 入力版**。revision 0 は A3 の統合版で凍結せずに保留した（2026-11-11、commit `c7201de0`）。保留の理由だった Content Directory の前提を S2-0（PR #177）と S2-0b（PR #179）が確かめたので、その結論で仮説・共有の形・AC を改め、revision 1 として A2 からやり直す。改めた点は §1「revision 1 で改めた点」）
+- status: `A`（**revision 1 の A3 の統合版、未凍結**。2026-11-12 に A2 の 3 件を反映した。owner の指示により凍結せず、外部レビューのためにこの版を commit して draft PR に出す（A3 凍結版ではない）。A2 入力版は commit `621a4252`。revision 0 は A3 の統合版で凍結せずに保留した（2026-11-11、commit `c7201de0`）。保留の理由だった Content Directory の前提を S2-0（PR #177）と S2-0b（PR #179）が確かめたので、その結論で仮説・共有の形・AC を改め、revision 1 として A2 からやり直す。改めた点は §1「revision 1 で改めた点」）
 - branch: `claude/content-package-discovery`（PR の base は `develop`）
 - implementation base commit: `0b3e1cea`（`develop` の head、2026-11-12。§1 の現況はこの base。製品 code は revision 0 の base `f8ffd023` から変わっていない）
 - implementation head commit: `未固定`
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A2（revision 1 の独立レビュー）。
-  - 次の作業: §5.1 の担当に、この版を同じ入力として渡す。目的・利用者の 2 欄は revision 0 から変えていない（§5.1）。
+  - 次の Phase・役割: Phase A の A3（凍結前の外部レビューと owner の裁定）。
+  - 次の作業: 外部レビューの指摘を §5.1 の revision 1 の採否に同じ形で足し、§2.5 の U-S2-1〜U-S2-4 の owner の裁定を反映して、本書と program を A3 凍結版として commit する。U-S2-4 が「測らない」なら AC14 と §3 の錨の記述を外す。
   - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結前に Phase B を始めない。目的・利用者の 2 欄を変えたら目的レビューを 1 回やり直す。
-  - 引き渡さないもの: A2 の各担当に、他の担当の指摘と revision 0 の A2 の指摘を渡さない。
+  - 停止規則: 凍結前に Phase B を始めない。目的・利用者の 2 欄を変えたら目的レビューを 1 回やり直す（revision 0 で残した未関与の担当を使う）。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -86,10 +86,15 @@
   - (i) 別 build の成果物を同じ名前の revision で束ねて合成と呼ぶ（AC3）。
   - (j) AC4 の合格を「`Loadable` の経路でも N file が安全」と読む。AC4 が見るのは Scene の直接参照の経路で、`Loadable` の経路は AC8 にある。
   - (k) script の欠落を、component の参照が null でないこと（Unity の偽 null）で見落とす（AC4、AC8。`== null` で判定する）。
-- 判定定義（列挙に当たらない結果は NO-GO。環境の不調と harness の不備は判定せず未判定として B へ戻し、record の欠落・Editor の crash で AC の観測が無い時も未判定とする）:
-  - **GO:** §2.1 と §2.2 を全て満たし、N と F3 の行が **結合なしで** `成立` である（AC4・AC7・AC8 (1) の全ての列で、各 package の物と key で読んだ共通の物が自分の package の script を持ち、shader が null でなく、結合なしの両方の解除の向きの後も残る側が有効で、想定外の Error log が 0）。
-  - **CONDITIONAL ACCEPT（スパイクの定義済みの成功）:** load の時点では全ての列が正しい（script の欠落も別 package の shader も無い）が、結合なしの列で **解除による破れ**（残る側の物が無効になる、shader・script が消える）があり、**結合ありの列では全て成立**し、それ以外の AC を満たす。意味は「F3 は、索引の重なりで登録の解除の順を結びつける条件で成立する」（解除が遅れる代償を製品の registry が持つ）。受け入れるかは owner が S2-b の前に決める（§2.5 U-S2-2）。
-  - **NO-GO:** 上記以外。例: key で読んだ共通の物か Scene の package の物の script が load の時点で欠ける・shader が別 package の物になる、結合ありでも解除で壊れる経路が残る、AC2・AC3・AC5・AC10・AC11・AC13 の未達。program §5.3 により縮退を owner に返す。縮退の判断材料として、Scene の直接参照の経路（AC4 と AC8 (1) の Scene の列）の成否と、N file が揃う単位（同じ script 集合・同じ `Lit` の variant 集合）への統合の可否を record から報告する。
+- 観測の語（AC4・AC7・AC8・AC10 の各列に当てる。X-01・X-03）:
+  - **load の破れ:** load した Scene / Object の固有の MonoBehaviour が具象型の `GetComponent` で `== null`、`GetComponents` に null の項目（missing script）がある、marker が別の package の物、material の shader が `== null`。
+  - **解決の共有:** N file の違う 2 package の物が同じ shader の実体（`EntityId`）を持つ、または AC8 (2) で handle の `GetRootAssets` / `LoadableObjectId` が別の package の marker を返す。どちらかの package の物が別の package の file に解決された印で、それだけでは壊れていない。
+  - **解除の破れ:** 解除の後の観測（同じ frame、次の frame、`Resources.UnloadUnusedAssets` と新規の load の後）で、残る側の物・Renderer・material・shader・固有の MonoBehaviour のどれかが `== null` になる、または観測の中で `MissingReferenceException` 等の例外が出る。観測の中の例外は harness の不備ではなく破れとして record する（観測の各段を `== null` で区切り、例外は段ごとに捕まえて記録する）。
+  - 同じ step で 2 回再現する Editor の crash は、未判定ではなく、その列の破れの観測とする。
+- 判定定義（列挙に当たらない結果は NO-GO。環境の不調と harness の不備は判定せず未判定として B へ戻し、record の欠落で AC の観測が無い時も未判定とする）:
+  - **GO:** §2.1 と §2.2 を全て満たし、AC4・AC7・AC8 の全ての列で、load の破れが無く、結合なしの列でも解除の破れが無く、解決の共有も無い。
+  - **CONDITIONAL ACCEPT（スパイクの定義済みの成功）:** §2.1 と §2.2 を全て満たし、全ての列で load の破れが無く、結合ありの列で解除の破れが無いが、(i) 結合なしの列に解除の破れがある、または (ii) 解決の共有がある（壊れていなくても、一方の package の物が他方の `Lit` の variant 集合と script の束で動いているので、fixture の偶然に依存しうる）。意味は「F3 は、索引の重なりで登録の解除の順を結びつける条件で成立する。解決の共有があれば、variant 集合の正しさは未確認のまま」。record に (i)・(ii) のどちらかを書く。受け入れるか、§2.5 U-S2-4 の N file を揃える方式へ進むかは owner が S2-b の前に決める（U-S2-2）。
+  - **NO-GO:** 上記以外。例: どれかの列で load の破れ（script の欠落、shader の欠落）、結合ありの列でも解除の破れ、AC2・AC3・AC5・AC10・AC11・AC13 の未達。program §5.3 により縮退を owner に返す。縮退の判断材料として、Scene の直接参照の経路（AC4 と AC8 (1) の Scene の列）の成否と、AC14 を実施していればその結果を record から報告する。
 - 停止規則: 進める最低条件を満たし、問いに致命的な反証がなければ GO / CONDITIONAL ACCEPT で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
 - 決定記録: なし
@@ -102,7 +107,7 @@
   - 崩しうる経路: (a) `SceneManager.LoadSceneAsync(LoadableSceneId)` と `Loadable.LoadAsync` は directory を指定できず、登録の逆順で解決される。(b) `ContentDirectoryIndex` の `Full` への fallback が、別 package の `Full` を拾う（索引の表現の規則）。(c) 同じ triple が 2 package に入る（planner が拒否）。(d) N file（同じ id で中身の違う `Lit` と script の束）が後から登録した package の物に解決される（S2-0b の推測を中身の違う file に当てた場合）。(e) 同じ GUID の asset が 2 package で別の bytes になる（build の間の書き換え。既定の planner が source hash の差で拒否）。
   - 探索した境界: `UnityContentDirectoryBackend`、`ContentDirectoryIndex`、Unity の公開文書、S2-0・S2-0b の事実。未確認: (d) の実挙動（AC4、AC8 で測る）、shader の variant の描画上の正しさ（§2.3）。
 - **I-P2 合成の単位の外の物を混ぜない（program §4.1、G24）:** 索引に載っていない package、manifest の hash が索引と違う package、同じ source の hash が package 間で違う合成、target / engine / schema の違う package、別の実行の build を束ねた物は合成として使えない。
-  - 崩しうる経路: (a) `ContentDirectoryIndex.TryCreate` は自分の identity だけを見て、他の package との関係を見ない。(b) `ContentTransportManifest` に合成の欄が無い。(c) 2 回の build の間に source が変わる（hash は package の build ごとに取り、全 build の後・索引の生成前に再照合する。比較するのは閉包の `Assets/` 下の file とその `.meta` で、`Assets/` 外は見ない）。(d) 同じ source の別の実行の成果物を 1 つの索引に束ねる（identity に build 計画の実行 id を含め、索引に記録して照合する）。
+  - 崩しうる経路: (a) `ContentDirectoryIndex.TryCreate` は自分の identity だけを見て、他の package との関係を見ない。(b) `ContentTransportManifest` に合成の欄が無い。(c) 2 回の build の間に source が変わる（hash は package の build ごとに取り、全 build の後・索引の生成前に再照合する。比較するのは閉包の `Assets/` 下の file とその `.meta`）。(e) N file の源（`Packages/packages-lock.json`、`Library/ScriptAssemblies` のコンパイル済み assembly、`ProjectSettings/GraphicsSettings.asset` と使用中の URP の asset）が build の間に変わる（実行の fingerprint としてこれらの sha256 を最初の build の前に取り、全 build の後と第 2・第 3 process の開始時に再照合する）。(d) 同じ source の別の実行の成果物を 1 つの索引に束ねる（identity に build 計画の実行 id を含め、索引に記録して照合する）。
   - 探索した境界: build の port、manifest の型。未確認: なし。
 - **I-P3 片方の解放が他方を壊さない（program I4、G11）:** ある package の Scene の unload や登録解除の後も、他の package の Scene / Object は読めて描画に必要な参照（script、material、shader、texture）を保ち、続けて新規の load ができる。登録解除は、その package から読んだ物を全て返した後だけ行う。
   - 崩しうる経路: (a) 解放の前の `UnregisterContentDirectory`（Unity は error を出す）。(b) **後から登録した package の解除が、先に登録した package から `Loadable` で載せた物を黙って壊す**（S2-0b が中身の同じ file で実測。索引の重なりによる結合で塞ぐ）。(c) N file が後から登録した package の物に解決された後、その package の解除で script・shader が消える。(d) `CompleteContentDirectoryPlayStop` は drain を待たない（S0-b の移送。harness が自分で drain する）。
@@ -110,7 +115,7 @@
 - **I-P4 失敗が成功に化けず、他を巻き込まない（program §4.1 fail-closed）:** 欠損・破損した package の要求は失敗として返り、既に読んだ他の package は生きたままである。その要求で新たに登録した package は貸し出しが 0 の時に解除され（結合で解除が延びる時は延びた先で解除され）、既に貸し出しのある package の別の root の失敗では解除しない。復元後の再試行が成功する。
   - 崩しうる経路: (a) 登録の途中失敗の後始末（`ContentDirectorySession.RegisterCore` の rollback は 1 session の物）。(b) 登録は通り load で壊れる content file。(c) 索引が指す package が tier に無い時の「他の tier へ進む」と整合性の拒否の混同（program §3.1 の 10）。(d) 失敗した package の登録が、他の package と N file で重なり、結合の規則で解除が延びたまま残る。
   - 探索した境界: `RegisterCore`、`ContentAvailabilityStatus` の 4 値。未確認: 壊れた content file の検出時点（AC10 で測る）。
-- **I-P5 要求していない package を登録しない（program I6、G02）:** AC5 の round の各 step の完了時と、登録の直前に、登録中の package の path の集合（harness の台帳と `GetContentDirectories` の両方）が「その時点までに要求され、まだ返していない物の package」と、結合で解除を延ばしている package の和と一致する。延ばしている package は record に理由（どの package との重なりか）を持つ。AC8 は両方の登録が前提の専用の round で、本条の対象外とする。
+- **I-P5 要求していない package を登録しない（program I6、G02）:** 全ての `RegisterContentDirectory` の呼び出しが要求元（要求の id か結合の理由）を持ち、要求元の無い呼び出しは破れとする。AC5・AC7・AC10 の各 step の完了時と登録の直前に、登録中の package の path の集合（harness の台帳と `GetContentDirectories` の両方）が「その時点までに要求され、まだ返していない物の package」と、結合で解除を延ばしている package の和と一致する。延ばしている package は record に理由（どの package との重なりか）を持つ。AC8 は両方の登録が前提の専用の round で、本条の対象外とする。
   - 崩しうる経路: (a) harness が開始時に全 package を登録する。(b) 依存の package を暗黙に登録する。(c) 結合の規則が、重なりの無い package の解除まで延ばす。
 - **I-P6 製品を変えない（S0-b・S2-0b と同じ）:** §3 の新規 file と本書・program 以外の変更が無く、実験は assets・設定・登録の残りを残さない。
   - 崩しうる経路: (a) 既存 `.meta` の再 import の差分。(b) adapter の build option を変える。(c) `Assets/OneStarMakerGenerated` や Build Settings の残り。(d) Enter Play Mode の設定を戻さない。(e) fixture に使う既存の MonoBehaviour の型や URP の設定を変える。
@@ -127,20 +132,22 @@
 
 全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id と head を持ち、各 round に終了行がある（無い round は未判定）。XML の合格は harness が最後まで動いたことだけを示し、答えは record の観測の行から読む（S2-0b と同じ）。fixture は既定の合成（Scene の folder の package `a` は root が `A`・`A2`・`PrefabA`、`b` は `B`・`PrefabB`、共通の folder の package `common` は `Keyed`）と、同じ GUID の asset を build ごとに書き換える専用の組（`p` と `q` が `Twin` を root に持つ）に分ける（§3）。
 
-- **AC1（E1、I-P6）build と校正:** 既定の合成と専用の組の各 package が無改変の `UnityContentDirectoryAdapter` で build され、各 directory に `BuildContentRoot` が 1 件ある。各 directory の file 一覧（id、sha256、size）・合計 size・所要時間と、同じ asset の `LoadableObjectId` の値が record にある。**`a`・`b`・`common` の間で、`Lit` の shader と script の束の file が同じ id・違う sha256 である**ことを record で確かめる（違わなければ N の列は何も試していないので未判定とし、B が fixture を直す）。校正 round で各 package を単独で登録し、索引の entry と root の entry が過不足なく一致し、marker と script が build の値である（Play の前に source の marker は第 3 の値 `source` に戻し、その値の観測は破れとする）。
-- **AC2（E2）発見（pure、登録なし）:** lookup は索引の bytes と要求だけで完結し、呼び出しの間 Unity の登録が 0 件であることを record に残す。結果は「正しい package 1 つ」か、理由付きの `NotInComposition` / `Ambiguous` / 索引の破損で、先頭一致で成功しない。表現は要求の triple → 無ければ索引全体の `Full` の順で決める（`(K, Whitebox)→q`、`(K, Full)→p` の時に `q` が手元に無ければ `PackageAbsent` で、`p` の `Full` へ進まない）。package 1 つの索引も同じ型で通る。手元の package の集合は引数で渡す（実 tier の読み取りは S4）。同じ bytes の索引 2 つは同じ結果で、bytes の違う索引は `DifferentComposition` になる（整合性の拒否ではなく、次の供給元へ進んでよい状態）。索引から package 間の重なり（同じ id で bytes が同じ / 違う）を引け、重なりの無い package 同士は結合の対象にならない。
-- **AC3（I-P2）合成の拒否:** 次はいずれも拒否され、理由 code が区別される。同じ triple が 2 package。同じ GUID が別の triple で別 package に入る。root が別 package の閉包に居る（GUID で比べ、root 自身の項目を含む。既定）。同じ source の hash が package 間で違う。build の後・索引の生成前の再照合で hash が変わった。target / engine / schema の不一致。build 計画の実行 id の不一致（同じ source の別の実行の組）。索引の manifest hash と package の manifest の不一致。登録後の `BuildIdentity` と索引の不一致。索引の改竄（`compositionRevision` は索引の canonical な内容の sha256）。**実機の負の確認:** 書き換えない同じ bytes の `p` + `q` は実際の閉包で既定の planner に重なりの code で止まり、`Loadable<Object>` field の参照が planner の入力に現れる（現れなければ、`Loadable` の重なりを既定で拒否できないので NO-GO）。
+- **AC1（E1、I-P6）build と校正:** 既定の合成と専用の組の各 package が無改変の `UnityContentDirectoryAdapter` で build され、各 directory に `BuildContentRoot` が 1 件ある。各 directory の file 一覧（id、sha256、size）・合計 size・所要時間と、同じ asset の `LoadableObjectId` の値が record にある。**`a`・`b`・`common` の全ての対で、`Lit` の shader と script の束の file が同じ id・違う sha256 である**ことを record で確かめる。adapter に渡した build option と実行の fingerprint（I-P2 (e)）を record の先頭に書く（違わなければ N の列は何も試していないので未判定とし、B が fixture を直す）。校正 round で各 package を単独で登録し、索引の entry と root の entry が過不足なく一致し、marker と script が build の値である（Play の前に source の marker は第 3 の値 `source` に戻し、その値の観測は破れとする）。
+- **AC2（E2）発見（pure、登録なし）:** lookup は索引の bytes と要求だけで完結し、呼び出しの間 Unity の登録が 0 件であることを record に残す。結果は「正しい package 1 つ」か、理由付きの `NotInComposition` / `Ambiguous` / 索引の破損で、先頭一致で成功しない。表現は要求の triple → 無ければ索引全体の `Full` の順で決める（`(K, Whitebox)→q`、`(K, Full)→p` の時に `q` が手元に無ければ `PackageAbsent` で、`p` の `Full` へ進まない）。package 1 つの索引も同じ型で通る。手元の package の集合は引数で渡す（実 tier の読み取りは S4）。canonical な内容が同じ索引 2 つは同じ結果で、canonical な内容の違う索引は `DifferentComposition` になる（比較は `compositionRevision` で行い、空白や並びだけの違いは同じ索引とする）（整合性の拒否ではなく、次の供給元へ進んでよい状態）。索引から package 間の重なり（同じ id で bytes が同じ / 違う）を引け、重なりの無い package 同士は結合の対象にならない。
+- **AC3（I-P2）合成の拒否:** 次はいずれも拒否され、理由 code が区別される。同じ triple が 2 package。同じ GUID が別の triple で別 package に入る。root が別 package の閉包に居る（GUID で比べ、root 自身の項目を含む。既定）。同じ source の hash が package 間で違う。build の後・索引の生成前の再照合で hash が変わった。target / engine / schema の不一致。build 計画の実行 id の不一致（同じ source の別の実行の組）。索引の manifest hash と package の manifest の不一致。登録後の `BuildIdentity` と索引の不一致。索引の改竄（`compositionRevision` は索引の canonical な内容の sha256）。**build 後の漏れの検査:** 各 package の `ContentLayout.json` の source asset の一覧に、別の package の root（`common` の `Keyed` 等）が現れない（nested prefab、prefab variant、Scene に置いた prefab instance を経由した焼き込みも、layout の一覧で検出する）。現れたら AC3 の拒否と同じ理由 code で止める。**実機の負の確認:** 書き換えない同じ bytes の `p` + `q` は実際の閉包で既定の planner に重なりの code で止まり、`Loadable<Object>` field の参照が planner の入力に現れる（現れなければ、`Loadable` の重なりを既定で拒否できないので NO-GO）。
 - **AC4（E3、I-P1、N の Scene の経路）交互のロード:** `a` と `b` を登録順 2 通りで、`A` load → `B` load → `A` unload → `A` 再 load → `B` unload → `B` 再 load → 全て unload の列を実行し、各 load の Scene の marker が要求の package と一致し、Scene の固有の MonoBehaviour が `== null` でなく marker の field を読め、Renderer の material の shader が null でなく `isSupported` で、続けての新規 load が成功する。`A` の material と `B` の material の shader の実体（`EntityId`）と、想定外の Error / Warning log を記録する。
 - **AC5（I-P5、F1）要求だけの登録:** 要求の時に初めて登録し、その package の貸し出しが 0 になったら解除する（結合で延ばす時は理由を record に書く）列を、`A` 先と `B` 先の両方で実行する。`A` load → `A2` load → `A` unload の時点では `a` は登録のままで、`A2` unload で解除される（`A` と `A2` は同じ package の中の共有で、F1 の観測）。`B` の load は、登録前と解除後の 2 点で native の直接 load でも成功しない。`b` の directory を disk から外した状態で `A` の要求が成功する。
-- **AC7（E4、I-P1、I-P3、F3）共通の package を key で要求:** `A` と `B` が読まれた状態で、それぞれ `common` の `Keyed`（共通の folder の prefab → material（`Lit`）→ texture と、共通用の固有の MonoBehaviour を持つ）を key で要求する。`common` の登録の順を `a`・`b` の前と後の 2 通りで行う。各列で、`Keyed` の marker が `common` で、固有の MonoBehaviour が `== null` でなく、material の shader が null でなく `isSupported` で、`Keyed` から Instantiate した物を `A` の Scene に置ける。続けて、**結合なしの列**（各 package を貸し出し 0 で即座に解除）と **結合ありの列**（索引の重なりで後から登録した package の解除を延ばす）の 2 通りで、`a` の解除、`b` の解除、`common` の貸し出し 2 のうち 1 件の返却の後に、残る物（`Keyed` の instance、`B` の Scene）の同じ項目を解除の同じ frame と次の frame で記録する。harness は Instantiate した物を破棄してから返却する（貸し出しの中に数える）。解除の前の解放を破る列は実行しない（Unity の文書が禁じる）。`A` の Scene の source は `Keyed` を直接参照せず、planner が `a` の閉包に `Keyed` が入らないことを確かめた後に build する（AC3）。
+- **AC7（E4、I-P1、I-P3、F3）共通の package を key で要求:** `A` と `B` が読まれた状態で、それぞれ `common` の `Keyed`（共通の folder の prefab → material（`Lit`）→ texture と、共通用の固有の MonoBehaviour を持つ）を key で要求する。要求の順を 2 通りで行う: (i) `Keyed` を先に要求して `common` を登録し、その後に `A`・`B` を要求する（`Keyed` の load は `a`・`b` の登録より前）。(ii) `A`・`B` を要求した後に `Keyed` を要求する（`Keyed` の load は `a`・`b` の登録より後）。どちらも round の開始時に package を登録しない（I-P5）。各列で、`Keyed` の marker が `common` で、固有の MonoBehaviour が `== null` でなく、material の shader が null でなく `isSupported` で、`Keyed` から Instantiate した物を `A` の Scene に置ける。続けて、**結合なしの列**（各 package を貸し出し 0 で即座に解除）と **結合ありの列**（索引の重なりで後から登録した package の解除を延ばす）の 2 通りで、`a` の解除、`b` の解除、`common` の貸し出し 2 のうち 1 件の返却の後に、残る物（`Keyed` の instance、`B` の Scene）の同じ項目を、観測の語の 3 時点（同じ frame、次の frame、`Resources.UnloadUnusedAssets` と新規の load の後）で記録する。harness は Instantiate した物を破棄してから返却する（貸し出しの中に数える）。解除の前の解放を破る列は実行しない（Unity の文書が禁じる）。`A` の Scene の source は `Keyed` を直接参照せず、planner が `a` の閉包に `Keyed` が入らないことを確かめた後に build する（AC3）。
 - **AC8（I-P1、I-P3、G10、N の両経路）同じ id で中身の違う file:** 2 つの部分を、最後の別の Play セッション（第 3 process）で実行する。
-  - (1) N file の列: `a` と `b` を登録順 2 通りで両方登録し、各 package の root の `PrefabA`・`PrefabB`（package の固有の MonoBehaviour と、keyword の違う `Lit` の material を持つ）を `Loadable` で load する。load の順も 2 通り（先に登録した側が先 / 後）。各 prefab の固有の MonoBehaviour が `== null` でないか、marker、material の shader の null と `isSupported`、両 prefab の shader の実体が同じか、想定外の Error / Warning log を記録する。続けて、結合なしと結合ありの 2 通りで片方ずつ解除し、残る側の prefab の同じ項目を解除の同じ frame と次の frame で記録する。同じ項目を、`A`・`B` の Scene（直接参照の経路）でも記録する。結合なしの列で破れが出なければ、結合の効果は「不要」と記録する（感度の対照ではなく観測の結果）。
+  - (1) N file の列: `a` と `b` を登録順 2 通りで両方登録し、各 package の root の `PrefabA`・`PrefabB`（package の固有の MonoBehaviour と、keyword の違う `Lit` の material を持つ）を `Loadable` で load する。load の順も 2 通り（先に登録した側が先 / 後）。各 prefab の固有の MonoBehaviour が `== null` でないか、marker、material の shader の null と `isSupported`、両 prefab の shader の実体が同じか、想定外の Error / Warning log を記録する。続けて、結合なしと結合ありの 2 通りで片方ずつ解除し、残る側の prefab の同じ項目を観測の語の 3 時点で記録する。列の間は登録 0 と `Resources.UnloadUnusedAssets` で回収し、前の列と同じ shader の `EntityId` が出たら再利用として record に残す（その列の解決の共有の判定は未判定）。同じ項目を、`A`・`B` の Scene（直接参照の経路）でも記録する。結合なしの列で破れが出なければ、結合の効果は「不要」と記録する（感度の対照ではなく観測の結果）。
   - (2) 合成の列: 同じ GUID の `Twin` の marker を package の build ごとに `p` / `q` に書き換えて build し、登録順 2 × load の経路 2（各 handle の `GetRootAssets` / `LoadableObjectId`）で、返る marker と、片方ずつの解除の前後の有効性と Error log を記録する。想定内の log は B が実行前に列挙して record の先頭に書く。
   - GO / CONDITIONAL ACCEPT / NO-GO は AC7 とともに判定定義で読む。(2) は解決の規則を直接見る観測で、単独では合否を決めない（(1) と AC7 の破れの説明に使う）。
-- **AC10（I-P4）失敗:** `A` を load した後で、(1) `b` の directory が無い、(2) `b` の manifest の hash が索引と違う（事前の検証で止まる列）、(3) `b` の Scene が読む content file を全て切り詰める（事前の検証を迂回して native に届く列）、の各場合に `B` を要求する。どれも成功せず失敗の種別が record に残り、`A` の marker・script・Renderer の参照が有効で、`b` の登録は残らない（結合で延ばした場合は、`a` の解除の後に残らない）。元に戻した後の再試行が成功する。検出の時点（登録か load か）は観測する。(4) 貸し出しのある package の別の root の load 失敗では解除しないことを、fake の `IContentNativeDirectory` で `PackageRegistry` の EditMode test として確かめる。(5) 結合の規則（重なりのある package の解除の延長、重なりの無い package を延ばさないこと、延びた package の解除の順）を同じ fake で確かめる。
+- **AC10（I-P4）失敗:** `A` を load した後で、(1) `b` の directory が無い、(2) `b` の manifest の hash が索引と違う（事前の検証で止まる列）、(3) `b` の Scene が読む content file を全て切り詰める（事前の検証を迂回して native に届く列）、の各場合に `B` を要求する。どれも成功せず失敗の種別が record に残り、`A` の marker・script・Renderer の参照が有効で、`b` の登録は残らない（結合で延ばした場合は、`a` の解除の後に残らない）。元に戻した後の再試行が成功する。検出の時点（登録か load か）は観測する。(4) 貸し出しのある package の別の root の load 失敗では解除しないことを、fake の `IContentNativeDirectory` で `PackageRegistry` の EditMode test として確かめる。(5) 結合の規則を同じ fake で確かめる: 重なりのある package の解除の延長、重なりの無い package を延ばさないこと、延長は登録の回（登録ごとの連番）で比べ循環しないこと、延びている package への再要求は同じ登録を再利用して延長を取り消すこと（同じ path を 2 重に登録しない）、失敗した package は延ばさずに解除すること（その時の `a` の物の有効性は (1)〜(3) で観測する）。(1)〜(3) の壊す操作は build 出力の複製に対して行い、第 1 process の出力を変えない。
 - **AC11（E5、I-P3）回収:** AC8 を除く各 round の終わりで、登録 0（harness と `GetContentDirectories`）、live token 0、fixture の Scene の残り 0、想定外の Error log 0。Domain Reload 無効の Play 再入で次の round がそれらの残りを検出しない。AC8 の残りは同じ項目を記録し、合否は判定定義に従う。
 - **AC12（program §4.1、U-S1-1）候補への写像（pure）:** 索引の結果から `ContentIdentity`（content set、`compositionRevision`、target、package の manifest sha256）と予約 key の事実を持つ `ContentCandidate` を作れ、S1 の `ContentCompatibilityRule` が互換と答える。content set の違う索引の候補は不採用になる。
 - **AC13（I-P6）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書、program だけである。`pwsh tools/contract-audit.ps1` が合格する。実験の前後で `git status --porcelain` が一致し、`Assets/OneStarMakerGenerated`、一時 root、Build Settings、Enter Play Mode の設定、URP の設定に変化が無い。
+
+- **AC14（U-S2-4、owner の回答待ち）N file を揃える方式:** 錨の root を `a`・`b`・`common` の全てに入れた別の組 `a'`・`b'`・`common'` を第 1 process で build し、全ての対で `Lit` の shader と script の束の file が同じ sha256 になるかを record で確かめる（AC1 と同じ読み方）。揃った時だけ、第 3 process で AC8 (1) と同じ列を `a'`・`b'` で回す。揃わなければその事実を記録して列を回さない。判定定義の GO / CONDITIONAL ACCEPT / NO-GO には使わず、U-S2-2 の判断材料として報告する。
 
 AC6 と AC9 は revision 0 の番号で、revision 1 では欠番にする（AC6 の Scene から共通の物への直接参照の複製は主の形でなく、S2-0b が不成立を確かめた。AC9 の同じ GUID の Scene の別 build は異なる build 計画の合成で問いの外。拒否は AC3）。
 
@@ -170,35 +177,43 @@ AC6 と AC9 は revision 0 の番号で、revision 1 では欠番にする（AC6
 ### 2.5 未決事項（owner へ）
 
 - **U-S2-1 分割と gate の語（revision 0 から）:** S2-a / S2-b に分け、program §8 の S2 の gate を次のとおり読み替えてよいか（program の S2-a・S2-b の行に反映済み）。「異なる build 同士の合成は後続」は「異なる build **計画**」と読む（1 package = 1 build なので、元の語のままでは gate が自己矛盾する）。「共有依存」は「§2 の共有の形の表の判定」と読む（Unity が追跡する package 間の依存は作れない）。推奨: 分ける、読み替える。
-- **U-S2-2 CONDITIONAL ACCEPT の扱い:** AC8 で `Loadable` の経路だけが破れた時は、「合成は Scene とその直接参照の単位でだけ使う」条件で進めるか、縮退かを owner が S2-b の前に決める。実データの量はその時に測る。本スライスで SampleGame は使わない（D10）。
+- **U-S2-2 CONDITIONAL ACCEPT の扱い:** 判定定義の CONDITIONAL ACCEPT（結合の条件で成立、または解決の共有あり）の時に、製品の registry に結合を持たせて進めるか、U-S2-4 の N file を揃える方式に進むか、縮退かを owner が S2-b の前に決める。実データの量はその時に測る。本スライスで SampleGame は使わない（D10）。
+- **U-S2-4 N file を揃える方式を AC14 として測るか（2026-11-12 に Claude が提案、owner の回答待ち）:** 全ての package に同じ「錨」の root（fixture の全 MonoBehaviour の型を持つ prefab と、`a`・`b`・`common` の material の keyword を全て含む shader variant collection か material の組）を入れ、`Lit` と script の束を全 package で同じ bytes にできるかを AC1 と同じ方法で確かめ、できれば AC8 (1) と同じ列を回す。揃えば S2-0b の中身の同じ file の状況（実体 1、解除の順だけが問題）になる見込み（仮説）。代償は、script や keyword を 1 つ足すと全 package を build し直すこと。推奨: 測る（AC1 の build に 1 組足すだけで、F3 が CONDITIONAL ACCEPT 以下だった時の次の手の材料になる）。owner が測らないと決めたら AC14 を外す。
 - **U-S2-3 N file のスパイクを先に切るか:** §2.4 のとおり分けない案を推奨する。分けるなら、AC1 の N file の校正・AC4・AC8 (1) と AC7 の解除の列を S2-0c（normal）として先に測り、本書は残りで A1 からやり直す。
 
 ## 3. 責務マップ
 
-全て新規で、`unity/Assets/OneStarMaker/Tests/Editor/Spikes/ContentPackageDiscovery/`（asmdef は既存の `OneStarMaker.Tests.Editor`。参照の追加なし。internal は既存の `InternalsVisibleTo`）に置く。寿命は 1 回の test（第 1・第 2・第 3 process の間は一時 root の record と build 出力で渡す）、依存は Tests → 製品の一方向で、製品からは参照されない。Phase D で git 履歴へ退避して削除する。予想の合計は約 2,000 行で、S2-0b（約 2,260 行）の fixture の固定・process の分割・record の再計算を流用する。行数の警報: `CompositionRounds.cs` が 450 行の見込みで、500 行に近い（下表の理由で非分割。超える時は round の種類ごとに file を分けるのを B 適応で許す）。
+全て新規で、`unity/Assets/OneStarMaker/Tests/Editor/Spikes/ContentPackageDiscovery/`（asmdef は既存の `OneStarMaker.Tests.Editor`。参照の追加なし。`OneStarMaker.Build.Content` と `OneStarMaker.Runtime` を既に参照し、両者の `AssemblyInfo.cs` に `OneStarMaker.Tests.Editor` 向けの `InternalsVisibleTo` がある）に置く。寿命は 1 回の test。第 1・第 2・第 3 process の間は一時 root の record と build 出力で渡し、メモリ上の状態は共有しない。依存は Tests → 製品の一方向で、製品からは参照されない。Phase D で git 履歴へ退避して削除する。予想の合計は約 2,400 行で、S2-0b（約 2,260 行）の fixture の固定・process の分割・record の再計算を流用する。最大は `CompositionRounds.cs` の 380 行で、行数の警報は無い（process ごとに file を分けた。G-03）。
+
+pure と Unity の境界: `CompositionPlan`・`CompositionIndex`・`CompositionVerdict` は Unity の API を呼ばない。閉包（`BuildContentProjection` と `AssetDatabase.GetDependencies`）、source の hash、実行の fingerprint、`ContentLayout.json` の bytes は `CompositionFixture` が集めて data として渡す。
 
 | file | 責務 | 予想行数 | テスト境界と配置理由 |
 |---|---|---|---|
-| `CompositionPlan.cs` | package の分割の宣言と planner（triple と GUID の重複、root と閉包の重なり、source hash の差と再照合、build 計画の実行 id、書き換えを許す専用の入口） | 180 | Unity 非依存の pure。AC3 |
-| `CompositionIndex.cs` | 索引の試作（`compositionRevision`、content set、target、engine、schema、実行 id、package ごとの identity と manifest sha256、package ごとの file の id と sha256、package 間の重なり、entry の triple → package）の JSON、検証、lookup（手元の package の集合を引数に取る）、候補への写像 | 260 | pure。AC2、AC3、AC12。**製品の形の決定ではない** |
-| `CompositionPureTests.cs` | 上の 2 file と fake native の `PackageRegistry` の EditMode test（結合の規則を含む） | 300 | `[Explicit]` なしで 1 回の filter で走る |
-| `CompositionFixture.cs` | fixture の Scene / prefab / material / texture の生成（fileID と GUID の固定は S2-0b の方式）と、adapter の呼び出しで package を build、build の layout から file の id を読む | 300 | S2-0b の `RegistrationFixture` の拡張 |
-| `PackageRegistry.cs` | `IContentNativeDirectory` を package ごとに持ち、要求の時の登録、token の計数、解放後の解除、索引の重なりによる解除の延長（対照の列では無効にできる）、失敗の回収 | 240 | `IContentDirectoryBackend` を実装しない（install しないので所有の層を持たない）。**製品の候補ではない** |
-| `CompositionRounds.cs` | 第 1 process（build と索引）、第 2 process（校正、AC4・AC5・AC7・AC10・AC11）、第 3 process（AC8）の入口と列 | 450 | `[Explicit]` の EditMode test から Play に入る。round の列は同じ registry と record を共有し、別 file にすると状態の受け渡しが増えるので非分割 |
+| `CompositionPlan.cs` | package の分割の宣言と planner（triple と GUID の重複、root と閉包の重なり、source hash と fingerprint の差と再照合、build 計画の実行 id、書き換えを許す専用の入口） | 200 | pure。AC3 |
+| `CompositionIndex.cs` | 索引の試作（`compositionRevision`、content set、target、engine、schema、実行 id、package ごとの identity と manifest sha256、file の id と sha256、package 間の重なり、entry の triple → package）の JSON、検証、lookup（手元の package の集合を引数に取る）、候補への写像、`ContentLayout.json` の解析（file の id、sha256、source asset の一覧、漏れの検査）。**製品の形の決定ではない** | 300 | pure。AC2、AC3、AC12 |
+| `CouplingRule.cs` | 結合の判定（入力: 索引の重なり、登録の回の連番、貸し出し → 出力: 今解除してよい package と延ばす package と理由）。S2-b へ移送する中核の規則なので registry の実行から分けた（G-04） | 100 | pure。AC10 (5) |
+| `CompositionVerdict.cs` | record の観測の行から、観測の語（load の破れ・解決の共有・解除の破れ）と AC ごとの結果と判定定義を計算する（S2-0b の `RegistrationVerdict` と同じ役。G-02） | 300 | pure。判断担当は結果の行と観測の行を突き合わせる |
+| `CompositionPureTests.cs` | 上の 4 file と fake native の `PackageRegistry` の EditMode test | 400 | `[Explicit]` なし。通常の全 EditMode 回帰にも入る（Unity 非依存で速く、Phase D で削除するので許容する。「通常の回帰に混ぜない」のは Play を伴う `[Explicit]` の test だけ。G-06） |
+| `CompositionFixture.cs` | fixture の Scene / prefab / material / texture の生成（fileID と GUID の固定は S2-0b の方式）、adapter の呼び出しで package を build、閉包・hash・fingerprint・layout の収集 | 320 | S2-0b の `RegistrationFixture` の拡張 |
+| `PackageRegistry.cs` | `IContentNativeDirectory` を package ごとに持ち、要求の時の登録（要求元の記録）、token の計数、`CouplingRule` に従う解除、失敗の回収 | 200 | `IContentDirectoryBackend` を実装しない（install しないので所有の層を持たない）。**製品の候補ではない** |
+| `NativeProbe.cs` | port に無い native の直接呼び出し（`ContentLoadManager.GetContentDirectories`、`LoadableObjectId` での load、handle ごとの `GetRootAssets`）と、観測の語の 3 時点の観測（`== null` の段と例外の捕捉） | 160 | registry の外に置き、registry は port だけを使う（G-04） |
+| `CompositionBuilds.cs` | 第 1 process: fixture の生成、全 package の build、索引、漏れの検査、fingerprint、build 出力の sha256 の record | 220 | `[Explicit]` |
+| `CompositionRounds.cs` | 第 2 process: 開始時の照合（build 出力の sha256、実行 id、head、fingerprint。一致しなければ未判定）、校正、AC4・AC5・AC7・AC10・AC11 の列 | 380 | `[Explicit]`。Play に入る |
+| `CompositionNFileRounds.cs` | 第 3 process: 開始時の照合、AC8・AC14 の列 | 260 | `[Explicit]`。Play に入る |
 | `ExperimentRecord.cs` / `TempRootLease.cs` | JSONL の record、一時 root の予約と回収 | 140 / 130 | S2-0b・S0-b の縮小 |
 
 fixture（SampleGame を使わない。D10）:
 
-- 既定の合成は owner の想定する folder の構成に倣う: `Scenes/A/`（Scene `A`・`A2` と、その folder の prefab `PrefabA` → material → texture。package `a`）、`Scenes/B/`（Scene `B` と `PrefabB` → material → texture。package `b`）、`Common/`（prefab `Keyed` → material → 1 MiB の texture。package `common`）。共通の物は prefab・material・texture の組で置き、型ごとに束ねない。`A` と `A2` は `Scenes/A/` の material を直接参照する（F1。同じ package の中の共有）。Scene は `Common/` の物を直接参照しない。
-- N file の作り方: `A` 側と `B` 側の material は URP の `Lit` を使い、keyword を変える（例: 片方だけ emission）。package 固有の MonoBehaviour は、**既存の Framework の Runtime asmdef にある、Awake / OnEnable で service を要求しない MonoBehaviour の型**から `a` 用・`b` 用・`common` 用に別の型を選ぶ（新しい script を作らない。型の選択と理由は B が record の先頭と実装結果に書く。Editor の asmdef の型は Play で component にできないので使わない）。marker は Scene では `SharedFileRegistration` と同じく component の text に、Object では自身の component の text に置く。
+- 既定の合成は owner の想定する folder の構成に倣う（AC14 の組 `a'`・`b'`・`common'` は同じ構成に錨の root を足した物）: `Scenes/A/`（Scene `A`・`A2` と、その folder の prefab `PrefabA` → material → texture。package `a`）、`Scenes/B/`（Scene `B` と `PrefabB` → material → texture。package `b`）、`Common/`（prefab `Keyed` → material → 1 MiB の texture。package `common`）。共通の物は prefab・material・texture の組で置き、型ごとに束ねない。`A` と `A2` は `Scenes/A/` の material を直接参照する（F1。同じ package の中の共有）。Scene は `Common/` の物を直接参照しない。
+- N file の作り方: `A` 側・`B` 側・`Keyed` の material は URP の `Lit` を使い、全ての対で keyword の組を変える（例: `A` は emission、`B` は alpha clip、`Keyed` は無し）。package 固有の MonoBehaviour は、既存の `OneStarMaker.Runtime` の internal sealed の型で、`Initialize` を呼ばない限り何もしない次の 3 つに固定する（G-01）: `a` は `AssetReleaseOnDestroy`、`b` は `VfxOwnerDestroyNotifier`、`common` は `UpdaterDriver`。Runtime で abstract でない MonoBehaviour は 4 つだけで、残る `UICommon` は OnDestroy で例外を設定しうるので使わない。3 つとも serialized な text を持たないので、marker は GameObject の名前に置き、script の有無は具象型の `GetComponent` と `GetComponents` の null の項目（missing script）で見る。Editor の asmdef の型は Play で component にできないので使わない。新しい script は作らない（作る必要が出たら Phase A へ戻す）。
 - 専用の組: Object `Twin`（`p` と `q` の root）。**AC8 (2) の組だけ**、同じ GUID の `Twin` の marker を package の build ごとに書き換えて build し、書き換えの後に校正 round で build の値を確かめる（build の間の書き換えは実験の手段で、既定の planner は source hash の差で拒否する。AC3）。
 
 ## 4. 実装計画
 
 - 順序: (0) §5 の未知の経路を確かめる最小の 1 round を先に作る（N file が `a`・`b` で実際に違うことを、build と layout の読み取りだけで確かめる）。(1) pure 2 file と test。(2) fixture と build。(3) registry と round。(4) 全 round の実行は Phase C。
 - 対象外を維持する方法: 製品 file を変えない（AC13）。record と build 出力は一時 root（`TestResults/cpd/` 下、path 予算内）に置き、git に入れない。
-- Phase B から Phase A へ差し戻す条件: 製品 code か asmdef の変更が要る、adapter の build option を変えないと fixture が build できない、Editor Play で 2 件目の登録が根本的にできない（S0-b と矛盾する）、条件に合う既存の MonoBehaviour の型が無く新しい script が要る場合。
-- B 適応の範囲: fixture の形、`Lit` の keyword の選び方、既存 MonoBehaviour の型の選び方、record の項目名、S2-0b の部品の再利用の程度、`CompositionRounds.cs` の round ごとの file 分割。
+- Phase B から Phase A へ差し戻す条件: 製品 code か asmdef の変更が要る、adapter の build option を変えないと fixture が build できない、Editor Play で 2 件目の登録が根本的にできない（S0-b と矛盾する）、§3 の 3 つの MonoBehaviour の型が fixture に使えず新しい script が要る場合。
+- B 適応の範囲: fixture の形、`Lit` の keyword の選び方、錨の root の作り方（AC14）、record の項目名、S2-0b の部品の再利用の程度。
 
 ## 5. テストとレビュー計画
 
@@ -206,10 +221,10 @@ fixture（SampleGame を使わない。D10）:
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionPureTests`。
 - 判定必須テスト（GO 候補 head）: 次の 4 つを順に、別々の Unity process で実行する（Enter Play Mode の設定は Domain Reload 無効の 1 つに固定し、各 process の終わりに戻す）。
   1. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionPureTests`
-  2. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionRounds.FirstProcess`（build と索引）
-  3. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionRounds.SecondProcess`（校正、AC4・AC5・AC7・AC10・AC11）
-  4. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionRounds.ThirdProcess`（AC8）
-  各 XML の total が 1 以上で failed 0、root result `Passed`、record に全 round の終了行があり、record の実行 id と head が当該 head を指す。**process の自然終了をゲートにしない**（XML の完成と record の終了行で読む。build を伴う process の終了 stall は既知。`tools/Harness/README.md`）。
+  2. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionBuilds`（build と索引）
+  3. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionRounds`（校正、AC4・AC5・AC7・AC10・AC11）
+  4. `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.ContentPackageDiscovery.CompositionNFileRounds`（AC8・AC14）
+  各 XML の total が 1 以上で failed 0、root result `Passed`、record に全 round の終了行があり、record の実行 id と head が当該 head を指す。**process の自然終了をゲートにしない**（XML の完成と record の終了行で読む。build を伴う process の終了 stall は既知。`tools/Harness/README.md`）。Enter Play Mode の設定の復元は XML を書く前に終え、復元の結果を record に書く（X-11）。
 - 全 EditMode 回帰の適用除外: **適用除外する。** 理由: 製品 code を変えず（AC13）、実験 test は通常の回帰に混ぜない。代替証拠: AC13、Unity のコンパイル確認、`contract-audit`。
 - 操作・実行時・目視条件の検証経路: 全て上の 4 コマンドで閉じる（Unity バッチで、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64 Player。観測は record と XML。目視は無い。証拠は record・XML・log を evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路の疎通: batch の EditMode test から Play を往復して directory を登録する経路と、build と round を別 process に分ける経路は S0-b・S2-0b が成立させた。`[Explicit]` の filter 選択も同じ。**未確認:** 同じ round で複数 package を要求の時に登録する順序、壊れた content file の検出時点、既存の Runtime の MonoBehaviour を置いた fixture が build と Editor Play の load で script を保つか（N file の校正の前提）。初回確認は Phase C（理由: Unity テストの実行は Phase C の責任。担当: Phase C の実行担当。確認地点: 最初の実行。不成立時: 基盤不備なら B、Unity の挙動なら観測として記録）。§4 の (0) は B が build と layout の読み取りだけで行い、Play の round は含めない。
@@ -224,15 +239,43 @@ fixture（SampleGame を使わない。D10）:
 
 #### revision 1
 
-入力版は revision 1 の A2 入力版の commit の本書（内容 sha256 と commit hash は A3 で記録する）。目的・利用者の 2 欄は revision 0 から変えていないので、目的レビューは revision 0 の P-01〜P-38 を A3 で revision 1 の初稿と突き合わせ直し、やり直さない（2 欄の sha256 は revision 0 と同じ `146d77b0b9e905f9cb16147c78d4a98b3f30a6bbedb13d92fb6212ad35d89f44` で、A3 で再計算して確かめる）。
+入力版は commit `621a4252` の本書（git の blob の内容 sha256 `573daa2d73abc7728426126c1775703630cfb5a7292f1fa5e9bf29880691d6f9`）。全て未関与の新規 session で、互いの指摘と revision 0 の A2 の指摘を見せていない（入力版の §5.1 に revision 0 の表があり、各担当には対象外と伝えた）。目的・利用者の 2 欄の sha256 は再計算で revision 0 と同じ `146d77b0b9e905f9cb16147c78d4a98b3f30a6bbedb13d92fb6212ad35d89f44` だったので、目的レビューはやり直さず、revision 0 の P-01〜P-38 を revision 1 と突き合わせた（新しい指摘は無い。P-05 の「推移的な依存」は、F3 の共通の package も key の要求なので不採用のまま）。
 
-予定の担当（全て未関与の新規 session、互いの指摘と revision 0 の A2 の指摘を見せない）:
+| レビュー | 担当 | 入力 | 結果 |
+|---|---|---|---|
+| アーキテクチャゲート（G） | Claude の新規 subagent | 入力版、`architecture-gates.md`、関係 source（read-only）、S2-0b の harness | blocker なし、major 4、minor 2 |
+| 反例（X） | Claude の新規 subagent（枠固定: §3・§4 は実装済みと仮定） | 入力版、事実の文書 | blocker 1、major 6、minor 4 |
+| A0 のみの代替（ALT） | Claude の新規 subagent | program と事実の文書、owner の folder の構成の発言。制約: program §8 の S2-a・S2-b の行に分割の案がある | ALT-01〜ALT-06 |
 
-| レビュー | 担当 | 入力 |
+owner の入力（A2 の最中、2026-11-12）: folder の構成（Scene の folder と共通の folder、型ごとに束ねない）と、resource を独立して build して参照する形を主とする意向。主の形を F3 にし、F2 の測定を外した（§1「revision 1 で改めた点」。A2 入力版に反映済み）。続けて owner が「texture だけまとめても一緒では、どういう方法がよいか」と問い、Claude が N file を揃える方式を提案した（U-S2-4、回答待ち）。
+
+A3 の分類（採用 / 一部 / 不採用）。
+
+| 指摘 | 分類 | 理由と反映先 |
 |---|---|---|
-| アーキテクチャゲート（G） | Claude の新規 subagent | 入力版、`architecture-gates.md`、関係 source（read-only） |
-| 反例（X） | Claude の新規 subagent（枠固定: §3・§4 は実装済みと仮定し、契約内の操作順序で不変条件と判定定義を破れるかを問う） | 入力版、S2-0・S2-0b の事実の文書 |
-| A0 のみの代替（ALT） | Claude の新規 subagent | program（A0）だけ。制約: program §8 の S2-a・S2-b の行に分割の案があり、分割の推奨は完全には独立でない |
+| X-01 誤解決の定義と U-S2-2 の不整合 | 採用 | §2 に観測の語（load の破れ・解決の共有・解除の破れ）を置き、判定定義を語で書き直した。U-S2-2 を新しい CONDITIONAL ACCEPT に揃えた |
+| X-02 解決の共有での偶然の GO | 採用 | 解決の共有は GO から外し CONDITIONAL ACCEPT (ii) にした |
+| X-03 観測の例外と再現する crash | 採用 | 観測の中の例外は破れ、同じ step で 2 回再現する crash は破れの観測（§2 の観測の語） |
+| X-04 AC7 の登録順と I-P5 | 採用 | AC7 を要求の順 (i)(ii) に書き直し、I-P5 の検査を AC7・AC10 に広げた |
+| X-05 延びた登録への再要求、循環 | 採用 | AC10 (5) と `CouplingRule`（登録の回の連番、再要求は再利用して取り消す、失敗した package は延ばさない） |
+| X-06 N file の源の変化 | 採用 | I-P2 (e) に実行の fingerprint を足し、AC1 の record と第 2・第 3 process の開始時の照合に入れた |
+| X-07 遅れた破れと列の間の再利用 | 採用 | 観測の 3 時点、列の間の回収と `EntityId` の再利用の記録 |
+| X-08 一時的な登録 | 採用 | I-P5 で全ての登録の呼び出しに要求元 |
+| X-09 AC1 の対 | 採用 | 全ての対 |
+| X-10 索引の比較 | 採用 | canonical な内容（`compositionRevision`）で比べる |
+| X-11 build option と設定の復元 | 採用 | option と fingerprint を record の先頭に、設定の復元を XML の前に |
+| G-01 MonoBehaviour の型 | 採用 | 3 つの型を名指しで固定し、marker を GameObject の名前に、script の有無を `GetComponent` と missing script で見る（§3）。型を確かめた: 3 つとも `Initialize` を呼ばない限り何もしない |
+| G-02 判定の計算の置き場 | 採用 | pure の `CompositionVerdict.cs`、layout の解析は `CompositionIndex` |
+| G-03 行数と非分割の理由 | 採用 | process ごとに file を分けた（`CompositionBuilds` / `CompositionRounds` / `CompositionNFileRounds`） |
+| G-04 結合と native I/O の混在 | 採用 | pure の `CouplingRule.cs`、native の直接呼び出しは `NativeProbe.cs` |
+| G-05 壊す操作の対象と process 間の照合 | 採用 | 複製を壊す。第 2・第 3 process の開始時に sha256・実行 id・head・fingerprint を照合 |
+| G-06 pure test と回帰、入力収集の境界 | 採用 | 回帰に入ることを明記して許容。pure と Unity の境界を §3 に書いた |
+| ALT-01 問いを N file の寿命の結合に絞る | 既に計画の内容 | revision 1 の問いと同じ |
+| ALT-02 直接参照の禁止と独立の build | 一部 | 直接参照の禁止は planner と AC3 の漏れの検査で採用。「1 つの build 計画」は宣言と実行 id の単位で、package ごとに別の `BuildContentDirectory` の呼び出し（独立の build）なので変えない |
+| ALT-03 offline の漏れ検査を先のスライスに | 一部 | 漏れの検査（`ContentLayout.json` の source asset の一覧）を AC3 に入れた。Unity の未知を持たないのでスライスは分けない（§2.4） |
+| ALT-04 最小の実機観測 | 既に計画の内容 | AC7・AC8。root でない共有物を key で引くことは問いの外（`Keyed` は root） |
+| ALT-05 P2 共有の階層、P3、P4 | 一部 | P3 は結合として採用済み、P4 は縮退の先。P2 の階層は後続（§2.3 の 4 つ以上の package） |
+| ALT-06 危険の一覧 | 採用 | 偽 null（§2 (k)）、nested prefab 等の漏れ（AC3）、build の時期の差（I-P2 (e)）、範囲（成果の範囲）、終了の判定（§5）は反映済みか今回反映した。型と層の先取りは spike の試作に限る（§3） |
 
 #### revision 0（保留した統合版。参照用）
 
