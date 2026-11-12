@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: `A`（revision 0 の A3 の統合版。**未凍結。** A2 の 3 件と、draft PR #182 の外部レビュー 1 巡目、それを受けた主担当の見直しを反映した（§5.1）。A2 入力版は commit `1cfcad07`）
+- status: `A`（revision 0 の A3 の統合版。**未凍結。** A2 の 3 件と、draft PR #182 の外部レビュー 2 巡と owner のレビュー、主担当の見直しを反映した（§5.1）。A2 入力版は commit `1cfcad07`）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: 未固定
@@ -67,11 +67,11 @@
   - (e) 期待値を、測る対象と同じ 2 directory 登録の Play から採る（期待値は fixture の定義から採る。各 directory を単独で登録した基準は、その経路が成り立つことの確認に使う）。
   - (f) Editor の AssetDatabase の物や前の round の物が混ざる（fixture の source を Play の前に消す、round ごとに新しい Play、開始時に 0 件を確かめる）。
   - (g) Unity の Error・Warning を握りつぶす（全件を round と呼び出しに結びつけて record に残す）。
-  - (h) 1 回の観測で答える（各 round を、順を変えた 4 つの Unity process で行い、違えば未判定）。
+  - (h) 1 回の観測で答える（各 round を、順を変えた 5 つの Unity process で行い、違えば未判定）。
   - (i) 前の Play が読んだ file や MonoScript が process に残り、後の round の参照がそれに解決されて正しく見える（Domain Reload 無効。各 round に、その process で最初に content を読む Play になる回を 1 つ持たせ、答えはその回から採る。単独の基準は最後に行う）。
   - (j) base の handle から取った root が、実は上書きの root である（root を別の asset にし、handle ごとの `BuildIdentity` を照合する）。
-  - (k) script をまとめた file が「後から登録した側」ではなく「先に読んだ側」で固定される作りだと、Scene を load する順で壊れる側が変わる（base の Scene と上書きの Scene の両方の probe を見る。AC4 は base の Scene を先に、AC5 の (4)・(5) は上書きの Scene を載せたまま base の Scene を読み直すので、両方の順が入る）。
-  - (l) 対照の順の答えが主の順と同じであることを、前の round の残りが効いたまま「登録の順は無関係」と読む（対照の答えも、対照が最初の Play になる process から採る）。
+  - (k) script をまとめた file が「後から登録した側」ではなく「先に読んだ側」で固定される作りだと、Scene を load する順で壊れる側が変わる（base の Scene と上書きの Scene の両方の probe を見る。両方の順は、どちらも process の最初の Play で測る。AC4 は base の `SceneKeep` を先に load し（`ClassFirst` の最初の Play）、AC5 の (1) は上書きの `SceneEdit` を先に load する（`LifetimeFirst` の最初の Play）。AC5 の (5) の読み直しは寿命の確認で、逆順の根拠にはしない）。
+  - (l) 対照の順の答えが主の順と同じであることを、前の round の残りが効いたまま「登録の順は無関係」と読む（対照の答えも、対照が最初の Play になる process から採る。class の対照と版の対照のそれぞれに、最初の Play になる process を持たせる）。
 - 判定に使う語（実測の前に固定する）:
   - **base / 上書き:** fixture の source を v1 の状態で build した directory が base、source を v2 に変えた後に一部の root だけを build した directory が上書き。**主の順** は base → 上書きの登録、**対照の順** は上書き → base。
   - **危険な条件の前提（P）:** 両 directory の出力の棚卸し（名前・size・sha256）と `ContentLayout.json` から、登録の前に次を確かめる。P1: MonoScript をまとめた file が両方にあり、id が同じで sha256 が違い、**その file の layout の `SourceAssets` の一覧**について、base の一覧に `ProbeBaseOnly` と `ProbeBoth` があって `ProbeOverlayOnly` が無く、上書きの一覧に `ProbeOverlayOnly` と `ProbeBoth` があって `ProbeBaseOnly` が無い。見るのはこの file の一覧だけで、Scene や prefab の中身に型の差があることは P1 の根拠にしない（sha256 の差だけでも根拠にしない）。一覧の path は、その script の `.meta` の GUID と結びつけて照合し、file 名だけでは引かない。P2: `SceneEdit` と `EditedTex` の file が両方にあり、id が同じで sha256 が違う。P3: `SharedTex`・`SharedMat`・`SharedShader`・`EditedMat` の file が両方にあり、名前と sha256 が同じである。帰属は固定 GUID（Scene は layout の `LoadableSceneIds` の GUID、その他は GUID と local id）で引き、名前で対応づけない。
@@ -82,9 +82,9 @@
 - 各問の答え（round の観測から機械的に決める）:
   - **Q1:** 物ごとに、**強**（base の root の id から要求しても、上書きの root の id から要求しても v2）、**弱**（上書きの root の id からは v2、base の root の id からは v1）、**不成立**（上書きの root の id から要求して v1 が出るか、load できない）。`SceneEdit` と `EditedTex` の両方に付け、弱い方を Q1 の答えとする。両方の root の id が等しい時は、2 つの要求は同じ 1 つの要求なので、弱は起こらず、強か不成立になる（現況の「Scene の id の作り方」から、等しい見込み）。id が等しいかどうかを record に残す。
   - **Q2:** **正しい**（`SceneKeep`、上書き版の `SceneEdit`、base の root から load した `SharedPrefab` の全 probe が正しい class）、**誤り**（どれかが Missing・別の class・値の不一致）。
-  - **Q3:** **収まる**（`SharedMat`・`SharedTex`・`SharedShader` の実体がそれぞれ 2 以下で、上書きに無い `SharedPrefab` と `KeepTex` が 1）、**超える**。
+  - **Q3:** **収まる**（AC4 の計数の時点と AC5 の (1) の計数の時点の両方で、両方の directory にある `SharedMat`・`SharedTex`・`SharedShader`・`EditedMat`・`EditedTex` の実体がそれぞれ 2 以下で、上書きに無い `SharedPrefab` と `KeepTex` が 1）、**超える**。上書きで編集した物（`EditedTex`）も対象に含める。
   - **Q4:** **無傷**（Q4 の round の全ての確認点で、保持している物が壊れておらず、終わりの解除の後に登録が 0 件）、**壊れた**。確認点の間に Unity が出した Error・Exception は答えに添えて書く（壊れていなければ「無傷（log あり）」）。
-- **答えを採る回:** 各 round の答えは、その round が process の最初の Play になった回（§2.2 の round の順）から採る。他の 3 つの process の同じ round の答えは照合に使い、1 つでも違えば未判定とする。
+- **答えを採る回:** 各 round の答えは、その round が process の最初の Play になった回（§2.2 の round の順）から採る。他の 4 つの process の同じ round の答えは照合に使い、1 つでも違えば未判定とする。Q3 は AC4 と AC5 の (1) の 2 つの時点を使うので、それぞれが最初の Play になった回（`ClassFirst` と `LifetimeFirst`）から採る。
 - スパイクの答え（主の順の round だけから決める）:
   - **YES:** Q1 強、Q2 正しい、Q3 収まる、Q4 無傷。
   - **条件付き YES:** Q1 が弱で、他は YES と同じ。条件は「要求する側が、上書きの root の id を base の物より先に引く」。id が違った時にだけ起こる答えで、強の YES をこの条件へ読み替えない。
@@ -92,9 +92,9 @@
   - **NO:** 上のどちらでもない。どの問がどう外れたかを添える。
 - 判定定義。スパイクの合否は「答えが証拠付きで出たか」で決め、答えの向きは合否に使わない（S2-0b と同じ）。
   - **未判定（結論を出さない）:** build を開始できない。P1〜P3 のどれかが成り立たない。第 2 process の入力が第 1 process の同じ実行の出力だと照合できない。Play の round の開始時に fixture の source が AssetDatabase に残っているか、登録中の directory か fixture の名前の物が 1 件以上ある。単独の基準（AC2）で期待と違う。handle ごとの root の `BuildIdentity` が、その directory の build の物と一致しない。record の Enter Play Mode の設定が Domain Reload 無効でないか、target が StandaloneWindows64 でない。round の `Register` の順が record に無いか、その round の定義と違う。終了行の無い round がある。実体の数が整合の規則に合わない。同じ round の答えが process の間で違う。round の後始末が終わらない。harness・fixture・環境の問題は B へ戻し、Unity の挙動が定義した語で読めない時と、process の間で答えが違う時（前の Play の残りが答えを変えるという事実で、それ自体を結論に書く）は Phase A へ戻す。
-  - **GO（答えが出た）:** 未判定に当たらず、record から Q1〜Q4 の答えとスパイクの答え（YES / 条件付き YES / NO）が一意に読める。主の順で 2 つ目の登録か、上書きの下での load を Unity が拒否した時は、その log と状態が record にあれば「NO（登録できない / load できない）」という答えであり、未判定ではない。**答えにできるのは、同じ呼び出しが単独の基準（AC2）では成功し、2 つを登録した時だけ失敗した場合に限る。** 単独の基準でも失敗する呼び出し、path の誤り、manifest か type tree の欠落、harness の例外による失敗は答えにしない（未判定）。
+  - **GO（答えが出た）:** 未判定に当たらず、record から Q1〜Q4 の答えとスパイクの答え（YES / 条件付き YES / NO）が一意に読める。主の順で 2 つ目の登録か、上書きの下での load を Unity が拒否した時は、その log と状態が record にあれば「NO（登録できない / load できない）」という答えであり、未判定ではない。**答えにできるのは、同じ呼び出しが単独の登録では成功し、2 つを登録した時だけ失敗した場合に限る。** 単独の成功の根拠は、その directory だけを登録する round を process の最初の Play として行った回（§5 の条件付きのコマンド `BaseAloneFirst`・`OverlayAloneFirst`）から採る。AC2 は全ての round の後に行うので、前の Play の残りが単独の成功を助けた可能性を除けず、拒否を答えにする根拠には使わない。条件付きのコマンドを実行していない間、拒否は未判定に留める。単独でも失敗する呼び出し、path の誤り、manifest か type tree の欠落、harness の例外による失敗は答えにしない（未判定）。
   - CONDITIONAL ACCEPT と NO-GO は使わない。NO は GO の一形（答えが出た）である。
-  - **test の合否と判定は別である。** 第 2 process の 4 つの test が assert するのは harness の成立だけ（全 round の開始行と終了行、後始末、log の購読と `LogAssert` の復元、record を閉じた）。答えの向きは assert しない。XML の failed 0 は「harness が最後まで動いた」ことだけを意味する。判定は判定 C が record の観測の行から読む。`OverlayVerdict` が record に書く答えの行は補助である。
+  - **test の合否と判定は別である。** 第 2 process の各 test が assert するのは harness の成立だけ（全 round の開始行と終了行、後始末、log の購読と `LogAssert` の復元、record を閉じた）。答えの向きは assert しない。XML の failed 0 は「harness が最後まで動いた」ことだけを意味する。判定は判定 C が record の観測の行から読む。`OverlayVerdict` が record に書く答えの行は補助である。
   - 結論は、実測した事実と、仕組みの推測を分けて書く。
 - **後続への含意（判定ではない。結論に添えて owner へ渡す。行は排他ではなく、当たった行を全て書く）:**
 
@@ -105,7 +105,7 @@
 | NO（Q2 が誤り） | 上書きの形は script の顔ぶれが違うと使えない。縮退の候補: 触った物を含む目的 build を手元で丸ごと再 build する（増分の所要は実測済み）、script の顔ぶれを全 build で揃える、Unity へ問い合わせる |
 | NO（Q1 不成立、Q3 超える、Q4 壊れた、登録・load の拒否） | どの問が外れたかに応じて、上書きの形を採れる範囲を狭めるか、縮退するか |
 | `SceneKeep` の `EditedTex` が v1 のまま（AC4 の観測） | 共通の asset を編集した時、それを直接参照する Scene も上書きに入れないと、古い見た目と新しい見た目が混ざる。上書きの build に入れる Scene を逆引きする道具を誰が持つか（S2 か S5） |
-| 対照の順（対照が最初の Play の回）で答えが主の順と違う | 製品は登録の順を base → 上書きに固定する |
+| 対照の順（class の対照、版の対照のそれぞれが最初の Play の回）で答えが主の順と違う | 製品は登録の順を base → 上書きに固定する |
 | 対照の順で答えが主の順と同じ | この fixture の範囲では、登録の順で答えは変わらなかった。製品の順を緩めてよい根拠にはしない（測ったのは 1 つの fixture） |
 | YES（id が等しい） | 上書きを登録している間、要求する側は base の版を選べない。それでよいか（開発の Play では上書きを見たいので、既定はよい） |
 
@@ -131,22 +131,22 @@
 
 - **E1 準備:** base と上書きが build でき、P1〜P3 が record にある。
 - **E2 基準:** 各 directory を単独で登録した時の版・class・値が record にあり、fixture の定義と一致する。
-- **E3 答え:** 主の順で Q1〜Q4 の答えが、対照の順で Q1・Q2 の答えが、4 つの process の全ての record にあり、各 round に、それが最初の Play になった回がある。
+- **E3 答え:** 主の順で Q1〜Q4 の答えが、対照の順で Q1・Q2 の答えが、5 つの process の全ての record にあり、AC3〜AC6 の各 round（AC6 は 2 つ）に、それが最初の Play になった回がある。
 
 ### 2.2 受け入れ条件
 
-全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id、head、Unity の版、target、Enter Play Mode の設定を持ち、round ごとに開始行と終了行がある。Play の round は全て新しい Play で行い、開始時に登録中の directory が 0 件であることと fixture の名前の物が 0 件であることを記録する。登録は製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って行い、両方を登録してから load を始める。Unity の Error・Exception・Warning の log は test の失敗にせず（`LogAssert.ignoreFailingMessages`）、発生順のまま全件を round と呼び出しに結びつけて record に残す（`LogType.Log` も残す）。async の load・unload・`UnloadUnusedAssets` は完了を待つ。後始末は `finally` で行い、登録が残れば `GetContentDirectories` の handle から直接解除して記録する。**round の順と反復:** 第 2 process の test は、最初に行う round だけが違う 4 つ（`ClassFirst`・`LifetimeFirst`・`ReadFirst`・`ControlFirst`）で、それぞれ別の Unity process で 1 回ずつ実行する。どの process も AC3〜AC6 の全 round を行い、最初の round だけを順に AC4・AC5・AC3・AC6 とし、残りは決めた順で続け、単独の基準（AC2）を最後に行う。4 つとも同じ第 1 process の出力を読み、record は process ごとに分ける。各 round の答えは、その round が最初の Play になった process から採り、他の 3 つは照合に使う（§2 の「答えを採る回」）。各 round で、`Register` を呼んだ順と、両方の handle の root の `BuildIdentity` を記録し、その directory の build の物と照合する。
+全て `[Explicit]` の EditMode test（§5）が書く JSONL の record と XML を根拠に判定する。record は実行 id、head、Unity の版、target、Enter Play Mode の設定を持ち、round ごとに開始行と終了行がある。Play の round は全て新しい Play で行い、開始時に登録中の directory が 0 件であることと fixture の名前の物が 0 件であることを記録する。登録は製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って行い、両方を登録してから load を始める。Unity の Error・Exception・Warning の log は test の失敗にせず（`LogAssert.ignoreFailingMessages`）、発生順のまま全件を round と呼び出しに結びつけて record に残す（`LogType.Log` も残す）。async の load・unload・`UnloadUnusedAssets` は完了を待つ。後始末は `finally` で行い、登録が残れば `GetContentDirectories` の handle から直接解除して記録する。**round の順と反復:** 第 2 process の test は、最初に行う round だけが違う 5 つで、それぞれ別の Unity process で 1 回ずつ実行する。round は AC4、AC5、AC3、AC6-class（対照の順で AC4 と同じ観測）、AC6-read（対照の順で AC3 と同じ観測）の 5 つと、最後の AC2（base だけ、上書きだけの順）である。各 process は、名前の round を最初に行い、残りを AC4 → AC5 → AC3 → AC6-class → AC6-read の順に（最初に行った物を飛ばして）続け、AC2 を最後に行う。`ClassFirst` は AC4、`LifetimeFirst` は AC5、`ReadFirst` は AC3、`ControlClassFirst` は AC6-class、`ControlReadFirst` は AC6-read が最初である。5 つとも同じ第 1 process の出力を読み、record は process ごとに分ける。各 round の答えは、その round が最初の Play になった process から採り、他の 4 つは照合に使う（§2 の「答えを採る回」）。各 round で、`Register` を呼んだ順と、両方の handle の root の `BuildIdentity` を記録し、その directory の build の物と照合する。
 
 - **AC1（E1、I-1）準備と前提:** 第 1 process が fixture（§3）を v1 で作って base を build し、source を v2 に変えて上書き（root は `SceneEdit` と `EditedTex` だけ）を build し、両方の出力の全 file の名前・size・sha256 と `ContentLayout.json` の写しを記録し、P1〜P3 の成否を record に書き、fixture の folder を消して終わる（消したことを file system で確かめる）。P1〜P3 のどれかが成り立たなければ未判定。
-- **AC2（E2、I-2）単独の基準:** 第 2 process が、第 1 process の同じ実行の出力であることを実行 id・head・棚卸しの digest で照合した後、base だけを登録した round で `SceneKeep`・`SceneEdit`（v1）・`SharedPrefab` の版・class・値と `EditedTex`（v1）の pixel を、上書きだけを登録した round で `SceneEdit`（v2）と `EditedTex`（v2）を記録する。どれも fixture の定義と一致する（一致しなければ未判定）。単独の基準は期待値の出所ではない（期待値は fixture の定義）。fixture と load の経路が単独で成り立つことの確認と、Unity の拒否を答えにできるかの切り分け（§2 の GO）に使う。
+- **AC2（E2、I-2）単独の基準:** 第 2 process が、第 1 process の同じ実行の出力であることを実行 id・head・棚卸しの digest で照合した後、base だけを登録した round で `SceneKeep`・`SceneEdit`（v1）・`SharedPrefab` の版・class・値と `EditedTex`（v1）の pixel を、上書きだけを登録した round で `SceneEdit`（v2）と `EditedTex`（v2）を記録する。どれも fixture の定義と一致する（一致しなければ未判定）。単独の基準は期待値の出所ではない（期待値は fixture の定義）。fixture と load の経路が単独で成り立つことの確認に使う。Unity の拒否を答えにする時の単独の成功の根拠は、AC2 ではなく §5 の条件付きのコマンドから採る（§2 の GO）。
 - **AC3（E3、Q1）読まれる側:** 主の順の round で、base の root の `SceneEdit` の id と上書きの root の `SceneEdit` の id が等しいかを記録し、それぞれから 1 回ずつ load して版を記録して unload する。`EditedTex` を両方の root の `Loadable` から load して両方を保持し、pixel の版、`EntityId`、`LoadableObjectId` が等しいかを記録する（等しい時は、`EditedTex` に「弱」は起こりえず、強か不成立になる）。
   - 合格例（強）: どちらの id からも `Marker_v2`。不合格ではない例（弱）: 上書きの id から `Marker_v2`、base の id から `Marker_v1`。
-- **AC4（E3、Q2・Q3）class と重複:** 主の順の round で、`SceneKeep`（base の root の id）、`SceneEdit`（上書きの root の id）の順に additive に load して両方を載せたままにし、base の root から `SharedPrefab` を load して保持した状態で、全 probe の class と値、Missing の数、`SharedMat`・`SharedTex`・`SharedShader`・`SharedPrefab`・`KeepTex` の実体の数を記録する。あわせて、`SceneKeep` の Renderer が直接参照する `EditedMat` の `mainTexture` の pixel の版を観測として記録する（答えには使わない）。
+- **AC4（E3、Q2・Q3）class と重複:** 主の順の round で、`SceneKeep`（base の root の id）、`SceneEdit`（上書きの root の id）の順に additive に load して両方を載せたままにし、base の root から `SharedPrefab` を、上書きの root から `EditedTex` を load して保持した状態で、全 probe の class と値、Missing の数、`SharedMat`・`SharedTex`・`SharedShader`・`EditedMat`・`EditedTex`・`SharedPrefab`・`KeepTex` の実体の数を記録する。あわせて、`SceneKeep` の Renderer が直接参照する `EditedMat` の `mainTexture` の pixel の版を観測として記録する（答えには使わない）。
   - 失敗経路の例: `SceneKeep` か `SharedPrefab` の `ProbeBaseOnly` の位置の component が `== null`（Missing）、または `FullName` が `ProbeOverlayOnly`・`ProbeBoth` になる。どちらも Q2 は誤り。
-- **AC5（E3、Q4）寿命:** 主の順の round で、次の列を順に行い、各段の後に、その時点で保持している物（Scene の probe と Renderer の material・texture、`Loadable` の物）が壊れていないかを記録する。(1) `SceneKeep` と `SceneEdit`（上書きの id）を load、base の root から `SharedPrefab`、上書きの root から `EditedTex` を load して保持。(2) `SceneEdit` を unload し `UnloadUnusedAssets`。(3) `SceneEdit` を load し直す。(4) `SceneKeep` を unload し `UnloadUnusedAssets`。(5) `SceneKeep` を load し直す。(6) `Loadable` を Release し、両 Scene を unload し、上書き → base の順に解除して、登録が 0 件であることを記録する。(6) の間の log は (1)〜(5) と分けて記録する。
+- **AC5（E3、Q4）寿命:** 主の順の round で、次の列を順に行い、各段の後に、その時点で保持している物（Scene の probe と Renderer の material・texture、`Loadable` の物）が壊れていないかを記録する。(1) **上書きの `SceneEdit` を先に、`SceneKeep` を後に** load し（AC4 と逆の順。§2 の (k)）、base の root から `SharedPrefab`、上書きの root から `EditedTex` を load して保持し、AC4 と同じ 7 つの物の実体の数を記録する。(2) `SceneEdit` を unload し `UnloadUnusedAssets`。(3) `SceneEdit` を load し直す。(4) `SceneKeep` を unload し `UnloadUnusedAssets`。(5) `SceneKeep` を load し直す。(6) `Loadable` を Release し、両 Scene を unload し、上書き → base の順に解除して、登録が 0 件であることを記録する。(6) の間の log は (1)〜(5) と分けて記録する。
   - 境界: 「Play の終わりまで」は (6) の解除の完了までを指す。Play を抜けた後の Editor の状態は AC8 が見る。
-- **AC6（E3、対照）対照の順:** 上書き → base の順で、AC4 と同じ観測、AC3 と同じ観測の順に 2 つの round を行う。答えは対照として記録し、スパイクの答えには使わない。対照の答えは `ControlFirst` の process の最初の round（AC4 と同じ観測）から採る。AC3 と同じ観測の方は最初の Play になる回を持たないので、主の順と違った時にだけ含意に使い、同じだった時は根拠にしない。
-- **AC7（I-2）数え方の成立:** AC3〜AC6 の各 round で、load の結果の `EntityId` の集合が列挙の集合と一致する。一致しない round は未判定。
+- **AC6（E3、対照）対照の順:** 上書き → base の順で、AC4 と同じ観測（AC6-class）と、AC3 と同じ観測（AC6-read）の 2 つの round を行う。答えは対照として記録し、スパイクの答えには使わない。AC6-class の答えは `ControlClassFirst` の最初の Play から、AC6-read の答えは `ControlReadFirst` の最初の Play から採る。主の順との差も一致も、この 2 つの回の答えでだけ読む。
+- **AC7（I-2）数え方の成立:** AC3〜AC6 の各 round（AC5 は (1) の計数の時点）で、load の結果の `EntityId` の集合が列挙の集合と一致する。一致しない round は未判定。
   - 補足（AC4・AC5 に共通）: `SceneKeep` と `SharedPrefab` は上書きに無い。上書きを登録した下でこれらを要求して load できない時は、単独の基準で load できていれば「NO（load できない）」という答えである（Unity が、後から登録した directory に無い物を先に登録した directory へ探しに行かない、という事実になる）。
 - **AC8（I-3）製品の無変更と後始末:** base から head までの変更が §3 の新規 file と `.meta`、本書、program だけである。`pwsh tools/contract-audit.ps1` が合格する。全ての process それぞれの前後で `git status --porcelain` が一致し、fixture の folder が無く、Build Settings・active target・Enter Play Mode の設定が前後で同じである。marker の無い残りがあれば何も消さずに止まる。
 
@@ -187,10 +187,10 @@
 | `OverlayVerdictTests.cs` | 上の写像だけの EditMode test。§2 の (a)〜(e)・(h)・(j) の誤りが YES にならないこと、型の集合は同じで位置だけ入れ替わった入力が正しいにならないこと、P1 を Scene の中身の差や sha256 の差だけで満たさないこと、答えを採る回と process の間の不一致、Unity の拒否を答えにする条件（単独の基準との組）、強・弱・不成立、Missing と別の class、P の不成立、反復の不一致 | 250 | 通常の EditMode 回帰に入る |
 | `OverlayFixture.cs` | fixture の生成（固定 GUID、v1 と v2）、所有の marker、残りの回収と削除 | 300 | Unity / `AssetDatabase` の I/O |
 | `OverlayBuilds.cs` | `[Explicit]` の `FirstProcess`。base と上書きの build、棚卸しと sha256、`ContentLayout.json` による帰属と P1〜P3、record、fixture の削除 | 350 | Unity の build の I/O |
-| `OverlayRounds.cs` | `[Explicit]` の `[UnityTest]` 4 つ（`ClassFirst`・`LifetimeFirst`・`ReadFirst`・`ControlFirst`。round の並びだけが違う）。照合、AC2〜AC6 の round、観測と log の record、後始末 | 520 | Play を伴う orchestration。判断は `OverlayVerdict` に置く |
+| `OverlayRounds.cs` | `[Explicit]` の `[UnityTest]` 7 つ。round の並びだけが違う 5 つ（`ClassFirst`・`LifetimeFirst`・`ReadFirst`・`ControlClassFirst`・`ControlReadFirst`）と、単独の登録の round だけを行う条件付きの 2 つ（`BaseAloneFirst`・`OverlayAloneFirst`）。照合、AC2〜AC6 の round、観測と log の record、後始末 | 540 | Play を伴う orchestration。判断は `OverlayVerdict` に置く |
 | `Tests/TestSupport/ProbeBaseOnly.cs`・`ProbeOverlayOnly.cs`・`ProbeBoth.cs` | `_tag`（string）と `_value`（int）だけを持つ空の `MonoBehaviour`（namespace は `OneStarMaker.Tests.Spikes.OverlayProbes`、先頭に `#nullable enable`。期待する `FullName` はこの namespace と class 名）。base の Scene と `SharedPrefab` は `ProbeBaseOnly` と `ProbeBoth`、上書きの `SceneEdit` は `ProbeOverlayOnly` と `ProbeBoth` を持つ | 各 15 | Content Directory の component が指す script は Editor 専用でない assembly に要る。既存の `OneStarMaker.TestSupport`（`UNITY_INCLUDE_TESTS`、全 platform）に置き、asmdef を変えない。test 側は型を参照せず名前で照合する |
 
-合計は約 1,700 行。500 行に届く `OverlayRounds.cs` は非分割とする（1 つの Play の往復の列で、変更理由は round の定義だけ。判断は pure 側に出してある）。S2-0b より小さくする手段: 解除の case の表（U1〜U7）と R0・R1・T0〜T3 の時点を持たない、pixel の所在の判定を持たない（`EditedTex` と `SharedTex` は読める小さな texture で、load 後の pixel の sha256 だけを見る）、正の対照は S2-0b の結果（列挙は同名の別の texture を 2 つと数えた）を前提にして再実施しない。反復は同じ round を process の中で繰り返さず、最初の round だけが違う 4 つの test を 1 回ずつ起動する（違いは round の並びの定数だけ）。
+合計は約 1,700 行。500 行に届く `OverlayRounds.cs` は非分割とする（1 つの Play の往復の列で、変更理由は round の定義だけ。判断は pure 側に出してある）。S2-0b より小さくする手段: 解除の case の表（U1〜U7）と R0・R1・T0〜T3 の時点を持たない、pixel の所在の判定を持たない（`EditedTex` と `SharedTex` は読める小さな texture で、load 後の pixel の sha256 だけを見る）、正の対照は S2-0b の結果（列挙は同名の別の texture を 2 つと数えた）を前提にして再実施しない。反復は同じ round を process の中で繰り返さず、最初の round だけが違う 5 つの test を 1 回ずつ起動する（違いは round の並びの定数だけ）。
 
 **fixture（`Assets/OsmSpikeOvl`、SampleGame を使わない）:**
 
@@ -222,12 +222,12 @@
 
 - 単体テスト: `OverlayVerdictTests`。
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayVerdictTests`。
-- 判定必須テスト（GO 候補 head）: 次の 6 つを順に、それぞれ別の Unity process で実行する。(1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayVerdictTests`。(2) `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayBuilds.FirstProcess`。(3)〜(6) `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayRounds.ClassFirst`、同 `.LifetimeFirst`、同 `.ReadFirst`、同 `.ControlFirst`（どれも (2) の同じ出力を読む）。各 XML の total が 1 以上で failed 0、root result `Passed`、record に全 round の終了行がある。ここまでは harness が最後まで動いたことの確認で、その後に判定 C が §2 の定義を record に当てて答えを読む。**process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は、`tools/Harness/README.md` の規則に従い、XML と record の終了行で判定する）。
+- 判定必須テスト（GO 候補 head）: 次の 7 つを順に、それぞれ別の Unity process で実行する。(1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayVerdictTests`。(2) `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayBuilds.FirstProcess`。(3)〜(7) `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayRounds.ClassFirst`、同 `.LifetimeFirst`、同 `.ReadFirst`、同 `.ControlClassFirst`、同 `.ControlReadFirst`（どれも (2) の同じ出力を読む）。**条件付き:** (3)〜(7) のどれかで、主の順の 2 つ目の登録か load を Unity が拒否した時だけ、同 `.BaseAloneFirst` と同 `.OverlayAloneFirst` をそれぞれ別の process で実行し、拒否された呼び出しが単独の登録の最初の Play で成功するかを記録する（§2 の GO）。拒否が無ければ実行しない。各 XML の total が 1 以上で failed 0、root result `Passed`、record に全 round の終了行がある。ここまでは harness が最後まで動いたことの確認で、その後に判定 C が §2 の定義を record に当てて答えを読む。**process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は、`tools/Harness/README.md` の規則に従い、XML と record の終了行で判定する）。
 - 全 EditMode 回帰の適用除外: **適用除外する。** 理由: 製品 code を変えず（AC8）、build と Play を行う `[Explicit]` の実験 test は通常の回帰に混ぜない。足すのは test 用 assembly の空の `MonoBehaviour` 3 つだけである。代替証拠: AC8、Unity のコンパイル確認、`contract-audit`。
-- 操作・実行時・目視条件の検証経路: 全て上の 6 コマンドで閉じる（Unity バッチで、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64、Enter Play Mode の Domain Reload が無効、作業ツリーが clean。観測は record・XML・log。目視は無い。証拠は record・XML・log・各 build の `ContentLayout.json` の写しを evidence bundle に入れる。動作確認は `対象なし`。
+- 操作・実行時・目視条件の検証経路: 全て上の 7 コマンド（と条件付きの 2 つ）で閉じる（Unity バッチで、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64、Enter Play Mode の Domain Reload が無効、作業ツリーが clean。観測は record・XML・log。目視は無い。証拠は record・XML・log・各 build の `ContentLayout.json` の写しを evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路の疎通: EditMode の `[UnityTest]` から Play に入り、製品の wrapper を 2 つ持って 2 つの directory を登録する経路は S2-0b が成立させた。**未確認:** `UNITY_INCLUDE_TESTS` の制約を持つ `OneStarMaker.TestSupport` の `MonoBehaviour` が、StandaloneWindows64 向けの Content Directory の build に script として入ること（前例の build も製品の build も `extraScriptingDefines` が空で、この assembly に `MonoBehaviour` を置いた前例は無い）。その Scene を、source を消した Editor の Play で load して `GetType()` が読めること。source を v2 に変えた後の 2 回目の build が v2 を取り込むこと。初回確認は Phase C（理由: Unity テストの実行は Phase C の責任。担当: Phase C の実行担当。確認地点: (2) の P1・P2 と、(3) の AC4・AC2。不成立時: 基盤不備なら B、fixture の形で作れないなら Phase A）。
 - 人間の判断が必要な条件: なし（結論を受けた形の採否は Phase D で owner）。
-- 高コスト証拠: なし（build 2 回、Play は 1 process あたり 7 回（AC4、AC5、AC3、AC6 の 2 回、AC2 の 2 回）で、4 process の 28 回の見込み。Unity の起動は 6 回）。
+- 高コスト証拠: なし（build 2 回、Play は 1 process あたり 7 回（AC4、AC5、AC3、AC6 の 2 回、AC2 の 2 回）で、5 process の 35 回の見込み。Unity の起動は 7 回。拒否が出た時だけ 2 回増える）。
 - 判定 C の照合 script の方式: なし。判定 C は record の行を AC ごとに読む。`OverlayVerdict` の出力は補助である。
 - 機械検査: `contract-audit`、`docs-audit`。
 - A0/A1 主担当: 本 session（Claude、Anthropic）。A0 は program §5.3「当面の方針」と §8 の S2-1 の行・S2-0・S2-0b の移送を入力とした。
@@ -235,7 +235,7 @@
   - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude Opus、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `4b072c253db3e532693773377896e0ac790bb8d00da101ba0b65c88545a8bfe7`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
   - (2) A0 だけからの代替構成: (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は program §5.3・§8、事実の文書、製品の native 層の source、前例の harness の file 一覧。本書は読んでいない。
   - (3) アーキテクチャゲート兼、各不変条件を破る順序と §2 の誤答の一覧の外の探索: 本 session が起動した別の新しい subagent（Claude Fable、Anthropic）。入力は A2 入力版の本書（内容 sha256 `561cc79f03995623d6562928a338eda957abc6454fa38ed3a3d0456650e72767`、commit `1cfcad07`）と、アーキテクチャゲート、事実の文書、program、製品の `Runtime/BuildContent` の source、asmdef、前例の harness、AGENTS.md。枠は「計画した実験 code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。
-  - (4) 凍結前の外部レビュー（draft PR #182、1 巡目、2026-11-13）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）。対象は commit `28ea0846` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。
+  - (4) 凍結前の外部レビュー（draft PR #182、2026-11-13）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）が 2 巡。対象は 1 巡目が commit `28ea0846`、2 巡目が `e1c3e234` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。同じ PR に owner のレビュー（対象 `e1c3e234`）が 1 件。
 - A3 統合担当・採否: 本 session（§5.1）。未凍結。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー（`cursor-agent` を使う場合は AGENTS.md の契約どおり Grok 系だけ）。A2 では Grok 系を使わない。
 - 独立性の強化条件を満たせない場合の理由: A2 は 1 つのベンダーの 2 つのモデルで行った（A1 の主担当は (3) と同じモデルの別 session）。別ベンダーの目は、凍結前の外部レビューと C' で入れる。凍結前の外部レビューが Grok 系を使ったので、C' に Grok 系を使う時は、Phase A に関与した系列として独立性の制約を §8 に記録する。C' の充足は起こす時に確かめて記録する。
@@ -258,7 +258,7 @@
 | ID | 提案（要約） | 採否 | 理由と反映先 |
 |---|---|---|---|
 | A-1 | Play 1 回にまとめ、harness を数百行にする | 不採用 | Q4 の出入りの列と Q1 の 2 つの経路を 1 つの Play に入れると、前の load が後の観測に効く（§2 の (i)）。round は分けたまま、S2-0b から削る物を §3 に書いた |
-| A-2 | 別の process で 1 回再現する | 採用 | 同じ process の中の反復を、別々の process に替えた（その後、見直し S-1 で、順を変えた 4 つの process にした）。§2.2 の前文、§5 |
+| A-2 | 別の process で 1 回再現する | 採用 | 同じ process の中の反復を、別々の process に替えた（その後、見直し S-1 と N-2 で、順を変えた 5 つの process にした）。§2.2 の前文、§5 |
 | A-3 | prefab の component も class の検査に含める | 採用 | `Loadable` 経由の解決は逆順の探索に乗る側なので、Scene だけでは足りない。`SharedPrefab` に probe を持たせた。§3、AC4 |
 | A-4 | 登録の前の前提: 共通物の file が同じ、script の file が別、Scene の identity が同じで file が別、上書きが共通物を直接参照、Domain Reload 無効 | 既に充足 | P1〜P3 と §5 の初期状態 |
 | A-5 | 同じ identity の Scene を両方から load できない時は、prefab で測る代替へ移る | 不採用 | Unity が拒否したこと自体が Q1 の答えになる（§2 の GO）。代替の fixture へ移るのは別の問い |
@@ -292,12 +292,22 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 
 | ID | 見つけた問題 | 直した所 |
 |---|---|---|
-| S-1 | 前の Play の残りから守られていたのは Q2 の round（process の最初）だけで、Q1・Q4・対照の答えは守られていなかった。同じ並びの process を 2 回繰り返しても、残りが効くなら 2 回とも同じ誤りになる | 最初の round だけが違う 4 つの process に替えた。各 round の答えは、それが最初の Play になった回から採り、他の回と違えば未判定。残りが答えを変えるかどうか自体も、この照合で分かる。§2 の (h)(i)(l)、§2.2 の前文、§5 |
+| S-1 | 前の Play の残りから守られていたのは Q2 の round（process の最初）だけで、Q1・Q4・対照の答えは守られていなかった。同じ並びの process を 2 回繰り返しても、残りが効くなら 2 回とも同じ誤りになる | 最初の round だけが違う process に替えた（この時点で 4 つ。N-2 で 5 つ）。各 round の答えは、それが最初の Play になった回から採り、他の回と違えば未判定。残りが答えを変えるかどうか自体も、この照合で分かる。§2 の (h)(i)(l)、§2.2 の前文、§5 |
 | S-2 | Scene の id は path から作られ、load は handle を取らない。base の root の id と上書きの root の id は同じ要求になる見込みで、初稿の「弱」と「条件付き YES」は、id が違った時にしか起こらない | 現況に事実を足し、Q1 の語に「id が等しい時は強か不成立」を書いた。含意の表に「上書きを登録している間は base の版を選べない」を足した |
 | S-3 | script をまとめた file が「先に読んだ側」で固定される作りだと、Scene を読む順で壊れる側が変わる。初稿はその順を意識していなかった | 両方の Scene の probe を見ることと、AC4 と AC5 で両方の順が入ることを (k) に書いた |
 | S-4 | 上書きに無い物（`SceneKeep`・`SharedPrefab`）が、上書きを登録した下で load できない場合の読み方が無かった | AC7 の補足（単独の基準で成功していれば NO という答え） |
 | S-5 | 「未確認」のうち 3 つは、Unity を起動せずに build 履歴から確かめられた（script の file の id が build によらず同じ、一覧は使う script だけ、Scene の帰属は GUID で引ける） | §1 の現況に事実として書き、I-1 の未確認から外した |
 | S-6 | `EditedMat` が両方で同じ file であることを前提にしていなかった（`SceneKeep` の `EditedTex` の観測を読む時に要る） | P3 に足した |
+
+**(6) 外部レビュー 2 巡目と owner のレビュー（PR #182、対象 `e1c3e234`。blocker なし）**
+
+| ID | 重さ | 指摘（要約） | 採否 | 理由と反映先 |
+|---|---|---|---|---|
+| R2-1 | should-fix | (k) の「両方の順」の片方を AC5 の (5) の読み直しに頼っているが、AC5 の (1) の load の順が書かれておらず、base を先にすると逆順の冷たい回が無い | 採用 | AC5 の (1) を上書きの `SceneEdit` 先に固定し、(k) を「AC4（base 先）と AC5 の (1)（上書き先）が、それぞれ最初の Play」に書き直した。(5) は逆順の根拠から外した |
+| R2 の文言 | — | 残りの round の「決めた順」を書く | 採用 | §2.2 の前文に列を書いた |
+| N-1 | should-fix | Q3 の計数に、両方の directory にある `EditedTex`・`EditedMat` が入っておらず、3 実体になっても「収まる」になる | 採用 | Q3 の対象に足し、AC4 と AC5 の (1) の両方の時点で数える。AC4 でも `EditedTex` の `Loadable` を保持する。§2 の Q3、AC4、AC5、AC7 |
+| N-2 | should-fix | 対照の版の観測（AC6 の AC3 相当）は必ず対照の class の round の後で、差が出ても登録の順だけの効果と言えない | 採用（process を足す側） | `ControlReadFirst` を足し、対照の 2 つの round のそれぞれに最初の Play になる回を持たせた。参考観測へ下げる案より、owner が測ると決めた対照（U-2）を使える形にする方を採った。Unity の起動が 1 回増える |
+| N-3 | note | AC2 は全ての round の後なので、「単独では成功する」の根拠として弱い。拒否を NO にする根拠が切り分けられない | 採用 | 拒否が出た時だけ、単独の登録を最初の Play で行う条件付きのコマンドを実行し、その結果でだけ拒否を答えにする。実行しない間は未判定。§2 の GO、AC2、§5 |
 
 **A1 の自己点検（A2 の前）:** 目的の 4 項目と Q1〜Q4、AC3〜AC5 が 1 対 1 に対応すること、利用者の入力が無いこと、結果に依存する文書（事実の文書と program の改訂）を受け入れ条件に入れず harvest に置いたことを確かめた。
 
