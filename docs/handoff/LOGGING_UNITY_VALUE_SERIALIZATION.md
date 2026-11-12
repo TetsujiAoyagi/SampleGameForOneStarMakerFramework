@@ -2,15 +2,16 @@
 
 ## 0. 状態
 
-- type: slice / status: Phase A 完了。revision 4（4日保持・次回起動時清掃）。2026-11-13、依頼者が現行案全体の A3 凍結と次セッションでの Phase B 開始を承認。製品コードは未着手。
+- type: slice / status: Phase B 完了（2026-11-13）。依頼者承認・凍結済みの A3 revision 4 に従って実装 head を固定。次は発見 C。Unity テスト・Build と実 factory の実行時判定は未実施。
 - branch: codex/logging-unity-value-serialization
 - implementation base commit: f8ffd023fd376d8d7b46e7fbc930e97c1926a934
-- implementation head commit: 未固定
+- implementation head commit: a5e6463b299c5fd1aefe55e0690069bd03107e54
 - risk: high（非同期ログ出力と失敗通知、寿命に影響）
 - owner: 主担当 / created: 2026-11-12 / expires: Phase D の harvest・削除または置換 revision
 - harvest: `unity/Assets/Docs/Architecture/12-telemetry.md` の G5 とログ利用上の制約（Editor の実 factory で確認した範囲と Player 未検証を区別）、`unity/Assets/Docs/Architecture/30-accessibility-identity.md` の Foundation における Vector3 の記述
 - Phase A snapshot の取得案内・状態: 前候補の原記録はローカル固定・取得確認済み。今回の改訂版もローカル固定し、独立2担当が同じ内容を取得・閲覧済み。通知 file の原出力を補完した最終 package の案内と取得確認票は、主担当管理の Git 外の引渡し票に置く。旧 A2 の合格を今回の設計に流用しない。A3 凍結 snapshot と取得案内は主担当が Git 外で保存・引渡しする。旧試作・原レビューの案内とは分離し、Phase B / C の担当は凍結版を取得して照合する。C′ 用には所見を含まない別入力を C が用意する。
-- 引継ぎ票: 次は Phase B 実装担当。revision 4 の §1〜§5 に従い実装・テストコード追加・限定した Editor コンパイル確認を行う。implementation head は未固定で、引き継ぐ commit は起動指示と PR 状態ブロックで渡す。必要な権限は対象 worktree の編集と必要時のローカル Editor 操作。Unity テスト・Build は C の責任とし B では実行しない。設計・依存・公開 API・寿命を変える必要が出たら A へ返す。試作の PASS を製品の合格に使わない。取得案内は同一 PC の主担当管理の Git 外引渡し票。
+- Phase B result snapshot / 発見 C evidence の取得案内・状態: 主担当管理の Git 外引渡し票に取得案内を保存。実装結果、固定差分・変更後 source、コンパイル確認、機械検査を Artifact Storage にローカル固定済み（未昇格）。送信担当の fetch・閲覧確認済み。次担当による取得・閲覧確認は未完了。判定用 evidence / C′ blind bundle は未生成。別 host の取得経路は未確認、証拠の取得はローカル担当。
+- 引継ぎ票: 次は発見 C 担当。A3 revision 4 の凍結 snapshot と Phase B result / 発見 C evidence を、主担当管理の Git 外引渡し票の reference と独立した packageSha256 で標準 CLI から取得し、閲覧前に有限 use、終了時に release を行う。起動指示・PR の引き継ぐ commit と HEAD・clean 状態・本欄を照合後、固定差分の構造・契約・失敗経路を先にレビューする。Unity テストは必要な関連 filter を C が選択し、判定 C は §5 の全 EditMode を標準 runner で実行する。必要な権限は対象 worktree の読み取り、Artifact Storage の通常利用、必要な Editor / Unity 検証。設計・公開 API・asmdef 依存・寿命の変更が必要なら A へ戻す。現 evidence から GO 判定や C′ 起動を行わない。取得コードを実行せず、旧試作の結果を製品の合格へ流用しない。引き継ぐ commit は起動指示と PR で渡す。
 
 ## 1. 目的と対象
 
@@ -69,7 +70,20 @@
 
 ## 6. Phase B 以降
 
-未着手。A3 凍結済み。次セッションの Phase B 担当が実装を開始する。
+### Phase B 実装結果（2026-11-13）
+
+- 担当: OpenAI GPT-6（本セッション、実装担当）。発見 C・判定 C・C′ は未実施。
+- `AppLoggerFactory` は公開 constructor を共通の内部経路へ委譲し、一時 directory だけを指定する test seam を追加。provider / producer correlation の所有者・寿命は維持し、清掃 → 通知生成 → provider 配線、provider drain → 通知終了の順を明記した。既存 realtime stream は provider が閉じる実挙動にコメントを合わせた。
+- 新規内部実装は §3 の責務配置どおり `Vector3JsonConverter`、`BufferedJsonFormatter`（容量 writer を内包）、`LoggerFailureFile`、`LogRetentionPolicy`、`LogFileNames`、`LogDirectoryMaintenance` に分離。factory は236行（既存205行から+31）、中核の変換・容量・通知 I/O・期限・名前・削除を混在させていない。新しい公開 API・asmdef edge・Game/Editor 依存・フォルダ・コンフィグは追加していない。
+- 正常 JSON は変換完了後だけ外側 writer へ渡す。buffer の1 MiBは処理後の保持目安とし、大容量要求は必要量まで拡張、成功・失敗の両方で有効長を reset。Vector3 は有限成分だけ x/y/z の数値へ変換し、非有限値は例外として callback に届ける。
+- 通知は固定 provider 名・UTC 時刻・provider-write-error・例外型のみ。日付/サイズ切替、既存最大連番の認識、再起動・I/O失敗後の次 callback での再試行を実装。通常ログの既存日付/サイズ切替を維持し、通常/通知の4日保持は起動前一回の厳密な管理対象清掃に限定した。
+- テストコード: `AppLoggerFactoryJsonTests`、`BufferedJsonFormatterTests`、`LoggerFailureFileTests`、`LogDirectoryMaintenanceTests`。両 JSON provider の有限値・非有限値・大容量・正常/失敗/正常、背景 producer と drain、通常サイズ回転、I/O通知、既定 MessagePack / telemetry 回帰、buffer容量/失敗reset、通知回転/再起動/日付/障害回復/並行、999→1000、4日期限/管理名/利用中/reparseを対象とする。実行はしていない。
+- B 適応: 既存 tests asmdef は C# 9 のため、実 factory のテスト呼出は既存 MEL structured template を使い、compiler 設定や依存を追加しなかった。製品の serializer 設定・公開呼出契約を変更していない。
+- 確認: Unity 6000.6.0f1 の限定再コンパイルは completed / failed=false / errors=[] / compilationFailed=false。確認時 compiling=false・updating=false・playing=false・dirtyScenes=[]、Foundation assembly のロードを観測。contract-audit は exit 0・errors 0・warnings 0、git diff --check 通過。docs-audit はエラー0・既存 program の警告1。DLL/PDB が LFS pointer の初期環境を復元してから最終コンパイルを確認し、Editor の副作用による対象外 asset/meta 差分は戻した。
+- 終了: 自分が起動した Editor に正常終了を要求したが process 終了は未確認。今回の対象 process のみ強制停止し、その handle の signal を確認した。自然終了成功とは扱わず、既知 native stall と同じ原因とも断定しない。dump や再起動比較など原因調査は行っていない。
+- 未確認: Unity テスト・Build は B で未実行。実 factory の実行時成立・全 EditMode・既存回帰は C に渡す。Windows の file symbolic link fixture は作成権限が無い場合に明示 Ignore するため、その required case が skip なら C は未検証として扱い、合格へ読み替えない。Player / IL2CPP / AOT / stripping と DebugStudio は対象外。
+- 動作確認: §5 の独立した操作・目視条件は対象なし。実行時の条件は凍結した Unity テスト経路で C が初回確認する。B のコンパイル結果を GO の証拠にはしない。
+- 保存と引渡し: Phase B result / 発見 C evidence は §0 の取得案内で同一 package を渡す。送信側の読戻しと、次担当の取得・閲覧確認は区別する。task 全体は継続中であり、Phase B 終了を task end に読み替えていない。
 
 ## 7. 4日保持への変更（依頼者指示と方式確認）
 
