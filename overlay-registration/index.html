@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>取得した build への上書き</title>
+<meta name="description" content="Unity 6000.6 の Content Directory で、取得した build に手元で build した上書きを後から登録した時、どちらの版が読まれ、class と実体の数と寿命がどうなるかを Editor の Play で実測した記録。">
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1c1a; --muted:#5f5b54; --line:#dcd7cd; --card:#ffffff;
+  --accent:#2f5d8a; --ok:#2e7d4f; --bad:#b3412f; --code:#f1eee7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+    --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+  --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 80px}
+h1{font-size:1.75rem;line-height:1.4;margin:0 0 .4em}
+h2{font-size:1.25rem;margin:2.4em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.6em 0 .4em}
+p,li{color:var(--fg)}
+.lede{color:var(--muted);margin:0 0 1.6em}
+.scope{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:.92rem;color:var(--muted)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.88em;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:1.2em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .k{font-size:.8rem;color:var(--muted)}
+.card .v{font-size:1.9rem;font-weight:700;line-height:1.2;margin:.15em 0}
+.card .d{font-size:.85rem;color:var(--muted)}
+.table-wrap{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--bad);font-weight:700}
+figure{margin:1.4em 0}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.4em}
+svg{width:100%;height:auto;display:block}
+.note{font-size:.9rem;color:var(--muted)}
+footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>取得した build に、手元で build した上書きを重ねて登録する</h1>
+<p class="lede">Unity 6000.6 の Content Directory で、CI から取得した build（base）に、開発者が自分の触った Scene と asset だけを build した上書きを後から登録し、Editor の Play で何が読まれるかを実測した記録です。対象は OneStarMaker（OSM）の開発時の Play の形です。</p>
+
+<div class="scope">範囲: 1 台の PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（非圧縮）、Editor の Play（Domain Reload 無効）、base と上書きを同じ <code>Library</code> で build、合成 fixture 1 つ。Player・別の PC で build した base・実データでは測っていません。「実体の数」は load の結果として区別できる <code>UnityEngine.Object</code> の数（相異なる <code>EntityId</code>）です。</div>
+
+<h2>問い</h2>
+<p>OSM の当面の方針は「CI は目的ごとに 1 本の build を作る。開発者はそれを取得し、自分が触った物だけを手元で build して上書きとして登録する」です。この形では、編集した Scene・texture や、script をまとめた file が、<strong>同じ id で中身の違う file</strong>として base と上書きの両方に必ず入ります。<a href="../shared-file-registration/">前の記事</a>で測ったのは、中身が同じ file だけでした。今回は中身が違う場合について、次の 4 つを問いました。</p>
+<ol>
+<li><strong>Q1</strong>: 両方にある物は、上書き側が読まれるか。</li>
+<li><strong>Q2</strong>: base だけの Scene・prefab と上書きの Scene の component に、正しい class と値が付くか（base と上書きは、使う script の顔ぶれが違う）。</li>
+<li><strong>Q3</strong>: 同じ asset の実体が、base の 1 つと上書きの 1 つに収まるか。</li>
+<li><strong>Q4</strong>: 上書きを解除しない限り、Scene の出入りを繰り返しても Play の終わりまで壊れないか。</li>
+</ol>
+
+<h2>答え</h2>
+<div class="cards">
+  <div class="card"><div class="k">base → 上書きの順で登録</div><div class="v ok">YES</div><div class="d">Q1〜Q4 が全て成立。編集した Scene と texture は上書きの版が出た</div></div>
+  <div class="card"><div class="k">上書き → base の逆順</div><div class="v bad">base の版</div><div class="d">壊れはしないが、上書きが効かない</div></div>
+  <div class="card"><div class="k">base の版を選ぶ手段</div><div class="v">無し</div><div class="d">2 つの root の Scene の id が等しく、どちらから要求しても同じ結果</div></div>
+</div>
+<p>どちらの順でも、<strong>後から登録した directory の版が出ました</strong>。登録も load も拒否されず、Warning も Error も出ていません。</p>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>問い</th><th>base → 上書き（主の順）</th><th>上書き → base（対照）</th></tr></thead>
+<tbody>
+<tr><td>Q1 編集した物の版</td><td class="ok">上書き（v2）。base の root の id で要求しても v2</td><td class="bad">base（v1）。どちらの root の id からも v1</td></tr>
+<tr><td>Q2 class と値</td><td class="ok">正しい。Missing 0</td><td class="ok">正しい。ただし載ったのは base 版の Scene</td></tr>
+<tr><td>Q3 共通 asset の実体</td><td class="ok">各 2（base と上書きに 1 つずつ）</td><td>各 1</td></tr>
+<tr><td>Q4 Scene の出入り</td><td class="ok">無傷。load し直しても上書きの版のまま</td><td>（主の順だけで測った）</td></tr>
+</tbody>
+</table>
+</div>
+
+<figure>
+<svg viewBox="0 0 680 300" role="img" aria-label="登録の順と、出た版の対応の図">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker>
+  </defs>
+  <g font-size="15" fill="var(--fg)">
+    <text x="20" y="34" font-weight="700">主の順</text>
+    <rect x="20" y="48" width="190" height="56" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="36" y="72">1. base（v1）</text>
+    <text x="36" y="94" fill="var(--muted)" font-size="13">取得した build</text>
+    <rect x="240" y="48" width="190" height="56" rx="8" fill="var(--card)" stroke="var(--ok)" stroke-width="2"/>
+    <text x="256" y="72">2. 上書き（v2）</text>
+    <text x="256" y="94" fill="var(--muted)" font-size="13">手元で build</text>
+    <path d="M440 76 L500 76" stroke="var(--ok)" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="510" y="72" fill="var(--ok)" font-weight="700">SceneEdit は v2</text>
+    <text x="510" y="94" fill="var(--muted)" font-size="13">上書きが効く</text>
+
+    <text x="20" y="164" font-weight="700">逆の順</text>
+    <rect x="20" y="178" width="190" height="56" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="36" y="202">1. 上書き（v2）</text>
+    <text x="36" y="224" fill="var(--muted)" font-size="13">手元で build</text>
+    <rect x="240" y="178" width="190" height="56" rx="8" fill="var(--card)" stroke="var(--bad)" stroke-width="2"/>
+    <text x="256" y="202">2. base（v1）</text>
+    <text x="256" y="224" fill="var(--muted)" font-size="13">取得した build</text>
+    <path d="M440 206 L500 206" stroke="var(--bad)" stroke-width="2" marker-end="url(#ar)"/>
+    <text x="510" y="202" fill="var(--bad)" font-weight="700">SceneEdit は v1</text>
+    <text x="510" y="224" fill="var(--muted)" font-size="13">上書きが効かない</text>
+
+    <text x="20" y="280" fill="var(--muted)" font-size="13">太枠: 後から登録した directory。どちらの順でも、その版が出た</text>
+  </g>
+</svg>
+<figcaption>公開文書の「登録中の directory は登録の逆順に探索される」と合う結果です。ただし、どの directory の file を読んだかを返す API は無いので、仕組みは推測です。設計上の保証ではありません。</figcaption>
+</figure>
+
+<h2>見落としやすい 1 点: Scene の直接参照は古い版のまま</h2>
+<p>base だけにある Scene <code>SceneKeep</code> の Renderer が直接参照している、編集した texture <code>EditedTex</code> は、<strong>上書きを登録した後も base の版（v1）</strong>でした。同じ Play の中で、上書きの Scene には新しい texture が、base の Scene には古い texture が出ます。</p>
+<p>これは前の記事で立てた推測（Scene の直接参照は、その Scene のある directory の中で解決される）と合います。つまり、共通の asset を編集したら、<strong>それを直接参照している Scene も上書きに入れる</strong>必要があります。どの Scene を入れるべきかを、編集した asset から逆引きする道具が要ります。</p>
+
+<h2>設計への含意</h2>
+<ul>
+<li>「取得した build 1 つ + 手元の上書き」は、開発時の Play の形の候補にできる。</li>
+<li>製品は、登録の順を <strong>base → 上書きに固定</strong>する。逆の順では上書きが効かない。</li>
+<li>上書きを登録している間、同じ id の物について base の版は選べない。base の版が要るなら上書きを解除する。これを製品の既定の制約として受け入れた。</li>
+<li>上書きに入れる Scene を、編集した asset から逆引きする道具は、次のスライス（目的 build を選ぶ索引と、上書きの登録契約）に含める。</li>
+</ul>
+
+<h2>途中で分かった副産物</h2>
+<p><strong>test 用の asmdef に置いた component の script は、build に入りませんでした。</strong> 最初は probe の <code>MonoBehaviour</code> を、<code>UNITY_INCLUDE_TESTS</code> を制約に持つ test 支援の assembly に置き、build にその define を渡していました。すると Unity の入力 package の test 用 code まで compile の対象になり、base の build が <code>error CS0117</code> で失敗しました。一方、define を渡さなければ、probe が player の script の compile に入りません。最終的に probe を test 制約の無い専用の asmdef へ移して解決しました。Content Directory の build を伴う実験では、component の script の置き場所に注意が要ります。</p>
+
+<h2>どう測ったか</h2>
+<ul>
+<li>SampleGame を使わない fixture を固定 GUID で生成した。source が v1 の状態で全体を build したものを base とし、source を v2 に変えてから <code>SceneEdit</code> と <code>EditedTex</code> の root だけを build したものを上書きとした。</li>
+<li>登録の前に、危険な条件が fixture に本当に入っていることを確かめた。script をまとめた file は、base と上書きで同じ id・違う sha256 で、base は base だけの script を、上書きは上書きだけの script を持つ。これが成り立たなければ未判定にする。</li>
+<li>製品の native wrapper（<code>UnityContentDirectoryBackend</code>）を無改変で 2 つ持ち、両方を登録してから load した。class は、component の位置ごとに完全名と値で照合した。</li>
+<li>Domain Reload 無効の Play では、前の Play が読んだ物が残りうる。そこで、最初の Play だけが違う Unity process を 5 つ用意し、各観測の答えは、それが process の最初の Play になった回から採った。5 つの process の答えは全て一致した。</li>
+<li>テストの合格は「harness が最後まで動いた」ことしか意味しない。答えは record（JSONL）の観測の行から、事前に凍結した定義で読んだ。別ベンダーのモデルによる独立監査と外部レビューも、同じ答えを出した。</li>
+</ul>
+
+<h2>測っていないこと</h2>
+<p class="note">Player、別の PC・<code>Library</code> で build した base、実データ（SampleGame）、archive、3 つ以上の directory、上書きが 2 つ以上の時、上書きで script の code や field を変えた時、URP の <code>Lit</code> の variant、Scene に置いた prefab instance・nested prefab・sprite atlas・audio、Domain Reload 有効の Play、Scene を load した後に上書きを登録する順、Play の途中の上書きの解除、GPU 側の資源の重複。</p>
+
+<footer>
+<p><a href="../">記事の一覧</a>　前の記事: <a href="../shared-file-registration/">同じ file を持つ 2 つの Content Directory を同時に登録すると何が起きるか</a></p>
+<p>実測の事実と測り直しの手順: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/blob/develop/docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md">CONTENT_DIRECTORY_BUILD_FACTS.md</a>。計画・判定・監査の記録: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/182">PR #182</a>。2026-11-14。</p>
+</footer>
+</main>
+</body>
+</html>
