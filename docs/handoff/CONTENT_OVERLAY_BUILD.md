@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `A`（**A3 の統合版、未凍結。** 2026-11-14 に A2 の 3 件、凍結前の外部レビューの 1 巡目（draft PR #186）、主担当の見直しを反映した（§5.1）。owner の指示により凍結していない。A2 入力版は commit `cf31a6f2`、外部レビューの 1 巡目の対象は commit `288cf7bd`）
+- status: `A`（**A3 の統合版、未凍結。** 2026-11-14 に A2 の 3 件、凍結前の外部レビューの 1 巡目と 2 巡目（draft PR #186）、owner のレビュー、主担当の見直しを反映した（§5.1）。owner の指示により凍結していない。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目と owner のレビューが `23a929cb`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `未固定`
@@ -20,8 +20,8 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner による採否と凍結の指示（必要なら外部レビューの 2 巡目）。その後に Phase A の主担当が A3 凍結版を切る。
-  - 次の作業: owner が凍結を指示したら、status と本票を凍結版に改めて commit し、Phase B を起こす。外部レビューの 2 巡目を行うなら、指摘を §5.1 に採否つきで足す。
+  - 次の Phase・役割: owner による凍結の指示。その後に Phase A の主担当が A3 凍結版を切る。
+  - 次の作業: owner が凍結を指示したら、status と本票を凍結版に改めて commit し、Phase B を起こす。外部レビューをさらに行うなら、指摘を §5.1 に採否つきで足す。
   - 引き継ぐ commit: この票を含む commit（SHA は PR の状態ブロックと起動指示で渡す）。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: owner の指示があるまで凍結しない。凍結の前に Phase B を始めない。目的・利用者の文言を変えたら、目的レビューをやり直す。
@@ -57,8 +57,9 @@
   |---|---|---|
   | 編集した asset の path の集合 | 利用者が実行時に渡す（出所は呼び手が決める。§2.8 U3） | 目的の「編集した asset の集合を渡すだけ」そのもの。唯一の利用者の入力 |
   | 目的の宣言から作った plan と snapshot（bootstrap 等の合成を終えた物） | 開発時の宣言から自動導出（呼び手が既存の入口で作る） | 上書きを base と同じ目的の内側に収める。利用者は選ばない |
-  | base の identity（contentSet・revision・target・manifest の digest） | 自動導出（呼び手が、これから登録する base から読む） | 作った時と別の base に重ねない契約（§2.3 C6）の材料 |
-  | 上書きの contentSet（workspace の名前） | 呼び手の既定値。base の contentSet と同じ名前は製品が拒む | base の workspace に上書きの出力を混ぜない |
+  | 目的の宣言そのもの（`BuildPurposeDeclaration`。上書きの root に写す）と requirements | 開発時の宣言（呼び手が base と同じ宣言を渡す。宣言を持たない合成の build では無し） | 宣言の名前の一致（§2.3 C6）を、登録する側が root から読めるようにする |
+  | base の identity（contentSet・revision・target・manifest の digest・宣言の名前） | 自動導出（呼び手が、これから登録する base から読む） | 作った時と別の base に重ねない契約（§2.3 C6）の材料 |
+  | 上書きの contentSet（workspace の名前） | 呼び手の既定値。base の contentSet と同じ名前（大文字小文字だけ違う名前を含む）は製品が拒む | base の workspace に上書きの出力を混ぜない |
   | 出力先の root | 既定値（coordinator の既存の規則） | — |
 
   機械が決めるもの: 上書きに入れる root、root ごとの理由、当たらなかった編集とその理由、実体が重複する共有 asset の一覧、build identity、build の mode（`Full` に固定）。
@@ -72,11 +73,11 @@
   - (a) 観測が directory ではなく `AssetDatabase` の source を読む。Editor の Play で source が編集後なら、何も上書きしなくても全部が編集後に見える。→ Play の前に fixture の source を消し、base だけの root しか参照しない canary が base の版で出ることを同じ Play で確かめる（AC7）。
   - (b) 絞らずに全 root を上書きに入れる。漏れは無いが、上書きではなく作り直しである。→ 影響を受けない root が上書きの entry に無いこと（AC2・AC5）と、base の版で出ること（AC7）。
   - (c) 逆引きの単体テストが、期待と同じ手で作った閉包だけを見る。→ 実 `AssetDatabase` から作った snapshot で prefab instance と nested prefab を通し、期待は fixture の作者が書いた root の名前で持つ（AC2）。
-  - (d) 編集前と編集後が観測値で区別できない fixture、または base が既に編集後の source から作られている。→ base の build の直前に v1、上書きの build の直前に v2 を、変えた asset の全部で record に残す（AC5 の前提 P1）。
+  - (d) 編集前と編集後が観測値で区別できない fixture、または base が既に編集後の source から作られている。→ 各観測点の値を、base の build の直前に v1、上書きの build の直前に v2 として record に残す（AC5 の前提 P1）。
   - (e) Domain Reload 無効の Play で、前の Play が読んだ物が残る。→ 各観測は、それが process の最初の Play になる回から採る（S2-1 の移送）。
   - (f) 重複の報告が常に空でも通る。→ 報告に出た物は実体 2、出なかった物は実体 1 の両方向を見る（AC8）。
   - (g) 編集した asset を root として `Loadable` で引いて版を読む。探索の順で、上書きを後に登録していれば必ず編集後が出る。→ 版は、root が直接参照する物から読む（AC6）。
-  - (h) prefab の版を読む値が、置いた側（Scene、外側の prefab）に書いてある。instance の override や外側の prefab の変更として v2 の値があると、上書きの build が内側の prefab を解決しなくても v2 に見える。→ v2 で変える source file を固定し、instance に override が無いことを build の前に record に残す（AC5 の前提 P2）。
+  - (h) prefab の版を読む値が、置いた側（Scene、外側の prefab）に書いてある。instance の override や外側の prefab の変更として v2 の値があると、上書きの build が内側の prefab を解決しなくても v2 に見える。→ 観測点の値を、置いた側（source の Scene）を通して build の前に 2 回読む。置いた側の file が変わっていないのに値が v1 から v2 に変われば、その値は編集した prefab から来ている（AC5 の前提 P1・P2）。override の一覧は記録しない（§5.1 R2-01・O-02）。
 
 ### 2.1 進める最低条件
 
@@ -84,7 +85,7 @@
 
 - **I-1 渡された編集について、古い版を黙って残さない。** plan の selected の root のうち、手元の依存閉包に E（渡された編集の集合）の file を 1 つでも含む root が、上書きから外れることは無い。
   - 主張を崩しうる経路: (1) 閉包の出所。`IsContent` が落とす file（`.cs` 等、`Assets/` の外、`Packages/` の下）と、`GetDependencies` が返さない依存（shader の include 等の import 時の依存。未確認）は閉包に現れないので、E に入っても root に届かない。(2) plan と snapshot の組。SampleGame の `ComposeBootstrap` と `Bs4FixtureComposer` は selected に候補を足す。合成の後の plan と合成の前の snapshot を渡すと、足された root に閉包が無く、当たらないと判定される。(3) E の path の形。`.meta` だけの変更（import 設定）、`\` 区切り、大文字小文字だけ違う path（Windows の VCS が返しうる）、folder、削除済みの file、rename の前の path。(4) 弱い参照。logical key で引く先は別の root なので、その root 自身の閉包で判定される。host の asset が `Loadable` の field を持つ場合の閉包は未確認（この repository の製品 code で `Loadable` を持つのは `BuildContentRoot` だけ）。(5) 時点。snapshot を作った後に source が変わると、閉包が古くなる。
-  - 塞ぎ方: (2) は、selected の root に閉包がちょうど 1 つ対応しない入力を例外にする。(3) は、区切りと `.meta` を正規化し、閉包との突き合わせで大文字小文字を無視する。(1) と (3) の残りは I-2 の「当たらなかった編集」に必ず出す。(5) は呼び手の前提として UC-1 に書いた（既存の build と同じ）。
+  - 塞ぎ方: (2) は、selected の root に閉包がちょうど 1 つ対応しない入力を例外にする。(3) は、区切りと `.meta` を正規化し、閉包との突き合わせで大文字小文字を無視する（接頭辞の `Assets/` は AC1 のとおり ordinal）。(1) と (3) の残りは I-2 の「当たらなかった編集」に必ず出す。(5) は呼び手の前提として UC-1 に書いた（既存の build と同じ）。
   - 探索した境界: `Editor/Build/Materialization` の閉包の作り方、`Editor/Build/Content` の projection と adapter、SampleGame の合成 2 箇所。
 - **I-2 渡された編集を黙って捨てない。** E の各 path は、「どの root を上書きに入れた理由になったか」か「当たらなかった理由」のどちらかとして、逆引きの結果に必ず現れる。build した時は preflight にも現れる。
   - 経路: I-1 の (1)(3) と、どの selected の root の閉包にも無い file。E の全部が当たらない時は build が走らず preflight が無い（§1 の「記録」の読みと呼び手の義務）。
@@ -95,8 +96,8 @@
   - 経路: `BuildContentRequest` の既存のコンストラクタ 3 つ、`ContentReportFile` を読む既存の読み手（判定 script、Artifacts の collect、Player build の検証）、`ContentTransportPublisher` の `buildMode` だけの検査（`Full` で作った上書きは今の検査を通る）、public な絞りで作った plan を記録なしで `Full` で build する呼び手、上書きの印を「base の identity が空でない」で読む実装（空の identity の記録が上書きでなく見える）。
   - 塞ぎ方: outcome に明示の印を書く。publisher は印に加えて、preflight の excluded に絞りの理由 code があれば拒む。base の identity の型は空の欄を例外で拒む。
 - **I-5 上書きの build は base を変えない。** 上書きの build は、base の directory と、base の目的の workspace に書かない。
-  - 経路: 上書きを base と同じ contentSet で build すると同じ workspace を使う。`content/<identity>` は build ごとに別名で、既存を上書きしない（coordinator の既存の検査）。
-  - 塞ぎ方: 記録の base の contentSet と request の contentSet が同じなら、build の前に拒む。
+  - 経路: 上書きを base と同じ contentSet で build すると同じ workspace を使い、`Full` の build が base の workspace を空にする。Windows では大文字小文字だけ違う名前（`base_a` と `BASE_A`）も同じ workspace になる（`ValidateSegment` は両方を通し、coordinator の path の比較は大文字小文字を無視する）。`content/<identity>` は build ごとに別名で、既存を上書きしない（coordinator の既存の検査）。
+  - 塞ぎ方: 記録の base の contentSet と request の contentSet が、大文字小文字を無視して同じなら、build の前に拒む。
 
 **成立条件（起きなければならないこと）**
 
@@ -108,7 +109,7 @@
 
 ### 2.2 受け入れ条件
 
-fixture は SampleGame を使わない合成 1 つ（program D10）。custom の script を持たず、版は組み込みの値（texture の pixel、子の Transform の位置）で読む。
+fixture は SampleGame を使わない合成 1 つ（program D10）。custom の script を持たず、版は組み込みの値（texture の pixel、子の Transform の位置）で読む。base と上書きの build には、同じ合成の宣言（`BuildPurposeDeclaration` 1 つ）を付ける。
 
 - root は 6 つ: `SceneDirect`（別々の material 経由で `EditedTex`・`SharedTex`・`UnlistedTex` を直接参照）、`SceneInstance`（`EditedPrefab` の instance を置く）、`SceneNested`（`InnerPrefab` を nest した `OuterPrefab` の instance を置く）、`PrefabRoot`（Object の root。`EditedTex` を直接参照）、`SceneClean`（`SharedTex` と `CleanOnlyTex` だけ）、`SceneUnlisted`（`UnlistedTex` と `CanaryTex` だけ）。どの root も参照しない `UnusedTex` を置く。
 - v2 で変える source file は `EditedTex`・`EditedPrefab`・`InnerPrefab`・`UnlistedTex`・`CanaryTex` の 5 つだけ。prefab の v2 は、`EditedPrefab` と `InnerPrefab` の中の子（prefab の root ではない GameObject）の Transform の位置を変える。`SceneNested` の観測点は、`InnerPrefab` の下にだけある子の位置にする。
@@ -119,12 +120,12 @@ fixture は SampleGame を使わない合成 1 つ（program D10）。custom の
 | AC1 | I-1・I-2 | 単体。表の入力（plan、閉包、E）に対し、上書きの root の集合、root ごとの理由（その root の閉包にある E の path。root 自身を含む）、当たらなかった編集（理由 code つき）を返す。path は `\` を `/` に直し、`X.meta` を `X` に読み替え、その後に同じになった path を 1 件にまとめる。理由 code は 2 つで、先に (1) を判定する: (1) `Assets/` の外（接頭辞は `IsContent` と同じ ordinal の `Assets/`）、(2) どの selected の root の閉包にも現れない。大文字小文字を無視するのは、(1) を通った後の閉包との突き合わせだけである。**失敗経路:** `.cs`、存在しない path、folder、未使用の asset は (2)、`Packages/` の下の path と `assets/foo.png` は (1) として出て、例外にも無言にもならない。`Assets/` の後ろの大文字小文字だけ違う path は当たる。`X.png` と `X.png.meta` の両方は 1 件になる。E が空、または当たる root が 0 の時は、plan を持たない「上書き不要」の結果を返し、当たらなかった編集はその結果に残る。selected の root に閉包がちょうど 1 つ対応しない入力は例外で拒む |
 | AC2 | I-1 | 実機。fixture を v2 にした後、実 `AssetDatabase` から `AssetDependencySnapshotBuilder` で作った snapshot に E を当て、上書きの root が `SceneDirect`・`SceneInstance`・`SceneNested`・`PrefabRoot` の 4 つで、`SceneClean` と `SceneUnlisted` を含まない |
 | AC3 | I-3・S-1 | 単体。plan の絞りは、selected を指定の部分集合にし、各候補の 3 つの key を変えず、元の除外を理由ごと残し、外れた候補を新しい理由 code の除外にする。絞った plan と元の snapshot の対が `BuildContentProjection` で issue 0。上書きの request は逆引きの結果から plan と snapshot を取り、別の plan や snapshot を渡す引数を持たない。**失敗経路:** selected に無い stable key の指定、空の集合の指定、「上書き不要」の結果を request に渡すことは、どれも `ArgumentException` で拒む |
-| AC4 | I-4・I-5 | 単体。上書きの情報を渡さない request の preflight・outcome は、追加の欄が既定値（上書きでない印、空の配列）である以外は従来と同じで、既存の `BuildContentReportTests`・`BuildContentFullModeTests` が変更なしで通る。**失敗経路:** (1) 上書きの build の結果を `ContentTransportPublisher.Publish` に渡すと、publish 先を作る前に拒む。(2) outcome に印が無くても、preflight の excluded に絞りの理由 code があれば拒む。(3) 上書きの request の contentSet が base の contentSet と同じなら、report を書く前に `ArgumentException` で拒む。(4) base の identity の 4 欄のどれかが空なら、記録の型が例外で拒む |
-| AC5 | S-1・I-5 | 実機。製品の coordinator で base（6 root、`Full`）を build して publish し、fixture を v2 にしてから上書き（AC2 の 4 root）を別の contentSet で build する。Play で上書きの directory から読んだ `BuildContentRoot` の entry の logical key が AC2 の 4 つと一致する。base の `content/<identity>` と base の workspace の全 file の名前と sha256 が、上書きの build の前後で同じ。**前提 P1:** 変えた 5 つの asset の source の観測値が、base の build の直前に v1、上書きの build の直前に v2。**前提 P2:** v1 と v2 の間で sha256 が変わった fixture の source file は上の 5 つだけ（Scene 6 つ、`OuterPrefab`、`PrefabRoot`、material は同じ）で、`SceneInstance` の `EditedPrefab` の instance、`SceneNested` の `OuterPrefab` の instance、`OuterPrefab` の中の `InnerPrefab` の instance に、既定のもの以外の override が無い。P1 と P2 は build の process が record に残し、成り立たない回は未判定 |
-| AC6 | S-2 | 実機。fixture の source を消した Editor の Play で、base → 上書きの順に登録し、4 つの root を load する。logical key は §2.3 C5 の規則（上書きの entry を先）で引く。版は root が直接参照する物から読む: `SceneDirect` と `PrefabRoot` の Renderer の material の `EditedTex` の pixel、`SceneInstance` と `SceneNested` の instance の子の Transform の位置。全て v2。登録の開始から、上書き → base の解除の完了までの間、Error と Exception の log が 0 |
-| AC7 | S-3 | AC6 と同じ Play。(1) `SceneClean` は載る。(2) canary: `SceneUnlisted` の `CanaryTex` は v1。(3) `UnlistedTex` は、`SceneDirect` の側が v2、`SceneUnlisted` の側が v1（§2.3 C10 の「同じ Play に 2 つの版」）。**読み分け:** (2) が v2 なら、観測が directory を読んでいないので全 AC を未判定にする。(2) が v1 で `SceneUnlisted` の側の `UnlistedTex` が v2 なら、base の直接参照が上書きの版へ解決しており、S-3 の不成立である。`SceneDirect` の側の `UnlistedTex` が v1 なら、C10 の不成立である。`SceneUnlisted` が上書きの entry にあれば、AC2・AC5 の不成立である |
+| AC4 | I-4・I-5 | 単体。上書きの情報を渡さない request の preflight・outcome は、追加の欄が既定値（上書きでない印、空の配列）である以外は従来と同じで、既存の `BuildContentReportTests`・`BuildContentFullModeTests` が変更なしで通る。宣言を渡した上書きの build は、adapter に同じ宣言を渡す（root に写る）。**失敗経路:** (1) 上書きの build の結果を `ContentTransportPublisher.Publish` に渡すと、publish 先を作る前に拒む。(2) outcome に印が無くても、preflight の excluded に絞りの理由 code があれば拒む。(3) 上書きの request の contentSet が base の contentSet と、大文字小文字を無視して同じなら（`base_a` と `BASE_A` を含む）、report を書く前に `ArgumentException` で拒む。(4) base の identity の contentSet・revision・target・digest のどれかが空なら、記録の型が例外で拒む。(5) 上書きの request の宣言の名前が、記録の base の宣言の名前と違えば（宣言付きの base に宣言なしの上書き、その逆を含む）、または記録の base の target が coordinator の target と違えば、`ArgumentException` で拒む |
+| AC5 | S-1・I-5 | 実機。製品の coordinator で base（6 root、`Full`）を build して publish し、fixture を v2 にしてから上書き（AC2 の 4 root）を別の contentSet で build する。Play で上書きの directory から読んだ `BuildContentRoot` の entry の logical key が AC2 の 4 つと一致し、base と上書きの root の宣言の名前が同じ。base の `content/<identity>` と base の workspace の全 file の名前と sha256 が、上書きの build の前後で同じ。**前提 P1:** AC6 と AC7 の各観測点を、source の root を通して読んだ値（Scene は Editor で開いて読み、Object の root は asset を読む）が、base の build の直前に v1、上書きの build の直前に v2。**前提 P2:** v1 と v2 の間で sha256 が変わった fixture の source file は上の 5 つだけ（Scene 6 つ、`OuterPrefab`、`PrefabRoot`、material は同じ）。P1 と P2 は build の process が record に残し、成り立たない回は未判定。P1 と P2 が両方成り立てば、観測点の値は置いた側ではなく編集した asset から来ている（置いた側に override で値が書いてあれば、asset を変えても値は変わらない） |
+| AC6 | S-2 | 実機。fixture の source を消した Editor の Play で、base → 上書きの順に登録し、4 つの root を load する。logical key は §2.3 C5 の規則（上書きの entry を先）で引く。版は root が直接参照する物から読む: `SceneDirect` と `PrefabRoot` の Renderer の material の `EditedTex` の pixel、`SceneInstance` と `SceneNested` の instance の子の Transform の位置。全て、前提 P1 が同じ観測点で読んだ v2 の値と一致する。登録の開始から、上書き → base の解除の完了までの間、Error と Exception の log が 0 |
+| AC7 | S-3 | AC6 と同じ Play。v1 と v2 は、前提 P1 が同じ観測点で読んだ値で照合する。(1) `SceneClean` は載る。(2) canary: `SceneUnlisted` の `CanaryTex` は v1。(3) `UnlistedTex` は、`SceneDirect` の側が v2、`SceneUnlisted` の側が v1（§2.3 C10 の「同じ Play に 2 つの版」）。**読み分け:** (2) が v2 なら、観測が directory を読んでいないので全 AC を未判定にする。(2) が v1 で `SceneUnlisted` の側の `UnlistedTex` が v2 なら、base の直接参照が上書きの版へ解決しており、S-3 の不成立である。`SceneDirect` の側の `UnlistedTex` が v1 なら、C10 の不成立である。`SceneUnlisted` が上書きの entry にあれば、AC2・AC5 の不成立である |
 | AC8 | S-4 | AC6 と同じ Play。`SceneDirect` と `SceneClean` を両方載せた時、`SharedTex` の実体は 2、`CleanOnlyTex` は 1（実体は相異なる `EntityId` で数える。S2-1 と同じ数え方）。重複の報告は、「上書きの root の閉包の和集合」と「上書きに入らなかった selected の root の閉包の和集合」の共通部分である。報告は `SharedTex` と `UnlistedTex` を含み、`CleanOnlyTex`・`CanaryTex`・`EditedTex` を含まない |
-| AC9 | S-5・I-2 | 単体と実機の record。上書きの preflight の追加の欄に、渡した base の identity（harness では、publish した base の contentSet・revision・target と transport manifest の sha256）、E の 4 path、root ごとの理由（`SceneNested` の理由は `InnerPrefab`）、当たらなかった編集（`UnusedTex`、理由は (2)）、重複する共有 asset がある。outcome に上書きの印がある |
+| AC9 | S-5・I-2 | 単体と実機の record。上書きの preflight の追加の欄に、渡した base の identity（harness では、publish した base の contentSet・revision・target、transport manifest の sha256、宣言の名前）、E の 4 path、root ごとの理由（`SceneNested` の理由は `InnerPrefab`）、当たらなかった編集（`UnusedTex`、理由は (2)）、重複する共有 asset がある。outcome に上書きの印がある |
 | AC10 | 範囲 | 差分が §3 の file と、その `.meta`（新しい folder の `.meta` を含む）だけで、`Scripts/Runtime/`、asmdef の `references`、`AssemblyInfo.cs` の friend に変更が無い。実機の test は `[Explicit]` で通常の回帰に入らない。build の process と各 round の process の前後で `git status` と Build Settings・active target・Enter Play Mode の設定が同じで、fixture が残らない |
 
 AC6〜AC8 は、root を load する順だけが違う 2 つの process（Scene を先、Object を先）で採り、版の観測値、実体の数、entry の集合が同じになること。
@@ -138,11 +139,11 @@ AC6〜AC8 は、root を load する順だけが違う 2 つの process（Scene 
 - **C3 時点:** 両方の登録を、最初の Scene と asset の load より前に終える。［load の後の登録は未測定のため禁止］
 - **C4 同じ id の物:** 上書きの登録中は、上書きにある id の物の base の版を選べない。要求する側は、どちらの root から引いても上書きの版を得る。［S2-1 の実測。owner 決定 2026-11-14 で既定の制約として受け入れ］
 - **C5 logical key の解決:** logical key は両方の root の entry から引く。同じ logical key が両方にあれば上書きの entry を採り、上書きに無ければ base の entry を採る。［設計上の規則。上書きにだけある root（手元で足した物）と、移動・rename で id が変わった Scene を、上書きの版に解決するために要る。id が同じ物は C4 のとおりどちらから引いても同じ（S2-1 の実測）。移動・rename した root の実測は S3］
-- **C6 重ねてよい組み合わせ:** 上書きは、作った時に渡された base の identity と同じ base にだけ重ねる。target と宣言の名前も一致すること。合わなければ上書きを登録せず、作り直しを求める。［本スライスが記録を作る。照合の実装は S3］
+- **C6 重ねてよい組み合わせ:** 上書きは、作った時に渡された base の identity と同じ base にだけ重ねる。target と宣言の名前も一致すること。合わなければ上書きを登録せず、作り直しを求める。［本スライスが記録を作り、上書きの root に base と同じ宣言を写し、build の時に宣言の名前と target を記録と照合する。登録の時の照合の実装は S3］
 - **C7 解除:** Play の終わりまで両方を保持する。解除の前に、どちらから載せた Scene と asset も全て離し、上書き → base の順に解除する。base を先に解除しない。Play の途中で上書きだけを解除・差し替えしない。［S2-1 の実測は Play の終わりの上書き → base の解除。S2-0b の実測では、後から登録した側の解除が、先に登録した側から `Loadable` で載せた物を Error なしに壊した。途中の解除と base を先に解除する順は未測定のため禁止］
 - **C8 範囲:** 上書きは Editor の Play だけで使う。Player の構成に上書きは無く、リリースは 1 つの目的 build だけを載せる。［program §5.3「当面の方針」。Player は未測定］
 - **C9 実体の重複:** 上書きの root と base の root の両方が直接参照する共有 asset は、実体が 2 つになる。状態を持つ asset（例: 参照の同一性で共有する ScriptableObject）は、上書きの Scene と base の Scene の間で別の実体になる。上書きの build は、`Assets/` の下の該当する asset の一覧を記録に出す。［実体の数は S2-1 と本スライスの実測。package の shader 等は一覧に出ない。GPU 側の資源の重複は未測定。状態を持つ asset の扱いは §2.8 U6］
-- **C10 上書きの中身:** 上書きの root は、build の時の手元の版で作られる。E に無い手元の編集も、上書きの root が直接参照していれば編集後の版で入る。したがって、E が手元の編集の全部でない時、同じ Play に同じ asset の 2 つの版が出うる（上書きの root からは手元の版、base の root からは base の版）。［build の仕組み（adapter は root だけを渡す）と、本スライスの実測（AC7）］
+- **C10 上書きの中身:** 上書きの root は、build の時の手元の版で作られる。E に無い手元の編集も、上書きの root が直接参照していれば編集後の版で入る。したがって、E が手元の編集の全部でない時、同じ Play に同じ asset の 2 つの版が出うる（上書きの root からは手元の版、base の root からは base の版）。多くの root が参照する asset（Scene に置いた prefab など）を編集すると、その root が全て上書きに入り、上書きは目的 build に近い大きさになりうる。入れた root と理由は記録に出る。［build の仕組み（adapter は root だけを渡す）と、本スライスの実測（AC7）。大きさは逆引きの規則からの帰結で、実データでの大きさと所要は S5］
 - **C11 測った設定:** 上の実測は Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書きの範囲である。prefab の証拠は、variant が無く、override が無く、unpack していない instance に限る。［Domain Reload 有効は S3、別の PC の base は S4、prefab の残りの形は S5］
 
 ### 2.4 ここでは答えない問いと所有する後続
@@ -158,6 +159,7 @@ AC6〜AC8 は、root を load する順だけが違う 2 つの process（Scene 
 | base の manifest の `sourceFiles` と手元の sha256 の差を、決め手ではなく「E の外にずれがあれば build しない」検査として使う案（§5.1 X-01） | S5 の A1（§2.8 U3 と一緒に owner が決める） |
 | `GetDependencies` が返さない依存（shader の include、ShaderGraph の subgraph 等）と、それを base の `ContentLayout.json` の依存と突き合わせて洗う方法 | S5（実データで見る時） |
 | 作り直すたびに増える上書きの `content/<identity>`・`reports/<identity>`・workspace を誰がいつ消すか | S5 |
+| 共通の asset（多くの Scene に置いた prefab など）を編集した時の、上書きの大きさと build の所要（C10） | S5（実データで見る） |
 | script の code や field を変えた時の base の Scene と prefab の読まれ方 | S3 の A1 が、測るか別の調査にするかを決める |
 | Player での上書き | 持たない（C8）。要るなら owner が program を改める |
 
@@ -176,7 +178,7 @@ program が「S2 の A1」へ送った入力の引き取り: 複数 package の�
   - **NO-GO（owner へ返す）:** 前提 P1・P2 と canary（AC7 の (2)）が成り立っている回で、実機の観測が次のどれかに当たる。上書きの root の集合が期待と違う（AC2・AC5）。影響を受ける root に古い版が出る（AC6）。base の直接参照が上書きの版へ解決する、または上書きの root が渡していない編集を手元の版で持たない（AC7 の (3)）。実体の数が期待と違う（AC8）。どの条件と、逆引きの規則・上書きの形・契約のどれが崩れたかを記録して返す（program §8 の「不成立なら縮退判断を owner へ」）。
   - **未判定（B へ戻す）:** 前提 P1 か P2 が成り立たない。canary が v2。どちらも fixture か harness の不備である。
   - **未判定（owner へ返す）:** 2 つの process の値が食い違った。
-  - **上のどれにも当たらない不成立**（単体の AC1・AC3・AC4・AC9、範囲の AC10、全 EditMode 回帰）は、実装の欠陥として通常の差し戻しで B へ戻す。
+  - **上のどれにも当たらない不成立**（単体の AC1・AC3・AC4・AC9、範囲の AC10、全 EditMode 回帰、AC7 の (1) の `SceneClean` が載らない、AC6 の Error か Exception の log が 0 でない）は、通常の差し戻しで B へ戻す。B が、原因は harness ではなく上書きの形にあると確かめた時は、新しい事実として owner へ返す。
   - スパイクではないので CONDITIONAL ACCEPT は定義しない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
@@ -222,9 +224,9 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 | `Scripts/Editor/Build/Selection/Results/BuildPlan.cs` | 変更 | selected の一部だけを残した plan を返す method を足す。外れた候補は新しい理由の除外にする。plan を外から作り直す public な道が無いため | immutable な値。依存なし（`noEngineReferences`） | public method 1 つ | Unity なしの単体 | 42 → 約 75 |
 | `Scripts/Editor/Build/Selection/Results/BuildExclusionReasonCode.cs` | 変更 | 除外の理由を 1 つ足す（末尾。絞りで外れた） | — | enum の値 1 つ | 同上 | 38 → 約 41 |
 | `Scripts/Editor/Build/Selection/AssemblyInfo.cs` | 変更（コメントだけ） | 「本番の plan 生成経路や公開 API は増やさない」という既存のコメントが、上の method で事実と合わなくなるので直す。friend は足さない | — | なし | — | 10 → 約 10 |
-| `Scripts/Editor/Build/Content/ContentOverlaySelection.cs` | 新規 | 逆引きとその結果。plan・snapshot・E を受け、絞った plan、使った snapshot、root ごとの理由、当たらなかった編集と理由 code、重複する共有 asset を返す。base の identity の型と、request に載せる記録の型もここに置く。policy だけで I/O を持たない | 呼び出しごとの immutable な結果。依存は Selection と Materialization の公開の型 | public: 逆引きの入口、結果、root ごとの理由、当たらなかった編集、理由の enum（2 値）、base の identity | Unity と `AssetDatabase` なしの単体 | 約 280 |
-| `Scripts/Editor/Build/Content/BuildContentReport.cs` | 変更 | `BuildContentRequest` に、逆引きの結果と base の identity を受けるコンストラクタを足す（plan と snapshot は結果から取り、mode は `Full`）。preflight に上書きの詳細、outcome に上書きの印を書く | request の寿命。既存の読み手は未知の欄を無視する | コンストラクタ 1 つと property 1 つ | 単体（JSON の形） | 174 → 約 225 |
-| `Scripts/Editor/Build/Content/BuildContentCoordinator.cs` | 変更 | 上書きの記録を report へ渡し、base と同じ contentSet の上書きを build の前に拒む。順序と出力先の規則は変えない | — | なし | 既存の単体と追加 | 188 → 約 200 |
+| `Scripts/Editor/Build/Content/ContentOverlaySelection.cs` | 新規 | 逆引きとその結果。plan・snapshot・E を受け、絞った plan、使った snapshot、root ごとの理由、当たらなかった編集と理由 code、重複する共有 asset を返す。base の identity の型（contentSet・revision・target・digest と、任意の宣言の名前）と、request に載せる記録の型もここに置く。policy だけで I/O を持たない | 呼び出しごとの immutable な結果。依存は Selection と Materialization の公開の型 | public: 逆引きの入口、結果、root ごとの理由、当たらなかった編集、理由の enum（2 値）、base の identity | Unity と `AssetDatabase` なしの単体 | 約 280 |
+| `Scripts/Editor/Build/Content/BuildContentReport.cs` | 変更 | `BuildContentRequest` に、逆引きの結果、base の identity、contentSet、出力先の root、宣言、requirements を受けるコンストラクタを足す（plan と snapshot は結果から取り、mode は `Full`。宣言と requirements は既存のコンストラクタと同じ扱いで、宣言は root と result に写る）。preflight に上書きの詳細、outcome に上書きの印を書く | request の寿命。既存の読み手は未知の欄を無視する | コンストラクタ 1 つと property 1 つ | 単体（JSON の形） | 174 → 約 225 |
+| `Scripts/Editor/Build/Content/BuildContentCoordinator.cs` | 変更 | 上書きの記録を report へ渡し、build の前に次を拒む: base と同じ contentSet（大文字小文字を無視）、記録と違う宣言の名前、記録と違う target。順序と出力先の規則は変えない | — | なし | 既存の単体と追加 | 188 → 約 205 |
 | `Scripts/Editor/Build/Content/ContentTransportPublisher.cs` | 変更 | outcome の上書きの印か、preflight の excluded の絞りの理由 code があれば、publish を拒む | — | なし | 単体（失敗経路） | 143 → 約 158 |
 | `Tests/Editor/Build/ContentOverlaySelectionTests.cs` | 新規 | AC1・AC3・AC9 の単体 | — | — | 通常の EditMode 回帰 | 約 380 |
 | `Tests/Editor/Build/BuildContentReportTests.cs`・`BuildContentFullModeTests.cs` | 変更 | AC4 の追加（既存の test は変えない） | — | — | 同上 | 各 +約 50 |
@@ -246,7 +248,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 
 - 変更対象: §3 の表のとおり。
 - 順序: (1) `BuildPlan` の絞りと理由 code、その単体。(2) `ContentOverlaySelection` と単体（AC1・AC3）。(3) request・report・coordinator・publisher の追加と単体（AC4・AC9）。(4) harness（fixture、build の process、round、写像）。(1)〜(3) は Unity の build なしで閉じ、Editor の compile 確認までを Phase B が行う。(4) の実行は Phase C。
-- Phase B から Phase A へ差し戻す条件: `Scripts/Runtime/` の変更が要る。asmdef の `references` か friend の追加が要る。絞った plan が `BuildContentProjection` を通らず、snapshot の側も作り直す必要がある。上書きの root に、元の plan に無い候補を足す必要が出た。理由 code を 2 つより増やさないと I-2 を満たせない（存在の判定などの I/O が要る）。fixture の形（6 root、5 つの変更、override の無い instance）では AC2 の集合か前提 P2 が作れない。
+- Phase B から Phase A へ差し戻す条件: `Scripts/Runtime/` の変更が要る。asmdef の `references` か friend の追加が要る。絞った plan が `BuildContentProjection` を通らず、snapshot の側も作り直す必要がある。上書きの root に、元の plan に無い候補を足す必要が出た。理由 code を 2 つより増やさないと I-2 を満たせない（存在の判定などの I/O が要る）。fixture の形（6 root、5 つの変更）では AC2 の集合か前提 P1・P2 が作れない。
 - 対象外を維持する方法: AC10 の差分の検査。menu と SampleGame の file を足さない。`BuildContentRoot` の serialized な形を変えない。
 
 ## 5. テストとレビュー計画
@@ -259,7 +261,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
   3. `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayBuild.OverlayBuildRounds.ScenesFirst` と、同 `.ObjectFirst` を、別々の process で。どちらも 2 の出力を読む。
   - 2 と 3 は、各 XML の total が 1 以上で failed 0、record に終了行があることを「harness が最後まで動いた」確認とし、その後に判定 C が record を AC ごとに読む。**process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は `tools/Harness/README.md` の規則に従う）。Phase B が test の名前を変えた時は、§6 に対応を書く。
 - record が必ず持つ値（形式は Phase B が決めてよい。file は git に入れない）:
-  - build の process: head、Unity の版、target、Enter Play Mode の設定。fixture の source file ごとの sha256（v1 と v2）。前提 P1 の観測値（5 つの asset、base の build の直前と上書きの build の直前）。前提 P2 の override の有無（3 つの instance）。逆引きの結果（root、理由、当たらなかった編集、重複）。base と上書きの identity、preflight と outcome の写し。base の `content/<identity>` と workspace の file の名前と sha256（上書きの build の前後）。終了行。
+  - build の process: head、Unity の版、target、Enter Play Mode の設定。fixture の source file ごとの sha256（v1 と v2。前提 P2）。前提 P1 の観測値（AC6 と AC7 の観測点ごと、source の root を通して読んだ値、base の build の直前と上書きの build の直前）。逆引きの結果（root、理由、当たらなかった編集、重複）。base と上書きの identity、preflight と outcome の写し。base の `content/<identity>` と workspace の file の名前と sha256（上書きの build の前後）。終了行。
   - round の process: 登録の順と結果、両方の root の entry の logical key、root ごとの観測値（AC6・AC7 の各点）、実体の数（AC8）、発生順の log の全件（種類を問わない）、解除の順と結果、終了行。
 - 全 EditMode 回帰の適用除外: なし（製品の code を変える）。
 - 統合・Unity テスト: 上の 2 と 3。
@@ -279,7 +281,8 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
   - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude Opus、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `526a59d2a2504c83e9304d60e5e96fda96f545b5c8aa1e32435af77c6b94cba4`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
   - (2) A0 だけからの代替構成: (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は program §5.3・§6・§8・§9 の G10 / G11、事実の文書、製品の `Editor/Build` と `Runtime/BuildContent` の source。本書は読んでいない。
   - (3) アーキテクチャゲート兼、各不変条件を破る順序・読み違い・誤って YES を出す道の探索: 本 session が起動した別の新しい subagent（Claude Fable、Anthropic）。入力は A2 入力版の本書（内容 sha256 `78d175dc237e3eba28ac4e14390138d69f43b738b7383fd45e13a5f958392cd3`、commit `cf31a6f2`）と、アーキテクチャゲート、事実の文書、program、製品の source、asmdef、既存の test、AGENTS.md。枠は「計画が書いている code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。
-  - (4) 凍結前の外部レビュー（draft PR #186、2026-11-14、1 巡目）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）。対象は commit `288cf7bd` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。Unity は起動していない。
+  - (4) 凍結前の外部レビュー（draft PR #186、2026-11-14、2 巡）: cursor の background agent（Grok、xAI。A2 とは別ベンダー。2 巡とも同じ担当）。対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。Unity は起動していない。2 巡目の結論は「R2-01 を足した版なら凍結してよい」。採否は §5.1 の (4) と (5)。
+  - (5) owner のレビュー（draft PR #186 の review、2026-11-14、対象 `23a929cb`）: 3 件。文書だけのレビューで、Unity は起動していない。採否は §5.1 の (6)。
 - A3 統合担当・採否: 本 session（§5.1）。**未凍結。** 目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー。凍結前の外部レビューが Grok 系を使ったので、C' に Grok 系を使う時は、Phase A に関与した系列として独立性の制約を §8 に記録する。
 - 独立性の強化条件を満たせない場合の理由: A2 の (1)〜(3) は 1 つのベンダーの 2 つのモデルで行った（A1 の主担当は (3) と同じモデルの別 session）。別ベンダーの目は (4) で入れた。C' の充足は起こす時に確かめて記録する。
@@ -336,7 +339,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 
 | ID | 重要度 | 指摘 | 採否と反映 |
 |---|---|---|---|
-| R-01 | 高 | prefab の版を読む Transform の位置が Scene や外側の prefab に書いてあると、上書きの build が内側の prefab を解決しなくても v2 に見える。entry の名前の一致では埋まらない | **採用。** §2 の (h) と前提 P2 を足した。v2 で変える source file を固定し、instance に override が無いことを build の前に record に残す。`SceneNested` の観測点は `InnerPrefab` の下にだけある子にした（§2.2、AC5、§2.6） |
+| R-01 | 高 | prefab の版を読む Transform の位置が Scene や外側の prefab に書いてあると、上書きの build が内側の prefab を解決しなくても v2 に見える。entry の名前の一致では埋まらない | **採用。** §2 の (h) と前提 P2 を足した。v2 で変える source file を固定した。`SceneNested` の観測点は `InnerPrefab` の下にだけある子にした（§2.2、AC5、§2.6）。override の扱いは 2 巡目（R2-01）で改めた |
 | R-02 | 高 | 問いの「古い版が混ざらない」は、AC7 と C10 が要求する観測（同じ Play に 2 つの版）と同時に YES と言えない。program §8 の行も同じ | **採用。** §2 の問いと program §8 の S2-2 の行を、C10 と同じ意味の同じ文に改めた。owner が 2026-11-14 に承認した（§2.8 U9） |
 | R-03 | 中 | 判定の 3 分類に入らない観測がある: 上書きの root の直接参照だけが古い、base だけの root が v2（directory を読んでいないのか、base の参照が上書きへ解決したのか分からない）、実体の数の違い。単体の不成立の戻し先も無い | **採用。** canary（`CanaryTex`）を、両方が参照する `UnlistedTex` と分けた。AC7 の読み分けと §2.6 の分類（NO-GO、未判定の 2 種、通常の差し戻し）を書き直した |
 | R-04 | 中 | variant、override、unpack が未確認のまま、対象外にも送り先にも無い。C5 は設計上の規則なので、YES の根拠に数えないと書く | **採用**（§1 の対象外、S-2、C11、§2.4、§2.3 の前置き、U5） |
@@ -344,7 +347,23 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 | R-06 | 低 | §1 の friend の列挙が `SampleGame.Tests.Editor` を落としているように読める | **採用。** 3 つを名前で書いた（§1 の現況） |
 | R-07 | — | 規模: §3 を足すと製品は約 400 行で、PR 本文の「約 200 行」と合わない。S2-1 の `OverlayVerdict` の「対照の順は上書きの版が出る前提」は写さない | **採用。** §3 に合計を書き、PR 本文を直す。写さないことを §3 の表に書いた |
 
-**(5) 主担当の見直し（Phase C と C' で読みが割れそうな箇所。2026-11-14）**
+**(5) 凍結前の外部レビュー（2 巡目、対象 `23a929cb`）**（1 巡目の R-01〜R-07 と S-01〜S-07 は閉じたと確認。新しい指摘は中 1、低 2。範囲と規模は「過不足なし」）
+
+| ID | 重要度 | 指摘 | 採否と反映 |
+|---|---|---|---|
+| R2-01 | 中 | 前提 P2 の「既定のもの以外の override が無い」は範囲が無名で、子の位置の override を既定に含めて読む実装が通る。その override が最初から v2 の値を持っていれば、Scene の sha256 は変わらず AC6 が通る。許す modification を限定し、property path を record に残す | **別の形で採用。** 穴は塞ぐが、override の一覧は持たない。前提 P1 を「観測点を、source の Scene を通して読んだ値が、base の build の直前に v1、上書きの build の直前に v2」に改めた。置いた側に override で値が書いてあれば、asset を変えても値は変わらないので P1 が成り立たず、未判定になる。P2 は source file の sha256 だけにした。AC6・AC7 の値は P1 の値で照合する（指摘の最後の文は採用）。理由: owner の方針（2026-11-14、「prefab は厳密にしすぎない。測りたいことを測れればよい」）。測りたいのは「観測点の値が編集した prefab から来ている」ことで、それは値の変化で直接確かめられる |
+| R2-02 | 低 | AC7 の (1)（`SceneClean` が載る）と AC6 の log が 0 は、NO-GO の箇条にも B 側の例示にも無い | **採用。** B 側の例示に足し、原因が上書きの形にあると分かった時の戻し先を書いた（§2.6） |
+| R2-03 | 低 | I-1 の塞ぎ方が、AC1 の ordinal の `Assets/` を繰り返していない | **採用**（I-1） |
+
+**(6) owner のレビュー（対象 `23a929cb`）**
+
+| ID | 重要度 | 指摘 | 採否と反映 |
+|---|---|---|---|
+| O-01 | 重要 | 新しいコンストラクタの記述が「逆引きの結果 + base の identity」だけで、宣言（`BuildPurposeDeclaration`）が無い。このままだと宣言付きの base の上書きだけ root の宣言が null になり、C6 の「宣言の名前も一致」を S3 で確かめられない | **採用。** コンストラクタは宣言と requirements も受け、宣言は既存と同じく root と result に写る。base の identity の記録に宣言の名前を足し、build の時に名前と target を照合する。fixture は宣言付きにした（UC-1、AC4 の (5)、AC5、AC9、C6、§3） |
+| O-02 | 重要 | R2-01 の補強。property path だけでは root と子の Transform を区別できないので、target と property path の組を 3 つの instance ごとに残す | **別の形で採用**（R2-01 と同じ。override の一覧を持たず、置いた側を通して読んだ値の変化で確かめる）。owner の同日の方針により、owner がこの形を承認した |
+| O-03 | 中 | contentSet の等値の比較だけでは、Windows で `base_a` と `BASE_A` が同じ workspace になり、`Full` の build が base の workspace を空にする | **採用。** 大文字小文字を無視して比べて拒む。AC4 の (3) に大小違いの負例を足した（I-5、UC-1、§3） |
+
+**(7) 主担当の見直し（Phase C と C' で読みが割れそうな箇所。2026-11-14）**
 
 | ID | 見つけた点 | 反映 |
 |---|---|---|
@@ -355,6 +374,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 | S-05 | 重複の報告の定義が文に無く、実装と照合できなかった。`UnlistedTex` も報告に出る | AC8 に定義と期待を書いた |
 | S-06 | harness の file を「4 file」とだけ書き、`.meta` と新しい folder の `.meta` が AC10 の範囲に入るかが割れた。test の名前が凍結されていなかった | §3 に file を名前で書き、AC10 に `.meta` を入れ、§5 に test の完全名を書いた |
 | S-07 | record が何を持てば AC を読めるかが無かった。全回帰は他の Unity が動いていると失敗した実績がある。harness の不備が判定 C で初めて見つかる | §5 に record が必ず持つ値、他の Unity を止めること、発見 C の限定実行を書いた |
+| S-08 | 共通の prefab を 1 つ編集すると、それを置いた Scene が全て上書きに入り、上書きが目的 build に近い大きさになりうる。この帰結の明示が無かった | C10 に 1 文を足し、実データでの大きさと所要を S5 へ送った（§2.4。2026-11-14 に owner が承認） |
 
 保留: なし。確認できなかった推測として残るもの: import 時の依存を `GetDependencies` が返さないこと（G-04）、前の上書きの file が load に効くか（G-08）、移動した Scene の id（G-09）、override を持つ instance と variant の読まれ方（R-04）。どれも本書では契約か対象外で塞ぎ、実測は後続へ送った。
 
