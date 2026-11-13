@@ -20,11 +20,15 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C（2 回目）が `evidence stage` で固定した。取得案内は git 管理外の共有メモにある（所在は進行役が Phase D の担当へ渡す）。送信側と受け取る側（C' の入力を組んだ進行役）の両方で、別の process で取得を確かめた。昇格・保存の要否は Phase D が決める。
 - C' blind bundle の取得案内・状態: 上の evidence bundle と同じ物（ローカル固定済み、未昇格）。C' の入力の組み方は §8。
 - 引継ぎ票:
-  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。C'（1 巡目）は blocker なしで完了した（§8）。次の作業: owner が判定 C と C' の結論を突き合わせて受け入れを決め、SKILL の「Phase D」と [保存・引渡し確認](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従って、evidence の保存と取得案内の引渡しを確かめ、harvest（本欄の harvest to）、実験 code の製品からの削除、HANDOFF の削除、PR #182 の ready 化と push、task の終了へ進む。
+  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。C'（1 巡目）は blocker なしで完了した（§8）。
+  - owner の決定（2026-11-14、root）: 判定 C と C' の結論（GO、YES）を受け入れた。その後に受けた PR #182 の外部レビュー（cursor の Grok。総評コメント 2 件とレビュー 1 件（`OverlayRounds.cs` の 289 行へのインライン 1 件を含む）。どれも blocker ではない）は、**全て採用**する。Phase D の担当は、採否を §9 に記録し、harvest に反映する。
+    - インラインの確認依頼（AC5 の (1) と (3) の再ロードで `SceneEdit` が上書き版かを、判定ロジックは検出していない）は、進行役が evidence bundle の record で確かめた: 5 つの process 全てで、AC5 の `overlay:SceneEdit` の 2 回の `call` 行の `roots` は両方 `["Marker_v2"]`（最初の Play の `record-LifetimeFirst-20261113T151924Z.jsonl` の playIndex 0 を含む）。harvest では「Scene の再訪でも上書き版が保たれた（record の `roots` で確認。判定ロジックの検出範囲の外）」と書いてよい。
+    - 総評の依頼（harvest に残す事実）: YES は登録の順が base → 上書きの時に限る、`SceneKeep` が直接参照する `EditedTex` は v1 のまま、Q3 の実体の数は主の順で 2・対照の順で 1（一定と一般化しない）、対照の Q2 は 2026-11-14 の owner の語の改訂に依る、Scene を load する順の効果は述べない、Player・別 PC / 別 Library・実データは測っていない。
+  - 次の作業: SKILL の「Phase D」と [保存・引渡し確認](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従って、evidence の保存と取得案内の引渡しを確かめ（永続保存と取得の確認を済ませてから実験 code と HANDOFF を消す）、harvest（本欄の harvest to）、実験 code の製品からの削除、HANDOFF の削除、PR #182 の本文の更新・ready 化と push へ進む。PR の merge と task の終了（`workflow-task.ps1 end`）は進行役が行うので、Phase D の担当は行わない（merge の前に進行役が GitHub Pages の記事を足す）。evidence の取得案内は進行役の共有メモにあり、写しが git 管理外の `TestResults/ovl-judgement-c2-evidence-guide.md` にある。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（C'（1 巡目）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。implementation head は欄の SHA で、この commit ではない。
-  - 必要な権限: Artifact Storage の保存・取得（[Artifacts README の事前承認](../../tools/Artifacts/README.md#エージェント操作の事前承認) の範囲）、`pwsh tools/workflow-task.ps1` の end（owner の完了指示から）、push と PR の更新（SKILL の公開点の規則）。Unity の再実行は不要（判定 C と C' の証拠を使う）。
-  - 停止規則: owner の受け入れが無いまま harvest・削除・task の終了へ進まない。§8 の X-1 は後続の入力で、本スライスで直さない。
+  - 引き継ぐ commit: この票を含む commit（owner の決定と外部レビューの採用を進行役が記録した commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。implementation head は欄の SHA で、この commit ではない。
+  - 必要な権限: Artifact Storage の保存・取得（[Artifacts README の事前承認](../../tools/Artifacts/README.md#エージェント操作の事前承認) の範囲）、push と PR の更新（SKILL の公開点の規則）。Unity の再実行は不要（判定 C と C' の証拠を使う）。
+  - 停止規則: §8 の X-1 は後続の入力で、本スライスで直さない。外部レビューの採用は harvest の書き方の範囲で、Unity の再実行や実験 code の修正はしない。
   - 引き渡さないもの: なし（C' は完了した。判定 C と C' の突き合わせは Phase D で初めて行う）。
 
 ## 1. 目的と対象外
