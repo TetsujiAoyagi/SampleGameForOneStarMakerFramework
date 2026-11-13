@@ -2,7 +2,7 @@
 
 ## 0. 状態
 
-- type: slice / status: Phase B 完了（2026-11-13）。依頼者承認・凍結済みの A3 revision 4 に従って実装 head を固定。次は発見 C。Unity テスト・Build と実 factory の実行時判定は未実施。
+- type: slice / status: 判定 C 未完了（2026-11-13）。発見 C の静的 blocker なし。判定必須の全 EditMode は実行したが runner failed、判定不能と Unity 非自然終了を未解決として保留。C′ 未実施。
 - branch: codex/logging-unity-value-serialization
 - implementation base commit: f8ffd023fd376d8d7b46e7fbc930e97c1926a934
 - implementation head commit: a5e6463b299c5fd1aefe55e0690069bd03107e54
@@ -10,8 +10,8 @@
 - owner: 主担当 / created: 2026-11-12 / expires: Phase D の harvest・削除または置換 revision
 - harvest: `unity/Assets/Docs/Architecture/12-telemetry.md` の G5 とログ利用上の制約（Editor の実 factory で確認した範囲と Player 未検証を区別）、`unity/Assets/Docs/Architecture/30-accessibility-identity.md` の Foundation における Vector3 の記述
 - Phase A snapshot の取得案内・状態: 前候補の原記録はローカル固定・取得確認済み。今回の改訂版もローカル固定し、独立2担当が同じ内容を取得・閲覧済み。通知 file の原出力を補完した最終 package の案内と取得確認票は、主担当管理の Git 外の引渡し票に置く。旧 A2 の合格を今回の設計に流用しない。A3 凍結 snapshot と取得案内は主担当が Git 外で保存・引渡しする。旧試作・原レビューの案内とは分離し、Phase B / C の担当は凍結版を取得して照合する。C′ 用には所見を含まない別入力を C が用意する。
-- Phase B result snapshot / 発見 C evidence の取得案内・状態: 主担当管理の Git 外引渡し票に取得案内を保存。実装結果、固定差分・変更後 source、コンパイル確認、機械検査を Artifact Storage にローカル固定済み（未昇格）。送信担当の fetch・閲覧確認済み。次担当による取得・閲覧確認は未完了。判定用 evidence / C′ blind bundle は未生成。別 host の取得経路は未確認、証拠の取得はローカル担当。
-- 引継ぎ票: 次は発見 C 担当。A3 revision 4 の凍結 snapshot と Phase B result / 発見 C evidence を、主担当管理の Git 外引渡し票の reference と独立した packageSha256 で標準 CLI から取得し、閲覧前に有限 use、終了時に release を行う。起動指示・PR の引き継ぐ commit と HEAD・clean 状態・本欄を照合後、固定差分の構造・契約・失敗経路を先にレビューする。Unity テストは必要な関連 filter を C が選択し、判定 C は §5 の全 EditMode を標準 runner で実行する。必要な権限は対象 worktree の読み取り、Artifact Storage の通常利用、必要な Editor / Unity 検証。設計・公開 API・asmdef 依存・寿命の変更が必要なら A へ戻す。現 evidence から GO 判定や C′ 起動を行わない。取得コードを実行せず、旧試作の結果を製品の合格へ流用しない。引き継ぐ commit は起動指示と PR で渡す。
+- Phase B result snapshot / 発見 C evidence の取得案内・状態: 主担当管理の Git 外引渡し票に取得案内を保存。実装結果、固定差分・変更後 source、コンパイル確認、機械検査を Artifact Storage にローカル固定済み（未昇格）。送信担当に加え、発見 C と判定 C の担当自身がそれぞれ取得・閲覧・release 済み。判定の生結果は別 package にローカル固定済み、C′ blind bundle は未生成。別 host の取得経路は未確認、証拠の取得はローカル担当。
+- 引継ぎ票: 次は判定 C の未解決事項を扱う担当。引き継ぐ commit は PR と起動指示で渡し、HEAD / clean / implementation head を照合する。判定 raw の取得案内は主担当管理の Git 外引渡し票に置く。全 EditMode の判定不能25件と runner failed・Unity強制終了の扱い、および担当モデルの実績識別を確認する。成功へ読み替えず、C′を起動しない。証拠取得は標準 CLI、独立 hash、閲覧前有限 use、終了時 release。取得コードは実行しない。設計・公開 API・asmdef 依存・寿命の変更が必要なら A へ戻す。
 
 ## 1. 目的と対象
 
@@ -69,6 +69,14 @@
 - A0/A1 と A3 統合: OpenAI GPT-6（主担当）。独立 A2 は §7 の記録による。C′ は B / C と異なるモデルの新規セッションを割り当て、可能なら Phase A 未関与の系列・ベンダーを優先する。具体的な担当は B / C の担当が決まってから選び、満たせない強化条件は理由と残存リスクを記録して人間が採否を判断する。
 
 ## 6. Phase B 以降
+
+### 発見 C / 判定 C（2026-11-13）
+
+- 発見 C: 独立セッションへ gpt-6.1-sol を指定。実提供モデルを独立に識別できず、B とのモデル相違の実績は未確認。A3 / B evidence は担当自身が標準 CLI で取得、有限 use 後に閲覧し、両方 release 済み。A3 の内容 hash、B の manifest 全30 file と固定 head の source 22 file を照合。構造・凍結契約・失敗経路に明確な blocker は見つからず、GO は判定していない。差戻し0巡。
+- 判定 C: 別セッションへ gpt-6.1-sol を指定。実提供モデルは未確認。A3 / B evidence は担当自身が取得・有限 use・閲覧・release 済み。実装 head は変更なし。contract-audit exit 0、errors 0 / warnings 0。
+- 空 filter の標準 runner で全 EditMode を実行。XML 1824 件、Passed 1799 / Failed 0 / Skipped 0 / Inconclusive 25。logging 関連の必須43件と Windows symbolic link 必須ケースは Passed。判定不能25件は全て VFX の GraphicsDeviceType.Null で、この slice の機能対象外だが全件回帰の成功に読み替えない。
+- XML 完成後、今回起動した Unity の終了 handle は未 signal。対象 PID のみ強制停止し signal と exit 137 を確認。runner exit 1、raw status failed。自然終了や stall の原因を断定せず、再調査・再実行なし。他 project の Unity は操作していない。Unity が生じさせた既存 meta 5件の削除は元に戻した。
+- 判定 C は未完了、C′ は未開始。必須コマンドの生結果と実行報告は Artifact Storage にローカル固定済み（未昇格）。取得案内は主担当管理の Git 外引渡し票に置き、次担当による取得・閲覧は未確認。所見を含むため C′ blind 入力には使わない。判定 evidence を取った head はローカル tag `evidence/logging-unity-value-serialization/1` で保持。Player / AOT / DebugStudio は対象外。モデル実績の確認と、判定不能および終了結果の扱いが残る。
 
 ### Phase B 実装結果（2026-11-13）
 
