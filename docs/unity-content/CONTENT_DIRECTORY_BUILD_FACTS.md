@@ -44,7 +44,23 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **仕組みの推測（実測ではない）:** 公開文書は、登録中の directory を登録の逆順に探索すると言う。上の結果は、どちらの root から引いた `Loadable` も後から登録した directory の file に解決され、Scene の直接参照は Scene のある directory の中で解決された、と読むと説明できる。どちらの directory の file を読んだかを返す API は無い。
 - **含意:** 中身が同じ file を各 directory に複製したまま両方を登録する形では、(1) Scene の直接参照の経路で同じ asset の実体が directory の数だけでき、(2) 後から登録した directory の登録解除が、先に登録した directory から `Loadable` で載せた物を黙って壊す。共有する asset を共有の directory に分けるか、登録の寿命を directory の間で結びつけるかは、Content の配布単位を設計する側が決める。
 
-測っていないもの（結果を変えうる）: Player、archive、3 つ以上の directory、Scene に置いた prefab instance、sprite atlas、audio・video の `.resource`、中身が違う同じ id の file を両方登録した時、片方の directory の file が disk から消えた時、Domain Reload 有効の Play、process をまたいだ再現（2 回の繰り返しは同じ Unity process の中）。
+測っていないもの（結果を変えうる）: Player、archive、3 つ以上の directory、Scene に置いた prefab instance、sprite atlas、audio・video の `.resource`、片方の directory の file が disk から消えた時、Domain Reload 有効の Play、process をまたいだ再現（2 回の繰り返しは同じ Unity process の中）。中身が違う同じ id の file を両方登録した時は、次の節で測った。
+
+## 同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）
+
+取得した build（以下 base）に、手元で build した上書きを後から登録する形を模した（2026-11-13〜14）。fixture の source を v1 で build した directory を base、source を v2 に変えた後に root の一部（Scene `SceneEdit` と texture `EditedTex`）だけを build した directory を上書きとした。両方を同じ `Library` で build し、製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って両方を登録してから load した。component の script には、base だけが使う物、上書きだけが使う物、両方が使う物の 3 つの `MonoBehaviour`（probe）を置き、base と上書きで使う script の顔ぶれを違えた。各観測は、それが Unity process の最初の Play になる回から採り（Domain Reload 無効の Play では、前の Play が読んだ物が残りうるため）、同じ観測を 5 つの process で照合して一致した。「実体の数」の意味は上の節と同じ。
+
+- **build の出力:** script をまとめた file は、base と上書きで同じ id・違う sha256 だった。その file の layout の `SourceAssets` は、その build が使う script だけを持った（base は `BuildContentRoot`・base だけの probe・両方の probe、上書きは `BuildContentRoot`・両方の probe・上書きだけの probe）。編集した Scene と texture の file は同じ id・違う sha256 だった。編集していない共通の texture・material・自作 shader と、編集した texture を参照する material の file は、同じ名前・同じ sha256 だった。
+- **読まれる側（登録の順が base → 上書き）:** `SceneEdit` を、base の root から引いた id で要求しても上書きの root から引いた id で要求しても、上書きの版（v2）が出た。`EditedTex` も、両方の root の `Loadable` から load して v2 で、実体は 1 つだった。2 つの root の Scene の id も `LoadableObjectId` も等しかった（Scene の id は path から作られ、load は handle を取らない）。したがって、上書きを登録している間、要求する側は base の版を選べない。
+- **class:** base だけにある Scene、上書きの Scene、base の root から `Loadable` で load した prefab の component は、`GetComponents` の位置ごとに正しい class の完全名と値になり、Missing は 0 だった。base の Scene と prefab の component は、上書きの script の一覧に無い script（base だけの probe）でも正しく解決された。
+- **Scene の直接参照:** base だけにある Scene の Renderer が直接参照する material の `mainTexture`（編集した texture）は、base の版（v1）のままだった。共通の asset を編集した時、それを直接参照する Scene も上書きに入れないと、同じ Play の中で古い版と新しい版が混ざる。
+- **実体の数:** base だけにある Scene と上書きの Scene を両方載せ、base の prefab と上書きの texture を `Loadable` で保持した時、両方の directory にある共通の texture・material・shader と、編集した texture・material は 2 つずつ、base だけにある prefab と texture は 1 つずつだった。base の Scene を先に載せた時と上書きの Scene を先に載せた時の 2 つの時点で同じ数だったが、Scene を load する順の効果は確かめていない。
+- **寿命:** 上書きの Scene と base の Scene の unload と load し直し（間に `UnloadUnusedAssets`）を繰り返しても、保持している物は壊れず（`== null`、pixel の変化、material の参照の変化、class の変化のどれも無い）、Error も Exception も出なかった。上書きの Scene を load し直した時も、出た Scene は上書きの版だった（record の root の名前で確かめた。harness の判定の検出の範囲の外）。最後に上書き → base の順で解除し、登録は 0 件になった。
+- **登録の順を逆にした時（上書き → base）:** どちらの root の id からも、`SceneEdit` と `EditedTex` は base の版（v1）が出た。載った Scene と prefab の class と値は正しく、Missing は 0 だった（この読みは「載った版の class と値で読む」と 2026-11-14 に owner が改めた語による。計画時の語は上書きの版が出ることを前提にしていた）。共通の asset と編集した texture の実体は 1 つずつだった。実体の数は登録の順で変わり（base → 上書きで 2、逆で 1）、一定ではない。
+- **仕組みの推測（実測ではない）:** どちらの順でも、後から登録した directory の版が出た。公開文書の「登録の逆順に探索する」と合う。base の Scene の直接参照が base の版を読んだことは、上の節の推測（Scene の直接参照は Scene のある directory の中で解決される）と合う。設計上の保証ではなく、どちらの directory の file を読んだかを返す API は無い。
+- **含意:** 上書きの版が読まれ、script の顔ぶれが違っても class が壊れなかったのは、登録の順が base → 上書きの時に限る（この fixture の範囲）。逆の順では上書きが効かない。
+
+測っていないもの（結果を変えうる）: Player、別の PC・`Library` で build した base、実データ（SampleGame）、archive、3 つ以上の directory、上書きが 2 つ以上、上書きで script の code や field を変えた時、URP の `Lit` の variant、Scene に置いた prefab instance・nested prefab・sprite atlas・audio、Domain Reload 有効の Play、Scene を load した後に上書きを登録する順、Play の途中の上書きの解除、GPU 側の資源の重複。fixture は 1 つ。
 
 ## 同じ `Library` での再 build の所要
 
@@ -71,7 +87,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 - 増分 build cache の仕組み（何を単位に、どこに持つか。上の節は所要の実測だけで、`CleanBuildCache` の build の log に cache を使わなかったことを示す行は無い）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
-- 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（上の節の推測を実測で確かめていない）。
+- 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（中身が同じ file では見分けられず、上の節の推測を実測で確かめていない。中身が違う file では、後から登録した側の版が出た。「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」）。
 - 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、Scene に置いた prefab instance・nested prefab・prefab variant（instance は置いた側の file に焼き込まれる）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
 - 実データ（SampleGame）での重複の量。
 
@@ -106,3 +122,19 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.SharedFileRegi
 ```bash
 pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.SharedFileRegistration.RegistrationRounds.SecondProcess
 ```
+
+上書きの登録の事実の harness は、git の commit `a304963b` の `unity/Assets/OneStarMaker/Tests/Editor/Spikes/OverlayRegistration/` と、probe だけを持つ asmdef の `unity/Assets/OneStarMaker/Tests/Spikes/OverlayProbes/` にある（PR #182）。probe は test 制約の無い asmdef に置く（test 制約を持つ assembly は player の script の compile に入らず、build された component の script が解決されない）。同じく別の worktree に取り出し、Editor を閉じ、Active Build Target を StandaloneWindows64、Enter Play Mode の Domain Reload を無効にした状態で、次を順に、それぞれ別の Unity process で実行する。record は `TestResults/ovl/<run id>/` に process ごとに書かれ、XML の合格は harness が最後まで動いたことだけを示す（答えは record の観測の行から読む）。
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayVerdictTests
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayBuilds.FirstProcess
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.OverlayRounds.ClassFirst
+```
+
+3 つ目と同じ形で、`OverlayRounds` の `LifetimeFirst`・`ReadFirst`・`ControlClassFirst`・`ControlReadFirst` を 1 つずつ別の process で続ける（最初に行う観測だけが違い、どれも 2 つ目の同じ出力を読む）。登録か load を Unity が拒否した時だけ、`BaseAloneFirst`・`OverlayAloneFirst` で単独の登録での成否を確かめる。補助の判定 code（`OverlayVerdict`）は、対照の順の class を上書きの版が出る前提で読むので、再利用する時は載った版の class と値で読むように直す。
