@@ -34,9 +34,9 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、その SHA は票に書かず tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
+Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](publish-and-history.md) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、その SHA は票に書かず tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
 
-途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](../SKILL.md#公開点とgit履歴) に従う。
+途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](publish-and-history.md) に従う。
 
 この節の入力版と snapshot の規則（HANDOFF と snapshot の組、snapshot の閲覧、切り直し後の版、Cloud・別 host の assist）は目的レビューに適用しない。目的レビューの入力は [Phase A の内部フロー](#phase-a-の内部フロー) に従う。
 
@@ -162,7 +162,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 
 ### 実行担当と判断担当
 
-判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、[引継ぎ票](#引継ぎ票) と取得案内の所在を書く。push は [公開点](../SKILL.md#公開点とgit履歴) の規則に従う）で終える。
+判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、[引継ぎ票](#引継ぎ票) と取得案内の所在を書く。push は [公開点](publish-and-history.md) の規則に従う）で終える。
 
 ### PR 状態ブロック
 
