@@ -141,6 +141,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 各 Phase の出口の担当は、次の担当が会話履歴なしで始められるよう、HANDOFF §0 に引継ぎ票を書く。正本は HANDOFF §0 とする。
 
 - 次の Phase と役割、次の作業。モデル名は書かない
+- 次の担当が読む HANDOFF の範囲（例: §0〜§5。読まなくてよい節を名指しする）。読む順の案内であり、次の担当は必要なら範囲外も読む
 - 凍結した Phase A の revision、implementation base / head。値は §0 の `implementation base commit` / `implementation head commit` 行（以下「implementation head 欄」）を正とし、票に再述しない。書き方は下記。stage を使う場合は取得案内の所在（reference と packageSha256 の実値は取得案内に置き、tracked HANDOFF と PR 本文には転記しない）
 - 入力となる各 snapshot・bundle の取得案内の在処と状態
 - 必要な権限（Unity、実操作、資格情報、sandbox 外実行）
