@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: revision 1 の判定 C を完了し、C' へ（2026-11-14、§7 の「判定 C（2 回目）」）。対照の順の Q2 の語は、2026-11-14 に owner が改訂した（同じ節）。revision 1 の発見 C は阻害する指摘なしで完了した（§7 の「発見 C（2 回目）」）。revision 1 の Phase B は 2026-11-13 に完了した（probe を test 制約の無い新しい asmdef へ移し、build の define を空にした。§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: C'（1 巡目）を完了し、Phase D へ（2026-11-14、§8。blocker なし、C' の結論も GO・YES）。revision 1 の判定 C は GO、スパイクの答えは YES（2 つの root の id が等しい。§7 の「判定 C（2 回目）」）。対照の順の Q2 の語は、2026-11-14 に owner が改訂した（同じ節）。revision 1 の発見 C は阻害する指摘なしで完了した（§7 の「発見 C（2 回目）」）。revision 1 の Phase B は 2026-11-13 に完了した（§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が probe を新しい asmdef へ移した（§6 の「判定 C からの差し戻し（1 回目）」）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: `a304963b3aa40b5c4500e99b4169ba476b7e7e33`
@@ -17,15 +17,15 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§5.3「当面の方針」、§8 の S2-0・S2-0b の移送）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（S2-0・S2-0b の実測と harness の所在）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（発見 C は implementation head の commit を固定して読む。機械向けの期待値は無い）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。判定 C（2 回目）が `evidence stage` で固定した。取得案内は進行役の共有メモ（git 管理外）にあり、送信側では別の process で取得を確かめた。受け取る側での取得確認はまだ。
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。上の evidence bundle と同じ物を使う（所見を含まない生の出力だけ。実装の diff は `docs/handoff/` を除いた）。取得案内も同じ。C' が取得を確かめる。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C（2 回目）が `evidence stage` で固定した。取得案内は git 管理外の共有メモにある（所在は進行役が Phase D の担当へ渡す）。送信側と受け取る側（C' の入力を組んだ進行役）の両方で、別の process で取得を確かめた。昇格・保存の要否は Phase D が決める。
+- C' blind bundle の取得案内・状態: 上の evidence bundle と同じ物（ローカル固定済み、未昇格）。C' の入力の組み方は §8。
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C（2 回目）は完了した。次の作業: 進行役が C' の担当を新しく起こす。C' は blind bundle を取得し、固定した implementation base / head の diff と生の出力を、凍結した条件（A3 凍結版 `c193edf3` の §2〜§5）に照らして監査し、§8 に記録する。owner による凍結条件の改訂（対照の順の Q2 の語。§7 の判定 C（2 回目）の該当の項）は条件の一部なので、進行役は改訂の文言だけを C' に渡してよい。判定 C の読み・答えは渡さない。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。blind bundle の head と base が本欄に一致すること。C' は PR を読まない。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（判定 C（2 回目）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。implementation head は欄の SHA で、この commit ではない。
-  - 必要な権限: Artifact Storage からの fetch。[Artifacts README の事前承認](../../tools/Artifacts/README.md#エージェント操作の事前承認) の範囲で、sandbox 外で `tools/Artifacts` の Release build がある worktree から行う。Unity の再実行は必須ではない（SKILL の Phase C'）。
-  - 停止規則: [blocker の基準](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#blocker-の基準)。C' の指摘による差し戻しは、別に数えて上限 3 巡。C' の担当は Phase A・B・C に関与していないベンダーにする。Grok 系を使う時は、Phase A の凍結前の外部レビューが Grok 系だったので、独立性の制約を §8 に記録する（§5）。
-  - 引き渡さないもの: §7 の所見・注意・読み方・答え（発見 C、判定 C）と、PR #182 の本文。可変な本書の全文も C' の入力にしない。
+  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。C'（1 巡目）は blocker なしで完了した（§8）。次の作業: owner が判定 C と C' の結論を突き合わせて受け入れを決め、SKILL の「Phase D」と [保存・引渡し確認](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認) に従って、evidence の保存と取得案内の引渡しを確かめ、harvest（本欄の harvest to）、実験 code の製品からの削除、HANDOFF の削除、PR #182 の ready 化と push、task の終了へ進む。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（C'（1 巡目）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。implementation head は欄の SHA で、この commit ではない。
+  - 必要な権限: Artifact Storage の保存・取得（[Artifacts README の事前承認](../../tools/Artifacts/README.md#エージェント操作の事前承認) の範囲）、`pwsh tools/workflow-task.ps1` の end（owner の完了指示から）、push と PR の更新（SKILL の公開点の規則）。Unity の再実行は不要（判定 C と C' の証拠を使う）。
+  - 停止規則: owner の受け入れが無いまま harvest・削除・task の終了へ進まない。§8 の X-1 は後続の入力で、本スライスで直さない。
+  - 引き渡さないもの: なし（C' は完了した。判定 C と C' の突き合わせは Phase D で初めて行う）。
 
 ## 1. 目的と対象外
 
@@ -584,7 +584,31 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 
 ## 8. Phase C'
 
-未着手。
+### C'（1 巡目、2026-11-14）
+
+- 種別: 独立監査（1 巡目、全体を初見）。**blocker なし。** C' の結論は GO、主の順のスパイクの答えは YES（2 つの root の id が等しい）。
+- 対象: implementation base `bc3ca436` から head `a304963b3aa40b5c4500e99b4169ba476b7e7e33`（`docs/handoff/` を除いた diff）。
+- 入力（blind。進行役が git 管理外の packet に組んだ）: A3 凍結版 `c193edf3` の本書の §1〜§5、owner による凍結条件の改訂の文言（2026-11-14、対照の順の Q2 の語）、`a304963b` の本書の §6（Phase B の結果）、上の diff、implementation head の `AGENTS.md`・`unity/Assets/README.md`・`unity/Assets/OneStarMaker/`・`docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md` の写し、判定 C と同じ evidence bundle（69 file）。§7 の所見・注意・読み方・答え、改訂の理由、PR #182 の本文は渡していない。
+- 使用した evidence bundle の取得案内・状態: 判定 C（2 回目）が固定した bundle（ローカル固定済み、未昇格）。受け取る側として進行役が別の process で `fetch` し（status `passed`、69 file）、その写しを C' に渡した。
+- 答え（C' が record と XML から読んだもの）:
+  - 必須 7 コマンドは別 process で実行され、各 XML は root `Passed`、failed 0（`OverlayVerdictTests` は total 30、他は total 1）。条件付きの 2 つは、拒否が無かったので未実行（§5 のとおり）。
+  - 主の順: Q1 強（`ReadFirst` の AC3）、Q2 正しい（`ClassFirst` の AC4）、Q3 収まる（AC4 と AC5 (1)）、Q4 無傷（`LifetimeFirst` の AC5）。
+  - 対照の順（改訂した語で読んだ）: Q1 不成立（両方の root から v1）、Q2 正しい（出た版は `Marker_v1`）。
+  - (a)〜(l) の誤って YES を出す道は、この証拠では開いていない（P1〜P3 の `preconditions`、round ごとの最初の Play、process 間の `inputMatched`、各 round の開始時の 0 件、`BuildIdentity` の照合）。
+  - 事実と推測の区別: 観測は「同じ id の要求が、base を後に登録すると v1、上書きを後に登録すると v2」。後から登録した側が勝つという仕組みの説明は推測で、設計上の保証ではない。
+- 指摘:
+
+| ID | 重さ | 指摘 | 根拠 | 分類 |
+|---|---|---|---|---|
+| X-1 | should-fix | 補助の写像の `Q2` は、対照の `SceneEdit` が上書き版でないと round 全体を未判定にし、owner の改訂の語（載った版の class と値で読み、版を添える）と合わない。record の probe からは対照の Q2 を「正しい（`Marker_v1`）」と読めるので、今回の GO は阻害しない。この写像を機械的に再実行すると未判定に戻る | `OverlayVerdict.cs` の `Q2`、`record-ControlReadFirst-20261113T152259Z.jsonl` の `verdict`（理由は対照の `SceneEdit` が `Marker_v1` であることだけ） | 後続スライスの入力（実験 code は Phase D で製品から消すので、本スライスでは直さない。同じ写像を後続で再利用する時に直す） |
+
+- 残存リスク（C' の記載）:
+  - record の `head` は全 process で記録 commit `88af140e`、実装 head は `a304963b`。C' は両 commit の tree の同一性を見ていない。**進行役が確かめた:** `git diff --name-only a304963b 88af140e` は本書だけで、両 commit の `unity/` の tree は同じ（`f7a15d70`）。
+  - 対照の AC6-class では共有 asset と `EditedTex` の実体が各 1（主の順は各 2）。Q3 の語はどちらも「収まる」だが、数は登録の順で変わる。
+  - 各 process の前後の `git status` は一致するが、中身は関係の無い `.pdb.meta` 5 件の削除（§6 の「Phase C への注意」と同じ事象）。fixture の folder は無く、Build Settings と Enter Play Mode は前後で同じ。
+- 監査できなかった範囲: `docs/handoff/` の diff（入力から除いた）、content file の sha256 の bytes からの再計算（record の棚卸しと process 間の digest の一致は読んだ）、各 `unity.log` の全文（JSONL の `unity-log` に Error / Exception / Assert は無い）、計画の対象外（Player、別 PC、別 Library、URP `Lit` の variant、実データ、Play の途中の解除）。
+- C' の差し戻し: 0 巡（上限 3 巡）。
+- 担当・モデル: `cursor-agent` の Grok（grok-4.7-high、xAI）、`--mode=ask`（読み取り専用、shell なし）、新しい session、約 7 分。Phase A・B・C（Anthropic）とはベンダーが異なる。**独立性の制約あり:** Phase A の凍結前の外部レビュー（§5 の (4)）も Grok 系だった。C' の担当は書き込めないので、本欄・§0・PR の状態ブロックは進行役が C' の最終メッセージから写した。
 
 ## 9. Phase D
 
