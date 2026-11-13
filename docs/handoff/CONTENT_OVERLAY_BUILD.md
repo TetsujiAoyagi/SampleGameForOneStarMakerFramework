@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `A`（**A3 凍結版、revision 0。** 2026-11-14 に owner の指示で凍結した。次は Phase B。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `B`（**Phase B 完了。次は発見 C。** Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - risk: `high`（公開 API の追加、製品の build 経路で root の一部だけを build する初回の実機）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -20,12 +20,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B の実装担当（新しい session）。
-  - 次の作業: §4 の順序で §3 の file を実装する。(1)〜(3) の製品 code と単体、(4) の harness。Editor の compile 確認までを行い、`pwsh tools/contract-audit.ps1` を通し、§6 と本票を書いて commit して終える。Unity のテストと build は実行しない（Phase C）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は PR の状態ブロックと起動指示で渡す）。
-  - 必要な権限: Unity Editor の起動と、対象を限定した Editor 操作（compile 確認）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。
-  - 引き渡さないもの: なし。
+  - 次の Phase・役割: 発見 C（新しい session。Phase B と異なるモデル）。動作確認は §5 のとおり `対象なし`（検証経路は全て Unity バッチで閉じる）なので行わない。
+  - 次の作業: implementation head の差分を、§2.1 の不変条件・成立条件、§2.2 の受け入れ条件、§3 の責務マップと照合し、構造・契約・凍結済みの失敗経路を先に見る。§5 の「発見 C の限定実行」のとおり、harness が最後まで動くことの確認として判定必須の 2 と 3 を各 1 回、理由と範囲を記録して実行してよい（結果は判定に使わない）。差し戻しの起点 `-Filter` は `OneStarMaker.Tests.Editor.Build`。Phase B の結果と、未実行の確認は §6 にある。
+  - 引き継ぐ commit: この票を含む commit（Phase B の完了 commit。SHA は起動指示で渡す。PR の状態ブロックは未更新。§6 の末尾）。
+  - 入力の取得案内・状態: Phase A snapshot・Phase B result snapshot・evidence bundle・C' blind bundle は上の行のとおり未生成。発見 C の evidence bundle は発見 C が implementation head から作る。
+  - 必要な権限: Unity の Editor・バッチの起動（限定実行を行う場合。sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`）。
+  - 停止規則: 指摘は §2.6 と blocker の基準で分ける。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。
+  - 引き渡さないもの: なし（C' へは後で blind bundle だけを渡す）。
 
 ## 1. 目的と対象外
 
@@ -386,11 +387,40 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 
 ## 6. Phase B 実装結果
 
-未着手
+2026-11-14、開始時に引き継ぐ commit `8c820a94` と HEAD の一致、作業ツリーが clean であることを確かめた。§4 の順序 (1)〜(4) で §3 の file だけを変えた。差分は §3 の表の file と、その `.meta`、新しい folder の `.meta`（`Tests/Editor/Spikes.meta`、`Tests/Editor/Spikes/OverlayBuild.meta`）である。`Scripts/Runtime/`、asmdef、friend は変えていない。Phase A へ差し戻す条件には当たらなかった。
+
+**製品（§3 の (1)〜(3)）**
+
+- `BuildPlan.WithSelectedSubset(IEnumerable<string> stableKeys)`: selected の部分集合を残し、外れた候補を `BuildExclusionReasonCode.NotInSubset`（enum の末尾、dimension `StableKey`、value はその stable key）の除外にする。空の集合、selected に無い key（除外済みの候補の key を含む）、null の要素は `ArgumentException`。Selection の `AssemblyInfo.cs` は、本番の plan を作り直す道がこの method に限ることをコメントに書いた（friend は変えていない）。
+- `ContentOverlaySelection.Select(plan, snapshot, editedPaths)` と結果の型（`ContentOverlaySelectionResult`、`ContentOverlayRootReason`、`ContentOverlayUnmatchedEdit`、`ContentOverlayUnmatchedReason` の `OutsideAssets` / `NotInAnyClosure`）、`ContentOverlayBaseIdentity`、request が持つ `ContentOverlayRecord`。閉包は projection と同じく physical key（root の GUID）で引く。上書き不要の時は `Plan` が null で `IsOverlayRequired` が false。`SharedAssets` は AC8 の定義（path の ordinal）。`ContentOverlayBaseIdentity` は contentSet・revision・target・digest の空・空白を拒み、宣言の名前は null（宣言なし）か空でない文字列だけを受ける。
+- `BuildContentRequest` の新しいコンストラクタ `(ContentOverlaySelectionResult, ContentOverlayBaseIdentity, contentSet, artifactsRoot, declaration, requirements)` と property `Overlay`。mode は `Full` に固定。上書き不要の結果は `ArgumentException`。
+- coordinator は `ValidateSegment` の直後、report を書く前に、base と同じ contentSet（`OrdinalIgnoreCase`）、宣言の名前の不一致（宣言の有無の違いを含む、ordinal）、base の target と `TargetName` の不一致を `ArgumentException` で拒む。順序と出力先の規則は変えていない。
+- preflight と outcome の追加の欄（§18 へ harvest する名前）: `overlay`（印。preflight と outcome の両方）、`overlayBase`（`contentSet`・`revision`・`target`・`manifestDigest`・`declarationName`）、`overlayEdits`、`overlayRoots`（`stableKey`・`logicalKey`・`edits`）、`overlayUnmatched`（`path`・`reason`）、`overlaySharedAssets`。詳細は preflight だけに書く。上書きでない build では印が false、配列が空、`overlayBase` の各欄が空文字（JsonUtility は入れ子の object を null にしないので、空の object として書かれる）。
+- publisher は `buildMode` の検査の後、publish 先を作る前に、outcome の `overlay` か、preflight の `excluded` の行のどれかの `|` 区切りが `NotInSubset` と等しければ拒む（stable key に `|` が入りうるので区切りの位置を決め打ちしない。誤って一致するのは拒む側だけ）。
+
+**単体テスト（通常の EditMode 回帰に入る）**: `ContentOverlaySelectionTests`（AC1・AC3、AC9 の単体は偽の adapter で coordinator を通す）、`BuildContentReportTests` に 1 件（AC4 の既定値）、`BuildContentFullModeTests` に AC4 の (1)〜(5) と宣言の受け渡し（既存の test は変えていない）、`OverlayBuildVerdictTests`（写像）。
+
+**harness（§3 の (4)。Phase D で削除）**: test の完全名は §5 のとおり（`OneStarMaker.Tests.Editor.Spikes.OverlayBuild.OverlayBuildProcess.Build`、同 `.OverlayBuildRounds.ScenesFirst`・`.ObjectFirst`）。どれも `[Explicit]`。
+
+- 出力の置き場所（git 管理外）: coordinator の出力先は `TestResults/bs3-fixture/ovb`（marker を持つ時だけ build の process の始めに消して作り直す）。record は `TestResults/ovb/<実行 id>/` で、build の process の `record-build-*.jsonl`・`build-facts.json`・`reports/{base,overlay}/`、round の process の `record-<名前>-*.jsonl`・`round-<名前>.json`。round は `TestResults/ovb/build-process.txt` が指す実行 id を読む。fixture は `Assets/OsmOvb`（marker 付き、固定 GUID）で、build の process の finally で消す。
+- §5 の record の値の対応: 版・target・Enter Play Mode は全行の header。前提 P2 は `p1-before-base` と `p1-before-overlay` の行の `sources`（.meta を除く source file ごとの sha256）と `changedSources`。前提 P1 は同じ 2 行の `points`（観測点、Scene の観測点は `<Scene>:<階層 path>`、値）。逆引きの結果は `closure`（root ごとの閉包、base と overlay の 2 回）と `selection` の行。identity・preflight・outcome は `build-end` の行と `reports/` の写し。base の 3 つの file の一覧（`content/<identity>`、workspace、publish 先）は `base-inventory` の行（上書きの build の前と後）。round は `register`・`registered`・`load`・`observe`・`released`・`round-cleanup` の行と、全 log の `unity-log` の行。各 process の最後が `process-end`。
+- base の識別は、publish した `transport.json` の contentSet・revision・target・宣言の名前と、その file の bytes の sha256 を digest として作る。round は base を publish 先の `content/`、上書きを coordinator の `content/<identity>` から登録する。
+- AC6 の log の窓は、record の `unity-log` の行の `counted` が true の行（登録の開始から、上書き → base の解除の完了まで）。
+- `OverlayBuildVerdict` は record とは別に `verdict` の行を書く補助で、判定 C は record の観測の行から読む（§5）。S2-1 の「対照の順は上書きの版が出る前提」は持ってきていない。
+
+**行数**: 製品は新規の `ContentOverlaySelection.cs` が 235 行、既存 file への追加が約 175 行（計約 410。計画は約 400）。常設の単体テストは約 500 行。harness は 5 file で約 1,600 行（計画は約 1,350）。超えた分は、record・log の捕捉・後始末・Scene の退避を build と round の両方で使う形にまとめた共通部分（`OverlayBuildProcess.cs` の後半）である。
+
+**B 適応・新しい事実**: なし（Phase A の再開、スパイク、後続スライスへの移送に当たる事実は出ていない）。
+
+**確認したこと**: Unity 6000.6.0f1 の Editor（この session が開いた）で compile が通り、変更した file に警告が無いことを確かめた（console の compile 失敗の flag が false、追加した型が `OneStarMaker.Build.Content` と `OneStarMaker.Tests.Editor` に入っていること）。`pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`。
+
+**未実行（Phase C）**: Unity のテスト（単体・`[Explicit]` の harness とも）と Content Directory の build は実行していない。harness が最後まで動くこと、fixture の prefab の source（`OuterPrefab` など）が v2 で書き換わらないこと（前提 P2）は、§5 の発見 C の限定実行か判定必須の 2 と 3 で初めて確かめる。
+
+**PR**: draft PR #186 の状態ブロックは更新していない（この session は push せず、PR も編集していない）。
 
 ### 動作確認
 
-未着手
+対象なし（§5。検証経路の操作・実行時・目視の条件は全て Unity バッチで閉じる）。
 
 ## 7. Phase C
 

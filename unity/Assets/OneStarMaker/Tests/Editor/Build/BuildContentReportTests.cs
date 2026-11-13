@@ -91,5 +91,43 @@ namespace OneStarMaker.Tests.Editor.Build
                 if (File.Exists(path)) Directory.Delete(Path.GetDirectoryName(path)!, true);
             }
         }
+
+        [Test]
+        public void NonOverlayBuild_LeavesOverlayFieldsAtDefaults_InPreflightAndOutcome()
+        {
+            // 上書きの情報を渡さない build（既存のコンストラクタ）は、上書きの欄が既定値（印が false、配列が空）である以外は従来と同じ。
+            var candidate = new BuildContentCandidate("stable", "logical", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", new BuildProvenance("fixture", "logical"));
+            var plan = new BuildPlan(new BuildRequest(Array.Empty<BuildTag>()), new[] { candidate }, Array.Empty<BuildContentExclusion>());
+            var snapshot = new BuildMaterializationSnapshot(new[] { candidate }, new Dictionary<string, IReadOnlyList<BuildTag>>(),
+                Array.Empty<BuildContentRequirement>(),
+                new[] { new BuildDependencySnapshot(candidate.PhysicalKey, "Assets/A.unity", new[] { new BuildDependencyEntry(candidate.PhysicalKey, "Assets/A.unity") }) });
+            var root = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture",
+                "ovlrep-" + Guid.NewGuid().ToString("N").Substring(0, 8)));
+            try
+            {
+                var request = new BuildContentRequest(plan, snapshot, "set", root, null, null, BuildContentMode.Full);
+                Assert.That(request.Overlay, Is.Null);
+                var result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter()).Build(request);
+                Assert.That(result.IsSuccess, Is.True, result.Summary);
+                foreach (var file in new[] { result.PreflightPath, result.OutcomePath })
+                {
+                    var report = JsonUtility.FromJson<ContentReportFile>(File.ReadAllText(file));
+                    Assert.That(report.overlay, Is.False, file);
+                    Assert.That(report.overlayBase.contentSet + report.overlayBase.revision + report.overlayBase.target
+                                + report.overlayBase.manifestDigest + report.overlayBase.declarationName, Is.Empty, file);
+                    Assert.That(report.overlayEdits, Is.Empty, file);
+                    Assert.That(report.overlayRoots, Is.Empty, file);
+                    Assert.That(report.overlayUnmatched, Is.Empty, file);
+                    Assert.That(report.overlaySharedAssets, Is.Empty, file);
+                }
+                var preflight = JsonUtility.FromJson<LegacyPreflight>(File.ReadAllText(result.PreflightPath));
+                Assert.That(preflight.selected, Is.EqualTo(new[] { "stable|logical|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }));
+                Assert.That(preflight.excluded, Is.Empty);
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        }
     }
 }
