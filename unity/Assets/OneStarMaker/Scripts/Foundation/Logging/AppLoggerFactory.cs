@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using ZLogger;
+using ZLogger.Formatters;
 using ZLogger.Providers;
 
 namespace OneStarMaker.Foundation.Logging
@@ -28,6 +29,7 @@ namespace OneStarMaker.Foundation.Logging
         private const int DefaultRollingSizeKb = 1024;
 
         private readonly ILoggerFactory _inner;
+        private readonly LoggerFailureFile _failures;
 
         /// <summary>
         /// 送信 payload に埋め込むアプリケーション名。
@@ -72,6 +74,18 @@ namespace OneStarMaker.Foundation.Logging
             LogLevel minimumLevel = LogLevel.Trace,
             int rollingSizeKb = DefaultRollingSizeKb,
             RealtimeLogFormat realtimeLogFormat = RealtimeLogFormat.MessagePack)
+            : this(GetLogDirectoryPath(), realtimeStream, minimumLevel, rollingSizeKb, realtimeLogFormat)
+        {
+        }
+
+        // テストは一時 directory だけを指定し、本番と同じ配線・通知先導出・終了順を通す。
+        // processor や通知先を差し替える seam は設けず、実 provider の失敗を観測する。
+        internal AppLoggerFactory(
+            string logDirectoryPath,
+            Stream? realtimeStream = null,
+            LogLevel minimumLevel = LogLevel.Trace,
+            int rollingSizeKb = DefaultRollingSizeKb,
+            RealtimeLogFormat realtimeLogFormat = RealtimeLogFormat.MessagePack)
         {
             if (rollingSizeKb <= 0)
             {
@@ -81,8 +95,14 @@ namespace OneStarMaker.Foundation.Logging
             ApplicationName = UnityEngine.Application.productName;
             RealtimeStream = realtimeStream;
             RealtimeLogFormat = realtimeLogFormat;
-            LogDirectoryPath = GetLogDirectoryPath();
+            LogDirectoryPath = logDirectoryPath;
             EnsureDirectory(LogDirectoryPath);
+
+            // 全 provider がファイルを開く前に一度だけ実施する。実行中には清掃せず、
+            // 通常ログと通知の両方を同じ起動時刻・保持 policy で判断する。
+            var startupUtc = DateTime.UtcNow;
+            LogDirectoryMaintenance.Clean(LogDirectoryPath, startupUtc);
+            _failures = new LoggerFailureFile(LogDirectoryPath, rollingSizeKb);
 
             // producer 相関（sequence / trace / span）はログ呼び出しスレッドで採取する必要があるため、
             // 生成した factory を必ずデコレータで包む。詳細は LogProducerCorrelation を参照。
@@ -97,10 +117,10 @@ namespace OneStarMaker.Foundation.Logging
                     options.FilePathSelector = (dt, sequenceNumber) =>
                         Path.Combine(
                             LogDirectoryPath,
-                            $"{dt.ToLocalTime():yyyy-MM-dd}_{sequenceNumber:000}.log");
+                            LogFileNames.Normal(dt.ToLocalTime().DateTime, sequenceNumber));
                     options.RollingInterval = RollingInterval.Day;
                     options.RollingSizeKB = rollingSizeKb;
-                    ConfigureJsonFormatter(options);
+                    ConfigureJsonFormatter(options, "rolling-json");
                 });
 
                 if (RealtimeStream != null)
@@ -111,7 +131,8 @@ namespace OneStarMaker.Foundation.Logging
                     {
                         case RealtimeLogFormat.Json:
                             // デバッグや一時切り分け用。可読性は高いが MessagePack の恩恵はない。
-                            builder.AddZLoggerStream(RealtimeStream, ConfigureJsonFormatter);
+                            builder.AddZLoggerStream(RealtimeStream,
+                                options => ConfigureJsonFormatter(options, "realtime-json"));
                             break;
                         case RealtimeLogFormat.MessagePack:
                             // 本命経路。1 レコード = 1 MessagePack payload とし、
@@ -162,11 +183,13 @@ namespace OneStarMaker.Foundation.Logging
 
         public void Dispose()
         {
-            // Stream の所有権は呼び出し側にある前提なので、ここでは logger factory だけ閉じる。
+            // ZLogger はキューを drain して渡された realtime stream も閉じる。
+            // 最後の変換失敗も通知できるよう、その後に独立通知を閉じる。
             _inner.Dispose();
+            _failures.Dispose();
         }
 
-        private static void ConfigureJsonFormatter(ZLoggerOptions options)
+        private void ConfigureJsonFormatter(ZLoggerOptions options, string provider)
         {
             // JSON 側はローカルファイル観測が主目的なので、
             // timestamp と property をできるだけ落とさず保持する。
@@ -175,10 +198,18 @@ namespace OneStarMaker.Foundation.Logging
             // ここでは IncludeScopes を有効にせず L0 Unity Log JSON へ相関値を載せない。
             // Telemetry は JsonFileTelemetrySink が producer-owned 値を structured property
             // として明示的に渡すので、L0 でも同じ session/frame 軸を検索できる。
-            options.UseJsonFormatter(formatter =>
+            options.InternalErrorLogger = exception => _failures.Write(provider, exception);
+            options.UseFormatter(() =>
             {
-                formatter.UseUtcTimestamp = true;
-                formatter.IncludeProperties = IncludeProperties.All;
+                var formatter = new SystemTextJsonZLoggerFormatter
+                {
+                    UseUtcTimestamp = true,
+                    IncludeProperties = IncludeProperties.All
+                };
+                // 既定の null 省略・escaping 等を残したまま、値変換だけを追加する。
+                // wrapper と buffer は provider ごとに生成し、その寿命内だけで再利用する。
+                formatter.JsonSerializerOptions.Converters.Add(new Vector3JsonConverter());
+                return new BufferedJsonFormatter(formatter);
             });
         }
 
