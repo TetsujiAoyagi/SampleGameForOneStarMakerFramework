@@ -378,7 +378,7 @@ public interface IAccessibilityPositionSource
 
 位置は Register 時に焼かない。読む側が**その瞬間に** `TryGetWorldPosition` する（D-11）。
 
-`UnityEngine.Vector3` を使わないのは Foundation の既存方針に合わせるため（Foundation は現在 `Vector3` を一度も使っていない）。
+位置の契約は Unity の型に依存せず `float` の3成分で表す。Foundation のログ実装は別途、有限 `UnityEngine.Vector3` の JSON 記録に対応する。
 
 ---
 
