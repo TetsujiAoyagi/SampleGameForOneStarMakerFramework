@@ -116,7 +116,7 @@ Unity runtime へ Elastic 固有責務を持ち込まない。
 | G2 | sender 実装 | realtime stream は formatter 主導で、processor hook への置き換えは未着手 | Foundation |
 | G3 | receiver app | companion app の schema/version handling は文書化と最小実装が残る | External / DebugStudio |
 | G4 | Runtime module layout | `Runtime\\Telemetry\\` への物理分割は Unity project 再生成待ち | Runtime |
-| G5 | Logging | `AppLoggerFactory` の JSON formatter（`IncludeProperties.All`）が Unity の値型（`Vector3` 等）を値に持つ行を黙って落とす（`System.Text.Json` が `Vector3.normalized` の循環で例外になる）。`InternalErrorLogger` が未設定なので、落ちたことが外から見えない。同じ設定の ZLogger に `Vector3` を値に持つ行を書くと、その行だけが落ちることを再現した。この欠落が残る間は、App のログの `Error` が 0 件でも「アプリ内で Error が起きなかった」とは言えない。この機構で落ちた実例（S-4d5b の `Player ready at Cell stream spawn`）と、その 1 行を `float` の値に直したことは [§18 §4「BuildSystem の後続」](18-asset-description.md#buildsystem-の後続bs5abs5b-1-から送った事項) の S-4d5b の行。formatter 自体は直していない。担当のスライスは未定 | Foundation |
+| G5 | Logging | `AppLoggerFactory` の rolling JSON と realtime JSON は有限 `Vector3` を `x` / `y` / `z` の数値として記録し、provider の書込み失敗を同じ log directory の `logging-errors_yyyy-MM-dd_nnn.txt` へ通知する。変換失敗 entry の断片は外側へ渡さない。通知先の I/O 自体が失敗した場合の到達は保証しない。通常ログと通知は起動時に最終更新 UTC が4日を超えた管理対象だけを清掃する。実 factory の確認は Unity Editor に限り、Player / AOT は未検証。末尾の変換失敗で同じ batch の直前の正常 entry が未 flush のまま失われる可能性は未検証で、[#183](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/issues/183) で追跡する。ログに Error が無いことはアプリ内で Error が起きなかった証拠にはならない。過去の欠落例は [§18 §4](18-asset-description.md#buildsystem-の後続bs5abs5b-1-から送った事項) を参照 | Foundation |
 
 ---
 
