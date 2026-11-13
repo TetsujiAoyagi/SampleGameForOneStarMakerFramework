@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: Phase A revision 1 の A2（2026-11-13。probe の置き場所を、test 制約の無い新しい asmdef へ移す。owner が承認。§5.2）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: Phase A revision 1 を凍結し、Phase B へ（2026-11-13。probe の置き場所を、test 制約の無い新しい asmdef へ移す。owner が承認。§5.2。revision 1 の A2 入力版は commit `a76cbd50`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: `未固定`
@@ -20,7 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A revision 1 の A2（アーキテクチャゲート 1 件。§5.2）。この票は A2 入力版にあり、A3 で Phase B 宛てに書き直す。
+  - 次の Phase・役割: Phase B（revision 1 の実装）。次の作業: §5.2 の「Phase B への影響」のとおり、probe の 3 file を `.meta` ごと §3 の probe 用の asmdef の folder へ移し、asmdef を足し、`OverlayBuilds` の `ScriptingDefines` を空にする。終えたら発見 C へ渡す（動作確認は `対象なし`）。判定 C（1 回目）の実行は旧 head のもので、新しい implementation head で判定必須の 7 つを最初からやり直す。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄が `未固定`（Phase A の出口）であること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（revision 1 の A3 凍結版。SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 必要な権限: Editor の起動とコンパイル確認（Phase B の範囲。build ではない player の script の compile の確認を含む。§5 の未確認）。Unity のテストと build は実行しない。push は SKILL の公開点の規則に従う。
+  - 停止規則: §4 の「Phase A へ差し戻す条件」。B と発見 C の往復は 0 巡（上限 4 巡）。
   - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -186,7 +190,7 @@
 | `OverlayBuilds.cs` | `[Explicit]` の `FirstProcess`。base と上書きの build、棚卸しと sha256、`ContentLayout.json` による帰属と P1〜P3、record、fixture の削除 | 350 | Unity の build の I/O |
 | `OverlayRounds.cs` | `[Explicit]` の `[UnityTest]` 7 つ。round の並びだけが違う 5 つ（`ClassFirst`・`LifetimeFirst`・`ReadFirst`・`ControlClassFirst`・`ControlReadFirst`）と、単独の登録の round だけを行う条件付きの 2 つ（`BaseAloneFirst`・`OverlayAloneFirst`）。照合、AC2〜AC6 の round、観測と log の record、後始末 | 540 | Play を伴う orchestration。判断は `OverlayVerdict` に置く |
 | `Tests/Spikes/OverlayProbes/ProbeBaseOnly.cs`・`ProbeOverlayOnly.cs`・`ProbeBoth.cs` | `_tag`（string）と `_value`（int）だけを持つ空の `MonoBehaviour`（namespace は `OneStarMaker.Tests.Spikes.OverlayProbes`、先頭に `#nullable enable`。期待する `FullName` はこの namespace と class 名）。base の Scene と `SharedPrefab` は `ProbeBaseOnly` と `ProbeBoth`、上書きの `SceneEdit` は `ProbeOverlayOnly` と `ProbeBoth` を持つ | 各 15 | Content Directory の component が指す script は、player の script の compile に入る assembly に要る。test 制約（`UNITY_INCLUDE_TESTS`）を持つ assembly は、build に define を渡しても compile に入らない（§6 の差し戻しの事実）ので、下の probe 用の asmdef に置く。test 側は型を参照せず名前と `.meta` の GUID で照合する |
-| `Tests/Spikes/OverlayProbes/OneStarMaker.Spikes.OverlayProbes.asmdef` | probe の 3 型だけを持つ assembly。`references` は空、`defineConstraints` は空、`includePlatforms` は空（全 platform。Editor の Play と StandaloneWindows64 の build の両方に要る）、`autoReferenced` は false。どの assembly もこれを参照しない | — | test 制約を持たないので player の compile に入る。どこからも参照されないので依存の向き（Game → Framework）と循環に辺を足さない。Phase D まで、SampleGame の player にも 3 型が入る（空の `MonoBehaviour` で、どの Scene も使わない）。一時の物なので `unity/Assets/README.md` の依存図には載せない（`OneStarMaker.TestSupport` も載っていない） |
+| `Tests/Spikes/OverlayProbes/OneStarMaker.Spikes.OverlayProbes.asmdef` | probe の 3 型だけを持つ assembly。`references` は空、`defineConstraints` は空、`includePlatforms` と `excludePlatforms` は空（全 platform。Editor の Play と StandaloneWindows64 の build の両方に要る）、`autoReferenced` は false、`noEngineReferences` は false（`MonoBehaviour` に要る）、`overrideReferences` は false、`rootNamespace` は probe の namespace。他の項目は Unity の既定値。どの assembly もこれを参照しない。新しい folder の `.meta`（`Tests/Spikes.meta`、`Tests/Spikes/OverlayProbes.meta`）も AC8 の「§3 の新規 file と `.meta`」に入る | — | test 制約を持たないので player の compile に入る。どこからも参照されないので依存の向き（Game → Framework）と循環に辺を足さない。Phase D まで、SampleGame の player にも 3 型が入る（空の `MonoBehaviour` で、どの Scene も使わない）。一時の物なので `unity/Assets/README.md` の依存図には載せない（`OneStarMaker.TestSupport` も載っていない） |
 
 合計は約 1,700 行。500 行に届く `OverlayRounds.cs` は非分割とする（1 つの Play の往復の列で、変更理由は round の定義だけ。判断は pure 側に出してある）。S2-0b より小さくする手段: 解除の case の表（U1〜U7）と R0・R1・T0〜T3 の時点を持たない、pixel の所在の判定を持たない（`EditedTex` と `SharedTex` は読める小さな texture で、load 後の pixel の sha256 だけを見る）、正の対照は S2-0b の結果（列挙は同名の別の texture を 2 つと数えた）を前提にして再実施しない。反復は同じ round を process の中で繰り返さず、最初の round だけが違う 5 つの test を 1 回ずつ起動する（違いは round の並びの定数だけ）。
 
@@ -212,7 +216,7 @@
 ## 4. 実装計画
 
 - 順序: (1) pure の 2 file。(2) probe、fixture、build。(3) Play の round と record。(4) 実行は Phase C。
-- Phase B から Phase A へ差し戻す条件: 製品 code か asmdef の変更が要る。製品の wrapper を 2 つ持って登録できず `ContentLoadManager` を直接呼ぶ必要がある。P1〜P3 を満たす fixture が §3 の形で作れない。probe を probe 用の asmdef（§3）に置く形で Content Directory の build か load が成り立たない。§2 の語で観測できない。
+- Phase B から Phase A へ差し戻す条件: 製品 code の変更か、§3 の probe 用の asmdef 以外の asmdef の追加・変更、または probe 用の asmdef への参照・define 制約の追加が要る。製品の wrapper を 2 つ持って登録できず `ContentLoadManager` を直接呼ぶ必要がある。P1〜P3 を満たす fixture が §3 の形で作れない。probe を probe 用の asmdef（§3）に置く形で Content Directory の build か load が成り立たない。§2 の語で観測できない。
 - B 適応の範囲: `BuildPipeline.BuildContentDirectory` の引数（harness が直接呼ぶ build の引数で、製品の build の経路は変えない。revision 1 では `extraScriptingDefines` は製品と同じ空を既定とする）、fixture の asset の細部（大きさ、色、GameObject の構成）、record の項目名、round の順序、component の付け方（`MonoScript.GetClass` と `AddComponent`、または YAML の書き換え）、S2-0b の harness から写す範囲、layout から MonoScript の番号が読める時の追加の記録。
 - 対象外を維持する方法: 製品 file を変えない（AC8）。build の出力と record は `TestResults/` 下の一時 root に置く。file の名前と hash の一覧は機械向けのデータなので git に入れず、evidence bundle に置く。
 
@@ -234,7 +238,7 @@
   - (2) A0 だけからの代替構成: (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は program §5.3・§8、事実の文書、製品の native 層の source、前例の harness の file 一覧。本書は読んでいない。
   - (3) アーキテクチャゲート兼、各不変条件を破る順序と §2 の誤答の一覧の外の探索: 本 session が起動した別の新しい subagent（Claude Fable、Anthropic）。入力は A2 入力版の本書（内容 sha256 `561cc79f03995623d6562928a338eda957abc6454fa38ed3a3d0456650e72767`、commit `1cfcad07`）と、アーキテクチャゲート、事実の文書、program、製品の `Runtime/BuildContent` の source、asmdef、前例の harness、AGENTS.md。枠は「計画した実験 code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。
   - (4) 凍結前の外部レビュー（draft PR #182、2026-11-13）: cursor の background agent（Grok、xAI。A2 とは別ベンダー）が 3 巡。対象は 1 巡目が commit `28ea0846`、2 巡目が `e1c3e234` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。3 巡目の対象は `713e283a`。同じ PR に owner のレビュー（対象 `e1c3e234`）が 1 件。
-- A3 統合担当・採否: 本 session（§5.1）。2026-11-13 に owner が凍結を指示し、revision 0 として凍結した。目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
+- A3 統合担当・採否: 本 session（§5.1）。2026-11-13 に owner が凍結を指示し、revision 0 として凍結した。revision 1 は 2026-11-13 に owner が (A) を承認して進めるよう指示し、本 session が §5.2 の採否で凍結した。目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー（`cursor-agent` を使う場合は AGENTS.md の契約どおり Grok 系だけ）。A2 では Grok 系を使わない。
 - 独立性の強化条件を満たせない場合の理由: A2 は 1 つのベンダーの 2 つのモデルで行った（A1 の主担当は (3) と同じモデルの別 session）。別ベンダーの目は、凍結前の外部レビューと C' で入れる。凍結前の外部レビューが Grok 系を使ったので、C' に Grok 系を使う時は、Phase A に関与した系列として独立性の制約を §8 に記録する。C' の充足は起こす時に確かめて記録する。
 
@@ -322,12 +326,20 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 - **owner の決定（2026-11-13、root）:** (A) を承認。AGENTS.md の「asmdef 参照の追加は設計判断」と、§3 の「新しい asmdef を足さない」を、この決定で置き換える。
 - 変えた所: §3 の前文・probe の行・asmdef の行・資源の表、§4 の差し戻す条件と B 適応の範囲、§5 の適用除外の理由と未確認、I-1 の未確認、I-2 (a) と未確認の語（「test 用 assembly」→「probe 用の asmdef」）。
 - 変えない所: 目的と利用者の欄、§2 の問い・語・判定定義、§2.1 の不変条件と成立条件の主張、§2.2 の受け入れ条件、§5 の判定必須テスト。probe の namespace（`OneStarMaker.Tests.Spikes.OverlayProbes`）と class 名と `.meta` の GUID は変えないので、期待する `FullName` と fixture の `ProbeGuids` は変わらない。
-- Phase B への影響（実装の指示ではなく、変わった計画から出ること）: probe の 3 file を `.meta` ごと新しい folder へ移す、asmdef を足す、`OverlayBuilds` の `ScriptingDefines` を空にする（`UNITY_INCLUDE_TESTS` も、差し戻しで足した `DEVELOPMENT_BUILD`・`DEBUG` も要らなくなる）。差し戻しで入れた第 1 process の log の捕捉（`FirstProcessLog`）は置き場所と独立なので残す。
+- Phase B への影響（実装の指示ではなく、変わった計画から出ること）: probe の 3 file を `.meta` ごと新しい folder へ移す、asmdef を足す、`OverlayBuilds` の `ScriptingDefines` を空にする（`UNITY_INCLUDE_TESTS` も、差し戻しで足した `DEVELOPMENT_BUILD`・`DEBUG` も要らなくなる）。差し戻しで入れた第 1 process の log の捕捉（`FirstProcessLog`）は置き場所と独立なので残す。`OverlayFixture` の `ProbeGuids` のコメントの path を新しい folder に直す。
 - A2: アーキテクチャゲート 1 件（asmdef の追加なので高リスクの観点。対象は本 revision の差分の部分。owner がこの規模を承認）。目的と利用者の欄を変えていないので、目的レビューはやり直さない。A0 からの代替構成の担当は、置き場所の候補の検討が上の 4 つに尽きているので立てない。
+  - 実施 2026-11-13。担当は本 session が起動した新しい subagent（Claude、Anthropic）。入力は A2 入力版 commit `a76cbd50` の本書（内容 sha256 `463a653a18a87113193fb86a5b65954ee0e4eff09261a59544f6c87b9b34899f`）と、AGENTS.md、アーキテクチャゲート、`unity/Assets/README.md`、`tools/contract-audit.ps1`、`tools/path-budget.json`、現在の asmdef と harness。枠は「計画した実験 code と revision 1 の変更は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。結論は blocker なし。
+
+| ID | 重さ | 指摘（要約） | 採否 | 理由と反映先 |
+|---|---|---|---|---|
+| A2R1-1 | should-fix | §4 の差し戻す条件「asmdef の変更が要る」が、計画自身の asmdef の追加に当たると読める | 採用 | 条件を「probe 用の asmdef 以外の asmdef の追加・変更、または probe 用の asmdef への参照・define 制約の追加」に書き換えた。§4 |
+| A2R1-2 | note | asmdef の項目（`noEngineReferences`、`overrideReferences`、`rootNamespace`、`excludePlatforms`）と、新しい folder の `.meta` が AC8 に入るかが暗黙 | 採用 | §3 の asmdef の行に全項目と folder の `.meta` を書いた |
+| A2R1-3 | note | Phase D まで、SampleGame の player と全ての Content Directory の build の compile に assembly が 1 つ増える。script の compile の cache が 1 回無効になり、この branch での build 時間の計測がずれうる。Editor の観測器が拾う `OneStarMaker.` の assembly が 1 件増える（baseline と比べる test は見当たらない） | 採用（記録だけ） | どれも branch の上だけで harvest で消える。本スライスは build 時間を測らない。§3 の asmdef の行に Phase D までの影響を書いてある。Phase D の harvest で、この branch の build 時間を事実の文書へ持ち込まない |
+| A2R1-4 | note | `OverlayFixture.cs` のコメントが旧 path を指す。§6 に旧配置の記録が残る | 採用 | コメントは B が移す時に直す（§5.2 の「Phase B への影響」に足した）。§6 の冒頭に、差し戻しより前は revision 0 の配置の記録だと書いた |
 
 ## 6. Phase B 実装結果
 
-実施 2026-11-13。§3 の file を §4 の順で作った。製品の file と asmdef は変えていない。
+実施 2026-11-13。§3 の file を §4 の順で作った。**この節の「判定 C からの差し戻し（1 回目）」より前は revision 0 の配置（probe は `Tests/TestSupport/`、build に `UNITY_INCLUDE_TESTS` を渡す）での記録である。** revision 1 の配置は §3 と §5.2 を正とする。製品の file と asmdef は変えていない。
 
 | file | 行数（計画） | 中身 |
 |---|---:|---|
