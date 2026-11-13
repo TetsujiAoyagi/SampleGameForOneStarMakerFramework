@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: revision 1 の Phase B を完了し、発見 C へ（2026-11-13。probe を test 制約の無い新しい asmdef へ移し、build の define を空にした。§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: revision 1 の発見 C を完了し（阻害する指摘なし。§7 の「発見 C（2 回目）」）、判定 C へ（2026-11-14）。revision 1 の Phase B は 2026-11-13 に完了した（probe を test 制約の無い新しい asmdef へ移し、build の define を空にした。§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `a304963b3aa40b5c4500e99b4169ba476b7e7e33`
 - risk: `high`（program §8 の指定。製品 code は変えないが、結論が S2・S3 の形を決める）
 - owner: root（依頼者）
 - created: 2026-11-13
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（revision 1 の実装の差分）。動作確認は `対象なし`（§5）。次の作業: implementation base `bc3ca436` から implementation head までの差分を、§3（revision 1）・§4・§5.2 と照らして読む。revision 1 で変わったのは probe の 3 file の移動と asmdef の追加、`OverlayBuilds` の `ScriptingDefines`、コメントだけである（§6 の「revision 1 の実装」）。判定 C（1 回目）の実行は旧 head のもので、阻害する指摘が無ければ、判定 C が新しい implementation head で判定必須の 7 つを最初からやり直す。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があること。PR #182 の状態ブロックの `引き継ぐ commit` と implementation head が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（revision 1 の B の出口。SHA は起動指示と PR #182 の状態ブロックで渡す）。
-  - 必要な権限: commit を読むことと `contract-audit`・`docs-audit`。Unity のテストと build は発見 C では実行しない（§5）。push は SKILL の公開点の規則に従う。
-  - 停止規則: §4 の「Phase A へ差し戻す条件」。B と発見 C の往復は 0 巡（上限 4 巡。revision 1 で数え直さない）。
+  - 次の Phase・役割: 判定 C（revision 1 の GO 候補 head、2 回目）。発見 C（2 回目）は阻害する指摘なしで完了した（§7）。次の作業: implementation head で §5 の判定必須の 7 つを (1) から順に、それぞれ別の Unity process で最初から実行する（判定 C（1 回目）の実行と生ログは旧 head の物で根拠にしない）。条件付きの 2 つは、(3)〜(7) で主の順の登録か load の拒否が出た時だけ実行する。XML と record を §2 の定義に当てて答えを読み、§7 に判定 C（2 回目）を記録する。(2) の XML の Passed は AC1 の成立を意味しない（§7 の F-7）。§7 の発見 C（1 回目・2 回目）の「判定 C への注意」を先に読む。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に、implementation base / head が本欄に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（発見 C（2 回目）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。implementation head は欄の SHA で、この commit ではない。
+  - 必要な権限: Unity のバッチテストを sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から起動すること（SKILL の Phase C）。Unity Editor が閉じていること。初期状態は §5（Active Build Target が StandaloneWindows64、Domain Reload 無効、作業ツリーが clean）。`TestResults/` への書き込み。Artifact Storage への evidence の stage は [Artifacts README の事前承認](../../tools/Artifacts/README.md#エージェント操作の事前承認) の範囲。push は SKILL の公開点の規則に従う。
+  - 停止規則: §2 の未判定（harness・fixture・環境なら B、Unity の挙動が語で読めない時と process の間で答えが違う時は Phase A）、§4 の「Phase A へ差し戻す条件」。B と発見 C の往復は 0 巡（上限 4 巡。revision 1 で数え直さない）。(2)〜(7) の間に commit を切らない（第 2 process が head を照合する）。既知の Unity 終了 stall は `tools/Harness/README.md` の規則に従い、調査を反復しない。
   - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -497,6 +497,37 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 - evidence bundle: 未生成（判定が成立しなかったので作らない。生ログは上の所在に保持）。
 - 実行しなかったこと: `contract-audit`（実装は変えていない。発見 C の結果が有効）、Artifact Storage への stage。
 - 担当・モデル: 判定 C は新しい session（Claude Sonnet 5.5、Anthropic）。B（Claude Opus 5.5）とモデルが異なり、ベンダーは同じ。
+
+### 発見 C（2 回目、revision 1 の実装、2026-11-14）
+
+- 種別: 発見。GO 判定はしていない。C' は起動していない。
+- 対象: implementation base `bc3ca436` から head `a304963b3aa40b5c4500e99b4169ba476b7e7e33` の差分（commit 固定。stage snapshot は使っていない）。発見 C（1 回目）の head `4191ed9d` からの増分（差し戻しの commit `54a4cb84` と revision 1 の `a304963b`）を重点に読んだ。開始時の照合（渡された SHA と HEAD、clean、ブランチ、欄が「この票を含む commit」で `git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file、PR #182 の状態ブロックの `引き継ぐ commit` と implementation head）は全て一致した。
+- 使用した evidence bundle の取得案内・状態: 未生成（commit を直接読んだ）。
+- 構造適合: 適合。
+  - `git diff --name-status bc3ca436 HEAD` は §3 の新規 file と `.meta`、本書、program だけ。製品の file と、probe 用以外の asmdef は変わっていない（`OneStarMaker.TestSupport` の asmdef は base と同じで、`TestToolkitView` だけが残る）。
+  - probe の 3 file は `.meta` ごと similarity 100%（`.meta`）で移動し、GUID は `OverlayFixture.ProbeGuids` と一致する。namespace・class 名・field は変わっていないので、`OverlayExpected` の完全名も変わらない。
+  - probe 用の asmdef の項目は §3 の行のとおり（`references`・`defineConstraints`・platform は空、`autoReferenced`・`noEngineReferences`・`overrideReferences` は false、`rootNamespace` は probe の namespace）。`Tests/` 直下の `OneStarMaker.Tests.asmdef` より近い asmdef なので、probe はそちらに吸われない。どこからも参照されないので、依存の向きと循環に辺を足さない。test 側は probe の型を参照せず（`TestSupport`・`OverlayProbes` の参照は harness のコメントと namespace の定数だけ）。
+  - `ScriptingDefines` は空で、§4 の B 適応の既定（製品と同じ空）どおり。
+  - `FirstProcessLog`（差し戻しで入った B 適応）: `LogAssert.ignoreFailingMessages` と購読は `Start` で立て、`finally` の `Stop` で必ず戻す（`Aftercare.End` の例外は catch した後に `Stop` が走る）。worker thread の log は lock した列に入れ、書くのは main thread の `Flush` だけ。I-3 (d) と §2.2 の log の扱いに合う。
+  - 新規・編集の `.cs` は全て先頭に `#nullable enable`。`record` は無い。偽 null の扱いは発見 C（1 回目）から変わっていない。
+- 凍結済みの条件との照合: revision 1 の §5.2 の「Phase B への影響」の 4 点（移動、asmdef、`ScriptingDefines` を空、`ProbeGuids` のコメント）と `FirstProcessLog` を残すことは全て入っている。§2 の問い・語・判定定義、§2.2 の受け入れ条件、§5 の判定必須テストに触れる変更は無い（`OverlayVerdict`・`OverlayRounds`・`OverlayVerdictTests` は `4191ed9d` から変わっていない）ので、発見 C（1 回目）の照合と F-1〜F-6 はそのまま有効。
+- 現在の問いを阻害する findings: なし。
+- 阻害しない findings（凍結済みの条件・常時契約への違反ではない。修正は求めない。category は semantic、unique）:
+
+| ID | 重さ | 指摘 | 根拠 | bucket と扱い |
+|---|---|---|---|---|
+| F-7 | note | `FirstProcess` は log を test の失敗にしなくなったので、build が Failed でも、P1〜P3 が成り立たなくても、後始末が終われば XML は Passed になる（assert は後始末の例外と record の有無だけ） | `OverlayBuilds.FirstProcess` の末尾の 2 つの assert、§2 の「test の合否と判定は別」 | 凍結した作りどおり。判定 C は (2) の Passed を AC1 の成立と読まず、record の `build-end`（両方の `result`）、`preconditions`、`process-aftercare` の行で読む |
+| F-8 | note | `unity-log` の行の `phase` は、直前の `Flush` 以降の log の束で、`build-base` には fixture の v1 の作成と base の root の作成の log も、`build-overlay` には v2 への書き換えの log も入る | `FirstProcess` の `Flush` の位置 | log を phase で build の物と読み分ける時は、`build-end` の行との前後（record の順）で読む |
+
+- 判定 C への注意（運用。条件の追加ではない）: 発見 C（1 回目）の 3 点はそのまま当てはまる（記録 commit は全ての実行の後、やり直した process の観測が残ること、各 process の前の `git status --porcelain` と Editor による tracked file の書き換えの戻し）。判定 C（1 回目）の実行と生ログは旧 head の物で、今回の判定の根拠にしない。この worktree には `unity/Assets/OsmSpikeOvl/` の残りは無い（2026-11-14 に確認）。
+- 後続スライスへ移送する findings: なし（F-1 の後半の移送は変わらない）。
+- 実行したテストコマンドと `-Filter`: なし（阻害する指摘が無く、起点の `OverlayVerdictTests` は判定必須の (1) と同じで、revision 1 で変わっていないので、判定 C でまとめて実行する）。
+- 機械検査: `pwsh tools/contract-audit.ps1` 合格（errors 0、warnings 0、検査 1〜9）。本記録を書いた後の `pwsh tools/docs-audit.ps1` は errors 0、warnings 2（§7 が埋まっているという harvest の促しで、違反ではない）。
+- 判定必須のうち未実行: 7 つ全て（と条件付きの 2 つ）。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: Unity 上の挙動は何も確かめていない。probe 用の asmdef の probe が Content Directory の build の `SourceAssets` に入るか（P1）、source を消した Play で class が読めるか、2 回目の build が v2 を取り込むか、`BuildName` の前提は、判定 C の実行で初めて分かる。B の `CompilePlayerScripts` の確認が `BuildContentDirectory` の compile と同じ規則かも確かめていない（§6 の留保）。
+- B との往復: 0 巡（revision 1 で数え直さない）。
+- 担当・モデル: 発見 C（2 回目）は新しい session（Claude Opus 5.5、Anthropic）。B の revision 1 の実装と同じモデルで、独立性の制約がある（owner の方針で、独立性のために高コストのモデルへ上げない。別ベンダーの目は C' で入れる）。
 
 ## 8. Phase C'
 
