@@ -2,13 +2,13 @@
 
 ## 0. メタデータ
 
-- type: slice（調査スパイク）; status: A3 凍結済み・Phase B 待ち
+- type: slice（調査スパイク）; status: 発見 C 収束・判定 C 待ち
 - branch: `codex/logging-tail-failure`
-- implementation base: `054dc759e98d63e998665aa2f99298a63cc9f8e6`; implementation head: 未固定
+- implementation base: `054dc759e98d63e998665aa2f99298a63cc9f8e6`; implementation head: この票を含む commit
 - risk: high（非同期の同期と終了境界）; owner: root; created: 2026-11-14; expires: 結論の harvest または 2026-12-31
 - harvest: Issue #183 と必要な公開ログ文書。修正が必要なら別スライスの Phase A
-- Phase A snapshot: A3 凍結版をローカル固定済み（未昇格）。取得案内は既存の手元の運用メモに保管。送信側で取得・閲覧を確認、次担当による取得確認は引渡し時に行う。B result / C evidence / C' blind bundle: 未生成。
-- 引継ぎ: 次担当: Phase B 実装。引き継ぐ commit を HEAD と照合し、凍結 snapshot の案内に従い取得・内容確認後、§3〜§5 のテスト支援だけを実装する。新規の公開 API / asmdef / 製品 seam が必要なら Phase A に戻す。Unity テスト・Build は実行しない。完了時に contract-audit、未実行を記録し commit する。implementation head は未固定。
+- Phase A snapshot: A3 凍結版をローカル固定済み（未昇格）。取得案内は既存の手元の運用メモに保管。Phase B 担当が取得・閲覧し、凍結 HANDOFF の SHA-256 と HEAD の Git 内容が一致。取得案内は手元の運用メモ `logging-tail-failure-frozen.json`。B result / C evidence / C' blind bundle: 未生成。
+- 引継ぎ: 次担当: 判定 C。引き継ぐ commit を起動指示の SHA と HEAD で照合し、上記取得案内から A3 snapshot を取得して実装差分をレビューする。動作確認は対象なし。Unity バッチ試験と全 EditMode 回帰は判定 C の担当が標準 runner で実施し、生証拠を保存する。Unity 実行・保存には対象 Editor と Artifact Storage の通常操作環境が必要。条件が成立しない場合は損失・保持を結論せず Phase A に戻す。C' には発見 C の所見を渡さない。
 
 ## 1. 目的と対象外
 
@@ -68,15 +68,21 @@
 
 ## 6. Phase B / 動作確認
 
-未着手。implementation head 未固定。動作確認: 対象なし（Unity test は C）。
+- 実装担当: Codex / OpenAI。実 factory と既存 asmdef を使う専用試験を追加。A/B の同時待機と B 投入、stream write、有限 watchdog と終了、対照 run、全 bytes・通知・実行 DLL hash・checkout HEAD を記録する。結果は checkout 外の一意な一時 directory に残し、条件不成立は試験失敗として扱う。製品コードの変更なし。
+- B 適応: 完了候補の検査後から watchdog 停止 signal までの間に timeout が生じても成立扱いし得る問題を修正。watchdog の完了 signal を待ってから timeout を最終判定し、停止未確認も未成立として記録する。凍結条件・製品 seam は変更していない。
+- 追加の B 適応: A/B の同時待機の成立値と、その瞬間の worker ID を保存する。B の両 getter が例外を投げたことを signal で確認してから Dispose を開始し、確認できなければ未成立とする。いずれも試験 fixture 内の変更で、製品 seam は追加しない。
+- `pwsh tools/contract-audit.ps1`: エラー 0、警告 0。Unity Editor のコンパイル確認、Unity テスト、Build は未実行。実行可能性・実 DLL の一致・実際の出力と通知は Phase C で初確認する。
+- 動作確認: 対象なし（Unity test は C）。
 
 ## 7. Phase C
 
-未着手。evidence bundle 未生成。判定必須テストすべて未実行。
+発見 C の補助確認（Codex / OpenAI、B と同系列のため独立 C に数えない）で watchdog の timeout と完了判定の競合を発見した。Grok 4.7 Low / xAI の旧 head に対する限定レビューは同時待機の証拠不足と B の例外・Dispose の順序を指摘し、上記 B 適応へ差し戻した。この限定レビューは固定入力を閲覧したが、保存 bundle の取得確認がなく assist とする。
+
+修正 head の発見 C bundle はローカル固定済み（未昇格）。取得案内は手元の運用メモ `logging-tail-failure-discovery-r2.json`。別プロセスで fetch と hash 検証が成功し、Grok 4.7 Low の新規 session が凍結 HANDOFF 等を閲覧したが、結論が返らず時間を区切って中断したためレビュー未完了。初回 Grok 4.7 High も結論未到達で中断した。Grok 4.7 Low / xAI が同じ修正後 bundle を取得・閲覧し、修正箇所の再レビューと配置・依存・寿命・失敗時証拠保存のレビューを別々に完了、追加 blocker なし。Codex / OpenAI の補助確認も追加 blocker なし。発見 C は収束し GO 候補を固定する。判定 C の evidence bundle は未生成、Unity 判定必須テストはすべて未実行。条件不成立を製品の損失・保持の結論に使わない。
 
 ## 8. Phase C'
 
-未着手。blind bundle 未生成。担当と独立性は凍結前に確定。
+未着手。blind bundle 未生成。A/B/C 未関与の担当は記録上特定できず、A の Cursor 外部レビューはモデル系列が明記されていない。候補の独立性を確認できるまで監査済みとしない。
 
 ## 9. Phase D
 
