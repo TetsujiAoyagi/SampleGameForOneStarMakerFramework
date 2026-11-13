@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: 発見 C の完了（2026-11-13。阻害する指摘なし、B への差し戻しなし。次は判定 C）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: 判定 C は未判定で停止（2026-11-13。§5 の (2) の base の build が Failed で、(3) 以降は未実行。harness・環境の問題として B へ返す。§7 の「判定 C（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: `4191ed9d663b42adaa0ac56e080e06666c862a2c`
@@ -20,9 +20,9 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C。発見 C（§7）に阻害する指摘は無く、GO 候補 head は implementation head 欄の commit である（未公開の試行錯誤 commit は無く、整理は不要）。§5 の判定必須テスト 7 つを順に別の Unity process で実行し（拒否が出た時だけ条件付きの 2 つ）、evidence bundle を作り、§2 の定義を record の観測の行に当てて答えを読む。§7 の「判定 C への注意」を先に読む。C' は判定 C の完了後に、所見を含まない blind bundle で起こす。
+  - 次の Phase・役割: Phase B（判定 C は未判定で停止した。§7 の「判定 C（1 回目）」）。(2) `FirstProcess` の base の build が失敗したので、harness・fixture・環境の問題として B 適応で直せるかを分類し（§4・§6 の B 適応の範囲。製品 code・asmdef の変更が要るなら Phase A へ）、修正後に GO 候補 head を固定し直して判定 C を新しい implementation head でやり直す（旧 head の判定 evidence は流用しない）。C' は起動しない。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 引き継ぐ commit: この票を含む commit（判定 C（未判定）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
   - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
   - 停止規則: 未判定に当たる事実が出たら §2 の判定定義に従い、harness・fixture・環境の問題は B へ、定義した語で読めない挙動と process の間の不一致は Phase A へ返す。B と発見 C の往復は 0 巡を使った（上限 4 巡）。process の自然終了はゲートにしない（§5）。
   - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
@@ -403,6 +403,31 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 - 未確認事項: Unity 上の挙動は何も確かめていない。§5 の未確認（probe が build に入るか、source を消した Play で class が読めるか、2 回目の build が v2 を取り込むか）、§6 の未確認の前提（`BuildName`）、Play の間に前の round の物が残らないこと（開始時の 0 件）は、判定 C の実行で初めて分かる。
 - B との往復: 0 巡。
 - 担当・モデル: 発見 C は新しい session（Claude Fable 5.2、Anthropic）。B の実装 commit の記録は Claude Opus 5.5 で、モデルは異なり、ベンダーは同じ。
+
+### 判定 C（1 回目、2026-11-13）
+
+- 種別: 判定。**未判定で停止**（§2 の「build を開始できない」に当たる）。GO 判定も答えも出していない。C' は起動していない。実装（`unity/` の file）は変えていない。
+- 対象: implementation head `4191ed9d663b42adaa0ac56e080e06666c862a2c`。開始時の照合（渡された SHA と HEAD、clean、ブランチ、implementation head が祖先で差分が本書だけ、PR #182 の状態ブロック）は全て一致した。
+- 実行（sandbox 外の承認済み経路、各 process の前に `git status --porcelain` が空、別の Unity process で 1 つずつ）:
+
+| # | `-Filter`（`OneStarMaker.Tests.Editor.Spikes.OverlayRegistration.` 以降） | 結果 | 生ログの所在（`TestResults/`、git 管理外） |
+|---|---|---|---|
+| 1 | `OverlayVerdictTests` | exit 0。XML は total 30、passed 30、failed 0、root `Passed` | `556aa355-dcf4-42f7-a46d-72f210233814/` |
+| 2 | `OverlayBuilds.FirstProcess` | exit 1。XML は total 1、passed 0、failed 1、root `Failed(Child)`。step.json の status は failed、Unity の exit code は 2 | `b2694148-4420-4b41-8544-3172502a8a54/`（results.xml、unity.log、step.json）、record は `ovl/20261113T040007Z/record-first-20261113T040007Z.jsonl` |
+| 3〜7 | `OverlayRounds.ClassFirst` ほか 5 つ | **未実行**（(2) の出力が入力で、(2) が成立しなかったため。条件付きの 2 つも対象外） | — |
+
+- (2) の観測（事実のみ。原因調査はしていない）:
+  - record の行は `scope`、`process-start`、`build-end` の 3 行だけ。`build-end` は `directory: base`、`result: Failed`、`elapsedMs: 51099`、`extraScriptingDefines: ["UNITY_INCLUDE_TESTS"]`、root は `Assets/OsmSpikeOvl/Root_base.asset`。P1〜P3 の行も上書きの build の行も無く、`process-aftercare` の行も無い。
+  - `unity.log` に `Library\PackageCache\com.unity.inputsystem@7a4e1a2a8194\InputSystem\Runtime\InputSystemTestHooks.cs(38,29)` ほか 3 か所の `error CS0117: 'InputSystem' does not contain a definition for 'remoteConnection'` と、`Script Compilation Error for: Csc ... Unity.InputSystem.dll` がある。test の失敗メッセージは同じ Error の `Unhandled log message`。
+  - 読み: build の引数 `UNITY_INCLUDE_TESTS`（§6 の B 適応）を渡した script compile で、Unity の入力パッケージの test 用 code が通らなかったことと符合する。これは log の読みで、因果は確かめていない（確かめるのは B）。
+  - (2) の後、`unity/Assets/OsmSpikeOvl/` と `.meta`（fixture の folder。record に fixture を消した行が無い）が untracked で残っている。marker は `TestResults/ovl/20261113T040007Z/ovl-run.marker`。何も消していない。
+- 各 process の前後の `git status --porcelain`: 起動前は (1)(2) とも空。(1)(2) のどちらの後も、§6 の「Phase C への注意」と同じ tracked file（`Assets/MobileDependencyResolver` の `.pdb.meta` 5 つの削除）が出たので、HEAD の内容へ戻した。(2) の後に残るのは上記の untracked fixture だけ。
+- §2 の定義への当てはめ: build を開始できない（base の build が Failed）。Q1〜Q4 とスパイクの答えは読めない。AC1・AC8 の process の前後の比較は record に無く、判定できない。
+- 返す先: **Phase B**（harness・fixture・環境の問題。製品 code・asmdef の変更も、凍結した語で読めない挙動も、process の間の不一致も出ていない）。B が B 適応か Phase A の再開かを §4・「新しい事実の分類」で決める。実装 head が変われば、この判定 C の実行は無効で、新しい GO 候補 head で 7 つをやり直す（判定後の head 変更）。残った fixture の folder は、marker を確かめてから扱う。
+- 発見 C の所見（F-1〜F-6）への影響: なし（今回の事実は F-1〜F-6 のどれにも当たらない）。
+- evidence bundle: 未生成（判定が成立しなかったので作らない。生ログは上の所在に保持）。
+- 実行しなかったこと: `contract-audit`（実装は変えていない。発見 C の結果が有効）、Artifact Storage への stage。
+- 担当・モデル: 判定 C は新しい session（Claude Sonnet 5.5、Anthropic）。B（Claude Opus 5.5）とモデルが異なり、ベンダーは同じ。
 
 ## 8. Phase C'
 
