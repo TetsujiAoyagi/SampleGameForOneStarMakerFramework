@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: `B` の出口（2026-11-13。次は発見 C）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: 発見 C の完了（2026-11-13。阻害する指摘なし、B への差し戻しなし。次は判定 C）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `4191ed9d663b42adaa0ac56e080e06666c862a2c`
 - risk: `high`（program §8 の指定。製品 code は変えないが、結論が S2・S3 の形を決める）
 - owner: root（依頼者）
 - created: 2026-11-13
@@ -20,12 +20,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（動作確認は `対象なし`。§5）。implementation head の差分（base `bc3ca436` から）を、構造・契約・凍結済みの失敗経路から先にレビューする。§6 の「判定の写像で、語の読み方を決めた所」と B 適応が凍結済みの条件と矛盾しないかも見る。GO 判定はしない。C' も起動しない。差し戻しが無くなったら、判定 C で §5 の判定必須テスト 7 つ（条件付きの 2 つ）を実行する。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄は「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file がある（implementation head は HEAD 自身）。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。発見 C の記録 commit を切る担当は、implementation head 欄に起動時に渡された SHA を書く（句を引き継がない）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR #182 の状態ブロックで渡す）。
-  - 必要な権限: 発見 C は読むだけで、差し戻し中のテストは §5 の起点 `-Filter` に限る。判定 C の Unity バッチテストと Content Directory の build は、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。push は SKILL の公開点の規則に従う。
-  - 停止規則: 指摘は「凍結済み条件または常時契約への違反により現在の問いを阻害する欠陥」と「後続スライスの入力」に分ける（SKILL の Phase C）。B と発見 C の往復は 4 巡まで。§4 の「Phase B から Phase A へ差し戻す条件」に当たる事実が出れば Phase A へ返す。
-  - 引き渡さないもの: なし（C' への隔離は Phase C で扱う）。
+  - 次の Phase・役割: 判定 C。発見 C（§7）に阻害する指摘は無く、GO 候補 head は implementation head 欄の commit である（未公開の試行錯誤 commit は無く、整理は不要）。§5 の判定必須テスト 7 つを順に別の Unity process で実行し（拒否が出た時だけ条件付きの 2 つ）、evidence bundle を作り、§2 の定義を record の観測の行に当てて答えを読む。§7 の「判定 C への注意」を先に読む。C' は判定 C の完了後に、所見を含まない blind bundle で起こす。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
+  - 停止規則: 未判定に当たる事実が出たら §2 の判定定義に従い、harness・fixture・環境の問題は B へ、定義した語で読めない挙動と process の間の不一致は Phase A へ返す。B と発見 C の往復は 0 巡を使った（上限 4 巡）。process の自然終了はゲートにしない（§5）。
+  - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
 
@@ -364,7 +364,45 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 
 ## 7. Phase C
 
-未着手。
+### 発見 C（1 回目、2026-11-13）
+
+- 種別: 発見。GO 判定はしていない。C' は起動していない。
+- 対象: implementation base `bc3ca436` から head `4191ed9d663b42adaa0ac56e080e06666c862a2c` の差分（commit 固定。stage snapshot は使っていない）。開始時の照合（渡された SHA と HEAD、clean、ブランチ、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file、PR #182 の状態ブロック）は全て一致した。
+- 使用した evidence bundle の取得案内・状態: 未生成（発見 C は commit を直接読んだ。判定 C が作る）。
+- 構造適合: 適合。
+  - 変更は §3 の新規 file と `.meta`、本書、program の 1 行だけ（`git diff --name-status bc3ca436 HEAD`）。製品の file と asmdef は変わっていない。probe は `OneStarMaker.TestSupport`、他は `OneStarMaker.Tests.Editor` にあり、Runtime 側に `UnityEditor` 依存は無い。test 側は probe の型を参照していない。
+  - 責務は §3 の表どおり。判断は Unity の型を持たない `OverlayVerdict` にあり、単体テスト 30 件が付く。`OverlayRounds.cs`（746 行）と `OverlayVerdict.cs`（511 行）の超過は §6 の説明（fixture の定義と観測の型を pure 側に 1 か所、5 process を合わせる判定、`Held`）で読め、変更理由の混在は無い。Phase D で消す実験 code なので分割は求めない。
+  - 資源の所有と寿命は §3 の表どおり（fixture は第 1 process の `finally`、登録・token・Scene は round の `finally`、log の購読と `LogAssert` は round ごとと `Finish`）。
+  - 偽 null: `UnityEngine.Object` は全て `== null` / `!= null` で判定している。`?.`・`ReferenceEquals` は C# の class（layout の行、token）にだけ使っている。
+  - 製品の `UnityContentDirectoryBackend` は無改変で 2 つ持ち、両方を登録してから load している。
+- 凍結済みの条件との照合（静的に読んだ範囲）:
+  - §2 の (a)〜(l): P1 は script の file の layout の `SourceAssets` を probe の `.meta` の GUID（実 file と一致を確認）から引いた path で照合し、sha256 の差だけでは通らない。P2・P3 は固定 GUID で帰属を引く。class は位置ごとの完全名と値、Missing は `GetComponents<Component>()` の `== null`。期待値は `OverlayExpected` だけから採る。root は別の固定 GUID の 2 asset で、handle ごとの `BuildIdentity` を照合する。答えは `PlayIndex == 0` の回から採り、他の回と違えば未判定。拒否は、同じ呼び出しが `BaseAloneFirst`・`OverlayAloneFirst` の最初の Play で成功した時だけ答えになる。
+  - AC1〜AC8 の手順（round の並び、AC4 と AC5 (1) の load の順、AC5 の (1)〜(6)、対照の順、後始末と直接回収、前後の `git status` と設定の比較）は凍結した文言どおり。
+  - §6 の「語の読み方を決めた所」の 4 つと B 適応は、凍結済みの条件と矛盾しない（F-2・F-6 に補足）。`UNITY_INCLUDE_TESTS` を制約に持つ非 Editor の asmdef が `OneStarMaker.TestSupport` だけであることは `Assets` 下で確かめた。
+- 現在の問いを阻害する findings: なし。
+- 阻害しない findings（どれも凍結済みの条件・常時契約への違反ではない。修正は求めない。category は全て semantic、unique、担当は本欄の末尾）:
+
+| ID | 重さ | 指摘 | 根拠 | bucket と扱い |
+|---|---|---|---|---|
+| F-1 | note | script をまとめた file を最初に読むのは、どの round でも Scene の load ではなく `RegisterAll` の root の読み取り（`BuildContentRoot` の MonoScript はその file にある）で、順は登録の順である。AC4 と AC5 (1) の Scene の順の違いは「先に読んだ側」を変えていない見込み。YES が出た時は base だけの script と上書きだけの script の両方が解決されたことになるので、(k) の誤答の道は開かない。NO が出た時に「壊れる側が Scene の順で変わる・変わらない」と読む根拠にはできない | `OverlayRounds.cs` の `RegisterAll`（root の照合）と `Entry`、§2 の (k) | 文言の隙間。判定 C と Phase D は、結論で Scene の順の効果を述べる時にこの事実（root は登録の順に先に読まれた）を添える。root を読む順を変えて測るかは owner が決める後続（S3 の入力） |
+| F-2 | note | AC4 の `SceneEdit` が上書き版でない時に Q2 を未判定にする読み方は、凍結した Q2 の語（上書き版の `SceneEdit`）に沿う。ただし Scene で Q1 が不成立（上書きの id から v1）なら AC4 でも v1 になる見込みで、その時の補助の判定は NO ではなく UNDECIDED になる。凍結文はこの場合の Q2 の読み方を書いていない | `OverlayVerdict.cs` の `Q2`、§2 の Q2 と GO | 文言の隙間。起きた時は、判定 C が record の事実を示して owner に返す（どの条件の合否も変えない読み方なら決定記録、変えるなら Phase A）。補助の判定の UNDECIDED をそのまま結論にしない |
+| F-3 | note | Q4 に添える log の数（`ErrorLogs`）は、Play に入る間と登録の間の Error も (1)〜(5) 側に数える。Play を抜ける間の Error は `round-end` の行を書いた後に `ErrorLogsInRelease` に足される（観測の JSON と `round-end` の数がずれうる）。答え（無傷 / 壊れた）には影響しない | `OverlayRounds.cs` の `Flush`・`BeforePlay`・`AfterPlay` | 判定 C は「確認点の間の log」を、数ではなく `unity-log` の行の `phase` で読む |
+| F-4 | note | AC2 の `EditedTex` は版（pixel の sha256 が定義と一致したか）だけを record に書き、sha256 の実値は書かない（AC3 は書く） | `OverlayRounds.cs` の `EditAsync` と `alone` の行 | 版は定義の sha256 との完全一致でしか付かないので、AC2 の照合はできる。追加は求めない |
+| F-5 | note | 第 1・第 2 process の後始末の比較（`git status`、設定、fixture の残り）は `problems` として record と補助の判定に入るが、test の失敗にはならない | `Aftercare.End`、`Session.Finish` | XML の Passed は AC8 を意味しない。判定 C は各 process の `process-aftercare` の行で AC8 を読む |
+| F-6 | note | 対照の順の round で登録か load が拒否された時、補助の判定は単独の最初の Play の成功を求めて UNDECIDED になるが、§5 の条件付きのコマンドは主の順の拒否の時だけ実行する | `OverlayVerdict.cs` の `RoundAnswer`、§5 | 文言の隙間。起きた時は判定 C が owner に返す |
+
+- 判定 C への注意（運用。条件の追加ではない）:
+  - 第 2 process は record の head を第 1 process と照合する（`InputMatched`）。(2) から (7)（条件付きを含む）の間に commit を切ると未判定になるので、記録 commit は全ての実行の後に切る。
+  - 補助の判定は、同じ実行 id の `observations-*.json` を全て読む。ある process をやり直すと、前の回の観測（途中で止まった回を含む）も読まれ、UNDECIDED の理由に残る。答えは record の行から読む。
+  - §6 の「Phase C への注意」のとおり、Editor がこの worktree で関係の無い tracked file を書き換えることがある。各 process の前に `git status --porcelain` が空であることを確かめ、書き換えが出たら HEAD の内容へ戻してから次を起動する（§5 の初期状態）。process の中で起きた分は `process-aftercare` に出る。
+- 後続スライスへ移送する findings: F-1 の後半（root を読む順を変えた時の挙動。S3）。
+- 実行したテストコマンドと `-Filter`: なし（阻害する指摘が無く、起点の `OverlayVerdictTests` は判定必須の (1) と同じなので、判定 C でまとめて実行する）。
+- 機械検査: `pwsh tools/contract-audit.ps1` 合格（errors 0、warnings 0、検査 1〜9）。本記録を書いた後の `pwsh tools/docs-audit.ps1` は errors 0、warnings 2（本書と program の §7 が埋まっているという harvest の促しで、違反ではない）。
+- 判定必須のうち未実行: 7 つ全て（と条件付きの 2 つ）。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: Unity 上の挙動は何も確かめていない。§5 の未確認（probe が build に入るか、source を消した Play で class が読めるか、2 回目の build が v2 を取り込むか）、§6 の未確認の前提（`BuildName`）、Play の間に前の round の物が残らないこと（開始時の 0 件）は、判定 C の実行で初めて分かる。
+- B との往復: 0 巡。
+- 担当・モデル: 発見 C は新しい session（Claude Fable 5.2、Anthropic）。B の実装 commit の記録は Claude Opus 5.5 で、モデルは異なり、ベンダーは同じ。
 
 ## 8. Phase C'
 
