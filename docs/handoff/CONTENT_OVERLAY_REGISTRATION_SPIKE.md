@@ -20,7 +20,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（判定 C は未判定で停止した。§7 の「判定 C（1 回目）」）。(2) `FirstProcess` の base の build が失敗したので、harness・fixture・環境の問題として B 適応で直せるかを分類し（§4・§6 の B 適応の範囲。製品 code・asmdef の変更が要るなら Phase A へ）、修正後に GO 候補 head を固定し直して判定 C を新しい implementation head でやり直す（旧 head の判定 evidence は流用しない）。C' は起動しない。
+  - 次の Phase・役割: Phase B（判定 C は未判定で停止した。§7 の「判定 C（1 回目）」）。(2) `FirstProcess` の base の build が失敗し（同じ head で 1 回再実行しても同じ失敗）、harness・fixture・環境の問題として B 適応で直せるかを分類し（§4・§6 の B 適応の範囲。製品 code・asmdef の変更が要るなら Phase A へ）、修正後に GO 候補 head を固定し直して判定 C を新しい implementation head でやり直す（旧 head の判定 evidence は流用しない）。C' は起動しない。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
   - 引き継ぐ commit: この票を含む commit（判定 C（未判定）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
   - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
@@ -414,8 +414,10 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 |---|---|---|---|
 | 1 | `OverlayVerdictTests` | exit 0。XML は total 30、passed 30、failed 0、root `Passed` | `556aa355-dcf4-42f7-a46d-72f210233814/` |
 | 2 | `OverlayBuilds.FirstProcess` | exit 1。XML は total 1、passed 0、failed 1、root `Failed(Child)`。step.json の status は failed、Unity の exit code は 2 | `b2694148-4420-4b41-8544-3172502a8a54/`（results.xml、unity.log、step.json）、record は `ovl/20261113T040007Z/record-first-20261113T040007Z.jsonl` |
+| 2'（owner の指示で同じ head のまま 1 回だけ再実行） | `OverlayBuilds.FirstProcess` | **同じ失敗が再現**。exit 1。XML は total 1、passed 0、failed 1。step.json の status は failed、Unity の exit code は 2。`unity.log` の `error CS0117` は 12 件。base の build が Failed の点も同じ | `7b973236-5cb2-4987-a1df-33d3f2bd8ef7/`、record は `ovl/20261113T050846Z/`。再実行の前に `unity/Assets/OsmSpikeOvl/`（marker 付き）が残っていたが、その状態で process は始まった（fixture を消す行の有無は確かめていない）。再実行の後も untracked で残り、`.pdb.meta` 5 つの削除は HEAD へ戻した |
 | 3〜7 | `OverlayRounds.ClassFirst` ほか 5 つ | **未実行**（(2) の出力が入力で、(2) が成立しなかったため。条件付きの 2 つも対象外） | — |
 
+- 再実行（2'）の扱い: owner の「もう一回だけ通ればそれを採用」の指示で、同じ head のまま (2) だけを 1 回再実行した。**通らなかったので採用していない**。同じ失敗が再現したので、偶発ではなく決定的な問題として B へ返す結論は変わらない。(2) と (2') の 2 回とも判定の根拠にはせず、B の修正後に 7 つをやり直す。
 - (2) の観測（事実のみ。原因調査はしていない）:
   - record の行は `scope`、`process-start`、`build-end` の 3 行だけ。`build-end` は `directory: base`、`result: Failed`、`elapsedMs: 51099`、`extraScriptingDefines: ["UNITY_INCLUDE_TESTS"]`、root は `Assets/OsmSpikeOvl/Root_base.asset`。P1〜P3 の行も上書きの build の行も無く、`process-aftercare` の行も無い。
   - `unity.log` に `Library\PackageCache\com.unity.inputsystem@7a4e1a2a8194\InputSystem\Runtime\InputSystemTestHooks.cs(38,29)` ほか 3 か所の `error CS0117: 'InputSystem' does not contain a definition for 'remoteConnection'` と、`Script Compilation Error for: Csc ... Unity.InputSystem.dll` がある。test の失敗メッセージは同じ Error の `Unhandled log message`。
