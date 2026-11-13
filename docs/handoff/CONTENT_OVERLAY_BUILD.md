@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `C`（**発見 C 完了（2026-11-14）。B へ戻す指摘なし。次は判定 C。** 発見 C の限定実行で、上書きの build の出力が prefab の編集を反映しない事実が出た（§7 の F-1。判定ではない）。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `C`（**判定 C 完了（2026-11-14）: NO-GO、owner へ返す。** 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `42c0ff7f443bcb13293345850dc0536bd4d144da`
@@ -17,17 +17,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3「当面の方針」、§8 の S2 の行と S2-0〜S2-1 の移送、§9 G10 / G11）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。X6）。本スライスは `Scripts/Runtime/` を変えないので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない制約の対象外
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が `evidence stage` で固定し、取得案内は進行役の共有メモに置いた。取得側の閲覧確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（新しい session）。GO 候補 head は implementation head 欄の commit である（未公開の試行錯誤 commit は無く、整理は不要）。**先に §7 の F-1 を読む。** 発見 C の限定実行では、P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1 だった。判定 C の実行で同じ観測が出れば、§2.6 の NO-GO（AC6、影響を受ける root に古い版）で owner へ返す形になる。判定 C を走らせずに owner へ先に返すかは、進行役が owner に確かめて決める。
-  - 次の作業: §5 の判定必須の 1〜3 を、この順に別の Unity process で実行し、evidence bundle を作り、§2.6 の定義を record の観測の行に当てて読む。各 process の前に `git status --porcelain` が空で、Unity が起動していないことを確かめる。2 と 3 は XML の total と record の終了行で「最後まで動いた」を確かめ、process の自然終了をゲートにしない（§5）。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-build` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。食い違えば引き継がずに止まる。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、この session は push も PR の編集もしていない）。
-  - 入力の取得案内・状態: Phase A snapshot・Phase B result snapshot・evidence bundle・C' blind bundle は上の行のとおり未生成。発見 C は commit を直接読み、bundle を作っていない。判定 C が implementation head から evidence bundle を作る。発見 C の限定実行の出力は git 管理外の `TestResults/` に残っているが、判定には使わない（判定 C の build の process は marker を確かめて `TestResults/bs3-fixture/ovb` を作り直し、record は新しい実行 id に書く）。
-  - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
-  - 停止規則: 指摘は §2.6 と blocker の基準で分ける。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。B と発見 C の往復は 0 巡を使った（上限 4 巡）。
-  - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行の結果は C' に渡さない（blind bundle に入れない）。
+  - 次の Phase・役割: **owner の判断**（進行役が owner へ返す）。判定 C は NO-GO（§2.6、AC6）。C' は起動しない。
+  - 次の作業: owner が、§7 の判定 C の結論（成り立たなかったのは S-2 の prefab instance と nested prefab の 2 経路、崩れたのは上書きの形）を材料に、program §8 の縮退判断（prefab の経路を契約から外して進める、原因のスパイクを先に置く、Phase A を新しい revision で再開する、など）を決める。どれを選んでも凍結条件の意味・合否が変わるので、本 revision の続きとしては進めない。
+  - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-build` であることを確かめる。食い違えば引き継がずに止まる。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、この session は push も PR の編集もしていない）。implementation head は `42c0ff7f` のまま。
+  - 入力の取得案内・状態: evidence bundle は上の行のとおりローカル固定済み（未昇格）。C' blind bundle は作っていない（NO-GO のため）。判定 C の生出力は git 管理外の `TestResults/` にも残っている。
+  - 必要な権限: owner の判断。後続で Unity を動かす担当は §5 のとおり sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を使う。push は SKILL の公開点の規則に従う。
+  - 停止規則: 凍結した条件の意味や合否を変える裁定は Phase A の新しい revision にする（SKILL）。B と発見 C の往復は 0 巡を使った（上限 4 巡）。
+  - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行と判定 C の結論は、将来 C' を起こす場合も C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
 
@@ -463,6 +463,45 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 - 未確認事項: 常設の単体テスト（`ContentOverlaySelectionTests`、`BuildContentReportTests`・`BuildContentFullModeTests` の追加分、`OverlayBuildVerdictTests`）は一度も実行していない（判定必須の 1 に含まれる）。F-1 の原因（Unity がどこで古い prefab の版を使ったか）は確かめていない。
 - B との往復: 0 巡。
 - 担当・モデル: 発見 C は新しい session（Claude Opus 5.5、Anthropic）。Phase B の実装 commit も Claude Opus 5.5 で、モデル・ベンダーとも同じ。**独立性制約あり（owner 受容）**: 進行役の起動指示どおり、Phase B と同じ系列で行った。
+
+### 判定 C（1 回目、2026-11-14）
+
+- 種別: 判定。**結論: NO-GO（owner へ返す。§2.6）。** C' は起動していない（NO-GO なので C' 用 bundle は作らない）。
+- 対象: implementation base `66564116` から head `42c0ff7f443bcb13293345850dc0536bd4d144da`（commit 固定）。引き継いだ commit は `0d7f97bd`（発見 C の記録）。開始時の照合（起動指示の SHA と HEAD の一致、clean、ブランチ、implementation head が HEAD の祖先、`git diff --stat 42c0ff7f HEAD` が本書だけ）は全て一致した。
+- 使用した evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-overlay-build`、34 file（判定必須 1〜3 の step・XML・log、build と round の record、preflight と outcome の写し、base と上書きの content の file の sha256、F-1 の出力確認、executor-note、機械検査の出力、diff）。取得案内は進行役の共有メモにある（reference・packageSha256 の実値は本書に書かない）。取得側の fetch での閲覧確認は未実施。
+- 判定必須テスト（§5 の順、別々の Unity process、各 process の前に `git status --porcelain` が空で Unity が動いていないことを確かめた。sandbox 外から `pwsh tools/run-tests.ps1`）:
+
+| # | 対象 | XML | 終了 | 備考 |
+|---|---|---|---|---|
+| 1（1 回目） | 空 filter の全 EditMode | root `Failed(Child)`、total 1867、passed 1838、**failed 1**、inconclusive 25、skipped 3 | 自然終了（Unity の exit 2、XML の 14 秒後） | 失敗は既存の `BuildContentFullModeTests.Full_ClearsWorkspaceBeforeAdapter_AndKeepsWorkspace`。`BuildContentCoordinator.Build` の `Directory.Move(staging, final)` が、作ったばかりの staging の directory に `IOException`（access denied）。この test も `Directory.Move` の行も Phase B は変えていない |
+| 1（2 回目） | 同じ（同じ head、変更なしで 1 回だけ再実行） | root `Passed`、total 1867、passed 1839、**failed 0**、inconclusive 25（全て `SampleGame.Tests.Rendering.Vfx`）、skipped 3（`[Explicit]` の harness 3 件） | 自然終了（exit 2 は Inconclusive による。XML の 10 秒後） | 再実行の理由: 1 回目の失敗が、B の変更が触れていない既存の test の、作成直後の directory の移動での access denied で、Windows の一時的な file の lock と B の欠陥を分けるため。2 回目は通ったので、1 回目は一時的な lock と読み、判定 1 は 2 回目で合格とする。追加された単体（`ContentOverlaySelectionTests` 13、`BuildContentReportTests` 3、`BuildContentFullModeTests` 25、`OverlayBuildVerdictTests` 11）は全て Passed |
+| 2 | `OverlayBuildProcess.Build` | total 1、passed 1、failed 0 | **既知の終了 stall。進行役が停止**（下記） | record に `process-end`（`finished: true`、problems 0、errorLogs 0）と `process-aftercare`（前後で同じ、fixture 残りなし） |
+| 3a | `OverlayBuildRounds.ScenesFirst` | total 1、passed 1、failed 0 | 自然終了（XML の 21 秒後） | `process-end`（`completed: true`、problems 0、errorLogs 0） |
+| 3b | `OverlayBuildRounds.ObjectFirst` | total 1、passed 1、failed 0 | 自然終了（XML の 6 秒後） | 同上 |
+
+- 2 の終了（executor-note）: results.xml の完成は 08:02:15（現地時刻）。08:31:47 に thread 1・UserModeTime 1810.5 s、08:32:03 に 1825.4 s（増え続けていた）。08:32:03 に進行役がその PID（38328）だけを `Win32_Process.Terminate` で止めた（ReturnValue 0）。Terminate は終了コード 0 を作るので、step.json の exit 0 は自然終了ではない。§5 のゲートは XML と record の終了行なので判定に影響しない。stall を理由にした再実行と調査はしていない（`tools/Harness/README.md` の停止規則）。
+- record を AC ごとに読んだ結果（実行 id は bundle の record にある。2 つの round の観測値・entry の集合・実体の数は一致した）:
+
+| AC | 結果 | 根拠（record の行） |
+|---|---|---|
+| 前提 P1 | 成立 | `p1-before-base`: 全観測点が v1（`SceneInstance:EditedPrefab/Probe` `pos:1,2,3`、`SceneNested:OuterPrefab/InnerPrefab/InnerProbe` `pos:7,8,9`、texture は v1 の pixel の hash）。`p1-before-overlay`: 全観測点が v2（`pos:4,5,6`、`pos:10,11,12`、texture は v2）。Scene の観測点は開いた Scene の階層の子 |
+| 前提 P2 | 成立 | `changedSources` は `CanaryTex`・`EditedPrefab`・`EditedTex`・`InnerPrefab`・`UnlistedTex` の 5 つちょうど |
+| canary（AC7 の (2)） | 成立（v1） | `SceneUnlisted.CanaryTex` が `p1-before-base` の値。`registered` の `sourceInAssetDatabase: false` |
+| AC1・AC3・AC4 | 成立 | 判定 1 の 2 回目の単体（上の表） |
+| AC2 | 成立 | `selection`: roots は `PrefabRoot`・`SceneDirect`・`SceneInstance`・`SceneNested`。`SceneClean`・`SceneUnlisted` を含まない |
+| AC5 | 成立 | 上書きの entry の logical key（`registered` の `overlayKeys`）が AC2 の 4 つ。宣言の名前は両方 `ovb_purpose`。`base-inventory` の上書きの前後で 70 file の名前と sha256 が同じ（content 23、workspace 23、publish 先 24） |
+| **AC6** | **不成立** | `SceneDirect.EditedTex`・`PrefabRoot.EditedTex` は v2。**`SceneInstance.Probe` は `pos:1,2,3`、`SceneNested.InnerProbe` は `pos:7,8,9`（v1）。** 両 round とも、どちらも `resolved` は overlay。Error と Exception の log は 0（`counted` の窓に `Log` 以外の行なし） |
+| AC7 | 成立 | (1) `sceneCleanLoaded: true`（base から）。(3) `SceneDirect.UnlistedTex` は v2、`SceneUnlisted.UnlistedTex` は v1 |
+| AC8 | 成立 | `SharedTex` の実体 2、`CleanOnlyTex` 1（両 round）。報告は `SharedTex`・`UnlistedTex` を含み、`CleanOnlyTex`・`CanaryTex`・`EditedTex` を含まない（F-2 のとおり shader と material 2 つも含む） |
+| AC9 | 成立 | 上書きの preflight: `overlayBase`（`ovb_base`、revision、target、manifest の digest、`ovb_purpose`）、`overlayEdits` の 4 path、`overlayRoots`（`SceneNested` の理由は `InnerPrefab`）、`overlayUnmatched`（`UnusedTex` = `NotInAnyClosure`）、`overlaySharedAssets`。outcome は `overlay: true`、`buildMode: Full` |
+| AC10 | 成立 | 差分 26 file は §3 の file とその `.meta`・folder の `.meta`。`Scripts/Runtime/`・asmdef は不変、Selection の `AssemblyInfo.cs` はコメントだけ。各 process の `process-aftercare` で `git status` と設定が前後で同じ、fixture 残りなし |
+
+- **F-1 の再現（判定の根拠）:** 判定 C の build の出力でも、prefab の子の位置を持つ 2 つの `.cf` は上書きと base で sha256 が一致し、v2 の float 列（`4,5,6` / `10,11,12`）は上書きの directory のどの file にも無い（bundle の `f1-output-check.txt`、読むだけの確認を 1 回）。coordinator の `content/<identity>` の全 file で数えると、base 23、上書き 17。
+- 判定（§2.6）: P1・P2・canary が成り立つ回で、影響を受ける root（`SceneInstance`・`SceneNested`）に古い版が出た（AC6）。2 つの process の値は一致したので「未判定（owner へ）」ではない。**NO-GO として owner へ返す。** 崩れたのは「上書きの形」= 製品の coordinator で build した上書きの Scene が、編集した prefab（instance・nested の両方）の版を取り込まないこと。逆引きの規則（AC2）と登録契約の他の文（AC5・AC7・AC8）は実測で成り立った。成り立たなかったのは S-2 のうち prefab instance と nested prefab の 2 経路で、直接参照と Object の root の 2 経路は成り立った。原因（Unity がどこで古い prefab の版を使ったか）は確かめていない。縮退判断（program §8「不成立なら縮退判断を owner へ」）と原因のスパイクの要否は owner が決める。
+- B へ戻す指摘: なし（harness は凍結した手順どおりに観測した。発見 C の F-1 の扱いと同じ）。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors 0、warnings 0（検査 1〜9）。`pwsh tools/docs-audit.ps1` errors 0、warnings 1（program の harvest の促し。違反ではない）。
+- 未確認事項: F-1 の原因。取得側の fetch による bundle の閲覧確認。
+- 担当・モデル: 判定 C は新しい session（Claude Opus 5.5、Anthropic）。Phase B と同じモデル・ベンダーで、**独立性制約あり（owner 受容）**（進行役の起動指示どおり）。2 の stall の停止だけは進行役の session が行った。
 
 ## 8. Phase C'
 
