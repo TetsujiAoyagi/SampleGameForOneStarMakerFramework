@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: C'（1 巡目）を完了し、Phase D へ（2026-11-14、§8。blocker なし、C' の結論も GO・YES）。revision 1 の判定 C は GO、スパイクの答えは YES（2 つの root の id が等しい。§7 の「判定 C（2 回目）」）。対照の順の Q2 の語は、2026-11-14 に owner が改訂した（同じ節）。revision 1 の発見 C は阻害する指摘なしで完了した（§7 の「発見 C（2 回目）」）。revision 1 の Phase B は 2026-11-13 に完了した（§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が probe を新しい asmdef へ移した（§6 の「判定 C からの差し戻し（1 回目）」）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: Phase D（2026-11-14、§9）。C'（1 巡目）は完了した（2026-11-14、§8。blocker なし、C' の結論も GO・YES）。revision 1 の判定 C は GO、スパイクの答えは YES（2 つの root の id が等しい。§7 の「判定 C（2 回目）」）。対照の順の Q2 の語は、2026-11-14 に owner が改訂した（同じ節）。revision 1 の発見 C は阻害する指摘なしで完了した（§7 の「発見 C（2 回目）」）。revision 1 の Phase B は 2026-11-13 に完了した（§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が probe を新しい asmdef へ移した（§6 の「判定 C からの差し戻し（1 回目）」）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
 - implementation head commit: `a304963b3aa40b5c4500e99b4169ba476b7e7e33`
@@ -17,8 +17,8 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§5.3「当面の方針」、§8 の S2-0・S2-0b の移送）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（S2-0・S2-0b の実測と harness の所在）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（発見 C は implementation head の commit を固定して読む。機械向けの期待値は無い）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C（2 回目）が `evidence stage` で固定した。取得案内は git 管理外の共有メモにある（所在は進行役が Phase D の担当へ渡す）。送信側と受け取る側（C' の入力を組んだ進行役）の両方で、別の process で取得を確かめた。昇格・保存の要否は Phase D が決める。
-- C' blind bundle の取得案内・状態: 上の evidence bundle と同じ物（ローカル固定済み、未昇格）。C' の入力の組み方は §8。
+- evidence bundle の取得案内・状態: 確認済み（R2 へ昇格済み）。判定 C（2 回目）が `evidence stage` で固定し、送信側と受け取る側（C' の入力を組んだ進行役）の両方で別の process で取得を確かめた。Phase D が owner の決定で `evidence promote` し、昇格後の取得を別の process で確かめた（§9）。取得案内は git 管理外の進行役の共有メモにある（locality は promoted。reference と packageSha256 は stage の時と同じ）。
+- C' blind bundle の取得案内・状態: 上の evidence bundle と同じ物（確認済み、R2 へ昇格済み）。C' の入力の組み方は §8。
 - 引継ぎ票:
   - 次の Phase・役割: Phase D（保存・引渡しと後始末）。C'（1 巡目）は blocker なしで完了した（§8）。
   - owner の決定（2026-11-14、root）: 判定 C と C' の結論（GO、YES）を受け入れた。その後に受けた PR #182 の外部レビュー（cursor の Grok。総評コメント 2 件とレビュー 1 件（`OverlayRounds.cs` の 289 行へのインライン 1 件を含む）。どれも blocker ではない）は、**全て採用**する。Phase D の担当は、採否を §9 に記録し、harvest に反映する。
@@ -616,4 +616,17 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 
 ## 9. Phase D
 
-未着手。
+- 担当: Phase D の新しい session（Claude Opus 5.5、Anthropic）。進行役の起動指示で、引き継ぐ commit は `953fc510`。開始時の照合は全て一致した（渡された SHA と HEAD、作業ツリーが clean、ブランチ、implementation head `a304963b` が祖先で差分が本書だけ、PR #182 の状態ブロック）。
+- **owner の決定（2026-11-14、root。進行役の質問に owner が選択で答え、進行役が Phase D へ伝えた）:**
+  - (1) program §8 の S2 の行は「目的 build を選ぶ索引 + 上書きの登録契約（登録の順は base → 上書きに固定）」へ縮める。上書きに入れる Scene を逆引きする道具は S2（改訂後の行）が持つ。§2.3 の 2 行と §2 の後続への含意の表の「S2 か S5」は、これで決まった。
+  - (2) 「上書きを登録している間、同じ id の物は base の版を選べない」は、製品の既定の制約として受け入れる。
+  - (3) evidence bundle は R2 へ `evidence promote` する。この Phase D の session が、この bundle の promote と取得確認のためだけに資格情報を使うことを許可した。
+- **C と C' の突き合わせ:** 判定 C（§7 の「判定 C（2 回目）」）と C'（§8）は独立に GO で、主の順の Q1〜Q4（強・正しい・収まる・無傷）、スパイクの答え YES、対照の順の Q1 不成立・Q2 正しい（`Marker_v1`）が一致した。C' が残存リスクに挙げた「対照の実体の数は各 1」は判定 C の記録と同じ観測で、Q3 の語の範囲内である。C' の X-1 は判定 C の答えを変えない（判定 C は record の観測の行から読み、補助の判定の行は使っていない）。食い違いは無い。
+- **PR #182 の外部レビュー（cursor の Grok。総評 2 件とインライン 1 件）:** owner の決定（§0）で全て採用した。どれも blocker ではない。
+  - インライン（`OverlayRounds.cs` 289 行。AC5 の再ロードで `SceneEdit` が上書き版かを判定ロジックが検出していない）: 進行役が record で確かめた事実（5 つの process 全てで、AC5 の `overlay:SceneEdit` の 2 回の `call` の `roots` が両方 `Marker_v2`）を、harvest に「判定の検出の範囲の外で、record の root の名前で確かめた」として書いた。
+  - 総評（harvest に残す事実）: YES は登録の順が base → 上書きの時に限る、`SceneKeep` が直接参照する `EditedTex` は v1 のまま、Q3 の実体の数は主の順で 2・対照の順で 1（一定ではない）、対照の Q2 は owner の語の改訂に依る、Scene を load する順の効果は述べない、Player・別 PC / 別 Library・実データは測っていない。全て事実の文書の新しい節に書いた。
+  - 総評の「永続保存と取得確認を済ませてから実験 code と HANDOFF を消す」: 下の昇格と取得確認の後に消した。
+- **Evidence の保存・引渡し確認:** owner の決定 (3) で、判定 evidence（= C' blind bundle、task `content-overlay-registration-spike`、69 file）を `evidence promote` した（`status: passed`、remote `ready`、locality `promoted`。reference と packageSha256 は変わらない）。昇格の後、Phase D の session が送信側と別の process で `fetch` し、期待 packageSha256 と一致して 69 file を取得し、7 つの XML（30/1/1/1/1/1/1、全て root `Passed`、failed 0）と record（AC5 の `overlay:SceneEdit` の `call` の行を含む）を読めた（引渡し確認済み）。取得案内は進行役の共有メモ（git 管理外）にあり、locality を promoted に更新した。
+- **日次清掃 job の確認:** 非仮想化の pwsh で `evidence schedule status` を実行し、`status: passed` だった。
+- **harvest:** [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) に「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の節と測り直しの手順を足し、前の節の「測っていないもの」から「中身が違う同じ id の file を両方登録した時」を移し、「確かめていないこと」を改めた。program の §5.3「当面の方針」に結論を足し、§8 の S2-1 の行を完了にし、S2 の行を owner の決定 (1)(2) のとおり改め、S2-1 から移送した入力（C' の X-1 を含む）を足した。実験 code（§3 の新規 file と `.meta`）は製品から消し、git 履歴（implementation head `a304963b`）に置く。
+- **後始末:** 本書を削除する。PR #182 の本文を更新して ready にし、push する。PR の merge と `workflow-task.ps1 end` は進行役が行うので、Phase D の担当は行わない。
