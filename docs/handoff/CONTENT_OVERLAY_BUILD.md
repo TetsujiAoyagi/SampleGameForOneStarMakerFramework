@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `B`（**Phase B 完了。次は発見 C。** Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `C`（**発見 C 完了（2026-11-14）。B へ戻す指摘なし。次は判定 C。** 発見 C の限定実行で、上書きの build の出力が prefab の編集を反映しない事実が出た（§7 の F-1。判定ではない）。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `42c0ff7f443bcb13293345850dc0536bd4d144da`
 - risk: `high`（公開 API の追加、製品の build 経路で root の一部だけを build する初回の実機）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -20,13 +20,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（新しい session。Phase B と異なるモデル）。動作確認は §5 のとおり `対象なし`（検証経路は全て Unity バッチで閉じる）なので行わない。
-  - 次の作業: implementation head の差分を、§2.1 の不変条件・成立条件、§2.2 の受け入れ条件、§3 の責務マップと照合し、構造・契約・凍結済みの失敗経路を先に見る。§5 の「発見 C の限定実行」のとおり、harness が最後まで動くことの確認として判定必須の 2 と 3 を各 1 回、理由と範囲を記録して実行してよい（結果は判定に使わない）。差し戻しの起点 `-Filter` は `OneStarMaker.Tests.Editor.Build`。Phase B の結果と、未実行の確認は §6 にある。
-  - 引き継ぐ commit: この票を含む commit（Phase B の完了 commit。SHA は起動指示で渡す。PR の状態ブロックは未更新。§6 の末尾）。
-  - 入力の取得案内・状態: Phase A snapshot・Phase B result snapshot・evidence bundle・C' blind bundle は上の行のとおり未生成。発見 C の evidence bundle は発見 C が implementation head から作る。
-  - 必要な権限: Unity の Editor・バッチの起動（限定実行を行う場合。sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`）。
-  - 停止規則: 指摘は §2.6 と blocker の基準で分ける。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。
-  - 引き渡さないもの: なし（C' へは後で blind bundle だけを渡す）。
+  - 次の Phase・役割: 判定 C（新しい session）。GO 候補 head は implementation head 欄の commit である（未公開の試行錯誤 commit は無く、整理は不要）。**先に §7 の F-1 を読む。** 発見 C の限定実行では、P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1 だった。判定 C の実行で同じ観測が出れば、§2.6 の NO-GO（AC6、影響を受ける root に古い版）で owner へ返す形になる。判定 C を走らせずに owner へ先に返すかは、進行役が owner に確かめて決める。
+  - 次の作業: §5 の判定必須の 1〜3 を、この順に別の Unity process で実行し、evidence bundle を作り、§2.6 の定義を record の観測の行に当てて読む。各 process の前に `git status --porcelain` が空で、Unity が起動していないことを確かめる。2 と 3 は XML の total と record の終了行で「最後まで動いた」を確かめ、process の自然終了をゲートにしない（§5）。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-build` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。食い違えば引き継がずに止まる。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、この session は push も PR の編集もしていない）。
+  - 入力の取得案内・状態: Phase A snapshot・Phase B result snapshot・evidence bundle・C' blind bundle は上の行のとおり未生成。発見 C は commit を直接読み、bundle を作っていない。判定 C が implementation head から evidence bundle を作る。発見 C の限定実行の出力は git 管理外の `TestResults/` に残っているが、判定には使わない（判定 C の build の process は marker を確かめて `TestResults/bs3-fixture/ovb` を作り直し、record は新しい実行 id に書く）。
+  - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
+  - 停止規則: 指摘は §2.6 と blocker の基準で分ける。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。B と発見 C の往復は 0 巡を使った（上限 4 巡）。
+  - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行の結果は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
 
@@ -424,7 +425,44 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 
 ## 7. Phase C
 
-未着手
+### 発見 C（1 回目、2026-11-14）
+
+- 種別: 発見。GO 判定はしていない。C' は起動していない。
+- 対象: implementation base `66564116` から head `42c0ff7f443bcb13293345850dc0536bd4d144da` の差分（commit 固定。stage snapshot は使っていない）。開始時の照合（起動指示の SHA と HEAD の一致、clean、ブランチ、implementation head 欄が「この票を含む commit」で `HEAD^..HEAD` に `docs/handoff/` 以外の file があること）は全て一致した。
+- 使用した evidence bundle の取得案内・状態: 未生成（発見 C は commit を直接読んだ。限定実行の生出力は git 管理外の `TestResults/` にあり、判定に使わないので bundle にしていない。判定 C が作る）。
+- 構造適合: 適合。
+  - B の差分（`8c820a94..42c0ff7f`）は §3 の表の file、その `.meta`、新しい folder の `.meta` 2 つ、本書だけ。`Scripts/Runtime/`、asmdef、friend（`InternalsVisibleTo`）は変わっていない（Selection の `AssemblyInfo.cs` はコメントだけ）。新規・変更した `.cs` は全て先頭が `#nullable enable` で、`record` は無い。
+  - 公開面は §3 のとおり: `BuildPlan.WithSelectedSubset`、enum の末尾の `NotInSubset`、`ContentOverlaySelection` と結果の型、`ContentOverlayBaseIdentity`、`ContentOverlayRecord`（request の `Overlay` が public なので public）、request のコンストラクタ 1 つと property 1 つ。逆引きは I/O を持たず、単体テストは friend で作る plan と snapshot だけで閉じる。
+  - 行数の超過（`BuildPlan.cs` の 50% 超、harness の約 1,600 行）は §3 の警報と §6 の説明で読め、変更理由の混在は無い。harness は Phase D で消す。
+  - 偽 null: harness の `UnityEngine.Object` は `== null` / `!= null` で判定している。`?.` は C# の class（`Declaration`、`_log`）にだけ使っている。
+- 凍結済みの条件との照合（静的に読んだ範囲）:
+  - I-1・I-2・AC1: 正規化（`\`→`/`、`.meta` の除去、その後の重複の統合）、ordinal の `Assets/` 接頭辞を先に判定、閉包との突き合わせだけ大小無視、閉包がちょうど 1 つ対応しない selected の root は `ArgumentException`、上書き不要の結果は plan が null で当たらなかった編集を持つ。どれも凍結文どおりで、単体テストが §2.2 の失敗経路を全て持つ。閉包は root 自身を含む（projection が要求する形）ので、root 自身の編集も当たる。
+  - I-3・AC3: request の新しいコンストラクタは逆引きの結果だけから plan と snapshot を取り、`BuildPlan` / snapshot の引数を持たない（reflection の test もある）。絞りは key を変えず、元の除外を残し、空・未選択・null を拒む。
+  - I-4・I-5・AC4: publisher は `buildMode` の後、publish 先を作る前に outcome の印と preflight の `NotInSubset` で拒む。coordinator は report を書く前に contentSet（大小無視）・宣言の名前（有無の違いを含む）・target を照合する。base の identity は空の欄を拒む。既存の test は変更されていない（追加だけ）。
+  - AC9: preflight の追加の欄と outcome の印は凍結文どおり。名前は §6 のとおりで、Phase D の §18 への harvest の材料になる。
+- 現在の問いを阻害する findings（B へ戻すもの）: なし。
+- 阻害しない findings と、判定 C・owner への事実（どれも B の実装の凍結済み条件・常時契約への違反ではない）:
+
+| ID | 重さ | 内容 | 根拠 | 扱い |
+|---|---|---|---|---|
+| F-1 | **high（判定の向きに直結する事実）** | 限定実行で、上書きの directory から読んだ `SceneInstance.Probe` と `SceneNested.InnerProbe` が v1（`pos:1,2,3`・`pos:7,8,9`）だった。同じ回で前提 P1（source の Scene を通して読んだ値が base の前に v1、上書きの前に v2）、P2（変わった source file が凍結した 5 つちょうど）、canary（v1）、`SourceInAssetDatabase=false` は成り立ち、texture の経路（`SceneDirect`・`PrefabRoot` の `EditedTex`、`SceneDirect` 側の `UnlistedTex`）は v2、base だけの root の側は v1 だった。2 つの round で値は同じ。**原因の切り分け（1 回だけ）:** 上書きの directory の file のうち、prefab の子の位置を含む 2 つ（v1 の float 列 `1,2,3` / `7,8,9` を含む `.cf`）は、base の同じ名前の file と sha256 が一致し、v2 の float 列（`4,5,6` / `10,11,12`）は上書きの directory のどの file にも無い。上書きの directory は base より 4 file 多い（変えた texture の分）。つまり round の読み方ではなく、製品の coordinator が作った上書きの出力が、prefab の編集を Scene に反映していない。Unity がどこで古い版を使ったか（Scene の import 結果か、同じ `Library` の build cache か）は確かめていない | record `p1-before-*`・`observe` の行、`round-*.json`、上書きと base の directory の file の sha256 と bytes | **B 適応ではない。** harness は凍結した手順どおりに観測しており、harness の側で Scene を再 import する等の手当ては、製品の経路の答えを変えてしまう。判定 C で同じ観測が出れば §2.6 の NO-GO（AC6、影響を受ける root に古い版）で owner へ返す（成り立たなかったのは S-2 の prefab instance と nested prefab の経路、崩れたのは「上書きの形」= 製品の build 経路が prefab の依存を Scene の出力に取り込むこと）。原因の特定は owner の縮退判断の後のスパイクか後続の入力 |
+| F-2 | note | 重複の報告（`SharedAssets`）は、`SharedTex`・`UnlistedTex` のほかに、共有の `Shader.shader`・`SharedMat.mat`・`UnlistedMat.mat` も含む。AC8 の「含む / 含まない」の列挙はこれを禁じておらず、定義（閉包の和集合の共通部分）どおり | build-facts の `SharedAssets` | 判定 C は AC8 の報告を列挙の 5 項目だけで読む |
+| F-3 | note | publisher は preflight の excluded の行のどの `\|` 区切りに `NotInSubset` があっても拒むので、stable key・dimension の値がたまたま `NotInSubset` の通常の build も拒まれる | `ContentTransportPublisher.cs` のコメント（B が「誤って一致するのは拒む側だけ」と書いている） | fail-closed で I-4 に反しない。修正は求めない |
+| F-4 | note | round の `Session.Start` が例外で止まると（build の process が未完了など）、`Finish` が走らず `round-*.json` と `process-end` の行が書かれない。その場合も test は失敗し、record には `round-start` の行が残る | `OverlayBuildRounds.cs` の `Run` | 判定 C は、round の XML が Failed の時は record の `round-start` と Unity の log で理由を読む |
+
+- 後続スライスへ移送する findings: なし（F-1 の扱いは owner の判断を待つ）。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: §5 の「発見 C の限定実行」として、判定必須の 2 と 3 を各 1 回、別の Unity process で、sandbox 外から `pwsh tools/run-tests.ps1 -Filter <完全名>` で実行した。理由は §5 のとおり（Phase B は Unity の build と Play を実行していないので、harness の不備を判定 C より前に見つける）。範囲はこの 3 つの test だけで、起点の `OneStarMaker.Tests.Editor.Build` と全 EditMode 回帰は実行していない。
+- テスト結果（XML 上の実行テスト名と件数。判定には使わない）:
+  - `OneStarMaker.Tests.Editor.Spikes.OverlayBuild.OverlayBuildProcess.Build`: total 1、passed 1、failed 0、約 142 秒。record に `process-end`（`finished: true`、problems 0、Error の log 0）、`process-aftercare`（`git status` と設定は前後で同じ、fixture と生成 folder は残っていない）。
+  - `...OverlayBuildRounds.ScenesFirst`、`...OverlayBuildRounds.ObjectFirst`: それぞれ total 1、passed 1、failed 0。どちらも `process-end`（`completed: true`、problems 0、`errorLogs` 0）、後始末で登録の残り 0、`process-aftercare` は前後で同じ。
+  - 3 つとも、XML の完成後に Unity は自然に終了した（既知の終了 stall は出なかった）。各 process の後の `git status --porcelain` は空。
+  - harness の補助の判定の行（`verdict`）は `no-go`、理由は AC6 の上の 2 点だけで、他の AC の行は holds だった。発見 C はこれを判定に使わない（F-1 の事実として記録した）。
+- 機械検査: `pwsh tools/contract-audit.ps1` errors 0、warnings 0（検査 1〜9）。本記録の前の `pwsh tools/docs-audit.ps1` は errors 0、warnings 1（program の §7・§8 が埋まっているという harvest の促しで、違反ではない）。
+- 判定必須のうち未実行: 1（全 EditMode 回帰）は未実行。2 と 3 は限定実行したが、判定の証拠ではないので判定 C がやり直す。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 上の「実行したテストコマンド」のとおり（§5 が許す範囲そのもの）。
+- 未確認事項: 常設の単体テスト（`ContentOverlaySelectionTests`、`BuildContentReportTests`・`BuildContentFullModeTests` の追加分、`OverlayBuildVerdictTests`）は一度も実行していない（判定必須の 1 に含まれる）。F-1 の原因（Unity がどこで古い prefab の版を使ったか）は確かめていない。
+- B との往復: 0 巡。
+- 担当・モデル: 発見 C は新しい session（Claude Opus 5.5、Anthropic）。Phase B の実装 commit も Claude Opus 5.5 で、モデル・ベンダーとも同じ。**独立性制約あり（owner 受容）**: 進行役の起動指示どおり、Phase B と同じ系列で行った。
 
 ## 8. Phase C'
 
