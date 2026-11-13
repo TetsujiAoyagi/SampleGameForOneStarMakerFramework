@@ -28,7 +28,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
         private const string MarkerText = "osm-spike-ovl fixture; deleted at the end of the first process";
         private const int PatternSize = 16;
 
-        // probe の script の .meta の GUID（Tests/TestSupport/Probe*.cs.meta）。P1 は layout の一覧の path をこの GUID と結びつけて照合する。
+        // probe の script の .meta の GUID（Tests/Spikes/OverlayProbes/Probe*.cs.meta）。P1 は layout の一覧の path をこの GUID と結びつけて照合する。
         public static readonly IReadOnlyDictionary<string, string> ProbeGuids = new Dictionary<string, string>
         {
             [OverlayExpected.BaseOnly] = "eeb7b9b0c3fe4401b6d99aecac3954dc",

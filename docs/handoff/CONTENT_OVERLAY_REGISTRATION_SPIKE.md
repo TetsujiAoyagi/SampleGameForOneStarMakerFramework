@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: Phase A revision 1 を凍結し、Phase B へ（2026-11-13。probe の置き場所を、test 制約の無い新しい asmdef へ移す。owner が承認。§5.2。revision 1 の A2 入力版は commit `a76cbd50`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: revision 1 の Phase B を完了し、発見 C へ（2026-11-13。probe を test 制約の無い新しい asmdef へ移し、build の define を空にした。§6 の「revision 1 の実装」）。revision 1 は owner が承認した（§5.2。A2 入力版は commit `a76cbd50`、A3 凍結版は commit `c193edf3`）。経緯: 判定 C（1 回目）は未判定で停止し（(2) の base の build が Failed）、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった（§6 の「判定 C からの差し戻し（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A の revision 0 は A2 入力版が commit `1cfcad07`、A3 凍結版が commit `6d9908c3`。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - risk: `high`（program §8 の指定。製品 code は変えないが、結論が S2・S3 の形を決める）
 - owner: root（依頼者）
 - created: 2026-11-13
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（revision 1 の実装）。次の作業: §5.2 の「Phase B への影響」のとおり、probe の 3 file を `.meta` ごと §3 の probe 用の asmdef の folder へ移し、asmdef を足し、`OverlayBuilds` の `ScriptingDefines` を空にする。終えたら発見 C へ渡す（動作確認は `対象なし`）。判定 C（1 回目）の実行は旧 head のもので、新しい implementation head で判定必須の 7 つを最初からやり直す。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄が `未固定`（Phase A の出口）であること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（revision 1 の A3 凍結版。SHA は起動指示と PR #182 の状態ブロックで渡す）。
-  - 必要な権限: Editor の起動とコンパイル確認（Phase B の範囲。build ではない player の script の compile の確認を含む。§5 の未確認）。Unity のテストと build は実行しない。push は SKILL の公開点の規則に従う。
-  - 停止規則: §4 の「Phase A へ差し戻す条件」。B と発見 C の往復は 0 巡（上限 4 巡）。
+  - 次の Phase・役割: 発見 C（revision 1 の実装の差分）。動作確認は `対象なし`（§5）。次の作業: implementation base `bc3ca436` から implementation head までの差分を、§3（revision 1）・§4・§5.2 と照らして読む。revision 1 で変わったのは probe の 3 file の移動と asmdef の追加、`OverlayBuilds` の `ScriptingDefines`、コメントだけである（§6 の「revision 1 の実装」）。判定 C（1 回目）の実行は旧 head のもので、阻害する指摘が無ければ、判定 C が新しい implementation head で判定必須の 7 つを最初からやり直す。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があること。PR #182 の状態ブロックの `引き継ぐ commit` と implementation head が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（revision 1 の B の出口。SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 必要な権限: commit を読むことと `contract-audit`・`docs-audit`。Unity のテストと build は発見 C では実行しない（§5）。push は SKILL の公開点の規則に従う。
+  - 停止規則: §4 の「Phase A へ差し戻す条件」。B と発見 C の往復は 0 巡（上限 4 巡。revision 1 で数え直さない）。
   - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -402,6 +402,28 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 - Editor は確認後に正常終了させた。Editor が §6 の「Phase C への注意」と同じ `.pdb.meta` 5 つを消したので、HEAD の内容へ戻した。
 - `pwsh tools/contract-audit.ps1`: 合格（errors 0、warnings 0、検査 1〜9）。
 - Unity のテストと build、`OverlayVerdictTests` は実行していない。
+
+### revision 1 の実装（2026-11-13）
+
+§5.2 の「Phase B への影響」のとおりに変えた。製品の file と、probe 用の asmdef 以外の asmdef は変えていない。B 適応は無い（§4 の範囲の中で選んだ物も無い）。
+
+| file | 変更 |
+|---|---|
+| `Tests/Spikes/OverlayProbes/ProbeBaseOnly.cs`・`ProbeOverlayOnly.cs`・`ProbeBoth.cs` と `.meta` | `Tests/TestSupport/` から `git mv` で移した。`.meta` の GUID、namespace、class 名、field は変えていない。置き場所の理由のコメントだけを直した |
+| `Tests/Spikes/OverlayProbes/OneStarMaker.Spikes.OverlayProbes.asmdef` と `.meta` | 新規。項目は §3 の asmdef の行のとおり（`references`・`defineConstraints`・`includePlatforms`・`excludePlatforms` は空、`autoReferenced`・`noEngineReferences`・`overrideReferences` は false、`rootNamespace` は probe の namespace、`allowUnsafeCode` は false、`precompiledReferences`・`versionDefines` は空） |
+| `Tests/Spikes.meta`、`Tests/Spikes/OverlayProbes.meta` | 新しい folder の `.meta` |
+| `OverlayBuilds.cs` | `ScriptingDefines` を空にし、理由のコメントを書き直した。差し戻しで入れた `FirstProcessLog` は残した |
+| `OverlayFixture.cs` | `ProbeGuids` のコメントの path を新しい folder に直した。GUID の値は変えていない |
+
+`OneStarMaker.TestSupport` には、元からある `TestToolkitView` だけが残る（asmdef は変えていない）。
+
+**確認:**
+
+- Unity Editor（6000.6.0f1）のコンパイル: 成功。この worktree の project を開き、`EditorUtility.scriptCompilationFailed` が偽、`unity/Logs/Editor.log` に `error CS` が 0 件、`OverlayProbes`・`OverlayRegistration` の警告が 0 件。`OverlayFixture` の `ProbeGuids` の 3 つの GUID から引いた `MonoScript.GetClass()` が、期待する完全名（`OneStarMaker.Tests.Spikes.OverlayProbes.Probe*`）を返し、その assembly は `OneStarMaker.Spikes.OverlayProbes` だった。`CompilationPipeline.GetAssemblies(PlayerWithoutTestAssemblies)` に `OneStarMaker.Spikes.OverlayProbes` が入っていた。
+- player の script の compile（build ではない。`PlayerBuildInterface.CompilePlayerScripts`、StandaloneWindows64、`extraScriptingDefines` は空、出力は一時 folder で確認後に削除）: 成功。出力に `OneStarMaker.Spikes.OverlayProbes.dll` があり、3 つの class 名と namespace の文字列を含んでいた。`OneStarMaker.TestSupport.dll` と test の assembly は出力に無かった。この compile が `BuildContentDirectory` の compile と同じ規則かは確かめていない（§6 の差し戻しの記録と同じ留保）。probe が Content Directory の build に入るかは、判定 C の (2) の P1（`SourceAssets`）が確かめる。
+- Editor は確認後に正常終了させた。Editor が §6 の「Phase C への注意」と同じ `.pdb.meta` 5 つを消したので、HEAD の内容へ戻した。開いている間、他の worktree（`osm-s4d5`）の batch の Unity process 2 つが動いていたが、触っていない。
+- `pwsh tools/contract-audit.ps1`: 合格（errors 0、warnings 0、検査 1〜9）。
+- Unity のテストと build、`OverlayVerdictTests` は実行していない（SKILL の Phase B）。§5 の未確認のうち、source を消した Play で class が読めるか、2 回目の build が v2 を取り込むかは Phase C の初回確認に残る。
 
 ### 動作確認
 

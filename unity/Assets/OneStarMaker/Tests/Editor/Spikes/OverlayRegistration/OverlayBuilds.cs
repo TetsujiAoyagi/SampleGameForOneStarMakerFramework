@@ -30,13 +30,11 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
         public static readonly string[] Directories = { OverlayVerdict.Base, OverlayVerdict.Overlay };
         public static string BuildName(string directory) => "ovl-" + directory;
 
-        // probe は UNITY_INCLUDE_TESTS を制約に持つ OneStarMaker.TestSupport にあるので、player の script の compile にこの define を渡す
-        // （HANDOFF §4 の B 適応。harness が直接呼ぶ build の引数で、製品の build の経路は変えない）。
-        // UNITY_INCLUDE_TESTS だけでは、package の test 用 code（Input System の InputSystemTestHooks が #if DEBUG の
-        // InputSystem.remoteConnection を使う）が compile できず build が失敗する（判定 C 1 回目の実測、error CS0117）。
-        // package の test 用 code は development player（DEVELOPMENT_BUILD と DEBUG が立つ）で compile される前提なので、
-        // BuildContentOptions に development の option が無い代わりに同じ 2 つを渡す。base と上書きは同じ define で build する。
-        private static readonly string[] ScriptingDefines = { "UNITY_INCLUDE_TESTS", "DEVELOPMENT_BUILD", "DEBUG" };
+        // 製品の build と同じく追加の define は渡さない（HANDOFF §4 の B 適応の既定、§5.2）。probe は test 制約の無い
+        // OneStarMaker.Spikes.OverlayProbes にあり、define 無しで player の script の compile に入る。UNITY_INCLUDE_TESTS を
+        // 渡しても test 制約の assembly は compile に入らず、package の test 用 code だけが compile されて build が失敗した
+        // （判定 C 1 回目の実測、error CS0117）ので、その define と DEVELOPMENT_BUILD・DEBUG は戻さない。
+        private static readonly string[] ScriptingDefines = { };
 
         [UnityTest, Explicit, Timeout(3600000)]
         public IEnumerator FirstProcess()
