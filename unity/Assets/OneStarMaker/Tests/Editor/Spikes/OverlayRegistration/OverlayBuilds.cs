@@ -32,7 +32,11 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
 
         // probe は UNITY_INCLUDE_TESTS を制約に持つ OneStarMaker.TestSupport にあるので、player の script の compile にこの define を渡す
         // （HANDOFF §4 の B 適応。harness が直接呼ぶ build の引数で、製品の build の経路は変えない）。
-        private static readonly string[] ScriptingDefines = { "UNITY_INCLUDE_TESTS" };
+        // UNITY_INCLUDE_TESTS だけでは、package の test 用 code（Input System の InputSystemTestHooks が #if DEBUG の
+        // InputSystem.remoteConnection を使う）が compile できず build が失敗する（判定 C 1 回目の実測、error CS0117）。
+        // package の test 用 code は development player（DEVELOPMENT_BUILD と DEBUG が立つ）で compile される前提なので、
+        // BuildContentOptions に development の option が無い代わりに同じ 2 つを渡す。base と上書きは同じ define で build する。
+        private static readonly string[] ScriptingDefines = { "UNITY_INCLUDE_TESTS", "DEVELOPMENT_BUILD", "DEBUG" };
 
         [UnityTest, Explicit, Timeout(3600000)]
         public IEnumerator FirstProcess()
@@ -42,6 +46,10 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
             var facts = new FirstFacts { RunId = run.RunId, Head = run.Head };
             var care = Aftercare.Begin(run);
             Exception? harness = null;
+            // build が出す Error の log を Unity Test Framework が test の失敗として扱うと、coroutine が途中で打ち切られて finally
+            // （fixture の削除と process-aftercare）が走らない（判定 C 1 回目で fixture が残った）。build の失敗は record の行に
+            // する作りなので、round と同じく log を失敗にせず全件を record に書き、finally で元へ戻す（HANDOFF §2.2、I-3 (d)）。
+            var log = FirstProcessLog.Start(run);
             try
             {
                 var fixture = new OverlayFixture();
@@ -51,12 +59,14 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
                 var b = Build(run, OverlayVerdict.Base, baseRoot, facts.Problems);
                 if (b != null) built[OverlayVerdict.Base] = b.Value;
                 yield return null;
+                log.Flush("build-" + OverlayVerdict.Base);
                 fixture.ApplyV2();
                 run.Write("source-v2", ("editedTexGuid", OverlayFixture.FixedGuid(OverlayFixture.EditedTex)), ("sceneEditGuid", OverlayFixture.FixedGuid(OverlayFixture.SceneEdit)));
                 var overlayRoot = CreateRoot(fixture, OverlayVerdict.Overlay);
                 var o = Build(run, OverlayVerdict.Overlay, overlayRoot, facts.Problems);
                 if (o != null) built[OverlayVerdict.Overlay] = o.Value;
                 yield return null;
+                log.Flush("build-" + OverlayVerdict.Overlay);
                 facts.BuildsSucceeded = built.Count == Directories.Length;
                 if (facts.BuildsSucceeded) Attribute(run, facts, built);
                 var p = OverlayVerdict.Preconditions(facts);
@@ -66,6 +76,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
             {
                 try { Aftercare.End(run, care, facts.Problems, true); }
                 catch (Exception ex) { harness = ex; }
+                log.Stop();
                 File.WriteAllText(Path.Combine(run.Directory, "first-facts.json"), JsonUtility.ToJson(facts, true));
                 File.WriteAllText(SpikeRun.FirstPointer, run.RunId);
                 run.Write("process-end", ("facts", JsonUtility.ToJson(facts)));
@@ -356,6 +367,60 @@ namespace OneStarMaker.Tests.Editor.Spikes.OverlayRegistration
                 b.Append(c switch { '"' => "\\\"", '\\' => "\\\\", '\n' => "\\n", '\r' => "\\r", '\t' => "\\t",
                     _ => c < 0x20 ? "\\u" + ((int)c).ToString("x4", CultureInfo.InvariantCulture) : c.ToString() });
             return b.ToString();
+        }
+    }
+
+    /// <summary>
+    /// 第 1 process の log の捕捉。Unity の log を test の失敗にせず（<see cref="LogAssert.ignoreFailingMessages"/>）、種類を問わず
+    /// 発生順に unity-log の行として record に書く。行の phase は、その log の後に Flush した区切り（build-base 等）の名前で、
+    /// Stop の時の残りは after-builds になる。購読と LogAssert は Stop で必ず元へ戻す（I-3 (d)）。
+    /// </summary>
+    internal sealed class FirstProcessLog
+    {
+        private readonly SpikeRun _run;
+        private readonly bool _ignoreBefore;
+        private readonly object _lock = new();
+        private readonly List<(string type, string message, bool main)> _pending = new();
+        private readonly int _mainThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
+        private bool _stopped;
+
+        private FirstProcessLog(SpikeRun run)
+        {
+            _run = run;
+            _ignoreBefore = LogAssert.ignoreFailingMessages;
+        }
+
+        public static FirstProcessLog Start(SpikeRun run)
+        {
+            var log = new FirstProcessLog(run);
+            LogAssert.ignoreFailingMessages = true;
+            Application.logMessageReceivedThreaded += log.OnLog;
+            run.Write("log-capture", ("subscribed", true), ("ignoreFailingMessagesBefore", log._ignoreBefore));
+            return log;
+        }
+
+        public void Flush(string phase)
+        {
+            (string type, string message, bool main)[] logs;
+            lock (_lock) { logs = _pending.ToArray(); _pending.Clear(); }
+            foreach (var l in logs)
+                _run.Write("unity-log", ("phase", phase), ("logType", l.type), ("message", l.message), ("mainThread", l.main));
+        }
+
+        public void Stop()
+        {
+            if (_stopped) return;
+            _stopped = true;
+            Application.logMessageReceivedThreaded -= OnLog;
+            Flush("after-builds");
+            LogAssert.ignoreFailingMessages = _ignoreBefore;
+            _run.Write("log-capture", ("subscribed", false), ("ignoreFailingMessagesRestored", LogAssert.ignoreFailingMessages));
+        }
+
+        private void OnLog(string message, string stackTrace, LogType type)
+        {
+            var main = System.Threading.Thread.CurrentThread.ManagedThreadId == _mainThread;
+            lock (_lock) _pending.Add((type.ToString(), message, main));
         }
     }
 

@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-1）
-- status: 判定 C は未判定で停止（2026-11-13。§5 の (2) の base の build が Failed で、(3) 以降は未実行。harness・環境の問題として B へ返す。§7 の「判定 C（1 回目）」）。発見 C は完了済み（阻害する指摘なし）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
+- status: Phase A の再開待ち（2026-11-13。判定 C は未判定で停止し、B が原因を調べた結果、probe を `OneStarMaker.TestSupport` に置く形では probe が Content Directory の build に入らないと分かった。§4 の「Phase A へ差し戻す条件」に当たる。§6 の「判定 C からの差し戻し（1 回目）」）。判定 C（1 回目）は未判定で停止（(2) の base の build が Failed）。発見 C は完了済み（阻害する指摘なし）。Phase A は revision 0（A2 入力版は commit `1cfcad07`、A3 凍結版は commit `6d9908c3`）。凍結前に draft PR #182 で外部レビュー 3 巡と owner のレビューを受けた（§5.1）
 - branch: `claude/content-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `bc3ca436`（`develop` の head、2026-11-13。§1 の現況はこの base）
-- implementation head commit: `4191ed9d663b42adaa0ac56e080e06666c862a2c`
+- implementation head commit: この票を含む commit
 - risk: `high`（program §8 の指定。製品 code は変えないが、結論が S2・S3 の形を決める）
 - owner: root（依頼者）
 - created: 2026-11-13
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（判定 C は未判定で停止した。§7 の「判定 C（1 回目）」）。(2) `FirstProcess` の base の build が失敗し（同じ head で 1 回再実行しても同じ失敗）、harness・fixture・環境の問題として B 適応で直せるかを分類し（§4・§6 の B 適応の範囲。製品 code・asmdef の変更が要るなら Phase A へ）、修正後に GO 候補 head を固定し直して判定 C を新しい implementation head でやり直す（旧 head の判定 evidence は流用しない）。C' は起動しない。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
-  - 引き継ぐ commit: この票を含む commit（判定 C（未判定）の記録 commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
-  - 必要な権限: Unity バッチテストと Content Directory の build を、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` から実行する（SKILL の Phase C）。`unity test` / `unity run` は使わない。Evidence の保存は Artifact Storage の事前承認の範囲（`tools/Artifacts/README.md`）。push は SKILL の公開点の規則に従う。
-  - 停止規則: 未判定に当たる事実が出たら §2 の判定定義に従い、harness・fixture・環境の問題は B へ、定義した語で読めない挙動と process の間の不一致は Phase A へ返す。B と発見 C の往復は 0 巡を使った（上限 4 巡）。process の自然終了はゲートにしない（§5）。
+  - 次の Phase・役割: Phase A（revision 1 として再開）。次の作業: probe の置き場所を決め直す（§6 の「判定 C からの差し戻し（1 回目）」の事実。`OneStarMaker.TestSupport` の `MonoBehaviour` は、`extraScriptingDefines` に `UNITY_INCLUDE_TESTS` を渡しても Content Directory の build の script の compile に入らない）。置き場所が asmdef の追加・変更か、§3 の責務マップ・I-3 の変更を伴うなら A2 / A3 をやり直す。B が入れた 2 つの B 適応（define の追加と、第 1 process の log の捕捉）を残すか外すかも決める。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-registration-spike` であること。implementation head 欄は「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file（`OverlayBuilds.cs`）があること。PR #182 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる（`.agents/skills/osm-workflow/references/phases-and-handoff.md` の「引継ぎ票」）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の差し戻し 1 回目の実装と記録の commit。SHA は起動指示と PR #182 の状態ブロックで渡す）。
+  - 必要な権限: Phase A は Unity を必要としない（置き場所の候補の成立を確かめる時は、§5 の「未知の操作経路の疎通」と同じく、確認地点と担当を A1 に書く）。push は SKILL の公開点の規則に従う。
+  - 停止規則: Phase A の新しい revision は A2 入力版と A3 凍結版の 2 点だけ commit する。旧 head（`4191ed9d`）の判定 evidence は無く、新しい implementation head で判定必須の 7 つを最初からやり直す。B と発見 C の往復は 0 巡（判定 C からの差し戻しは、この往復の巡に数えていない）。
   - 引き渡さないもの: §7 の所見・注意・読み方の確認は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -357,6 +357,32 @@ owner の指示で、指摘の 3 件を直すだけでなく、検証の組み�
 - `pwsh tools/contract-audit.ps1`: 合格（errors 0、warnings 0、検査 1〜9）。
 - Unity のテストと build は実行していない（SKILL の Phase B）。`OverlayVerdictTests` も未実行。§5 の未確認（probe が build に入るか、source を消した Play で class が読めるか、2 回目の build が v2 を取り込むか）は Phase C の初回確認に残る。
 - 未確認の前提: Unity が `ContentLoadManager.GetContentDirectories()` の `BuildName` に build の名前（`ovl-base`・`ovl-overlay`）を返すこと（後始末の回収が使う。S2-0b と同じ前提）。
+
+### 判定 C からの差し戻し（1 回目、2026-11-13）
+
+判定 C（1 回目）の (2) `FirstProcess` の base の build の失敗を調べた。Unity のテストと build は実行していない（SKILL の Phase B）。
+
+**分かった事実（観測）:**
+
+- build の失敗の直接の原因: Input System の `InputSystemTestHooks.cs`（`#if UNITY_EDITOR || UNITY_INCLUDE_TESTS` の中）が使う `InputSystem.remoteConnection` は `#if DEBUG` の中にしか無い（package の source で確認）。`UNITY_INCLUDE_TESTS` だけを渡した非 development の compile では未定義になり、`error CS0117` になる。`BuildContentOptions` には development の option が無い（Unity の API 文書の列挙は `None`・`CleanBuildCache`・`DisableWriteTypeTree`・`FailBuildWhenErrorsLogged`・`SerializeUnityVersion`・`SkipExportToOutputPath`・`UseArchive`）。
+- fixture が残った原因: build の compile の Error を Unity Test Framework が未処理の log として test の失敗にし、`FirstProcess` の coroutine を打ち切ったので、`finally`（fixture の削除と `process-aftercare`）が走らなかった。record が 3 行で止まったことと符合する。
+- **probe が build に入らない:** 判定 C の build が作った player の script の compile の graph（`unity/Library/Bee/1900b0aP.dag.json` と `artifacts/1900b0aP.dag/` の `.rsp`）では、`Unity.InputSystem.rsp` の define に `UNITY_INCLUDE_TESTS` があるのに、`OneStarMaker.TestSupport` の compile の項目が無い（同じ `UNITY_INCLUDE_TESTS` の制約を持つ `UnityEngine.TestRunner` も無い）。下の compile 確認の graph（`19c0000P`）でも同じだった。`extraScriptingDefines` は script の中の `#if` には効くが、asmdef の `defineConstraints` で除かれる assembly を compile に入れない、と読める（Unity の内部の採否の規則は確かめていない）。この compile は build の失敗の前に graph が作られた物で、失敗が無くても probe の 3 型は player の assembly に無い見込みである。その時、Scene と `SharedPrefab` の probe は最初から Missing になり、P1 の `SourceAssets` にも probe が入らない（I-1 (f) で止まる）。
+
+**分類:** §4 の「Phase A へ差し戻す条件」の「probe を `OneStarMaker.TestSupport` に置く形で Content Directory の build か load が成り立たない」に当たる（G-01 の採否で「置き場を変える必要が出たら Phase A へ戻す」と決めた所）。B 適応の範囲（§4 の build の引数）には、test assembly を compile に入れる手段が無い。`ProjectSettings` の scripting define を process の間だけ変える手は、AC8（設定を前後で変えない）と I-3 (b) に反し、domain reload も起こすので取らない。置き場所の候補（新しい非 test の asmdef、fixture が一時に作る asmdef と probe、等）は asmdef と §3 の責務マップに関わるので、B では選ばない。
+
+**入れた B 適応（`OverlayBuilds.cs` だけ。置き場所の決定とは独立に要る修正）:**
+
+- `ScriptingDefines` に `DEVELOPMENT_BUILD` と `DEBUG` を足した（package の test 用 code は development player で compile される前提なので、同じ 2 つを渡す）。Phase A が probe を `UNITY_INCLUDE_TESTS` に頼らない置き場所へ移すなら、`UNITY_INCLUDE_TESTS` ごと外せる。
+- 第 1 process の log の捕捉（`FirstProcessLog`）。process の間 `LogAssert.ignoreFailingMessages` を立てて log を test の失敗にせず、種類を問わず `unity-log` の行として record に書き、`finally` で購読と `LogAssert` を戻す。build の失敗は record の行（未判定の材料）にする、という `FirstProcess` の作りに実装を合わせた（§2.2 の log の扱い、I-3 (d)）。
+
+**確認:**
+
+- Unity Editor（6000.6.0f1）のコンパイル: 成功。この worktree の project を開き、`EditorUtility.scriptCompilationFailed` が偽、`unity/Logs/Editor.log` に `error CS` が 0 件、`OverlayRegistration` の警告が 0 件、`FirstProcessLog` の型が `OneStarMaker.Tests.Editor` に読み込まれた。
+- player の script の compile（build ではない。`PlayerBuildInterface.CompilePlayerScripts`、StandaloneWindows64、define は `UNITY_INCLUDE_TESTS`・`DEVELOPMENT_BUILD`・`DEBUG`、出力は一時 folder で確認後に削除）: `error CS` 0 件。出力の `Unity.InputSystem.dll` に `InputSystemTestHooks` と `remoteConnection` の名前が入っていた（define が code に効き、CS0117 が消えた）。`OneStarMaker.TestSupport.dll` は出力に無かった（上の事実）。この compile が `BuildContentDirectory` の compile と同じ規則かは確かめていない（graph の作りは同じに見える）。
+- 判定 C が残した fixture の folder（`unity/Assets/OsmSpikeOvl/` と `.meta`、untracked）は、marker の文字列が `OverlayFixture` の定義と一致することを確かめて消した（次の `FirstProcess` の開始時の回収と同じ扱い）。
+- Editor は確認後に正常終了させた。Editor が §6 の「Phase C への注意」と同じ `.pdb.meta` 5 つを消したので、HEAD の内容へ戻した。
+- `pwsh tools/contract-audit.ps1`: 合格（errors 0、warnings 0、検査 1〜9）。
+- Unity のテストと build、`OverlayVerdictTests` は実行していない。
 
 ### 動作確認
 
