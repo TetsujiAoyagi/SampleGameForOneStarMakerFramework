@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `A`（**A3 の統合版、未凍結。** 2026-11-14 に A2 の 3 件、凍結前の外部レビューの 1 巡目と 2 巡目（draft PR #186）、owner のレビュー、主担当の見直しを反映した（§5.1）。owner の指示により凍結していない。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目と owner のレビューが `23a929cb`）
+- status: `A`（**A3 凍結版、revision 0。** 2026-11-14 に owner の指示で凍結した。次は Phase B。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `未固定`
@@ -20,11 +20,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner による凍結の指示。その後に Phase A の主担当が A3 凍結版を切る。
-  - 次の作業: owner が凍結を指示したら、status と本票を凍結版に改めて commit し、Phase B を起こす。外部レビューをさらに行うなら、指摘を §5.1 に採否つきで足す。
-  - 引き継ぐ commit: この票を含む commit（SHA は PR の状態ブロックと起動指示で渡す）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: owner の指示があるまで凍結しない。凍結の前に Phase B を始めない。目的・利用者の文言を変えたら、目的レビューをやり直す。
+  - 次の Phase・役割: Phase B の実装担当（新しい session）。
+  - 次の作業: §4 の順序で §3 の file を実装する。(1)〜(3) の製品 code と単体、(4) の harness。Editor の compile 確認までを行い、`pwsh tools/contract-audit.ps1` を通し、§6 と本票を書いて commit して終える。Unity のテストと build は実行しない（Phase C）。
+  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は PR の状態ブロックと起動指示で渡す）。
+  - 必要な権限: Unity Editor の起動と、対象を限定した Editor 操作（compile 確認）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -121,7 +121,7 @@ fixture は SampleGame を使わない合成 1 つ（program D10）。custom の
 | AC2 | I-1 | 実機。fixture を v2 にした後、実 `AssetDatabase` から `AssetDependencySnapshotBuilder` で作った snapshot に E を当て、上書きの root が `SceneDirect`・`SceneInstance`・`SceneNested`・`PrefabRoot` の 4 つで、`SceneClean` と `SceneUnlisted` を含まない |
 | AC3 | I-3・S-1 | 単体。plan の絞りは、selected を指定の部分集合にし、各候補の 3 つの key を変えず、元の除外を理由ごと残し、外れた候補を新しい理由 code の除外にする。絞った plan と元の snapshot の対が `BuildContentProjection` で issue 0。上書きの request は逆引きの結果から plan と snapshot を取り、別の plan や snapshot を渡す引数を持たない。**失敗経路:** selected に無い stable key の指定、空の集合の指定、「上書き不要」の結果を request に渡すことは、どれも `ArgumentException` で拒む |
 | AC4 | I-4・I-5 | 単体。上書きの情報を渡さない request の preflight・outcome は、追加の欄が既定値（上書きでない印、空の配列）である以外は従来と同じで、既存の `BuildContentReportTests`・`BuildContentFullModeTests` が変更なしで通る。宣言を渡した上書きの build は、adapter に同じ宣言を渡す（root に写る）。**失敗経路:** (1) 上書きの build の結果を `ContentTransportPublisher.Publish` に渡すと、publish 先を作る前に拒む。(2) outcome に印が無くても、preflight の excluded に絞りの理由 code があれば拒む。(3) 上書きの request の contentSet が base の contentSet と、大文字小文字を無視して同じなら（`base_a` と `BASE_A` を含む）、report を書く前に `ArgumentException` で拒む。(4) base の identity の contentSet・revision・target・digest のどれかが空なら、記録の型が例外で拒む。(5) 上書きの request の宣言の名前が、記録の base の宣言の名前と違えば（宣言付きの base に宣言なしの上書き、その逆を含む）、または記録の base の target が coordinator の target と違えば、`ArgumentException` で拒む |
-| AC5 | S-1・I-5 | 実機。製品の coordinator で base（6 root、`Full`）を build して publish し、fixture を v2 にしてから上書き（AC2 の 4 root）を別の contentSet で build する。Play で上書きの directory から読んだ `BuildContentRoot` の entry の logical key が AC2 の 4 つと一致し、base と上書きの root の宣言の名前が同じ。base の `content/<identity>` と base の workspace の全 file の名前と sha256 が、上書きの build の前後で同じ。**前提 P1:** AC6 と AC7 の各観測点を、source の root を通して読んだ値（Scene は Editor で開いて読み、Object の root は asset を読む）が、base の build の直前に v1、上書きの build の直前に v2。**前提 P2:** v1 と v2 の間で sha256 が変わった fixture の source file は上の 5 つだけ（Scene 6 つ、`OuterPrefab`、`PrefabRoot`、material は同じ）。P1 と P2 は build の process が record に残し、成り立たない回は未判定。P1 と P2 が両方成り立てば、観測点の値は置いた側ではなく編集した asset から来ている（置いた側に override で値が書いてあれば、asset を変えても値は変わらない） |
+| AC5 | S-1・I-5 | 実機。製品の coordinator で base（6 root、`Full`）を build して publish し、fixture を v2 にしてから上書き（AC2 の 4 root）を別の contentSet で build する。Play で上書きの directory から読んだ `BuildContentRoot` の entry の logical key が AC2 の 4 つと一致し、base と上書きの root の宣言の名前が同じ。base の `content/<identity>` と base の workspace の全 file の名前と sha256 が、上書きの build の前後で同じ。**前提 P1:** AC6 と AC7 の各観測点を、source の root を通して読んだ値が、base の build の直前に v1、上書きの build の直前に v2。Scene の観測点は、Editor で開いた Scene の階層にある、AC6 と AC7 が Play で読む子そのものの値であり、prefab の asset の値ではない。Object の root（`PrefabRoot`）は asset を読む。**前提 P2:** v1 と v2 の間で sha256 が変わった fixture の source file は上の 5 つだけ（Scene 6 つ、`OuterPrefab`、`PrefabRoot`、material は同じ）。P1 と P2 は build の process が record に残し、成り立たない回は未判定。P1 と P2 が両方成り立てば、観測点の値は置いた側ではなく編集した asset から来ている（置いた側に override で値が書いてあれば、asset を変えても値は変わらない） |
 | AC6 | S-2 | 実機。fixture の source を消した Editor の Play で、base → 上書きの順に登録し、4 つの root を load する。logical key は §2.3 C5 の規則（上書きの entry を先）で引く。版は root が直接参照する物から読む: `SceneDirect` と `PrefabRoot` の Renderer の material の `EditedTex` の pixel、`SceneInstance` と `SceneNested` の instance の子の Transform の位置。全て、前提 P1 が同じ観測点で読んだ v2 の値と一致する。登録の開始から、上書き → base の解除の完了までの間、Error と Exception の log が 0 |
 | AC7 | S-3 | AC6 と同じ Play。v1 と v2 は、前提 P1 が同じ観測点で読んだ値で照合する。(1) `SceneClean` は載る。(2) canary: `SceneUnlisted` の `CanaryTex` は v1。(3) `UnlistedTex` は、`SceneDirect` の側が v2、`SceneUnlisted` の側が v1（§2.3 C10 の「同じ Play に 2 つの版」）。**読み分け:** (2) が v2 なら、観測が directory を読んでいないので全 AC を未判定にする。(2) が v1 で `SceneUnlisted` の側の `UnlistedTex` が v2 なら、base の直接参照が上書きの版へ解決しており、S-3 の不成立である。`SceneDirect` の側の `UnlistedTex` が v1 なら、C10 の不成立である。`SceneUnlisted` が上書きの entry にあれば、AC2・AC5 の不成立である |
 | AC8 | S-4 | AC6 と同じ Play。`SceneDirect` と `SceneClean` を両方載せた時、`SharedTex` の実体は 2、`CleanOnlyTex` は 1（実体は相異なる `EntityId` で数える。S2-1 と同じ数え方）。重複の報告は、「上書きの root の閉包の和集合」と「上書きに入らなかった selected の root の閉包の和集合」の共通部分である。報告は `SharedTex` と `UnlistedTex` を含み、`CleanOnlyTex`・`CanaryTex`・`EditedTex` を含まない |
@@ -211,7 +211,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 - **U7 実機の harness の扱い。** S2-0b・S2-1 と同じく Phase D で消して git 履歴に残す。常設するのは単体テストだけ（製品の逆引きと記録の回帰はそれで閉じる）。
 - **U8 上書きと base の結びつけ（C6）。** 上書きの記録に base の identity を必須で持たせる。無いと、base を取り直した後の古い上書きが黙って重なる。
 
-- **U9 問いの文。** 外部レビュー R-02 のとおり、初稿の問いの後半「古い版が混ざらない」は、C10 と AC7 が要求する観測（同じ Play に 2 つの版）と同時に YES と言えなかった。§2 の問いと program §8 の S2-2 の行を、C10 と同じ意味の文に改めた。目的と利用者の欄は変えていない。**2026-11-14 に owner がこの文を承認した**（凍結の指示ではない）。
+- **U9 問いの文。** 外部レビュー R-02 のとおり、初稿の問いの後半「古い版が混ざらない」は、C10 と AC7 が要求する観測（同じ Play に 2 つの版）と同時に YES と言えなかった。§2 の問いと program §8 の S2-2 の行を、C10 と同じ意味の文に改めた。目的と利用者の欄は変えていない。**2026-11-14 に owner がこの文を承認した。**
 
 未決事項: なし。
 
@@ -261,7 +261,7 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
   3. `-Filter OneStarMaker.Tests.Editor.Spikes.OverlayBuild.OverlayBuildRounds.ScenesFirst` と、同 `.ObjectFirst` を、別々の process で。どちらも 2 の出力を読む。
   - 2 と 3 は、各 XML の total が 1 以上で failed 0、record に終了行があることを「harness が最後まで動いた」確認とし、その後に判定 C が record を AC ごとに読む。**process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は `tools/Harness/README.md` の規則に従う）。Phase B が test の名前を変えた時は、§6 に対応を書く。
 - record が必ず持つ値（形式は Phase B が決めてよい。file は git に入れない）:
-  - build の process: head、Unity の版、target、Enter Play Mode の設定。fixture の source file ごとの sha256（v1 と v2。前提 P2）。前提 P1 の観測値（AC6 と AC7 の観測点ごと、source の root を通して読んだ値、base の build の直前と上書きの build の直前）。逆引きの結果（root、理由、当たらなかった編集、重複）。base と上書きの identity、preflight と outcome の写し。base の `content/<identity>` と workspace の file の名前と sha256（上書きの build の前後）。終了行。
+  - build の process: head、Unity の版、target、Enter Play Mode の設定。fixture の source file ごとの sha256（v1 と v2。前提 P2）。前提 P1 の観測値（AC6 と AC7 の観測点ごと、source の root を通して読んだ値と、Scene の観測点ではその子の階層 path。base の build の直前と上書きの build の直前）。逆引きの結果（root、理由、当たらなかった編集、重複）。base と上書きの identity、preflight と outcome の写し。base の `content/<identity>` と workspace の file の名前と sha256（上書きの build の前後）。終了行。
   - round の process: 登録の順と結果、両方の root の entry の logical key、root ごとの観測値（AC6・AC7 の各点）、実体の数（AC8）、発生順の log の全件（種類を問わない）、解除の順と結果、終了行。
 - 全 EditMode 回帰の適用除外: なし（製品の code を変える）。
 - 統合・Unity テスト: 上の 2 と 3。
@@ -281,9 +281,9 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
   - (1) 目的レビュー: 本 session が起動した新しい subagent（Claude Opus、Anthropic）。リポジトリを読まず、ツールを使わずに回答した。入力は §1 の目的と利用者の欄の原文だけで、sha256 は `526a59d2a2504c83e9304d60e5e96fda96f545b5c8aa1e32435af77c6b94cba4`（目的欄の本文、改行、利用者欄の本文。UTF-8、LF、末尾改行なし）。
   - (2) A0 だけからの代替構成: (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は program §5.3・§6・§8・§9 の G10 / G11、事実の文書、製品の `Editor/Build` と `Runtime/BuildContent` の source。本書は読んでいない。
   - (3) アーキテクチャゲート兼、各不変条件を破る順序・読み違い・誤って YES を出す道の探索: 本 session が起動した別の新しい subagent（Claude Fable、Anthropic）。入力は A2 入力版の本書（内容 sha256 `78d175dc237e3eba28ac4e14390138d69f43b738b7383fd45e13a5f958392cd3`、commit `cf31a6f2`）と、アーキテクチャゲート、事実の文書、program、製品の source、asmdef、既存の test、AGENTS.md。枠は「計画が書いている code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。
-  - (4) 凍結前の外部レビュー（draft PR #186、2026-11-14、2 巡）: cursor の background agent（Grok、xAI。A2 とは別ベンダー。2 巡とも同じ担当）。対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。Unity は起動していない。2 巡目の結論は「R2-01 を足した版なら凍結してよい」。採否は §5.1 の (4) と (5)。
-  - (5) owner のレビュー（draft PR #186 の review、2026-11-14、対象 `23a929cb`）: 3 件。文書だけのレビューで、Unity は起動していない。採否は §5.1 の (6)。
-- A3 統合担当・採否: 本 session（§5.1）。**未凍結。** 目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
+  - (4) 凍結前の外部レビュー（draft PR #186、2026-11-14、3 巡）: cursor の background agent（Grok、xAI。A2 とは別ベンダー。3 巡とも同じ担当）。対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf` の本書。観点は PR 本文の 4 つ（誤って YES を出す道、判定の形、範囲、規模）。Unity は起動していない。3 巡目の結論は「凍結してよい」。採否は §5.1 の (4)・(5)・(8)。
+  - (5) owner のレビュー（draft PR #186 の review、2026-11-14、対象は 1 回目が `23a929cb`、2 回目が `50753ecf`）: 1 回目は 3 件、2 回目は「解消。凍結に進めてよい」と Phase C への注意 1 件。文書だけのレビューで、Unity は起動していない。採否は §5.1 の (6)・(8)。
+- A3 統合担当・採否: 本 session（§5.1）。2026-11-14 に owner が凍結を指示し、revision 0 として凍結した。目的と利用者の欄は A1 の後に変えていない（目的レビューのやり直しは無い）。
 - C' 用に予約した担当: Phase A・B・C に関与していないベンダー。凍結前の外部レビューが Grok 系を使ったので、C' に Grok 系を使う時は、Phase A に関与した系列として独立性の制約を §8 に記録する。
 - 独立性の強化条件を満たせない場合の理由: A2 の (1)〜(3) は 1 つのベンダーの 2 つのモデルで行った（A1 の主担当は (3) と同じモデルの別 session）。別ベンダーの目は (4) で入れた。C' の充足は起こす時に確かめて記録する。
 
@@ -375,6 +375,12 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 | S-06 | harness の file を「4 file」とだけ書き、`.meta` と新しい folder の `.meta` が AC10 の範囲に入るかが割れた。test の名前が凍結されていなかった | §3 に file を名前で書き、AC10 に `.meta` を入れ、§5 に test の完全名を書いた |
 | S-07 | record が何を持てば AC を読めるかが無かった。全回帰は他の Unity が動いていると失敗した実績がある。harness の不備が判定 C で初めて見つかる | §5 に record が必ず持つ値、他の Unity を止めること、発見 C の限定実行を書いた |
 | S-08 | 共通の prefab を 1 つ編集すると、それを置いた Scene が全て上書きに入り、上書きが目的 build に近い大きさになりうる。この帰結の明示が無かった | C10 に 1 文を足し、実データでの大きさと所要を S5 へ送った（§2.4。2026-11-14 に owner が承認） |
+
+**(8) 外部レビューの 3 巡目と owner の再レビュー（対象 `50753ecf`）**（どちらも「R2-01 の穴は値の変化で塞がっている。O-01〜O-03 は解消。凍結してよい」。新しい指摘は低 1）
+
+| ID | 重要度 | 指摘 | 採否と反映 |
+|---|---|---|---|
+| R3-01 | 低 | 前提 P1 の「source の root を通して」「Scene は Editor で開いて読み」は、開いた Scene の階層の instance を読む読み方と、対応する prefab の asset を読む読み方の両方に取れる。後者だと R2-01 の穴が戻る。owner の再レビューの「Phase C への注意」も同じ内容 | **採用。** P1 に「Scene の観測点は、開いた Scene の階層にある、Play で読む子そのものの値であり、prefab の asset の値ではない」と書き、record にその子の階層 path を足した（AC5、§5）。Phase B が asset を読む実装にしないための句で、条件の合否は変えない |
 
 保留: なし。確認できなかった推測として残るもの: import 時の依存を `GetDependencies` が返さないこと（G-04）、前の上書きの file が load に効くか（G-08）、移動した Scene の id（G-09）、override を持つ instance と variant の読まれ方（R-04）。どれも本書では契約か対象外で塞ぎ、実測は後続へ送った。
 
