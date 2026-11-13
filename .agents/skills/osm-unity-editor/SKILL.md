@@ -33,7 +33,7 @@ description: >-
 ## やってよい
 
 1. `tools/unity-editor.cmd status` で接続を確認する。閉じていて必要なら正しい版・project pathでEditorを起動し、`ready`を確認する。
-2. `tools/unity-editor.cmd command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。一覧は長いので、名前で絞って見る（例: `tools/unity-editor.cmd command | Select-String refresh`）。存在しない名前を呼ぶと一覧全体がエラーとして返る。
+2. `tools/unity-editor.cmd command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。一覧は長いので、名前で絞って見る（例: `tools/unity-editor.cmd command | Select-String refresh`）。出力を絞るフィルタ（`Select-String` 等）へのパイプだけは、上の「連結しない」の例外とし、他の command へはつながない。存在しない名前を呼ぶと一覧全体がエラーとして返る。
 3. 名前付き command を先に使う。Pipeline 0.4 系なら `move_asset` / `open_scene` / `save_scene` / `set_transform` / `menu` が候補。
 4. 名前付き command が足りないときだけ `tools/unity-editor.cmd eval <UTF-8 Base64>`。PowerShellなら `$encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($code))` で作る。
 5. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。

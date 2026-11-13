@@ -17,7 +17,7 @@ description: >-
 3. 専用ブランチで作業する。`main` / `develop` に直接コミットしない。A3で `external-current-v1` を採用した作業は `pwsh tools/harness.ps1 current -Task <id>` を唯一の作業入口とし、過去RESULTを探して補完しない。未移行作業は従来のHANDOFFを使う。
 4. PR の base は `develop` とする。
 5. 前の Phase から引き継ぐときは、起動時に渡された引き継ぐ commit の SHA と自分の worktree の HEAD、§0 の implementation head 欄を [引継ぎ票](references/phases-and-handoff.md#引継ぎ票) の手順で照合し、食い違えば引き継がずに停止する。C' は PR を読まない。
-6. HANDOFF は引継ぎ票の「読む範囲」から読み、コードは検索で場所を絞って必要な行範囲を読む。長いコマンド出力は絞ってから見る。依拠する内容は担当が自分で読み、要約に置き換えない。全文読むと定めた文書はこの対象外とする。
+6. HANDOFF は引継ぎ票の「読む範囲」から読み、必要なら範囲外も読む。票に範囲が無ければ従来どおり読む。コードは検索で場所を絞って必要な行範囲を読み、長いコマンド出力は絞ってから見る。依拠する内容は担当が自分で読み、要約に置き換えない。この項目は各 Phase の入力の定めを変えない。C' は所定の blind 入力だけを読み、レビュー対象として固定した完全 diff と、全文読むと定めた文書は絞らない。
 
 Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。cursor-agent CLI へジョブを投げる場合は [cursor-agent](references/cursor-agent.md) を先に読む。規則を緩める・消すかを判断するときは [導入理由の実測記録](references/workflow-rationale.md) を確認する。
 
