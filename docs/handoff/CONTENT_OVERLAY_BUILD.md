@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `C`（**判定 C 完了（2026-11-14）: NO-GO、owner へ返す。** 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `C`（**判定 C 完了（2026-11-14）: NO-GO、owner へ返した。owner は同日、F-1 の原因スパイクを先に置くと決めた（引継ぎ票）。** 2026-11-14 に `develop`（`b5fc17e7`、Skill の整理を含む）をこのブランチへ取り込んだ。実装差分は変えていない。 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `42c0ff7f443bcb13293345850dc0536bd4d144da`
@@ -20,14 +20,21 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が `evidence stage` で固定し、取得案内は進行役の共有メモに置いた。取得側の閲覧確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: **owner の判断**（進行役が owner へ返す）。判定 C は NO-GO（§2.6、AC6）。C' は起動しない。
-  - 次の作業: owner が、§7 の判定 C の結論（成り立たなかったのは S-2 の prefab instance と nested prefab の 2 経路、崩れたのは上書きの形）を材料に、program §8 の縮退判断（prefab の経路を契約から外して進める、原因のスパイクを先に置く、Phase A を新しい revision で再開する、など）を決める。どれを選んでも凍結条件の意味・合否が変わるので、本 revision の続きとしては進めない。
-  - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/content-overlay-build` であることを確かめる。食い違えば引き継がずに止まる。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、この session は push も PR の編集もしていない）。implementation head は `42c0ff7f` のまま。
-  - 入力の取得案内・状態: evidence bundle は上の行のとおりローカル固定済み（未昇格）。C' blind bundle は作っていない（NO-GO のため）。判定 C の生出力は git 管理外の `TestResults/` にも残っている。
-  - 必要な権限: owner の判断。後続で Unity を動かす担当は §5 のとおり sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を使う。push は SKILL の公開点の規則に従う。
-  - 停止規則: 凍結した条件の意味や合否を変える裁定は Phase A の新しい revision にする（SKILL）。B と発見 C の往復は 0 巡を使った（上限 4 巡）。
-  - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行と判定 C の結論は、将来 C' を起こす場合も C' に渡さない（blind bundle に入れない）。
+  - 次の Phase・役割: **スパイク（F-1 の原因確認）**。[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) のスパイクで、Unity の Build は Phase C の実行担当として行う。owner が 2026-11-14 に選んだ。判定 C の NO-GO と §7 の既存の記録は書き換えない。C' は起動しない。
+  - 問い: 上書きの `.cf` に prefab の子の v2 が入らない（§7 の F-1、判定 C で再現）のは、同じ `Library` や同じ Editor process に残った状態（build cache、scene の import）によるものか、製品の build 経路そのものによるものか。owner の見立ては、`Library` の状態が原因なら実機の Player では出ない可能性が高い、である。
+  - 次の作業: 次の 3 つを観察する。Unity の実行は合わせて 3 回までとする。
+    1. 上書きの build を、base の build とは別の Editor process で行い、v2 が入るかを見る。
+    2. build cache を消してから上書きを build し、v2 が入るかを見る。
+    3. 同じ `Library` で base をもう一度 `Full` で build し、v2 が出るかを見る（上書き固有の問題か、build 経路全体の問題かを分ける）。
+    - 観測には既存の `Tests/Editor/Spikes/OverlayBuild` の harness と `.cf` のバイト比較を使う。製品コード（`Scripts/` と `OneStarMaker/` の Runtime・Editor）は変えない。観測のための一時的な変更は harness の中に留め、終了時に戻すか、残す理由を記録する。
+  - 終了条件: 3 回の観察（または途中で因果が確定した時点）で、原因を [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) の A 再開・B 適応・後続スライスのどれかに分類するか、予算内で確定しなかったと記録する。結果は §7 に「スパイク（F-1 の原因）」の節を足して書き、観察ごとの手順・Editor process・`Library` の状態・v2 の有無を並べる。分類の後の進め方は決めず、票を owner の判断へ戻す。
+  - 読む範囲: §0、§2（受け入れ境界と §2.6）、§5、§7 の発見 C（F-1）と判定 C。他は必要なら読む。
+  - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であることを確かめる。食い違えば引き継がずに止まる。ブランチは `claude/content-overlay-build`（進行役のチェックアウトは外してある）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、push も PR の編集もしていない）。implementation head は `42c0ff7f` のまま。
+  - 入力の取得案内・状態: 判定 C の evidence bundle は上の行のとおりローカル固定済み（未昇格）。判定 C の生出力は git 管理外の `TestResults/` に残っている。スパイクの出力も `TestResults/` に置き、HANDOFF に reference・hash を書かない。
+  - 必要な権限: Unity は §5 のとおり sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を使う（`unity test` / `unity run` は使わない）。Unity の終了 stall は既知のものとして扱い、調査しない（AGENTS.md）。push と PR #186 の更新は owner に確認する。
+  - 停止規則: 製品コードの変更が要ると分かった時点、または予算の 3 回を使い切った時点で止め、§7 に記録して owner へ返す。凍結した条件の意味や合否を変える裁定はしない（Phase A の新しい revision の判断）。
+  - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行・判定 C とスパイクの結論は、将来 C' を起こす場合も C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
 
