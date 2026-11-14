@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `A`（A3 の統合版。未凍結。A2 の 2 件、draft PR の外部レビュー 4 巡、主担当の自己点検を統合した（§5.1）。owner の承認の後に凍結する）
+- status: `A`（**A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。次は Phase B。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `未固定`
@@ -20,11 +20,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の続き（A3 の凍結の前）。外部レビュー 4 巡（3 巡目は別の agent）と主担当の自己点検は §5.1 に統合済み。owner の承認を得て凍結する。凍結の後は Phase B（実験の script を書く）。
+  - 次の Phase・役割: Phase B の実装担当（新しい session）。
+  - 次の作業: §4 の順序で、repository の外に新しく作る空の project（§2.7）に、実験の Editor script 1 つを書く。Editor を batch で 1 回起動して compile が通ることを確かめる（build は呼ばない）。この repository に入れるのは本書の §6 と本票だけで、script は git に入れない。script の置き場は tree の外（取得案内と起動指示）で次の担当へ渡す。
   - 読む範囲: 既定のとおり。
-  - 必要な権限: 無し（文書だけ）。Phase A の間は Unity の build を行わない（Phase B は compile の確認のために Editor を 1 回起動する。§4）。
-  - 停止規則と引き渡さないもの: 凍結は owner の承認の後に行う。目的と利用者の 2 欄を変える時は、変えた 2 欄の原文だけで目的レビューをやり直す。
-  - 引き継ぐ commit: この票を含む commit（SHA は tree の外で渡す）。A2 入力版は commit `37ec408e`。
+  - 必要な権限: Unity Editor の起動（repository の外の実験の project で、compile の確認だけ）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら止めて返す。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。この repository の `unity/` の下では Unity を起動しない（I1）。
+  - 引き渡さないもの: なし。
+  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は PR の状態ブロックと起動指示で渡す）。
 
 ## 1. 目的と対象外
 
@@ -249,7 +251,7 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 | 目的レビュー | §1 の目的と利用者の 2 欄の原文だけ。sha256 `75845d2989d57207e15535c83038ffb0d471bf5364880255f36d9bd3e8fa03d0` | 保証すべきこと 5 項目、作らないべきもの 6 項目 |
 | 実験の統制の反証とアーキテクチャゲート | A2 入力版の本書の全文。sha256 `6ac2e291e913601d6bbf9a192be8da7b09631aa1802661a02a2f0cd5b33b9801`（補助: commit `37ec408e`） | blocker 1、major 5、minor 5。I1 は実質破れず、I2 は破れた |
 
-**A3 の統合（主担当: 本 session、Anthropic。未凍結）。** 2026-11-14 に owner が「A3 の統合まで進め、凍結せずに draft PR で外部レビューを受ける」と指示した。Phase A の commit は A2 入力版と A3 凍結版の 2 点が原則だが、外部レビューの読み手はリモートにしか居ないので、この統合版を owner の指示で 3 点目として commit した。
+**A3 の統合（主担当: 本 session、Anthropic。この時点では未凍結）。** 2026-11-14 に owner が「A3 の統合まで進め、凍結せずに draft PR で外部レビューを受ける」と指示した。Phase A の commit は A2 入力版と A3 凍結版の 2 点が原則だが、外部レビューの読み手はリモートにしか居ないので、この統合版を owner の指示で 3 点目として commit した。
 
 | # | 指摘（出所） | 採否 | 理由と反映先 |
 |---|---|---|---|
@@ -329,7 +331,9 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 | J2 | AC2 (g) の path の指標は、B6 の event が 0 件でも通る。ID の指標の禁止の集合に `SPlain` が無い。見出しの「7 つ全て」と、(g) が読めない時の扱いが食い違う | 採用（`SPlain` の ID は形を変えた） | AC2 の見出しと (g)。path の指標は、B6 の event に `SModel` の path がある時だけ使う。指摘の案は「B1 で書いた `SPlain` の ID を禁止の集合に足す」だが、`SPlain` は印を書かないので B1 では書かれず（X1 の出力を再利用する）、足せる ID が無い。ID の指標は `SPlain` を見ないと書き、path の指標が働かない時はその旨を record に残す |
 | J3 | 段 8 の T の手順が、段 5 の 2 回の棚卸しを落としている。規模の build の後に印が残っても AC4 が見ない | 採用 | §5 の段 8（T も N も棚卸しで挟む。規模の build も AC4 の対象） |
 
-保留は無い。
+**外部レビュー 5 巡目（2026-11-14、draft PR #191、owner が依頼した別の agent。対象は commit `2c657c6b` のうち、`719ea649` より後に書き換えた所）。** 指摘なし。偽の合格・偽の不合格・実行できない手順の反例は見つからなかった、との結果だった。Unity の実測は行っていないレビューである。
+
+**A3 の凍結（2026-11-14、revision 0）。** owner は 5 巡目の結果を見て凍結を承認した。採用・不採用・保留の分類は上の表のとおりで、保留は無い。
 
 ## 6. Phase B 実装結果
 
