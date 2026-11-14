@@ -5,32 +5,30 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `A`（owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `A`（**revision 1 の A2 入力版。** 2026-11-14。AC3b の印の計算の手順だけを、製品の依存閉包を受け取る形に変えた（§5.2）。A3 で凍結するまで、revision 0 の条件（§2・§5 の revision 0 の文）は §7.2・§8 の結果を読むためにだけ使う。owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
-- implementation head commit: `89604c70`
+- implementation head commit: `未固定`
 - risk: `normal`（製品 code と SampleGame を変えない。実測は repository の外の project で行い、この repository に入るのは文書だけ）
 - owner: root（依頼者）
 - created: 2026-11-14
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」（印の形と検知の鍵を測った結果、測っていないもの）、program §8 のこのスライスの行と S2-2b の行。S2-2b の A1 は事実の文書のその節を再開入力として読む（S2-2b の初稿へ結論を写さない）。結論が出たら、既存の GitHub Pages（`gh-pages` ブランチ）も更新する（2026-11-14 の owner の依頼。載せる内容は Phase D で owner と決める）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§5.3、§8）。S2-2b の A1 初稿（`docs/handoff/CONTENT_PREFAB_STAMP.md`、ブランチ `claude/content-prefab-stamp` の作業ツリーにある未 commit の file。本スライスは読むだけで変えない）
-- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
+- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5。revision 1 も同じ）
 - Phase B result snapshot の取得案内・状態: 未生成（repository の差分は文書だけ。実験の script は repository の外にあり、次項）
-- 実験の Editor script の取得案内・状態: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した（§8）。取得案内は実験の project に置いた。
-- 引継ぎ票:
-  - 次の Phase・役割: Phase C から C' までの進行役（動作確認は `対象なし`）。owner が desktop から直接起こす新しい session で、これまでの会話ではなく本書を入力にする。進行役は判断担当（発見 C と判定 C）→（script の誤りによるやり直しがあれば、その実行担当）→ C' の各担当をそれぞれ新しい session または CLI で起こし、各担当の出口の記録と票の更新を確かめて次へ進める。各担当の起動指示には、その時点の引き継ぐ commit の SHA と、evidence bundle の取得案内の所在を渡す。進行役自身はレビュー・判定・監査をしない。
-  - **owner の決定（2026-11-14、C' の後）: GO・NO を受けて、Phase A を revision 1 として再開する。** 3 条件と規模の fixture（Scene 300、prefab 3,000）は変えない。変えるのは AC3b で測る手順だけで、印の値を作る時に Scene ごとに `GetDependencies(scene, true)` を呼び直さず、製品の build が毎回すでに作っている依存閉包（`AssetDependencySnapshotBuilder` が root ごとに `GetDependencies` を呼んで作る）を受け取って使う形にし、規模の列を測り直す。理由: revision 0 の上乗せ（約 3.7 秒、約 24%）のうち約 3.0 秒はこの依存の列挙で、製品では印が無くても払っている費用である。残りの書き込み・`Refresh`・戻し・build の差は M の T1 で合計約 0.65 秒（割る値の約 4.2%）で、5% に近いため、測り直しても合格は保証されない。AC3b の測る中身が変わるので、決定記録ではなく revision として扱う。revision 0 の record・判定 C（§7.2）・C'（§8）は revision 0 の結果として残す。§8 の (B) のうち何を revision 1 に取り込むか（material の確認、record の欠けている値など）は Phase A の担当が決める。次の Phase・役割は Phase A（revision 1）の主担当で、本書の全節と §7.2・§8 を入力にする。上の「次の Phase・役割」〜「引き継ぐ commit」の行は revision 0 の C〜C' 用で、revision 1 の A3 で書き直す。
-  - 進み具合（2026-11-14、C' の後）: (3) も完了した（§8。C' 1 巡目は GO・NO、阻害する findings なし、差し戻しなし）。進行役の担当範囲は終わった。次は (4) の Phase D を owner と行う（C と C' の突き合わせ、§7.2 の「owner へ返す内容」、harvest、evidence の保存・引渡しの確認）。
-  - 進み具合（2026-11-14）: (1) は完了した（§7.2。発見 C で阻害する誤りは無く、判定 C の読みは GO・NO）。(2) は不要になった。進行役は (3) から再開する。GO・NO の内容（§7.2 の「owner へ返す内容」）は C' の後に (4) で owner と扱う。
-  - 次の作業: (1) 判断担当（Phase B と異なるモデル）が evidence bundle を fetch し、script（bundle の `StampSpike.cs`。sha256 は実行前に照合済み、§7）と record を読んで発見 C を行う。現在の問いを阻害する script の誤りが無ければ、同じ record で判定 C を行う（batch は implementation head の script を B 以外の実行担当が取った観測なので、判定の入力にしてよい。再実行しない）。AC の合否と §2.5 の 4 つの読みを §7 に記録する。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。(2) script の誤りで未判定になる時に限り、§2.5 のとおり batch を 1 回だけやり直す（新しい実行担当の session。§5 の検証経路と §7 の実行の記録のとおり）。(3) 判定 C の後、所見を含まない C' blind bundle を作り（入力は bundle の record・log・script と、HANDOFF は Phase B 完了時点の commit `c2947bd8` の blob。§7 の記録と発見 C・判定 C の所見は入れない）、§5 の予約どおり C' を Grok 系（cursor-agent）で行い、§8 に記録する。(4) Phase D は owner と行う（§0 の harvest to）。
-  - 読む範囲: 進行役は §0、§2.5、§5、§6、§7。判断担当は既定のとおり（§0〜§7）。C' は blind bundle だけを読む。
-  - 必要な権限: 判断担当は evidence bundle の fetch だけで足り、Unity を起動しない。やり直しの実行担当は §5 の検証経路の権限（repository の外の実験 project でだけ Unity を起動。この repository の `unity/` では起動しない（I1））。C' は cursor-agent（AGENTS.md の契約どおり Grok 系だけ。Codex CLI は 2026-11-12 から使えない）。§5 の予約が「Phase A・B・C に関与していないか」を満たすかは C' を起こす時に確かめ（Phase A の外部レビュー（cursor[bot]、§5.1）が使ったモデルを含む）、満たさなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない）。判断担当のモデルが進行役と同じ等で独立性が弱まる場合も、同じく制約として記録する（高コストのモデルへ上げない）。push は SKILL の公開点の規則に従う。
-  - 停止規則: 判定 C の判断担当が `HALT`・未判定と読んだ時は、§2.5 の停止規則のとおり owner へ返す。やり直しは 1 回まで。C' の指摘による差し戻しは SKILL の上限（3 巡）に従う。
-  - 引き渡さないもの: C' に §7 の記録、発見 C・判定 C の所見、PR 本文を渡さない。
-  - 引き継ぐ commit: この票を含む commit（発見 C・判定 C の判断の記録。SHA は起動指示と PR #191 の状態ブロックで渡す）。C' の blind bundle に入れる HANDOFF は、この commit ではなく (3) のとおり `c2947bd8` の blob とする。
+- 実験の Editor script の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。revision 1 の script は未生成（Phase B で revision 0 の script を写して直す。§5.2）。
+- evidence bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。revision 1 の evidence bundle は未生成。
+- C' blind bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した（§8）。取得案内は実験の project に置いた。revision 1 の C' blind bundle は未生成。
+- 引継ぎ票（revision 1 の A2 入力版。revision 0 の C〜C' 用の票は commit `88311fef` の本節にある）:
+  - **owner の決定（2026-11-14、C' の後）: GO・NO を受けて、Phase A を revision 1 として再開する。** 3 条件と規模の fixture（Scene 300、prefab 3,000）は変えない。変えるのは AC3b で測る手順だけで、印の値を作る時に Scene ごとに `GetDependencies(scene, true)` を呼び直さず、製品の build が毎回すでに作っている依存閉包（`AssetDependencySnapshotBuilder` が root ごとに `GetDependencies` を呼んで作る）を受け取って使う形にし、規模の列を測り直す。理由: revision 0 の上乗せ（約 3.7 秒、約 24%）のうち約 3.0 秒はこの依存の列挙で、製品では印が無くても払っている費用である。残りの書き込み・`Refresh`・戻し・build の差は M の T1 で合計約 0.65 秒（割る値の約 4.2%）で、5% に近いため、測り直しても合格は保証されない。AC3b の測る中身が変わるので、決定記録ではなく revision として扱う。revision 0 の record・判定 C（§7.2）・C'（§8）は revision 0 の結果として残す。§8 の (B) のうち何を revision 1 に取り込むか（material の確認、record の欠けている値など）は Phase A の担当が決める。次の Phase・役割は Phase A（revision 1）の主担当で、本書の全節と §7.2・§8 を入力にする。
+  - 次の Phase・役割: Phase A（revision 1）の A2。実験の統制の反証とアーキテクチャゲートを兼ねる独立レビュー 1 件を、主担当が新しい文脈で起こす。目的レビューは行わない（§1 の目的・利用者の 2 欄を revision 1 で変えていないため。§5.2）。
+  - 次の作業: A2 の担当は、この票を含む commit の本書を入力版として読み、revision 1 で変えた所（§5.2 の変更一覧）が owner の決定の範囲に収まるか、AC3b の新しい手順で偽の合格・偽の不合格・実行できない手順が生じる順序を挙げられるかを見る。主担当は A3 で採否を分類し、owner の承認で凍結する。
+  - 読む範囲: 全節（§6〜§8 は revision 0 の結果として読む）。
+  - 必要な権限: なし（Unity を起動しない。製品の code は読むだけ）。
+  - 停止規則: owner の決定の範囲（3 条件、規模の fixture、AC3b の手順のうち依存閉包の扱い）を超える変更が要ると分かったら、凍結せずに owner へ返す。
+  - 引き渡さないもの: なし（A2 の担当に互いの指摘を渡さない、は 1 件なので当たらない）。
+  - 引き継ぐ commit: この票を含む commit（revision 1 の A2 入力版。SHA は起動指示で渡す）。
 
 ## 1. 目的と対象外
 
@@ -72,6 +70,8 @@
   - **`GetAssetDependencyHash` を Scene に対して呼んだ値は、依存の中身を表さない。** prefab・texture を v2 にした前後で、それを置いた Scene の値は変わらなかった（S2-2 のスパイクの参考の観測）。prefab 自身に対して呼んだ値は測っていない。
   - **この repository の Scene の text:** `unity/Assets` の `.unity` 668 件の全てが `SceneRoots` の document を持ち、全てでそれが file の最後の document である（file は `m_Roots` の最後の行で終わる）。最大の Scene は約 23 KB で、規模の参考にならない。`#` で始まる行を持つ `.unity`・`.prefab` は無い。`EditorOnly` tag を持つ Scene は無い。`ProjectSettings/EditorSettings.asset` は `m_SerializationMode: 2`（Force Text）。
   - **製品で Unity の build を呼ぶのは 1 か所。** `UnityContentDirectoryAdapter.Build`（`Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs`、173 行、`BuildContentOptions.None`）。root ごとの依存閉包（`AssetDatabase.GetDependencies(path, true)`）は build の入力の snapshot が既に持つ（S2-2b の A1 初稿 §1）。
+  - **製品の依存閉包の作り方（revision 1 で確かめた。commit `88311fef` の code）:** `SceneResourceContentMaterializer.MaterializeCore` が、SceneResource の Scene の payload（と付随 asset の payload）ごとに、その GUID を root として `AssetDependencySnapshotBuilder.Build` を呼ぶ。`Build` は root の path を `GetDependencies(root, true)`（`UnityAssetDatabaseGateway`）で列挙し、`\` を `/` に替え、`Assets/` で始まらない path・`.meta`・`.cs`・`.dll`・`.asmdef`・`.asmref`・folder を除き、root 自身を足して、path の序数順に並べ、path ごとに GUID を引いた `BuildDependencySnapshot`（GUID と path の組の列。asset の型は持たない）を返す（`AssetDependencySnapshotBuilder.cs` 40〜72 行）。これは build のたびに、印の有無に関係なく行われる。snapshot は materialize の結果として `BuildContentCoordinator` へ渡され（`request.Snapshot`）、coordinator が adapter の `Build`（83 行）を呼ぶより前にできている。adapter の `Refresh`（`UnityContentDirectoryAdapter.cs` 42 行）より前である。Scene の閉包は Scene ごとの root から作るので、閉包の path の集合は、revision 0 の script が Scene ごとに呼んだ `GetDependencies(scene, true)` の結果から同じ除外をした物に root を足した集合と同じになる（revision 0 の印の入力は main asset が `GameObject` の物と `ModelImporter` の物だけなので、除外される path と root の Scene は入力に入らない）。
+  - **revision 0 の結果（§7.2、§8）:** 印の形 M と F2 はどちらも AC1・AC2・AC4・AC5 を満たし、検知の鍵 K1 は §2.7 の (1) で選ばれたが、AC3b が両形とも不合格で GO・NO になった。1 回の上乗せ（厳しい読み）は M が 3,701〜4,008 ms、F2 が 3,667〜4,669 ms（割る値は M 15,343 ms、F2 14,658 ms）。内訳の「計算」が約 3.0 秒で、Scene ごとの `GetDependencies` と型の判定と K1 を分けて測っていない（§7.2 の N3）。計算を除く残り（書き込み、`Refresh` の差、戻し、戻し後の `Refresh`、build の差）は、M が 652〜979 ms（4.2〜6.4%）、F2 が 666〜1,645 ms（4.5〜11.2%）で、build の差が回ごとに 0〜994 ms と大きく揺れた。実行中に無関係な Unity の batch が 3 本動いていた（§7.1）。
 - UC ごとの利用者の入力: `なし`（利用者の操作が無い。測る方式は、どれも build の呼び手に新しい入力を求めない）。
 
 ## 2. 意思決定と受け入れ境界
@@ -119,9 +119,9 @@
 - **AC3（S3）検知の鍵。** 鍵ごとに、Unity の build を伴わない次の観測が全て成り立つ。(a) `Inner` の file を v2 にすると `Inner` の値が変わる。(b) v1 のバイトに戻すと、最初の値に戻る。(c) バイトを変えず更新時刻だけを変えても値が変わらない。(d) model の file（fixture の `.obj`）でも (a)〜(c) が成り立つ。加えて、実験の script が印の値を作る時に、prefab・model の file を file の API で開かない（script の code で確かめる）。
   - (e)（過剰な作り直しの観測）material と texture を持つ prefab `Dep` について、texture のバイトを変えた時と、material の値を変えた時に、`Dep` の鍵の値が変わるかを記録する。変わる鍵は、Scene の出力が変わらない編集でも、その prefab を置いた Scene を作り直す。「(e) で値が変わらない」は、texture の変更でも material の変更でも値が変わらないことをいう。読みは §2.5。
 - **AC3b（S3）規模での上乗せ。** 成り立った印の形のそれぞれについて、§5 の規模の列（形ごとの独立した block。source を変えない build を、印なしの N1〜N3 と、その形の印ありの T1〜T3 で交互に行う）で判定する。結果は形ごとに、合格・不合格・未判定の 3 つ。
-  - (a) T1〜T3 の書いた数が全て 0 で、T1〜T3 の全ての Scene の出力が、その形の T0（印ありの初回）と同じ名前・同じ sha256。
-  - (a2) N1〜N3 の書いた数が全て 0 で、出力が W と同じ名前・同じ sha256（N が再利用になっていないと、N の所要が膨らみ、上乗せが小さく見える）。
-  - (b) 1 回の上乗せは次の合計: 印の値の計算（Scene ごとの依存の列挙を含む）、印の書き込み、書き込みの後の `Refresh` の所要から N の `Refresh`（同じ位置で測る、変更なし）を引いた値（負なら 0）、戻し、戻しの後の `Refresh`、T の build の所要から N の build の所要を引いた値（負なら 0）。製品は build の前に `Refresh` を 1 回呼ぶ（`UnityContentDirectoryAdapter.cs` 42 行）ので、その分を印の上乗せに数えない。棚卸しと record の書き出しは、どの所要にも入れない。割る値は、N1〜N3 の build の所要の最小に固定する。引く値（N の `Refresh` と build の所要）に、N1〜N3 の最小を使う読みを「厳しい読み」、中央値を使う読みを「緩い読み」という（最大を使うと、遅い N が 1 回あるだけで差が 0 に潰れる）。
+  - (a) T1〜T3 の書いた数が全て 0 で、T1〜T3 の出力の `.cf` と `.resS` の file の（名前, sha256）の集合が、その形の T0（印ありの初回）と同じ。manifest の `.json` と `BuildManifestHash.txt` は build ごとに作り直すので比べない（revision 1 で、revision 0 の §6 の B 適応の読みを条件の文にした。§8 の (B) の 3 番目）。
+  - (a2) N1〜N3 の書いた数が全て 0 で、出力の `.cf` と `.resS` の file の（名前, sha256）の集合が W と同じ（比べない file は (a) と同じ。N が再利用になっていないと、N の所要が膨らみ、上乗せが小さく見える）。
+  - (b) 1 回の上乗せは次の合計: 印の値の計算（受け取った依存閉包から印の入力を絞る型の判定、鍵の取得、ハッシュ。依存閉包を作る所要は入れない。§2.7 の「依存閉包の受け取り」）、印の書き込み、書き込みの後の `Refresh` の所要から N の `Refresh`（同じ位置で測る、変更なし）を引いた値（負なら 0）、戻し、戻しの後の `Refresh`、T の build の所要から N の build の所要を引いた値（負なら 0）。製品は build の前に `Refresh` を 1 回呼ぶ（`UnityContentDirectoryAdapter.cs` 42 行）ので、その分を印の上乗せに数えない。棚卸しと record の書き出しは、どの所要にも入れない。依存閉包は、T でも N でも build ごとに同じ位置（棚卸しの後、T では印を書く前）で作り、その所要を record に書くが、どの所要にも入れない（製品は印の有無に関係なく build ごとに作る。§1。revision 1 の owner の決定）。計算の所要は、型の判定、鍵の取得、ハッシュに分けても record に書く（§7.2 の N3）。割る値は、N1〜N3 の build の所要の最小に固定する。引く値（N の `Refresh` と build の所要）に、N1〜N3 の最小を使う読みを「厳しい読み」、中央値を使う読みを「緩い読み」という（最大を使うと、遅い N が 1 回あるだけで差が 0 に潰れる）。
   - 形ごとの結果は、次の順に当てはめ、最初に当たったものにする。
     1. **未判定:** その形の block が T3 まで届かなかった（測り切っていない形を不合格にしない）。
     2. **不合格:** (a) が成り立たない。
@@ -141,6 +141,7 @@
 - Player の build の差分 build、別の PC・`Library`・CI の agent をまたぐ cache: S3・S4（S2-2b の初稿 §2.3 と同じ送り先）。
 - cache の鍵の仕組みの全体（Scene 以外の asset、cache の置き場と寿命）: 所有 program 未定。本スライスは、印の形の合否に要る範囲だけを読む。
 - script の code を変えた時に検知の鍵が変わるか（batch の途中で compile と domain reload が入るので、1 process の batch では測らない）: S2-2b の A1。script の code による Scene の出力の変化は、もともと対象外（§1）。
+- 製品の依存閉包を印に使う時の時点の問題（revision 1）: 製品の snapshot は adapter の `Refresh` より前にできる（§1）ので、Editor の外で変えた file が `Refresh` の前の閉包に反映されているか、印の値を `Refresh` の後に作るか、Scene の間で鍵の結果を使い回すかは、S2-2b の A1 が決める（本スライスは source を変えない規模の列で上乗せだけを測り、小さい列は版を切り替えて `Refresh` した後に閉包を作る）。
 - 結論の範囲: 本スライスの判定は、batch の 1 process で採る。開いている Editor で build した時に F2 が Scene の読み直しを起こすか等は S2-2b が確かめ、そこで結論が覆りうることを harvest の文に書く。
 - Unity への不具合報告を送るか: owner（S2-2 の追記のとおり、報告の材料は owner の再現 project にある）。
 
@@ -154,7 +155,7 @@
 「印の形が成り立つ」は、その形が AC1・AC2・AC4・AC5 を全て満たすことをいう。「鍵が成り立つ」は、その鍵が AC3 (a)〜(d) を全て満たすことをいう。「build の鍵」は、§2.7 の選び方で build の列と規模の列に実際に使った鍵をいう。「全てを満たす形」は、成り立ち、AC3b が合格で、B6 の Scene の出力が基準 R と一致し（AC5 (b)）、AC2 (g) を働く指標で読めた印の形をいう。判定は、次の順に当てはめ、最初に当たったものにする（2 つ以上に同時に当たる読みを作らない）。
 
 1. **未判定（owner へ）:** AC0 が成り立たない、batch が段 7 の中間の終了行まで動かなかった（段 1〜段 3 の確認で止まった時を含む）、または AC6 が成り立たない。
-2. **GO・NO:** 成り立つ印の形が 1 つも無い、または成り立つ印の形の全てで AC3b が不合格。満たせなかった条件と観測を、条件ごとに対応づけて owner へ返す（3 条件のどれを見直すかは owner が決める）。AC3b の不合格で当たった時は、上乗せの内訳（計算、書き込み、`Refresh`、戻し、build の差）を返し、測った手順（書いて `Refresh`、戻して `Refresh`）と違う手順は測っていないと書く。
+2. **GO・NO:** 成り立つ印の形が 1 つも無い、または成り立つ印の形の全てで AC3b が不合格。満たせなかった条件と観測を、条件ごとに対応づけて owner へ返す（3 条件のどれを見直すかは owner が決める）。AC3b の不合格で当たった時は、上乗せの内訳（計算、書き込み、`Refresh`、戻し、build の差）を返し、測った手順（受け取った依存閉包から Scene ごとに値を作る、書いて `Refresh`、戻して `Refresh`）と違う手順は測っていないと書く。
 3. **GO・YES:** 全てを満たす形が 1 つ以上あり、build の鍵が §2.7 の (1)（public な K1 または K3 で、成り立ち、AC3 (e) の texture の変更でも material の変更でも値が変わらない）。推奨する組は、全てを満たす形のうち §2.7 の順で最初の物と、build の鍵。測った組そのものが 3 条件を同時に満たした時だけ、ここに入る。
 4. **CONDITIONAL ACCEPT:** 上のどれでもない（成り立つ印の形があり、その中に AC3b が合格か未判定の形がある）。当たった項目の観測を並べて owner へ返し、owner が条件の読みを決める。
    - (i) build の鍵が internal の K2、または全バイトの sha256（成り立つ鍵が無かった）。検知の代替は、K2 を reflection で使う、または Unity の API に依らない K4（§2.7）。
@@ -168,7 +169,7 @@
 ### 2.6 A3 後の例外承認・決定記録
 
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録: なし（revision 1 は、AC3b の測る中身を変えるので決定記録ではなく revision にした。§0 の owner の決定）
 
 ### 2.7 本文へ転記した実装制約
 
@@ -177,7 +178,8 @@
   - **F2（知らない key）:** Scene の file の末尾（最後の document である `SceneRoots`）に、Unity が知らない key の行を 1 つ足す（値は印）。object も fileID も足さない。戻しは file を元の長さへ切り詰める。Scene を全部読んで書き直さない。
   - **測らない形:** E（固定の fileID の GameObject を build の間だけ差し込む）は、M と F2 が先行確認で成り立ち、どちらよりも書く量と前提が多いので外した。Scene に何も書かない形（custom dependency）は先行確認で成り立たなかった（§1）。
   - **F（YAML のコメント行）は測らない。** 公開文書が非対応と明記しており（§1）、通っても製品の前提にできないため。
-- **測る検知の鍵（Scene ごとに、`GetDependencies(scene, true)` のうち、main asset が `GameObject` の物と `ModelImporter` が import した物を path の序数順に並べ、鍵の値を連ねてハッシュにする。各 Scene の印の入力に入った path の一覧と、`Model.obj` の main asset の型を record に書き、B6 が成り立たない時に、原因が印の形か印の入力かを分けて読めるようにする。段 1 で、各 Scene の印の入力が fixture から導いた一覧（`SOuter` は `Inner`・`Mid`・`Outer`、`SShared1`・`SShared2` は `Shared`、`SModel` は `Model.obj`、`SPlain` は無し）と一致することを確かめ、一致しなければ batch を止める）:** K1 `AssetDatabase.GetAssetDependencyHash`。K2 `GetSourceAssetFileHash` と `GetSourceAssetMetaFileHash`（internal、reflection）。K3 `AssetDatabaseExperimental.LookupArtifact` の結果の ID。build の列と規模の列は、次の順で最初に当たる鍵の値で印を作る（batch の中で段 2 の観測から自動で選び、選んだ鍵と当たった順位を record に書く）。(1) public な鍵（K1、K3 の順）で、AC3 (a)〜(d) を満たし、(e) の texture の変更でも material の変更でも値が変わらない物（片方だけで変わる鍵は (2)）。(2) K1、K3、K2 の順で、AC3 (a)〜(d) を満たす物。(3) どれも無い時は、prefab・model の file の全バイトの sha256（条件 2 を満たさないが、印の形の合否を鍵の不成立から切り離すため）。GO・YES になりうるのは (1) の時だけである。(2)・(3) の時は、§2.5 の 2 番（GO・NO）に当たらなかった時だけ、CONDITIONAL ACCEPT (i)・(ii) で読む。
+- **測る検知の鍵（Scene ごとに、その Scene を root とする依存閉包（下の「依存閉包の受け取り」）のうち、main asset が `GameObject` の物と `ModelImporter` が import した物を path の序数順に並べ、鍵の値を連ねてハッシュにする。各 Scene の印の入力に入った path の一覧と、`Model.obj` の main asset の型を record に書き、B6 が成り立たない時に、原因が印の形か印の入力かを分けて読めるようにする。段 1 で、各 Scene の印の入力が fixture から導いた一覧（`SOuter` は `Inner`・`Mid`・`Outer`、`SShared1`・`SShared2` は `Shared`、`SModel` は `Model.obj`、`SPlain` は無し）と一致することを確かめ、一致しなければ batch を止める）:** K1 `AssetDatabase.GetAssetDependencyHash`。K2 `GetSourceAssetFileHash` と `GetSourceAssetMetaFileHash`（internal、reflection）。K3 `AssetDatabaseExperimental.LookupArtifact` の結果の ID。build の列と規模の列は、次の順で最初に当たる鍵の値で印を作る（batch の中で段 2 の観測から自動で選び、選んだ鍵と当たった順位を record に書く）。(1) public な鍵（K1、K3 の順）で、AC3 (a)〜(d) を満たし、(e) の texture の変更でも material の変更でも値が変わらない物（片方だけで変わる鍵は (2)）。(2) K1、K3、K2 の順で、AC3 (a)〜(d) を満たす物。(3) どれも無い時は、prefab・model の file の全バイトの sha256（条件 2 を満たさないが、印の形の合否を鍵の不成立から切り離すため）。GO・YES になりうるのは (1) の時だけである。(2)・(3) の時は、§2.5 の 2 番（GO・NO）に当たらなかった時だけ、CONDITIONAL ACCEPT (i)・(ii) で読む。
+- **依存閉包の受け取り（revision 1）:** 印の値を作る関数は、Scene ごとの依存閉包（path の列）を引数で受け取り、自分では `GetDependencies` を呼ばない（判断担当が script の code で確かめる。AC3 の file の API の確かめと同じ）。依存閉包は、script の別の関数が、製品の `AssetDependencySnapshotBuilder.Build` と同じ規則（§1。Scene の path を root として `GetDependencies(root, true)`、`\` を `/` に、`Assets/` で始まらない path・`.meta`・`.cs`・`.dll`・`.asmdef`・`.asmref`・folder を除く、root を足す、path の序数順）で、印を書く build（X・B・T0〜T3）と N1〜N3 の各回に Scene ごとに作る。製品の assembly は実験の project に入れない（I1、AC6）。GUID の引き直しと issue の判定は、印の入力に使わないので写さない。印の値を作る関数は、revision 0 と同じく Scene ごとに型の判定と鍵の取得を行い、Scene の間で結果を使い回さない（使い回す手順は測らない）。依存閉包を作る所要は AC3b の上乗せに入れない（AC3b (b)）。
 - **測らない検知の代替（結論の文に候補として残すだけ）:** K4 は、file の更新時刻と大きさが前回と同じなら前回の sha256 を使い、違う時だけ読む（状態は `Library` の下で、source に残らない。初回と `Library` を消した後は全バイトを読む）。K5 は `AssetPostprocessor` で prefab の保存を拾い、依存する Scene に印を付ける（状態を持ち、Editor の外で変わった file の取りこぼしを別に塞ぐ必要がある）。どちらも Unity の未確認の前提を持たないので、実測の対象にしない。
 - **推奨する組の選び方（結果を見る前に固定する）:** 印の形は、§2.5 の「全てを満たす形」のうち、M、F2 の順で最初の物を推奨し、もう一方も成り立てば、その形自身の AC3b の結果を付けて代替として記録する。CONDITIONAL ACCEPT の時は、成り立つ形を同じ順に並べ、形ごとに欠けている点を付けて書く。M を先にする理由は 3 条件の外にある（M は Scene 本体を書かず、`userData` は API として公開された欄で、Scene の text の形式に依らない。F2 は文書に無い「知らない key を無視する」に依る）。条件 2 を M と F2 が同じに満たすかは測るまで分からないので、規模の列は成り立った形の両方で行う。検知の鍵は、build の鍵（上の選び方）をそのまま推奨する。
 - **実験の置き場:** 実験の script と fixture は、実行担当が repository の外に新しく作る空の project（Unity 6000.6.0f1、package なし。先行確認と同じ作り）に置き、この repository に入れない。S2-2 の追記で使った owner の再現 project は使わない。script は build ごとの fixture を自分で作り、終わりに消す。
@@ -202,7 +204,7 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 | `docs/handoff/CONTENT_SCENE_STAMP_SPIKE.md`（本書） | 計画、実測の結果、判定 | — | Phase D で harvest して削除 | — | — | — | 作業台 | 新規 |
 | `docs/handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md` | §8 の行（§2.8 U4） | このスライスの追加と S2-2b の状態 | program | — | — | — | 既存 | 2 行 |
 | `docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md` | 実測の結果（Phase D の harvest。判定の前には書かない。事実の文書の「測り直し」の慣例に合わせ、実験の script の取得先も書く） | 印の形と検知の鍵の事実 | 永続 | — | 公開面 | — | 既存の同じ節 | 数行 |
-| （repository の外）実験の Editor script 1 つ | fixture の作成、検知の観測、build の列、record | — | batch 1 回。git に入れず、script と record は evidence bundle で残す | `UnityEditor` | — | — | 再現 project。I1 | 0 → 約 400 |
+| （repository の外）実験の Editor script 1 つ | fixture の作成、検知の観測、build の列、record | — | batch 1 回。git に入れず、script と record は evidence bundle で残す | `UnityEditor` | — | — | 再現 project。I1 | 0 → 約 400（revision 0 の実績は約 950。revision 1 は revision 0 の script を写して直し、依存閉包の関数と record の値の分だけ増える） |
 
 - 行数警報: なし。依存の向き・asmdef・Runtime / Editor の境界は変えない。
 - 実験の script は 1 file にまとめる（残さない道具なので、構造の分割をしない）。
@@ -210,6 +212,7 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 ## 4. 実装計画
 
 - 順序: (1) fixture を作る code。(2) 検知の観測（build なし）。(3) 印の形 M・F2 の書き込みと戻し。(4) build の列と record。(5) script を project に置いた状態で compile が通ることを、Editor を batch で 1 回起動して確かめる（build は呼ばない）。
+- revision 1 の順序: (1) revision 0 の evidence bundle の `StampSpike.cs` を、新しく作る実験の project（§2.7 の置き場と同じ作り）へ写す。(2) 依存閉包を作る関数と、閉包を受け取る印の値の関数に分ける（§2.7）。(3) §5 の段 2 の material の確かめ、段 5・段 8 の手順、record の値（§5 の revision 1 で足す値）を足す。(4) compile の確認（上の (5) と同じ。build は呼ばない）。fixture、build の列、判定の導出の行は、revision 1 で変えた条件に合わせる所の他は変えない。
 - Phase B から Phase A へ差し戻す条件: §2.7 に無い印の形や鍵を足す必要が出た時、または build の回数が §5 の列を超える時。印の形が成り立たない等の結果は、差し戻さず record に残す（それが測りたい事実である）。
 - 対象外を維持する方法: この repository の `unity/` を変えない（AC6）。
 
@@ -224,24 +227,25 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 - 規模の fixture: Scene 300、prefab 3,000（3 分の 1 は入れ子。10 個の material を共有して参照する）、Scene 1 つが 30 個の prefab の instance を 14 個ずつ置き（計 420 個。先行確認の 1 つ約 2.4 KB から、Scene の file が約 1 MB になる数。§2.8 U5）、Scene の file は 1 つ約 1 MB。作った Scene の file の大きさを record に書く。texture は持たない（record に限界として書く）。割り当ては次のとおりに固定する: Scene i（0〜299）は、prefab の番号 (10i + k) mod 3,000（k は 0〜29）を置く（どの prefab も 3 つの Scene が置く）。Scene は、置く 30 種類のそれぞれを、位置を変えて 14 個ずつ置く。番号が 3 の倍数の prefab 1,000 個は、次の番号の prefab を nest する。prefab n は、material (n mod 10) を参照する Renderer を 1 つ持つ。作った後に、全ての Scene の `GetDependencies` から、どれかの Scene の依存閉包に入った prefab の種類の数、入れ子を持つ prefab の数、依存閉包に入った material の種類の数、Scene 1 つあたりの prefab の依存の数と instance の数と file の大きさの最小・中央・最大を record に書く。次のどれかが外れた時は、規模の block を行わない（どの形の AC3b も未判定になる）: 種類の数が 3,000、入れ子を持つ prefab が 1,000、material の種類が 10、どの Scene も instance が 420 個で file の大きさが 0.8 MB 以上 1.5 MB 以下。
 - batch の順（Unity の process 1 つ。前の段が失敗しても、後の段へ進めるなら進めて record に残す。ただし段 1〜段 3 の確認（印の入力、棚卸しの一致）が成り立たない時は先へ進めず、中間の終了行も書かない。§2.5 の未判定）:
   1. **棚卸し:** `Assets` の下の全 file の path と sha256（AC6 の開始時の棚卸し）。小さい fixture を作り、作り終えた直後の棚卸しを「基準の棚卸し」として控える。各 Scene の印の入力を、fixture から導いた一覧と照らす（§2.7。一致しなければ batch を止める）。
-  2. **検知の観測（build なし、AC3）:** `Inner`・`Mid`・`Outer`・`Shared`・`Model` について K1〜K3 の値を、v1、`Inner` と `Model` を v2、v1 のバイトへ戻す、更新時刻だけ変える、の各時点で記録する。`Mid` と `Outer` の値が `Inner` の編集で変わるかも記録する（合否には使わない）。`Dep` について、texture のバイトを変えた時と material の値を変えた時の値を記録する（AC3 (e)）。段の終わりに、prefab・model・`Dep`・texture・material を控えたバイトへ書き戻し、棚卸しが基準の棚卸しと一致することを確かめる（一致しなければ、以後の列の「v1」は控えた v1 ではないので、batch を止めて record に残す）。
+  2. **検知の観測（build なし、AC3）:** `Inner`・`Mid`・`Outer`・`Shared`・`Model` について K1〜K3 の値を、v1、`Inner` と `Model` を v2、v1 のバイトへ戻す、更新時刻だけ変える、の各時点で記録する。`Mid` と `Outer` の値が `Inner` の編集で変わるかも記録する（合否には使わない）。`Dep` について、texture のバイトを変えた時と material の値を変えた時の値を記録する（AC3 (e)）。material の値を変えた時は、変える前と、保存して `Refresh` した後の `Dep.mat` の sha256 を記録し、同じなら batch を止める（material の変更が file に落ちていない。revision 0 の §8 の (B) の 1 番目。止めた時は §2.5 の未判定で、script の誤りとして 1 回のやり直しの対象）。段の終わりに、prefab・model・`Dep`・texture・material を控えたバイトへ書き戻し、棚卸しが基準の棚卸しと一致することを確かめる（一致しなければ、以後の列の「v1」は控えた v1 ではないので、batch を止めて record に残す）。
   3. **印の読み取り（build なし、AC5 (c)）:** M と F2 のそれぞれについて順に、印を `SOuter` に書いて import し、Scene を additive に開いて、出た Error・Warning と root の数を記録し、保存せずに閉じて戻す（どちらの形の Error・Warning かを分ける）。戻しは `SOuter` の `.unity` と `.meta` の両方を控えたバイトへ書き戻し、棚卸しが基準の棚卸しと一致することを確かめる（同上）。
   4. **`CleanBuildCache()`** → **印なしの列:** C1（全て v1）→ C2（`Inner` だけ v2。AC0）→ C3（`Inner` を v1 へ戻し、`Model` を v2。model の編集が印なしで取りこぼされるか、頂点の列がどの file に入るかの観察で、合否には使わない）。
-  5. **印の形 M の列:** 全て v1 へ戻し、**`CleanBuildCache()`** → X1（全て v1、印は固定の文字列）→ X2（`Inner` だけ v2、同じ固定の文字列。AC2 (f)）。全て v1 へ戻し、B1（全て v1）→ B2（`Inner` だけ v2）→ B3（変更なし）→ B4（`Inner` を v1 へ戻す）→ B5（`Inner` と `Shared` を v2）→ B6（`Model` を v2）。各回は、source の版を切り替える → `Refresh` → 棚卸し → 印を書く → `Refresh` → build → 元のバイトへ戻す → `Refresh` → 棚卸し。`SPlain` には印を書かない。
+  5. **印の形 M の列:** 全て v1 へ戻し、**`CleanBuildCache()`** → X1（全て v1、印は固定の文字列）→ X2（`Inner` だけ v2、同じ固定の文字列。AC2 (f)）。全て v1 へ戻し、B1（全て v1）→ B2（`Inner` だけ v2）→ B3（変更なし）→ B4（`Inner` を v1 へ戻す）→ B5（`Inner` と `Shared` を v2）→ B6（`Model` を v2）。各回は、source の版を切り替える → `Refresh` → 棚卸し → 依存閉包を作る（§2.7）→ 印を書く → `Refresh` → build → 元のバイトへ戻す → `Refresh` → 棚卸し。`SPlain` には印を書かない。
   6. **印の形 F2 の列:** 段 5 と同じ（始めに全て v1 へ戻して `CleanBuildCache()`）。M の列が作った cache の entry の上で F2 を測らない。
   7. **`CleanBuildCache()`** → 基準 R（印なし、B6 と同じ source）→ **中間の終了行**を書く。
-  8. **規模の列（AC3b）:** 小さい fixture を消し、規模の fixture を小さい fixture と別の folder に作り、作り終えた直後の棚卸しを控える。成り立った印の形ごとに、独立した block を行う: **`CleanBuildCache()`** → W（印なし、cache を温める）→ T0（その形の印ありの初回。作り直しになる。所要は記録だけ）→ N1 → T1 → N2 → T2 → N3 → T3。source はどの回も変えず、各 block の前の棚卸しが、控えた棚卸しと一致することを確かめる。T の各回は段 5 と同じ手順（棚卸し → 印を書く → `Refresh` → build → 元のバイトへ戻す → `Refresh` → 棚卸し）で、N の各回は、棚卸し → 変更なしの `Refresh`（T と同じ位置で測る）→ build → 棚卸し。規模の build も全て AC4 の対象である（棚卸しは所要に入れない）。各 build は別の空の出力先へ出す。別の形の block が作った cache の entry の上で測らない。成り立った印の形が無い時は、この段を行わない。
+  8. **規模の列（AC3b）:** 小さい fixture を消し、規模の fixture を小さい fixture と別の folder に作り、作り終えた直後の棚卸しを控える。成り立った印の形ごとに、独立した block を行う: **`CleanBuildCache()`** → W（印なし、cache を温める）→ T0（その形の印ありの初回。作り直しになる。所要は記録だけ）→ N1 → T1 → N2 → T2 → N3 → T3。source はどの回も変えず、各 block の前の棚卸しが、控えた棚卸しと一致することを確かめる。T の各回は段 5 と同じ手順（棚卸し → 依存閉包を作る → 印を書く → `Refresh` → build → 元のバイトへ戻す → `Refresh` → 棚卸し）で、N の各回は、棚卸し → 依存閉包を作る（印は作らない）→ 変更なしの `Refresh`（T と同じ位置で測る）→ build → 棚卸し。規模の build も全て AC4 の対象である（棚卸しは所要に入れない）。各 build は別の空の出力先へ出す。別の形の block が作った cache の entry の上で測らない。成り立った印の形が無い時は、この段を行わない。
   9. fixture を消し、最後の棚卸しと終了行を書く。
-- record が必ず持つ値: project の path、Unity の版、各 build の出力先と、build の前にそこが空だったこと、規模の fixture の照合の値（上の一覧）、選んだ検知の鍵と当たった順位、各 Scene の印の入力の path の一覧と `Model.obj` の main asset の型、段 2 の値の表、段 3 の観測、各 build の番号・印の形・source の版、印を入れた file の sha256（X の回は固定の文字列が残っていたか）、build の前後の棚卸しの差、各出力の file の名前と sha256、出力の全ての file の float 列の有無（S2-2 のスパイクと同じバイト走査）、書いた数と書いた file の ID（AC2）、`BuildMetaDataImporter(worker)` の event の `assetPath`、段 3 と各 build の間の Error・Warning、印の値の計算・書き込み・`Refresh`（N の回の変更なしの `Refresh` を含む）・戻し・build の呼び出しの所要、規模の Scene の file の大きさ、中間の終了行と終了行。各 build の `BuildContentTEP.json` は、その build の物であること（path と、build の開始より後の更新時刻）を record に書き、file そのものを record の隣に複写する（書いた数の元の記録）。
+- record が必ず持つ値: project の path、Unity の版、各 build の出力先と、build の前にそこが空だったこと、規模の fixture の照合の値（上の一覧）、選んだ検知の鍵と当たった順位、各 Scene の印の入力の path の一覧と `Model.obj` の main asset の型、段 2 の値の表、段 3 の観測、各 build の番号・印の形・source の版、印を入れた file の sha256（X の回は固定の文字列が残っていたか）、build の前後の棚卸しの差、各出力の file の名前と sha256、出力の全ての file の float 列の有無（S2-2 のスパイクと同じバイト走査）、書いた数と書いた file の ID（AC2）、`BuildMetaDataImporter(worker)` の event の `assetPath`、段 3 と各 build の間の Error・Warning、依存閉包を作る所要（T と N の各回。上乗せに入れない）、印の値の計算（型の判定・鍵の取得・ハッシュに分けた値と合計）・書き込み・`Refresh`（N の回の変更なしの `Refresh` を含む）・戻し・build の呼び出しの所要、規模の Scene の file の大きさ、中間の終了行と終了行。各 build の `BuildContentTEP.json` は、その build の物であること（path、その `BuildHistory/<build>` の directory が build の前に無かったこと、build の開始より後の更新時刻）を record に書き、file そのものを record の隣に複写する（書いた数の元の記録）。revision 1 で足す値（revision 0 の §8 の (B) の 2 番目）: 印を入れた file の sha256 は 64 桁で書く（規模の列は 300 個をまとめた hash に加え、file ごとの一覧を record の隣の file に書く）。各 build の出力先の絶対 path。規模の fixture が texture を持たないという限界の 1 行。source の版を切り替えた時に出た Error・Warning（model の import の Warning を含む）を、その回の行に写す。段 2 の material の sha256（上）。規模の build の AC5 (a) の走査は、印の接頭辞を全ての出力の file で探し、印の値は T0〜T3 の全ての値を全ての出力の file で探す（revision 0 は値を 5 個に切っていた）。
 - 統合・Unity テスト: 上の batch。この repository の `tools/run-tests.ps1` は使わない（対象がこの repository の project でないため）。
-- 操作・実行時・目視条件の検証経路: 担当は Phase C の実行担当（AI の session）。環境は owner の PC、実験の project を開いている Editor が無いこと。操作は `<Unity 6000.6.0f1 の Unity.exe> -batchmode -nographics -projectPath <実験の project> -executeMethod <script の入口> -logFile <log>`（先行確認と同じ起動）。観測は record の終了行と上の値。record・log・script を evidence bundle に入れ、判断担当と C' へ渡す。process の自然終了をゲートにしない（終了行の後も終わらなければ、その PID だけを止め、時刻と PID を実行の記録に残す。既知の終了 stall は `tools/Harness/README.md` の規則のとおり調査しない）。動作確認は `対象なし`。
+- 操作・実行時・目視条件の検証経路: 担当は Phase C の実行担当（AI の session）。環境は owner の PC、実験の project を開いている Editor が無いこと。revision 1 では、起動の前に他の Unity の process が動いていないことを確かめ、動いていれば終わるまで待ってから起動する。起動の前と終了行の後の Unity の process の一覧を実行の記録に書く（revision 0 は無関係な batch 3 本と重なり、所要に CPU の競合が入りえた。§7.2 の N4）。操作は `<Unity 6000.6.0f1 の Unity.exe> -batchmode -nographics -projectPath <実験の project> -executeMethod <script の入口> -logFile <log>`（先行確認と同じ起動）。観測は record の終了行と上の値。record・log・script を evidence bundle に入れ、判断担当と C' へ渡す。process の自然終了をゲートにしない（終了行の後も終わらなければ、その PID だけを止め、時刻と PID を実行の記録に残す。既知の終了 stall は `tools/Harness/README.md` の規則のとおり調査しない）。動作確認は `対象なし`。
 - 未知の操作経路: 印（M・F2）が入れ子 2 段・共有の prefab・model・複数の Scene でも効くか、規模での上乗せ。小さい fixture での成立は先行確認済み（§1）。**未確認。初回確認はこの batch（段 4〜段 8）。** 理由: Phase A の主担当は Unity の build を行わない。不成立時: その印の形・鍵を不成立として record に残し、§2.5 で読む（基盤の不備ではなく、測りたい事実）。成立済み: repository の外の空の project で batch から Content Directory を build する経路、`.cf` のバイト走査、`BuildContentTEP.json` の読み取り（先行確認、S2-2 のスパイクと追記）。
 - やり直し: 未判定で、原因が script の誤りと分かる時に限り 1 回。
 - 人間の判断が必要な条件: §2.5 の CONDITIONAL ACCEPT の各項目の読み（owner）。
 - 高コスト証拠: なし（小さい build 20 回と規模の fixture の build 最大 16 回（形ごとに 8 回）。規模の列の所要は fixture の数に依り、測るまで分からない。消す cache は実験の project の物だけ）。
 - 判定 C の照合 script の方式: 持たない。判断担当が record を AC ごとに読み、期待値は上の fixture の値から導く。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
-- A0/A1 主担当・モデル・ベンダー: 本 session（Anthropic）。入力は owner の依頼（問い、3 条件、候補）、事実の文書の同じ節、commit `52612ede` の S2-2 の HANDOFF §7、S2-2b の A1 初稿、`UnityContentDirectoryAdapter.cs`、Unity 6000.6.0f1 の assembly と XML doc、Unity 6000.3 の manual。
+- A0/A1 主担当・モデル・ベンダー（revision 1）: 新しい session（Anthropic）。入力は本書の全節（revision 0 の §7.2・§8 を含む）、§0 の owner の決定、`AssetDependencySnapshotBuilder.cs`・`SceneResourceContentMaterializer.cs`・`BuildContentCoordinator.cs`・`UnityContentDirectoryAdapter.cs`（commit `88311fef`）。
+- A0/A1 主担当・モデル・ベンダー（revision 0）: 本 session（Anthropic）。入力は owner の依頼（問い、3 条件、候補）、事実の文書の同じ節、commit `52612ede` の S2-2 の HANDOFF §7、S2-2b の A1 初稿、`UnityContentDirectoryAdapter.cs`、Unity 6000.6.0f1 の assembly と XML doc、Unity 6000.3 の manual。
 - A2 の担当: 2 件とも Anthropic の系列で、A1 の主担当と別のモデルの新しい文脈に依頼する。
 - C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。Phase A では使わない。
 - 独立性の強化条件を満たせない場合の理由: 対象外（risk は `normal`）。
@@ -338,6 +342,34 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 **外部レビュー 5 巡目（2026-11-14、draft PR #191、owner が依頼した別の agent。対象は commit `2c657c6b` のうち、`719ea649` より後に書き換えた所）。** 指摘なし。偽の合格・偽の不合格・実行できない手順の反例は見つからなかった、との結果だった。Unity の実測は行っていないレビューである。
 
 **A3 の凍結（2026-11-14、revision 0）。** owner は 5 巡目の結果を見て凍結を承認した。採用・不採用・保留の分類は上の表のとおりで、保留は無い。
+
+### 5.2 revision 1 の Phase A
+
+**再開の理由と範囲。** §0 の owner の決定のとおり。3 条件、規模の fixture、build の列と回数、AC0〜AC6 の合否の基準（5% を含む）、§2.5 の判定の順は変えない。
+
+**A1 の変更一覧（revision 0 の A3 凍結版 commit `89604c70` からの差。revision 0 の条件は、§7.2・§8 を読むためにその commit の §2・§5 を使う）。**
+
+| # | 変えた所 | 内容 | 出所 |
+|---|---|---|---|
+| V1 | AC3b (b)、§2.7 の「依存閉包の受け取り」と検知の鍵の項、§5 の段 5・段 8 | 印の値は、製品と同じ規則で作った Scene ごとの依存閉包を受け取って作る。閉包は T と N の両方で build ごとに同じ位置で作り、その所要は上乗せに入れない。印の値を作る関数は `GetDependencies` を呼ばない | owner の決定 |
+| V2 | AC3b (b)、§5 の record | 計算の所要を、型の判定・鍵の取得・ハッシュに分けて書く | §7.2 の N3 |
+| V3 | AC3b (a)・(a2) | 出力の比べ方を `.cf` と `.resS` の（名前, sha256）の集合と書いた。revision 0 の判断担当と C' が採った読みと同じで、合否の基準は変えていない | §8 の (B) の 3 番目、§6 の B 適応 |
+| V4 | §5 の段 2 | material の変更が `Dep.mat` のバイトに落ちたかを確かめ、落ちていなければ止める | §8 の (B) の 1 番目 |
+| V5 | §5 の record | 印の file の sha256 を 64 桁で、規模の列は file ごとの一覧も、出力先の絶対 path、texture の限界の 1 行、版の切り替えの時の Error・Warning、規模の印の値を全て走査、TEP の directory が build の前に無かったこと | §8 の (B) の 2 番目、§8 の残存リスク（TEP） |
+| V6 | §5 の検証経路 | 起動の前に他の Unity の process が無いことを確かめ、前後の一覧を記録する | §7.2 の N4 |
+| V7 | §1、§2.3 | 製品の依存閉包の作り方と revision 0 の結果を現況に足した。閉包の時点と使い回しを S2-2b へ送った | 本 session の確認 |
+
+**取り込まなかった revision 0 の (B) と理由。**
+- model の頂点が印なしでも出力に入る（§8 の (B) の 4 番目）: AC1 の「B6 の読み」が既にその読み方を定めている。変える条件は無い。
+- `Refresh` を製品の 1 回にまとめる等の、上乗せを下げる別の手順（§8 の (B) の 5 番目のうち依存閉包以外）: owner の決定の範囲の外。測らない手順として結論の文に残す（§2.5 の GO・NO）。
+- AC0 が落ちても script が止まらない（§8 の残存リスク）: §2.5 の 1 番が未判定として扱うので、止めなくても読みは変わらない。
+- 規模の `.cf` の全ての突き合わせ、出力の生バイトの保存（§8 の残存リスク）: 規模の出力は大きく、AC3b (a)・(a2) は（名前, sha256）の集合と書いた数で閉じる。
+
+**revision 1 で結果が変わりうる所の見込み（判定の基準ではない）。** revision 0 の計算を除く残りは、M が 4.2〜6.4%、F2 が 4.5〜11.2% だった（§1）。型の判定と鍵の取得の所要は revision 0 で分けて測っておらず、合格・不合格・未判定のどれにもなりうる。
+
+**目的レビュー:** 行わない。§1 の目的・利用者の 2 欄を revision 1 で変えていない（revision 0 の A2 の目的レビューの入力 sha256 `75845d2989d57207e15535c83038ffb0d471bf5364880255f36d9bd3e8fa03d0` の原文のまま）。
+
+**A2（revision 1）:** 未実施。実験の統制の反証とアーキテクチャゲートを兼ねる 1 件を、この A2 入力版で行う。
 
 ## 6. Phase B 実装結果
 
