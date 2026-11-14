@@ -20,7 +20,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の続き（A3 の凍結の前）。外部レビュー 2 巡と主担当の自己点検は §5.1 に統合済み。owner が §2.8 U5 の instance の数を確かめ、承認すれば凍結する。凍結の後は Phase B（実験の script を書く）。
+  - 次の Phase・役割: Phase A の続き（A3 の凍結の前）。外部レビュー 2 巡と主担当の自己点検は §5.1 に統合済み。owner が grok 系の bot と別の agent に外部レビューを頼む。その指摘を §5.1 に統合し、owner の承認を得て凍結する。凍結の後は Phase B（実験の script を書く）。
   - 読む範囲: 既定のとおり。
   - 必要な権限: 無し（文書だけ）。Phase A の間は Unity の build を行わない（Phase B は compile の確認のために Editor を 1 回起動する。§4）。
   - 停止規則と引き渡さないもの: 凍結は owner の承認の後に行う。目的と利用者の 2 欄を変える時は、変えた 2 欄の原文だけで目的レビューをやり直す。
@@ -179,14 +179,14 @@
 
 ### 2.8 owner の決定と未決事項
 
-owner は 2026-11-14 に次を決めた。未決事項は U5 の instance の数の 1 件（owner の確認待ち）。
+owner は 2026-11-14 に次を決めた。未決事項は無い。
 
 - **U1 目的・利用者の文言:** §1 の 2 欄を承認した。
 - **U2 Unity の build を伴う実測:** §5 の 1 回の batch を実行してよい。project は repository の外に新しく作る空の project で、この repository の `Library` は使わない。実行は AI の session が行う。
 - **U3 進め方の重さ:** slice のまま進める。A2 は 2 件（目的レビューと、実験の統制を見る反証レビュー。後者がアーキテクチャゲートを兼ね、「製品を変えない」ことと責務マップを見る）、B は script を書くだけ、C は batch の実行と record の判定、C' は script と record の blind 監査 1 巡。A3 の統合の後は凍結せず、draft PR の外部レビューを受けてから凍結する。
 - **U4 program §8 の行:** このスライスを `S2-2b-0` として S2-2b の上に足し、S2-2b の行を「A1 初稿で保留、方式は S2-2b-0 の結論による」に替えた（A2 入力版の commit）。
 - **U5 規模の fixture の数と、上乗せの合否の割合:** Scene 300、prefab 3,000（prefab の 3 分の 1 は入れ子）、Scene の file は 1 つ約 1 MB、上乗せの割合は 5%。想定は中規模のゲーム開発（§1）。
-  - **確認待ち（instance の数）:** owner が決めた時の案は「Scene 1 つが 30 個の prefab の instance を 200 個ずつ置く」（計 6,000 個）だった。先行確認で instance は 1 つ約 2.4 KB と分かり（§1）、6,000 個では Scene 1 つが約 14 MB（300 個で約 4.3 GB）になって「約 1 MB」と両立しない。本書は「約 1 MB」を残し、instance を 30 個の prefab × 14 個（計 420 個）に直した。6,000 個の方を残すかは owner が決める。
+  - **instance の数（owner が確認した）:** owner が決めた時の案は「Scene 1 つが 30 個の prefab の instance を 200 個ずつ置く」（計 6,000 個）だった。先行確認で instance は 1 つ約 2.4 KB と分かり（§1）、6,000 個では Scene 1 つが約 14 MB（300 個で約 4.3 GB）になって「約 1 MB」と両立しない。本書は「約 1 MB」を残し、instance を 30 個の prefab × 14 個（計 420 個）に直した。owner は 420 個を承認した（理由: OSM は大きい Scene を分割して扱うことも狙う framework なので、Scene 1 つは約 1 MB の方が想定に合う）。
 - **GitHub Pages:** 結論が出たら、既存の GitHub Pages を更新する（§0 の harvest to）。
 
 ## 3. 責務マップ
@@ -214,7 +214,7 @@ owner は 2026-11-14 に次を決めた。未決事項は U5 の instance の数
 - 判定必須テスト: 下の batch 1 回の record。
 - 全 EditMode 回帰の適用除外: 適用しない。理由: この repository の実装を変えない（差分は文書だけ）。代替証拠: AC6 の `git diff --stat`。
 - fixture（script が作り、終わりに消す）: 内側の prefab `Inner`（子の位置 v1 (1,2,3) / v2 (4,5,6)）、`Inner` を nest した `Mid`（自分の子 (10,11,12)。変えない）、`Mid` を nest した `Outer`（自分の子 (7,8,9)。変えない。入れ子は 2 段で、先行確認より 1 段深い）、共有の `Shared`（v1 (13,14,15) / v2 (16,17,18)）、model `Model.obj`（頂点 1 つの座標が v1 / v2 で違う。期待する頂点の列は、import した Mesh の頂点の値を Editor の API で読んで作り、`.obj` の text の値からは作らない。先行確認で import が x の符号を変えた。§1）、material と texture を持つ `Dep`（どの Scene にも置かない。AC3 (e) の観測だけに使う）。Scene は `SOuter`（`Outer` の instance）、`SShared1`・`SShared2`（`Shared` の instance）、`SModel`（`Model` の instance）、対照の `SPlain`（prefab なし）。各 Scene は、その Scene だけの位置を持つ目印の object を 1 つ持つ（`SOuter` (40,41,42)、`SShared1` (43,44,45)、`SShared2` (46,47,48)、`SModel` (49,50,51)、`SPlain` (20,21,22)）。出力の file と Scene の対応は目印の列で決め、`SShared1` と `SShared2` の出力が同じバイトにならないことも目印で保つ。v1 と v2 の file は、最初に 1 回ずつ Unity に保存させたバイトを控え、以後はそのバイトを書き戻して切り替える（「前の版に戻す」が同じバイトになるようにする）。
-- 規模の fixture: Scene 300、prefab 3,000（3 分の 1 は入れ子。10 個の material を共有して参照する）、Scene 1 つが 30 個の prefab の instance を 14 個ずつ置き（計 420 個。先行確認の 1 つ約 2.4 KB から、Scene の file が約 1 MB になる数。§2.8 U5 の確認待ち）、Scene の file は 1 つ約 1 MB。作った Scene の file の大きさを record に書く。texture は持たない（record に限界として書く）。
+- 規模の fixture: Scene 300、prefab 3,000（3 分の 1 は入れ子。10 個の material を共有して参照する）、Scene 1 つが 30 個の prefab の instance を 14 個ずつ置き（計 420 個。先行確認の 1 つ約 2.4 KB から、Scene の file が約 1 MB になる数。§2.8 U5）、Scene の file は 1 つ約 1 MB。作った Scene の file の大きさを record に書く。texture は持たない（record に限界として書く）。
 - batch の順（Unity の process 1 つ。前の段が失敗しても、後の段へ進めるなら進めて record に残す。ただし段 1〜段 3 の確認（印の入力、棚卸しの一致）が成り立たない時は先へ進めず、中間の終了行も書かない。§2.5 の未判定）:
   1. **棚卸し:** `Assets` の下の全 file の path と sha256（AC6 の開始時の棚卸し）。小さい fixture を作り、作り終えた直後の棚卸しを「基準の棚卸し」として控える。各 Scene の印の入力を、fixture から導いた一覧と照らす（§2.7。一致しなければ batch を止める）。
   2. **検知の観測（build なし、AC3）:** `Inner`・`Mid`・`Outer`・`Shared`・`Model` について K1〜K3 の値を、v1、`Inner` と `Model` を v2、v1 のバイトへ戻す、更新時刻だけ変える、の各時点で記録する。`Mid` と `Outer` の値が `Inner` の編集で変わるかも記録する（合否には使わない）。`Dep` について、texture のバイトを変えた時と material の値を変えた時の値を記録する（AC3 (e)）。段の終わりに、prefab・model・`Dep`・texture・material を控えたバイトへ書き戻し、棚卸しが基準の棚卸しと一致することを確かめる（一致しなければ、以後の列の「v1」は控えた v1 ではないので、batch を止めて record に残す）。
@@ -299,7 +299,7 @@ owner は 2026-11-14 に次を決めた。未決事項は U5 の instance の数
 
 | # | 見つけた穴 | 反映先 |
 |---|---|---|
-| Z1 | 規模の fixture の「instance 6,000 個」と「Scene 1 つ約 1 MB」が両立しない（実測で 1 つ約 2.4 KB。6,000 個は約 14 MB） | §2.8 U5（owner の確認待ち）、§5 の規模の fixture（420 個） |
+| Z1 | 規模の fixture の「instance 6,000 個」と「Scene 1 つ約 1 MB」が両立しない（実測で 1 つ約 2.4 KB。6,000 個は約 14 MB） | §2.8 U5（owner が 420 個を承認した）、§5 の規模の fixture |
 | Z2 | model の頂点の期待値を `.obj` の text から作ると外れる（import が x の符号を変えた）。頂点は Scene と別の file に書かれうるのに、AC1 が B6 以外で Scene の `.cf` を見ていた | §5 の fixture、AC1 |
 | Z3 | model の頂点の編集が印なしでも取りこぼされないなら、B6 は印が無くても通る | AC1 の「B6 の読み」（C3 と合わせて読み、測っていない範囲を結論に書く） |
 | Z4 | 規模の列で、N が再利用になっていないと上乗せが小さく見える | AC3b (a2) |
@@ -313,7 +313,7 @@ owner は 2026-11-14 に次を決めた。未決事項は U5 の instance の数
 | Z12 | AC3b の不合格による GO・NO が、測った手順（書いて `Refresh`、戻して `Refresh`）以外も不成立と読める | §2.5 の GO・NO |
 | Z13 | 段 3 で M と F2 を同時に書くと、Error・Warning がどちらの形の物か分からない | §5 の段 3 |
 
-保留は無い。owner の確認待ちは §2.8 U5 の 1 件。
+保留は無い。
 
 ## 6. Phase B 実装結果
 
