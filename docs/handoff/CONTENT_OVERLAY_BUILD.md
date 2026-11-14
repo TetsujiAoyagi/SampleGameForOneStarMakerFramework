@@ -21,7 +21,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: **Phase A（revision 1）**。F-1 の原因スパイクで原因が確定し（§7 の「スパイク（F-1 の原因）」と追記）、owner が 2026-11-14 に回避の方式を「Scene に、焼き込む prefab の中身のハッシュを持たせる」に決めた。分類は A 再開。判定 C の NO-GO と §7 の既存の記録は書き換えない。C' は起動しない。
-  - Phase A で決めること（担当が推奨を付けて owner へ）: (1) ハッシュの印の置き場所と形（custom の script を Scene に足すか、組み込みの物で表すか）と、何のハッシュか（Scene が焼き込む prefab の閉包。texture・material のように参照で残る物は不要と見込む）。(2) いつ誰が書くか（build の前に製品の経路が書くか、prefab の保存時に Editor が書くか）と、source を書き換えることの扱い（VCS の差分、読み取り専用・checkout が要る file、開いている Scene）。(3) 適用範囲: 上書きの build だけか、base（目的 build）を含むか（観察 3 のとおり base も同じ不具合を持つ）。(4) §2 の受け入れ境界・AC10・§3 の責務マップの改訂。印が効くこと（prefab を戻すと前の出力に戻ることを含む）を実機で確かめる AC。
+  - Phase A で決めること（担当が推奨を付けて owner へ）: (1) 印の形。再現 project の実験（§7 の追記の最後）では、`EditorOnly` の GameObject を印の置き場として Scene に 1 つ置き、build の直前にその名前を、Scene が焼き込む prefab の中身のハッシュに書き換え、build の後に Scene を元のバイトに戻す形が、正しさと cache の再利用の両方で成り立った（印の置き場を Scene に足すのは一度だけの source の変更になる。毎回新しい object を足す形は cache が当たらない）。owner の初案（ハッシュを Scene の外に保存し、build machine だけが commit する）は、build の後に戻す形なら保存値の commit が要らない見込みで、外の保存値は「変わった Scene だけ印を書く」目印として要るかを決める。(2) 誰がいつ書くか（製品の build の経路が build の直前に書いて戻す見込み）と、build の間だけ source を書くことの扱い（読み取り専用・checkout が要る file、開いている Scene、build が途中で落ちた時の戻し）。(3) 適用範囲: 上書きの build だけか、base（目的 build）を含むか（観察 3 のとおり base も同じ不具合を持つ。印は両方に効く見込み）。(4) §2 の受け入れ境界・AC10・§3 の責務マップの改訂と、入れ子の prefab・複数の Scene で印が効くこと（prefab を戻すと前の出力に戻ることを含む）を実機で確かめる AC。
   - 読む範囲: Phase A の定めどおり全節。特に §7 の判定 C、「スパイク（F-1 の原因）」とその追記。
   - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であることを確かめる。食い違えば引き継がずに止まる。ブランチは `claude/content-overlay-build`。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。push も PR #186 の編集もしていない）。implementation head は `42c0ff7f` のまま。スパイクの一時的な test file は commit `a19901ea` で足し、次の commit で消した。
@@ -530,6 +530,11 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 - **回避の実験（同じ project、1 回の batch）:** prefab を v2 にした後、Scene の file に意味のない変更を入れて build し、その後 Scene を元のバイトに戻して build し直した。(a) 無関係な空の GameObject の位置を変える、(b) 空の GameObject を足す、の 2 通りで、どちらも結果は同じ: 変更を入れた build は v2、元のバイトに戻した build と、その次の build は v1 に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。したがって、build の間だけ変えて戻す回避は効かず、効かせ続けるには Scene に変更を残す必要がある。（Unity の統計では、(a) は instruction の変更 0 のまま出力が作り直され、(b) は instruction が 1 つ変わった。）
 - 両方の batch とも、作業の完了後に Unity が終了しなかった（スレッド 1 本、CPU 時間が増え続ける。既知の終了 stall と同じ症状。2 回目の実験の process は、この session が PID を指定して止めた。最初の再現の batch は自然終了した）。OSM を含まない project でも出たという事実だけを記録し、調査はしていない。
 - **owner の決定（2026-11-14）:** 回避の方式は「Scene に、焼き込む prefab の中身のハッシュを持たせる」（候補 2）。prefab が変わった時だけ Scene のバイトが変わり、prefab を前の版に戻せば鍵も前の版に戻るので、cache を捨てずに正しい出力を得られる見込み（この方式自体は未測定）。他の候補（上書きの時だけ `CleanBuildCache()`、Scene に prefab を置かない制作の規則）は採らない。分類は A 再開（新しい revision）となる。
+- **印を build の間だけ入れて戻す方式の実験（同じ project、2026-11-14、owner の依頼）:** owner の案（ハッシュを Scene の外に持ち、build 時に計算し直す）を受け、「build の直前に、Scene が焼き込む prefab（`GetDependencies(scene, true)` の `.prefab`）の中身のハッシュを、`EditorOnly` tag の GameObject の名前として Scene に書き、build し、build の後に Scene を元のバイトに戻す」を確かめた。prefab を v1 → v2 → v2 → v1 → v2 と進めて戻し、毎回この手順で build した。
+  - 印を毎回新しい GameObject として足した形: 5 回とも正しい版が出たが、印入りの Scene のバイトは毎回違った（新しい object の fileID が毎回変わる）。Scene は毎回作り直され、cache は当たらない。正しいのは鍵が毎回新しいためで、ハッシュの効果ではない。
+  - **印の置き場（`EditorOnly` の GameObject 1 つ）を Scene に最初から置き、build の時はその名前だけを書き換えた形: 5 回とも正しい版が出た。** 同じハッシュの時、印入りの Scene のバイトは同じで、出力の Scene の file も同じ sha256 になった。Unity の統計で、2 回目（v2）は Scene の 1 個だけを作り直し、3〜5 回目（v2 の再 build、v1 へ戻す、v2 へ進める）は作り直し 0 で全てを再利用した。v1 に戻した build は 1 回目と同じ出力を再利用した。
+  - どちらの形も、印の名前は出力に無く（`EditorOnly` で除かれる）、全 build の後の Scene は元のバイトと一致した。
+  - 範囲: Scene 1 つ・prefab 1 つ（入れ子なし）・build は 1 つの Editor process の中だけ。入れ子の prefab、複数の Scene、build が途中で落ちた時の戻し、開いている Scene・読み取り専用の file は確かめていない。両方の batch とも、`DONE` の 90 秒後に Unity が終わっておらず（スレッド 1 本、既知の終了 stall と同じ症状）、この session が PID を指定して止めた。
 
 ## 8. Phase C'
 
