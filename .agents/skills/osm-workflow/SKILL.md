@@ -28,13 +28,13 @@ description: >-
 | 作業 | 読む文書 | Phase と HANDOFF の読む節 | HANDOFF の読む節 |
 |---|---|---|---|
 | Phase A（計画と設計レビュー） | [phase-a.md](references/phase-a.md) | 全文 | 全節 |
-| Phase B（実装） | [phase-b.md](references/phase-b.md) | Phase の責任、新しい事実の分類、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 | §0〜§5。差し戻しでは §6 と、差し戻した巡の記録も |
+| Phase B（実装） | [phase-b.md](references/phase-b.md) | Phase の責任、新しい事実の分類、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 | §0〜§5。差し戻しでは §6 と、直前の差し戻しの指摘も |
 | 動作確認（Phase B の後） | [operation-check.md](references/operation-check.md) | Phase の責任、検証経路の成立、動作確認（Phase B の後）、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 | §0、§5、§6 |
-| Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) | 「Phase A の内部フロー」「PR 状態ブロック」「Cloud の担当」以外の全節 | §0〜§7 |
+| Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) | 「Phase A の内部フロー」「PR 状態ブロック」「Cloud の担当」以外の全節 | §0〜§7。C' の差し戻しの後は、その指摘（§8）も |
 | Phase C'（独立監査） | [phase-c-prime.md](references/phase-c-prime.md) | Phase の責任、動作確認（Phase B の後）、意思決定境界とスコープ停止、モデル選定と独立性、引継ぎ票、HANDOFF の必須内容、構造レビュー、レビュー証拠と C' の盲検性 | なし（所定の blind 入力だけ） |
 | commit の整理、tag、push、PR の作成・更新 | [publish-and-history.md](references/publish-and-history.md) | 指定なし | §0 |
 
-節を指定した行では、`##` の節は配下の `###` を含み、PR が存在する間は「PR 状態ブロック」、Cloud の担当が割り当てられているなら「Cloud の担当」も読む。「モデル選定と独立性」の強化条件を見るときは、「Phase A の内部フロー」の高リスクの例の段落も読む。HANDOFF の節は [テンプレート](references/handoff-template.md) の番号で、節を指定した行は §5.1（A2 の独立レビューと A3 の採否）と、直前の巡より前の差し戻しの記録を含まない。
+節を指定した行では、`##` の節は配下の `###` を含み、PR が存在する間は「PR 状態ブロック」、Cloud の担当が割り当てられているなら「Cloud の担当」も読む。「モデル選定と独立性」の強化条件を見るときは、「Phase A の内部フロー」の高リスクの例の段落も読む。HANDOFF の節は [テンプレート](references/handoff-template.md) の番号で、`##` の節は配下の `###` を含む。節を指定した行が除くのは、§5.1（A2 の独立レビューと A3 の採否）と、直前より前の差し戻しの記録だけである。差し戻しの記録は B へ戻した指摘とその修正の `###` を指し、直前はそのうち最後の 1 組である。
 
 ## Phase D: 保存・引渡しと後始末
 
