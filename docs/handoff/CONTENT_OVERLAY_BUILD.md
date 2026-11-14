@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `C`（**判定 C 完了（2026-11-14）: NO-GO、owner へ返した。owner は同日、F-1 の原因スパイクを先に置くと決めた（引継ぎ票）。** 2026-11-14 に `develop`（`b5fc17e7`、Skill の整理を含む）をこのブランチへ取り込んだ。実装差分は変えていない。 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `C`（**F-1 の原因スパイク完了（2026-11-14）: 原因は Unity の Content Directory build の `Library` の build cache。A 再開を推奨し、owner へ返した（§7 の「スパイク（F-1 の原因）」）。** 判定 C 完了（2026-11-14）: NO-GO、owner へ返した。owner は同日、F-1 の原因スパイクを先に置くと決めた。 2026-11-14 に `develop`（`b5fc17e7`、Skill の整理を含む）をこのブランチへ取り込んだ。実装差分は変えていない。 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `42c0ff7f443bcb13293345850dc0536bd4d144da`
@@ -20,20 +20,12 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が `evidence stage` で固定し、取得案内は進行役の共有メモに置いた。取得側の閲覧確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: **スパイク（F-1 の原因確認）**。[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) のスパイクで、Unity の Build は Phase C の実行担当として行う。owner が 2026-11-14 に選んだ。判定 C の NO-GO と §7 の既存の記録は書き換えない。C' は起動しない。
-  - 問い: 上書きの `.cf` に prefab の子の v2 が入らない（§7 の F-1、判定 C で再現）のは、同じ `Library` や同じ Editor process に残った状態（build cache、scene の import）によるものか、製品の build 経路そのものによるものか。owner の見立ては、`Library` の状態が原因なら実機の Player では出ない可能性が高い、である。
-  - 次の作業: 次の 3 つを観察する。Unity の実行は合わせて 3 回までとする。
-    1. 上書きの build を、base の build とは別の Editor process で行い、v2 が入るかを見る。
-    2. build cache を消してから上書きを build し、v2 が入るかを見る。
-    3. 同じ `Library` で base をもう一度 `Full` で build し、v2 が出るかを見る（上書き固有の問題か、build 経路全体の問題かを分ける）。
-    - 観測には既存の `Tests/Editor/Spikes/OverlayBuild` の harness と `.cf` のバイト比較を使う。製品コード（`Scripts/` と `OneStarMaker/` の Runtime・Editor）は変えない。観測のための一時的な変更は harness の中に留め、終了時に戻すか、残す理由を記録する。
-  - 終了条件: 3 回の観察（または途中で因果が確定した時点）で、原因を [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) の A 再開・B 適応・後続スライスのどれかに分類するか、予算内で確定しなかったと記録する。結果は §7 に「スパイク（F-1 の原因）」の節を足して書き、観察ごとの手順・Editor process・`Library` の状態・v2 の有無を並べる。分類の後の進め方は決めず、票を owner の判断へ戻す。
-  - 読む範囲: §0、§2（受け入れ境界と §2.6）、§5、§7 の発見 C（F-1）と判定 C。他は必要なら読む。
-  - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であることを確かめる。食い違えば引き継がずに止まる。ブランチは `claude/content-overlay-build`（進行役のチェックアウトは外してある）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR #186 の状態ブロックは未更新で、push も PR の編集もしていない）。implementation head は `42c0ff7f` のまま。
-  - 入力の取得案内・状態: 判定 C の evidence bundle は上の行のとおりローカル固定済み（未昇格）。判定 C の生出力は git 管理外の `TestResults/` に残っている。スパイクの出力も `TestResults/` に置き、HANDOFF に reference・hash を書かない。
-  - 必要な権限: Unity は §5 のとおり sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1` を使う（`unity test` / `unity run` は使わない）。Unity の終了 stall は既知のものとして扱い、調査しない（AGENTS.md）。push と PR #186 の更新は owner に確認する。
-  - 停止規則: 製品コードの変更が要ると分かった時点、または予算の 3 回を使い切った時点で止め、§7 に記録して owner へ返す。凍結した条件の意味や合否を変える裁定はしない（Phase A の新しい revision の判断）。
+  - 次の Phase・役割: **owner の判断**（F-1 の原因スパイクの後）。スパイクは原因を確定し、A 再開を推奨した（§7 の「スパイク（F-1 の原因）」）。分類の後の進め方は決めていない。判定 C の NO-GO と §7 の既存の記録は書き換えていない。C' は起動しない。
+  - owner が決めること: (1) 分類（推奨は A 再開。製品の build 経路が build cache を消す変更は §3 の外の file に及び、AC10 で B 適応にできない）。(2) A 再開なら、cache を消す範囲（上書きの build だけか、base の build も含むか）と、その所要を受け入れるか。(3) 観察 3 で分かった base（目的 build）への影響（prefab を編集した `Library` で作った目的 build が Scene に古い prefab を持ちうる）を本スライスで扱うか、後続へ送るか。
+  - 読む範囲: §0、§7 の判定 C と「スパイク（F-1 の原因）」。
+  - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であることを確かめる。食い違えば引き継がずに止まる。ブランチは `claude/content-overlay-build`。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。push も PR #186 の編集もしていない）。implementation head は `42c0ff7f` のまま。スパイクの一時的な test file は commit `a19901ea` で足し、次の commit で消した。
+  - 入力の取得案内・状態: スパイクの出力は git 管理外の `TestResults/ovb/spike/` と各実行の `TestResults/<invocation>/`、Unity の build の統計は `unity/Library/BuildHistory/` にある。evidence bundle にはしていない（未保存）。判定 C の evidence bundle は上の行のとおり。
   - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行・判定 C とスパイクの結論は、将来 C' を起こす場合も C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -509,6 +501,28 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 - 機械検査: `pwsh tools/contract-audit.ps1` errors 0、warnings 0（検査 1〜9）。`pwsh tools/docs-audit.ps1` errors 0、warnings 1（program の harvest の促し。違反ではない）。
 - 未確認事項: F-1 の原因。取得側の fetch による bundle の閲覧確認。
 - 担当・モデル: 判定 C は新しい session（Claude Opus 5.5、Anthropic）。Phase B と同じモデル・ベンダーで、**独立性制約あり（owner 受容）**（進行役の起動指示どおり）。2 の stall の停止だけは進行役の session が行った。
+
+### スパイク（F-1 の原因、2026-11-14）
+
+- 種別: [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) のスパイク。判定 C の NO-GO と上の記録は書き換えていない。C' は起動していない。
+- 開始時の照合: 起動指示の SHA `432da2d9` と HEAD が一致、作業ツリーは clean、ブランチ `claude/content-overlay-build`。
+- **結論: 原因は、Unity の Content Directory build が `Library` に持つ build cache（build instruction ごとの serialized file の再利用）である。Scene の build instruction は、Scene が instance として置く prefab の中身の変更で変わらないので、prefab を編集した後の build は、前の build で書いた Scene の serialized file（v1）をそのまま使う。Editor process の状態ではなく、上書き固有でもない（同じ `Library` で base を作り直しても v1）。`BuildPipeline.CleanBuildCache()` の後の上書きの build には v2 が入った。**
+- 手順（Unity の実行は 2 回。予算 3 回のうち 1 回は使っていない）。どちらも sandbox 外から `pwsh tools/run-tests.ps1 -Filter <完全名>` で、別の Unity process。harness の中に一時的な test file `OverlayBuildSpike.cs` を足して実行した（commit `a19901ea`。次の commit で消した。製品 code は変えていない）。観測には `.cf` のバイト走査（子の位置の float 列 v1 `1,2,3` / `7,8,9`、v2 `4,5,6` / `10,11,12` を little endian の 3 つ組で探す）と、`Library/BuildHistory` の各 build の `BuildLog.jsonl`・`BuildContentTEP.json`（Unity が書く build instruction の変更・再利用の統計）を使った。出力は git 管理外の `TestResults/ovb/spike/spike.log` と各実行の `TestResults/<invocation>/`。
+  - 実行 1（`SplitBase`、PID 30436）: fixture v1 → base を `Full` で build・publish → v2 にして、fixture を残したまま終える。base の出力は v1 の float 列を 2 つの `.cf` に持つ（v2 は 0）。v2 の後の前提 P1 は v2（`pos:4,5,6`・`pos:10,11,12`）、変わった source は凍結した 5 つちょうど（P2）。XML は Failed: test の終わりに、環境由来の Burst のコンパイラ起動失敗（named pipe が見つからない）の Error ログが未処理として数えられた。観測の log は最後の行（`SplitBase end`、problems なし）まである。自然終了。
+  - 実行 2（`SplitOverlay`、PID 28724。実行 1 と別の Editor process、同じ `Library`）: 観察 1 → 観察 3 → `BuildPipeline.CleanBuildCache()` → 観察 2 の順に同じ process で行い、最後に fixture を消した。XML は Passed（total 1）。XML の完成（01:50:54Z）から 16 分後も終わらず、スレッドが 1 本だけで CPU 時間が増え続けていた（既知の終了 stall と同じ症状）ので、この session がその PID だけを `Win32_Process.Terminate` で止めた（ReturnValue 0）。exit 0 は Terminate によるもので自然終了ではない。調査はしていない。
+
+| 観察 | Editor process | `Library` の build cache の状態 | 上書き / base の出力の v2 | build instruction（Unity の統計） |
+|---|---|---|---|---|
+| 判定 C の上書き（参考） | base と同じ | base の build の直後のまま | **無し**（v1） | 14 個中、変更 1・再利用 13 |
+| 1. 別の process で上書き | base と別（実行 2） | 実行 1 の base の build のまま | **無し**（v1 の `.cf` は base と同じ sha256） | 14 個中、変更 2・再利用 12。Scene 2 つの build metadata は作り直されたが、instruction は変わらず再利用 |
+| 3. 同じ `Library` で base を `Full` で再 build | 実行 2 | 観察 1 の後のまま | **無し**（v1 の `.cf` 2 つは実行 1 の base と同じ sha256） | 20 個中、変更 2・再利用 18 |
+| 2. cache を消してから上書き | 実行 2 | `CleanBuildCache()` の直後 | **有り**（v2 の float 列を 2 つの `.cf` に持ち、v1 は 0） | 14 個中、変更 14・再利用 0 |
+
+- 因果の読み: 観察 1 と観察 2 は同じ process・同じ source で、違いは build cache を消したかだけであり、v1 / v2 が分かれた。観察 1 は base と別の process でも v1 なので、Editor process のメモリの状態ではない。観察 3 は base でも v1 なので、上書き（root を絞った build）に固有の問題ではなく、prefab を編集した後に同じ `Library` で行う Content Directory の build 全体に起きる。texture の編集が反映されたのは、texture の build instruction が import の結果に依存して変わるためと読める（判定 C の上書きでも texture は v2）。
+- 参考の観測（判定に使わない）: `AssetDatabase.GetAssetDependencyHash` は、v2 の前後で `SceneInstance`・`SceneNested`・`SceneDirect` のどれも変わらなかった（texture を変えた `SceneDirect` も同じなので、この値は依存の中身を表さず、原因の材料にならない）。
+- 確かめていないこと: `BuildContentOptions.CleanBuildCache`（同名の build の option がある）が `BuildPipeline.CleanBuildCache()` と同じ効果か。cache を消した build の所要（観察 2 の上書きの build は約 55 秒、観察 1 は約 26 秒）。Player の build や、初めての `Library`（cache が空）で base を作った時に正しいこと（観察 2 からの推測にとどまる）。round（Play での読み込み）は行っていない（`.cf` の中身で v2 の有無が分かるため）。
+- **分類: A 再開（推奨。owner が決める）。** 理由: (1) 製品の build 経路が cache を消す（または同等の option を渡す）変更が要り、触るのは §3 の責務マップに無い `UnityContentDirectoryAdapter.cs` か coordinator の build の手順であり、AC10（差分は §3 の file だけ）を満たさないので B 適応にできない。(2) 上書きは「編集の後に同じ `Library` で build する」ことが前提の使い方なので、cache の扱いは上書きの形（§2.1 S-1・S-2）そのものに関わる。(3) 観察 3 のとおり、影響は上書きの外の base（目的 build）にも及ぶ: prefab を編集した `Library` で作って publish した目的 build は、Scene に古い prefab を持ちうる。owner の見立て「`Library` の状態が原因なら実機の Player では出ない可能性が高い」は、Player の content を、prefab を編集した後の同じ `Library` で build しない場合に限って成り立つ（cache が空の環境、例えば新しい checkout の CI では出ない見込み。未測定）。この base 側の影響を本スライスで扱うか後続へ送るかも owner の判断である。
+- 担当・モデル: 新しい session（Claude Opus 5.5、Anthropic）。Unity の Build は Phase C の実行担当として行った。
 
 ## 8. Phase C'
 
