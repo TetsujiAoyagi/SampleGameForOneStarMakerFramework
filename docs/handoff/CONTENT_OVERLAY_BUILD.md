@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2。program の S2 を §2.5 の判断で S2-2（本書）と S2-3（目的 build の索引、A1 未着手）に分けた）
-- status: `C`（**F-1 の原因スパイク完了（2026-11-14）: 原因は Unity の Content Directory build の `Library` の build cache。A 再開を推奨し、owner へ返した（§7 の「スパイク（F-1 の原因）」）。** 判定 C 完了（2026-11-14）: NO-GO、owner へ返した。owner は同日、F-1 の原因スパイクを先に置くと決めた。 2026-11-14 に `develop`（`b5fc17e7`、Skill の整理を含む）をこのブランチへ取り込んだ。実装差分は変えていない。 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
+- status: `C`（**F-1 の原因スパイク完了（2026-11-14）: 原因は Unity の Content Directory build の `Library` の build cache。owner は同日、回避を「Scene に、焼き込む prefab の中身のハッシュを持たせる」方式に決め、A 再開（revision 1）とした（§7 の「スパイク（F-1 の原因）」の追記、引継ぎ票）。** 判定 C 完了（2026-11-14）: NO-GO、owner へ返した。owner は同日、F-1 の原因スパイクを先に置くと決めた。 2026-11-14 に `develop`（`b5fc17e7`、Skill の整理を含む）をこのブランチへ取り込んだ。実装差分は変えていない。 前提 P1・P2・canary が成り立つ回で、上書きから読んだ `SceneInstance`・`SceneNested` の prefab の子が v1（AC6 不成立。§7 の判定 C）。他の AC は成立。発見 C の F-1 が判定 C で再現した。Phase A は revision 0（A3 凍結版 commit `8c820a94`、2026-11-14 に owner の指示で凍結）。A2 の 3 件、凍結前の外部レビュー 3 巡（draft PR #186）、owner のレビュー 2 回、主担当の見直しを反映してある（§5.1）。A2 入力版は commit `cf31a6f2`、外部レビューの対象は 1 巡目が commit `288cf7bd`、2 巡目が `23a929cb`、3 巡目が `50753ecf`）
 - branch: `claude/content-overlay-build`（PR の base は `develop`）
 - implementation base commit: `66564116`（`develop` の head、2026-11-14。§1 の現況はこの base）
 - implementation head commit: `42c0ff7f443bcb13293345850dc0536bd4d144da`
@@ -20,12 +20,12 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が `evidence stage` で固定し、取得案内は進行役の共有メモに置いた。取得側の閲覧確認は未実施
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: **owner の判断**（F-1 の原因スパイクの後）。スパイクは原因を確定し、A 再開を推奨した（§7 の「スパイク（F-1 の原因）」）。分類の後の進め方は決めていない。判定 C の NO-GO と §7 の既存の記録は書き換えていない。C' は起動しない。
-  - owner が決めること: (1) 分類（推奨は A 再開。製品の build 経路が build cache を消す変更は §3 の外の file に及び、AC10 で B 適応にできない）。(2) A 再開なら、cache を消す範囲（上書きの build だけか、base の build も含むか）と、その所要を受け入れるか。(3) 観察 3 で分かった base（目的 build）への影響（prefab を編集した `Library` で作った目的 build が Scene に古い prefab を持ちうる）を本スライスで扱うか、後続へ送るか。
-  - 読む範囲: §0、§7 の判定 C と「スパイク（F-1 の原因）」。
+  - 次の Phase・役割: **Phase A（revision 1）**。F-1 の原因スパイクで原因が確定し（§7 の「スパイク（F-1 の原因）」と追記）、owner が 2026-11-14 に回避の方式を「Scene に、焼き込む prefab の中身のハッシュを持たせる」に決めた。分類は A 再開。判定 C の NO-GO と §7 の既存の記録は書き換えない。C' は起動しない。
+  - Phase A で決めること（担当が推奨を付けて owner へ）: (1) ハッシュの印の置き場所と形（custom の script を Scene に足すか、組み込みの物で表すか）と、何のハッシュか（Scene が焼き込む prefab の閉包。texture・material のように参照で残る物は不要と見込む）。(2) いつ誰が書くか（build の前に製品の経路が書くか、prefab の保存時に Editor が書くか）と、source を書き換えることの扱い（VCS の差分、読み取り専用・checkout が要る file、開いている Scene）。(3) 適用範囲: 上書きの build だけか、base（目的 build）を含むか（観察 3 のとおり base も同じ不具合を持つ）。(4) §2 の受け入れ境界・AC10・§3 の責務マップの改訂。印が効くこと（prefab を戻すと前の出力に戻ることを含む）を実機で確かめる AC。
+  - 読む範囲: Phase A の定めどおり全節。特に §7 の判定 C、「スパイク（F-1 の原因）」とその追記。
   - 開始時の照合: 次の担当は、起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean であることを確かめる。食い違えば引き継がずに止まる。ブランチは `claude/content-overlay-build`。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。push も PR #186 の編集もしていない）。implementation head は `42c0ff7f` のまま。スパイクの一時的な test file は commit `a19901ea` で足し、次の commit で消した。
-  - 入力の取得案内・状態: スパイクの出力は git 管理外の `TestResults/ovb/spike/` と各実行の `TestResults/<invocation>/`、Unity の build の統計は `unity/Library/BuildHistory/` にある。evidence bundle にはしていない（未保存）。判定 C の evidence bundle は上の行のとおり。
+  - 入力の取得案内・状態: スパイクの出力は git 管理外の `TestResults/ovb/spike/` と各実行の `TestResults/<invocation>/`、Unity の build の統計は `unity/Library/BuildHistory/` にある。最小の再現 project と実験の出力はリポジトリの外（owner の PC）。evidence bundle にはしていない（未保存）。判定 C の evidence bundle は上の行のとおり。
   - 引き渡さないもの: §7 の所見・F-1 の観測・限定実行・判定 C とスパイクの結論は、将来 C' を起こす場合も C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
@@ -523,6 +523,13 @@ A1 の終わりに担当が推奨を付けて owner へ出した U1〜U8 は、*
 - 確かめていないこと: `BuildContentOptions.CleanBuildCache`（同名の build の option がある）が `BuildPipeline.CleanBuildCache()` と同じ効果か。cache を消した build の所要（観察 2 の上書きの build は約 55 秒、観察 1 は約 26 秒）。Player の build や、初めての `Library`（cache が空）で base を作った時に正しいこと（観察 2 からの推測にとどまる）。round（Play での読み込み）は行っていない（`.cf` の中身で v2 の有無が分かるため）。
 - **分類: A 再開（推奨。owner が決める）。** 理由: (1) 製品の build 経路が cache を消す（または同等の option を渡す）変更が要り、触るのは §3 の責務マップに無い `UnityContentDirectoryAdapter.cs` か coordinator の build の手順であり、AC10（差分は §3 の file だけ）を満たさないので B 適応にできない。(2) 上書きは「編集の後に同じ `Library` で build する」ことが前提の使い方なので、cache の扱いは上書きの形（§2.1 S-1・S-2）そのものに関わる。(3) 観察 3 のとおり、影響は上書きの外の base（目的 build）にも及ぶ: prefab を編集した `Library` で作って publish した目的 build は、Scene に古い prefab を持ちうる。owner の見立て「`Library` の状態が原因なら実機の Player では出ない可能性が高い」は、Player の content を、prefab を編集した後の同じ `Library` で build しない場合に限って成り立つ（cache が空の環境、例えば新しい checkout の CI では出ない見込み。未測定）。この base 側の影響を本スライスで扱うか後続へ送るかも owner の判断である。
 - 担当・モデル: 新しい session（Claude Opus 5.5、Anthropic）。Unity の Build は Phase C の実行担当として行った。
+
+#### 追記: 最小の再現と、Scene に意味のない変更を入れる回避の実験（2026-11-14、owner の依頼）
+
+- **最小の再現（OSM なし）:** リポジトリの外（owner の PC）に、package を持たない Unity 6000.6.0f1 の project を作った。C# は、Scene を `LoadableSceneId` で指す ScriptableObject（`rootAssetPaths` の唯一の root）と、再現を流す Editor script の 2 つだけ。prefab（子の位置 (1,2,3)）の instance を 1 つ置いた Scene を build → prefab の子を (4,5,6) にして build → `CleanBuildCache()` の後に build、の 3 回で、2 回目の出力は (1,2,3) のまま、3 回目で (4,5,6) になった。2 回目の Unity の統計は build instruction 4 個中、変更 0。Scene の build metadata は作り直されている。Unity へ報告するための英語の README と zip を同じ場所に置いた（報告は未送信。送るかは owner が決める）。SampleGame の repository には何も足していない。
+- **回避の実験（同じ project、1 回の batch）:** prefab を v2 にした後、Scene の file に意味のない変更を入れて build し、その後 Scene を元のバイトに戻して build し直した。(a) 無関係な空の GameObject の位置を変える、(b) 空の GameObject を足す、の 2 通りで、どちらも結果は同じ: 変更を入れた build は v2、元のバイトに戻した build と、その次の build は v1 に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。したがって、build の間だけ変えて戻す回避は効かず、効かせ続けるには Scene に変更を残す必要がある。（Unity の統計では、(a) は instruction の変更 0 のまま出力が作り直され、(b) は instruction が 1 つ変わった。）
+- 両方の batch とも、作業の完了後に Unity が終了しなかった（スレッド 1 本、CPU 時間が増え続ける。既知の終了 stall と同じ症状。2 回目の実験の process は、この session が PID を指定して止めた。最初の再現の batch は自然終了した）。OSM を含まない project でも出たという事実だけを記録し、調査はしていない。
+- **owner の決定（2026-11-14）:** 回避の方式は「Scene に、焼き込む prefab の中身のハッシュを持たせる」（候補 2）。prefab が変わった時だけ Scene のバイトが変わり、prefab を前の版に戻せば鍵も前の版に戻るので、cache を捨てずに正しい出力を得られる見込み（この方式自体は未測定）。他の候補（上書きの時だけ `CleanBuildCache()`、Scene に prefab を置かない制作の規則）は採らない。分類は A 再開（新しい revision）となる。
 
 ## 8. Phase C'
 
