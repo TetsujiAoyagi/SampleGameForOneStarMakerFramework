@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `B`（Phase B 完了、2026-11-14。実験の Editor script を書き、compile を確認した（§6）。Phase A は A3 凍結版 revision 0 のまま。次は発見 C。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `C`（発見 C の実行担当が batch を 1 回実行し、record を evidence bundle に固定した、2026-11-14（§7）。裁定は未着手。次は Phase C から C' までの進行役。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `89604c70`
@@ -17,17 +17,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§5.3、§8）。S2-2b の A1 初稿（`docs/handoff/CONTENT_PREFAB_STAMP.md`、ブランチ `claude/content-prefab-stamp` の作業ツリーにある未 commit の file。本スライスは読むだけで変えない）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（repository の差分は文書だけ。実験の script は repository の外にあり、次項）
-- 実験の Editor script の取得案内・状態: 未保存（Artifact Storage には入れていない。ローカル PC の repository の外の実験 project にあり、取得先と sha256 は起動指示で渡す）
-- evidence bundle の取得案内・状態: 未生成
+- 実験の Editor script の取得案内・状態: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。取得案内は実験の project に置き、所在は起動指示で渡す。
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C の実行担当（新しい session。Phase B と異なるモデル。動作確認は `対象なし`）。
-  - 次の作業: §5 の「操作・実行時・目視条件の検証経路」のとおり、実験の project を開いている Editor が無いことを確かめ、`record/` と `Out/` が無い状態から、`-executeMethod StampSpike.Run` で batch を 1 回実行する（所要は規模の fixture の作成と build の数で長い）。record（`record/record.txt`、`record/outputs/`、`record/tep/`、`record/inventory-*.txt`）・Unity の log・script を evidence bundle に入れ、判断担当へ渡す。裁定（AC の合否、§2.5 の 4 つの読み）は判断担当が record を読んで行う。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。
-  - 読む範囲: 既定のとおり（実行担当は §0、§5、§6）。§6 の「Phase C へ渡すこと」を読む。
-  - 必要な権限: Unity Editor の起動（repository の外の実験 project のみ。この repository の `unity/` では起動しない（I1））、その project の `Library` の cache 消去（script が `CleanBuildCache()` を呼ぶ）、長時間の実行。
-  - 停止規則: record に `HALT` の行が出たら止めて判断担当へ返す（§2.5 の未判定）。`HALT` でなく `EXCEPTION` の行で止まり、原因が script の誤りと分かる場合に限り、§2.5 のとおり batch を 1 回だけやり直してよい。process が `END`（または `HALT`・`EXCEPTION`）の行の後も終わらない時は、その PID だけを止め、時刻と PID を実行の記録に残す（既知の終了 stall は調査しない）。
-  - 引き渡さないもの: なし。
-  - 引き継ぐ commit: この票を含む commit（Phase B の出口。SHA は起動指示で渡す）。
+  - 次の Phase・役割: Phase C から C' までの進行役（動作確認は `対象なし`）。owner が desktop から直接起こす新しい session で、これまでの会話ではなく本書を入力にする。進行役は判断担当（発見 C と判定 C）→（script の誤りによるやり直しがあれば、その実行担当）→ C' の各担当をそれぞれ新しい session または CLI で起こし、各担当の出口の記録と票の更新を確かめて次へ進める。各担当の起動指示には、その時点の引き継ぐ commit の SHA と、evidence bundle の取得案内の所在を渡す。進行役自身はレビュー・判定・監査をしない。
+  - 次の作業: (1) 判断担当（Phase B と異なるモデル）が evidence bundle を fetch し、script（bundle の `StampSpike.cs`。sha256 は実行前に照合済み、§7）と record を読んで発見 C を行う。現在の問いを阻害する script の誤りが無ければ、同じ record で判定 C を行う（batch は implementation head の script を B 以外の実行担当が取った観測なので、判定の入力にしてよい。再実行しない）。AC の合否と §2.5 の 4 つの読みを §7 に記録する。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。(2) script の誤りで未判定になる時に限り、§2.5 のとおり batch を 1 回だけやり直す（新しい実行担当の session。§5 の検証経路と §7 の実行の記録のとおり）。(3) 判定 C の後、所見を含まない C' blind bundle を作り（入力は bundle の record・log・script と、HANDOFF は Phase B 完了時点の commit `c2947bd8` の blob。§7 の記録と発見 C・判定 C の所見は入れない）、§5 の予約どおり C' を Grok 系（cursor-agent）で行い、§8 に記録する。(4) Phase D は owner と行う（§0 の harvest to）。
+  - 読む範囲: 進行役は §0、§2.5、§5、§6、§7。判断担当は既定のとおり（§0〜§7）。C' は blind bundle だけを読む。
+  - 必要な権限: 判断担当は evidence bundle の fetch だけで足り、Unity を起動しない。やり直しの実行担当は §5 の検証経路の権限（repository の外の実験 project でだけ Unity を起動。この repository の `unity/` では起動しない（I1））。C' は cursor-agent（AGENTS.md の契約どおり Grok 系だけ。Codex CLI は 2026-11-12 から使えない）。§5 の予約が「Phase A・B・C に関与していないか」を満たすかは C' を起こす時に確かめ（Phase A の外部レビュー（cursor[bot]、§5.1）が使ったモデルを含む）、満たさなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない）。判断担当のモデルが進行役と同じ等で独立性が弱まる場合も、同じく制約として記録する（高コストのモデルへ上げない）。push は SKILL の公開点の規則に従う。
+  - 停止規則: 判定 C の判断担当が `HALT`・未判定と読んだ時は、§2.5 の停止規則のとおり owner へ返す。やり直しは 1 回まで。C' の指摘による差し戻しは SKILL の上限（3 巡）に従う。
+  - 引き渡さないもの: C' に §7 の記録、発見 C・判定 C の所見、PR 本文を渡さない。
+  - 引き継ぐ commit: この票を含む commit（発見 C の実行の記録。SHA は起動指示と PR #191 の状態ブロックで渡す）。
 
 ## 1. 目的と対象外
 
@@ -361,6 +361,19 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 - 規模の fixture の作成は、prefab 3,000 個と Scene 300 個を Unity の API で作る。所要は測っておらず、段 8 の最初の `scale prefabs created` と `scale fixture created` の行に ms が出る。
 
 ## 7. Phase C
+
+### 7.1 発見 C の実行（batch 1 回）
+
+- 種別: 発見 C の実行担当（判断はしない。AC の合否と §2.5 の読みはこの節に書かない）。
+- 引き継いだ commit: `c2947bd8`（HEAD と一致を確認）。implementation head は `89604c70`。
+- 使用した evidence bundle の取得案内・状態: §0 と同じ案内（ローカル固定済み（未昇格））。収録は 117 file: `record/`（`record.txt`、`outputs/`、`tep/`、`inventory-*.txt`）、Unity の log、実行の記録（`run-notes.txt`）、`Assets/Spike/Editor/StampSpike.cs`、`Assets/Spike/Root.cs`（script が使う root の型）。`Out/` の出力そのものは入れず（名前と sha256 は `record/outputs/` にある）、実験の project に残した。
+- 実行前の確認: script の sha256 が起動指示の期待値と一致した。実験の project を開いている Unity の process と `Temp/UnityLockfile` は無かった。`record/` と `Out/` は無かった。別の session の、無関係な使い捨ての project に対する Unity の batch が 3 本動いていた（触っていない。所要の値（AC3b・AC4）に CPU の競合が入った可能性がある。実行の記録に書いた）。
+- 起動: §5 の検証経路のとおり（Unity 6000.6.0f1、`-executeMethod StampSpike.Run`）。2026-11-14 19:17:29 JST に起動した。
+- 終了行: `MIDEND` が 10:19:29Z、`END` が 10:50:02Z（record）。`HALT` と `EXCEPTION` の行は無い。process は `END` の後に自分で終わった（約 20 秒後に無いことを確かめた）。止めた PID は無い。
+- やり直し: なし（1 回だけ実行した）。
+- 担当: 発見 C の実行担当（Phase B と異なるモデル）。
+
+### 7.2 発見 C・判定 C の判断
 
 未着手
 
