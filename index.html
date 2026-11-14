@@ -57,6 +57,7 @@ a.card .t{font-weight:700;margin:.2em 0}
 <h1>OSM の実測記録</h1>
 <p class="lede">OneStarMaker（OSM）の配布単位の設計のために、Unity 6000.6 の Content Directory の挙動を Editor の Play で実測した記録です。新しい順に並べています。</p>
 <div class="cards" style="grid-template-columns:1fr">
+  <a class="card" href="content-overlay-build/"><div class="k">2026-11-14</div><div class="t">prefab を編集して build し直すと、Scene に古い prefab が残る</div><div class="d">差分 build の判定が Scene の file だけを見ている。印の方式で、cache を捨てずに回避できた。</div></a>
   <a class="card" href="overlay-registration/"><div class="k">2026-11-14</div><div class="t">取得した build に、手元で build した上書きを重ねて登録する</div><div class="d">base → 上書きの順なら上書きの版が読まれる。逆の順では効かない。</div></a>
   <a class="card" href="shared-file-registration/"><div class="k">2026-11-12</div><div class="t">同じ file を持つ 2 つの Content Directory を同時に登録すると何が起きるか</div><div class="d">Loadable からは実体 1、Scene の直接参照からは 2。後から登録した側の解除が、黙って物を壊す。</div></a>
 </div>

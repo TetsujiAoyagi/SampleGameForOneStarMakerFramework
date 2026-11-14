@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prefab の差分 build</title>
+<meta name="description" content="Unity 6000.6 の Content Directory の差分 build で、Scene に置いた prefab を編集して build し直すと古い prefab が残る不具合の原因、最小の再現、cache を捨てずに済む回避を実測した記録。">
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1c1a; --muted:#5f5b54; --line:#dcd7cd; --card:#ffffff;
+  --accent:#2f5d8a; --ok:#2e7d4f; --bad:#b3412f; --code:#f1eee7;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+    --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+  --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 80px}
+h1{font-size:1.75rem;line-height:1.4;margin:0 0 .4em}
+h2{font-size:1.25rem;margin:2.4em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.6em 0 .4em}
+p,li{color:var(--fg)}
+.lede{color:var(--muted);margin:0 0 1.6em}
+.scope{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:.92rem;color:var(--muted)}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.88em;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:1.2em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .k{font-size:.8rem;color:var(--muted)}
+.card .v{font-size:1.9rem;font-weight:700;line-height:1.2;margin:.15em 0}
+.card .d{font-size:.85rem;color:var(--muted)}
+.table-wrap{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--bad);font-weight:700}
+figure{margin:1.4em 0}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.4em}
+svg{width:100%;height:auto;display:block}
+.note{font-size:.9rem;color:var(--muted)}
+footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>prefab を編集して build し直すと、Scene に古い prefab が残る</h1>
+<p class="lede">Unity 6000.6 の Content Directory の build は差分 build です。Scene に置いた prefab を編集して同じ project で build し直すと、Scene の出力は古い prefab のまま再利用されます。build は成功し、Warning も出ません。原因を切り分け、最小の再現を作り、cache を捨てずに済む回避を実測した記録です。</p>
+
+<div class="scope">範囲: 1 台の PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（非圧縮）、build は同じ <code>Library</code>。prefab は variant でなく、override が無く、unpack していない instance。Player の build、別の PC、実データでは測っていません。</div>
+
+<h2>きっかけ</h2>
+<p><a href="../overlay-registration/">前の記事</a>で、取得した build（base）に手元で build した上書きを重ねれば上書きの版が読まれる、と分かりました。そこで OSM の製品の build 経路に「編集した asset の集合から、影響を受ける Scene と asset だけを上書きとして build する」機能を足し、Editor の Play で確かめました。</p>
+<p>結果は、10 個の受け入れ条件のうち 9 個が成立しました。編集した texture を直接参照する Scene や、prefab を root として直接読む経路は、上書きの版で出ました。<strong>Scene に置いた prefab の instance（入れ子の prefab を含む）だけが、上書きから読んでも古い版のまま</strong>でした。上書きの directory の中を調べると、その Scene の file は base と同じバイトで、新しい位置の値はどの file にもありませんでした。</p>
+
+<h2>原因</h2>
+<div class="cards">
+  <div class="card"><div class="k">別の Editor process で build</div><div class="v bad">古い</div><div class="d">process のメモリの状態ではない</div></div>
+  <div class="card"><div class="k">上書きでなく全体を build し直す</div><div class="v bad">古い</div><div class="d">上書き固有の問題ではない</div></div>
+  <div class="card"><div class="k">CleanBuildCache の後に build</div><div class="v ok">新しい</div><div class="d">原因は Library の build cache</div></div>
+</div>
+<p>Content Directory の build は、出力の file ごとに build instruction を作ってハッシュを取り、前回と同じなら、前に書いた file を再利用します。Unity が <code>Library/BuildHistory</code> に残す trace を見ると、prefab を編集した後の build で、Unity は Scene の build 用 metadata を作り直していました。それでも Scene の instruction は「変更なし」と判定され、古い出力が使われました。</p>
+<p>なぜ prefab の変更が Scene の判定に効かないのか。build した Scene は prefab を参照していないからです。Editor の Scene の file は「この prefab の instance で、差分はこれ」だけを持ち、Editor が開くたびに prefab と合成して見せています。build の時はこの合成の結果、つまりただの GameObject の集まりが Scene の出力に焼き込まれます。実行時に prefab の仕組みを持たずに済み、読み込みも速くなるからです。ところが差分 build の判定は Scene の file のバイトだけを見ていて、合成に使った prefab を見ていませんでした。</p>
+
+<figure>
+<svg viewBox="0 0 680 250" role="img" aria-label="Scene の file と prefab から build の出力が作られ、cache の鍵は Scene の file だけで決まる図">
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+  <g font-size="15" fill="var(--fg)">
+    <rect x="20" y="30" width="200" height="60" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="36" y="56">Scene の file</text><text x="36" y="78" fill="var(--muted)" font-size="13">instance と差分だけ</text>
+    <rect x="20" y="130" width="200" height="60" rx="8" fill="var(--card)" stroke="var(--bad)" stroke-width="2"/>
+    <text x="36" y="156">prefab の file</text><text x="36" y="178" fill="var(--muted)" font-size="13">編集した（v2）</text>
+    <rect x="300" y="80" width="150" height="60" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="316" y="106">build で合成</text><text x="316" y="128" fill="var(--muted)" font-size="13">焼き込む</text>
+    <rect x="510" y="80" width="150" height="60" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="526" y="106">Scene の出力</text><text x="526" y="128" fill="var(--muted)" font-size="13">.cf</text>
+    <path d="M220 60 L298 100" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#ar)"/>
+    <path d="M220 160 L298 120" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#ar)"/>
+    <path d="M450 110 L508 110" stroke="var(--fg)" stroke-width="1.5" marker-end="url(#ar)"/>
+    <text x="20" y="226" fill="var(--bad)" font-weight="700">cache の鍵は Scene の file のバイトだけ</text>
+    <text x="20" y="246" fill="var(--muted)" font-size="13">prefab が変わっても鍵が同じなので、前回の出力（v1 入り）が再利用される</text>
+  </g>
+</svg>
+<figcaption>trace の統計（build instruction の変更数・再利用数）と、出力の file の中の値から読んだ因果です。Unity の内部の実装は見ていません。</figcaption>
+</figure>
+
+<p>この不具合は上書きに限りません。「prefab を直して、同じ project で Content Directory を作り直す」だけで起きます。全部を作り直して丸ごと差し替える運用でも、build が同じ <code>Library</code> で走る限り当たります。正しくなるのは、cache が空の時（新しい checkout や <code>CleanBuildCache()</code> の後）だけです。</p>
+
+<h2>最小の再現</h2>
+<p>OSM を使わない、package を 1 つも持たない project で再現しました。C# は 2 file だけです。</p>
+<ol>
+<li>子の位置が (1,2,3) の prefab と、その instance を置いた Scene を作って build する。出力は (1,2,3)。</li>
+<li>prefab の子を (4,5,6) にして保存し、build し直す。Editor で Scene を開くと (4,5,6)、Scene の file のバイトは変わっていない。<strong>出力は (1,2,3) のまま</strong>。build instruction は 4 個中、変更 0。</li>
+<li><code>BuildPipeline.CleanBuildCache()</code> の後に build すると、(4,5,6)。</li>
+</ol>
+<p>ただし <code>CleanBuildCache()</code> は全ての content の差分 build を捨てます。毎回これをすると、差分 build の利点のほとんどを失います。</p>
+
+<h2>回避: Scene に、焼き込む prefab のハッシュの印を持たせる</h2>
+<p>鍵が Scene の file のバイトなら、prefab が変わった時に Scene のバイトも変わるようにすればよい、という発想です。同じ再現の project で 3 通り試しました。</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>やり方</th><th>正しさ</th><th>cache</th><th>source に残る差分</th></tr></thead>
+<tbody>
+<tr><td>Scene に意味のない変更を入れ、build の後に戻す</td><td class="bad">戻すと古い版に戻る</td><td>—</td><td>無し</td></tr>
+<tr><td>build のたびに印の object を足し、build の後に戻す</td><td class="ok">正しい</td><td class="bad">毎回作り直し（object の内部 ID が毎回変わる）</td><td>無し</td></tr>
+<tr><td><strong>印の置き場を 1 つだけ Scene に置き、build の直前にその名前を prefab のハッシュに書き換え、build の後に戻す</strong></td><td class="ok">正しい</td><td class="ok">効く</td><td>置き場の object 1 つ（一度だけ）</td></tr>
+</tbody>
+</table>
+</div>
+<p>3 つ目の形で、prefab を v1 → v2 → v2 → v1 → v2 と進めたり戻したりして 5 回 build しました。5 回とも正しい版が出ました。作り直したのは prefab が変わった時の Scene 1 個だけで、同じ版の再 build と前の版に戻した build は、作り直しゼロで cache を丸ごと再利用しました。印の object には <code>EditorOnly</code> の tag を付けたので、build の出力には残りません。全 build の後、Scene の file は元のバイトに戻っています。</p>
+<p>決め手は、印入りの Scene のバイトが「元の Scene + prefab のハッシュ」だけで決まることです。prefab が同じなら毎回同じバイトになって cache が当たり、prefab が変われば鍵が変わって作り直されます。build の後に戻すので、印の値を VCS に commit する必要もありません。</p>
+
+<h2>OSM での扱い</h2>
+<ul>
+<li>上書きの build の計画は、この不具合のため不成立とした。逆引きの規則、登録の契約、重複の報告など、他の部分は実測で成り立った。</li>
+<li>回避は印の方式に決め、製品の build 経路に入れるのは次のスライスにする。入れ子の prefab、複数の Scene、build が途中で落ちた時に Scene を戻すこと、読み取り専用の file への手当てを、そこで決めて測る。</li>
+<li>Unity へ報告するための最小の再現 project を用意した。</li>
+</ul>
+
+<h2>途中で分かったこと</h2>
+<ul>
+<li>Unity が <code>Library/BuildHistory/&lt;build&gt;/BuildContentTEP.json</code> に残す trace には、build instruction の変更数・再利用数や、どの asset の metadata を作り直したかが入っている。差分 build の挙動を調べる時の一次資料になる。</li>
+<li><code>AssetDatabase.GetAssetDependencyHash</code> は、prefab や texture を編集しても Scene の値が変わらなかった。依存の中身を表す値としては使えなかった。</li>
+<li>作業の後に Unity の batch が終了しないことがある（スレッド 1 本で CPU を使い続ける）。OSM を含まない最小の project でも出た。</li>
+</ul>
+
+<h2>測っていないこと</h2>
+<p class="note">Player の build、別の PC・<code>Library</code>、実データ（SampleGame）、prefab variant・override を持つ instance・unpack した prefab、入れ子の prefab での印の方式、複数の Scene、build が途中で落ちた時の扱い、<code>BuildContentOptions.CleanBuildCache</code> が <code>CleanBuildCache()</code> と同じ効果か、cache を消した build の所要。</p>
+
+<footer>
+<p><a href="../">記事の一覧</a>　前の記事: <a href="../overlay-registration/">取得した build に、手元で build した上書きを重ねて登録する</a></p>
+<p>実測の事実: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/blob/develop/docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md">CONTENT_DIRECTORY_BUILD_FACTS.md</a>。計画・判定・スパイクの記録: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/186">PR #186</a>。2026-11-14。</p>
+</footer>
+</main>
+</body>
+</html>
