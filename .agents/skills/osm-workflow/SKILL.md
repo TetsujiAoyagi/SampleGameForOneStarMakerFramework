@@ -19,20 +19,22 @@ description: >-
 5. 前の Phase から引き継ぐときは、起動時に渡された引き継ぐ commit の SHA と自分の worktree の HEAD、§0 の implementation head 欄を [引継ぎ票](references/phases-and-handoff.md#引継ぎ票) の手順で照合し、食い違えば引き継がずに停止する。C' は PR を読まない。
 6. HANDOFF は引継ぎ票の「読む範囲」から読み、必要なら範囲外も読む。票に範囲が無ければ従来どおり読む。コードは検索で場所を絞って必要な行範囲を読み、長いコマンド出力は絞ってから見る。依拠する内容は担当が自分で読み、要約に置き換えない。この項目は各 Phase の入力の定めを変えない。C' は所定の blind 入力だけを読み、レビュー対象として固定した完全 diff と、全文読むと定めた文書は絞らない。
 
-Phase A、C、C'、HANDOFF の作成・更新では [Phase と HANDOFF](references/phases-and-handoff.md) を全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。cursor-agent CLI へジョブを投げる場合は [cursor-agent](references/cursor-agent.md) を先に読む。規則を緩める・消すかを判断するときは [導入理由の実測記録](references/workflow-rationale.md) を確認する。
+[Phase と HANDOFF](references/phases-and-handoff.md) は、下の「作業ごとの読み先」が指定する節を全文読み、指定外の節は依拠するときに読む。指定の無い作業で HANDOFF を作成・更新する場合は全文読む。ドキュメントを変更する場合は [ドキュメント方針](references/docs-policy.md) も全文読む。cursor-agent CLI へジョブを投げる場合は [cursor-agent](references/cursor-agent.md) を先に読む。規則を緩める・消すかを判断するときは [導入理由の実測記録](references/workflow-rationale.md) を確認する。
 
 ## 作業ごとの読み先
 
 担当する作業の文書を、着手前に全文読む。担当しない作業の文書は読まなくてよい。
 
-| 作業 | 読む文書 |
-|---|---|
-| Phase A（計画と設計レビュー） | [phase-a.md](references/phase-a.md) |
-| Phase B（実装） | [phase-b.md](references/phase-b.md) |
-| 動作確認（Phase B の後） | [operation-check.md](references/operation-check.md) |
-| Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) |
-| Phase C'（独立監査） | [phase-c-prime.md](references/phase-c-prime.md) |
-| commit の整理、tag、push、PR の作成・更新 | [publish-and-history.md](references/publish-and-history.md) |
+| 作業 | 読む文書 | Phase と HANDOFF の読む節 |
+|---|---|---|
+| Phase A（計画と設計レビュー） | [phase-a.md](references/phase-a.md) | 全文 |
+| Phase B（実装） | [phase-b.md](references/phase-b.md) | Phase の責任、新しい事実の分類、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 |
+| 動作確認（Phase B の後） | [operation-check.md](references/operation-check.md) | Phase の責任、検証経路の成立、動作確認（Phase B の後）、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 |
+| Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) | 「Phase A の内部フロー」「PR 状態ブロック」「Cloud の担当」以外の全節 |
+| Phase C'（独立監査） | [phase-c-prime.md](references/phase-c-prime.md) | Phase の責任、動作確認（Phase B の後）、意思決定境界とスコープ停止、モデル選定と独立性、引継ぎ票、HANDOFF の必須内容、構造レビュー、レビュー証拠と C' の盲検性 |
+| commit の整理、tag、push、PR の作成・更新 | [publish-and-history.md](references/publish-and-history.md) | 指定なし |
+
+節を指定した行では、`##` の節は配下の `###` を含み、PR が存在する間は「PR 状態ブロック」、Cloud の担当が割り当てられているなら「Cloud の担当」も読む。「モデル選定と独立性」の強化条件を見るときは、「Phase A の内部フロー」の高リスクの例の段落も読む。
 
 ## Phase D: 保存・引渡しと後始末
 
