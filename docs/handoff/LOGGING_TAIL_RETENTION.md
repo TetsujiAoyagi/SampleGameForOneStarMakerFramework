@@ -3,21 +3,21 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 1、owner により A3 仕様凍結済み・Phase B 待ち。A2 レビューは assist、snapshot の保存・引渡しは未完了）
+- status: `B`（revision 1 の実装・テストコード整備完了、ローカル発見 C 待ち。コンパイル未確認、Unity テスト・Build 未実行）
 - branch: `codex/logging-tail-retention-design`
 - implementation base commit: `41099fb7a2c7e191d940614024031898214eed28`
-- implementation head commit: 未固定
+- implementation head commit: `0f05175fd188c366f44322c8bd7c0d2f94a42be3`
 - risk: `high`（非同期 drain の失敗経路・Dispose 境界を変える）
 - owner: repository owner / Phase A 主担当
 - created: 2026-11-14
 - expires: 2026-11-30 または置換 revision
 - harvest to: Architecture §12 G5、Issue #183
-- task: `logging-tail-retention`。Cloud Linux の `workflow-task.ps1 start` は `store-root-unavailable`、未登録。対応済み Windows 環境で開始する。store の代替実装・迂回はしない。
-- Phase A snapshot の取得案内・状態: 未保存。Cloud では Windows 専用 Storage を利用できない。凍結した仕様はこの票を含む commit の HANDOFF 本文とし、ローカル PC の担当がその固定版を既存 Storage へ保存・引渡しする。保存・取得未完了を成功と読み替えず、今回の owner の凍結指示によって過去の assist を正式 A2 完了へ遡及変更しない。
-- Phase B result snapshot の取得案内・状態: 未生成。B 担当から動作確認・C 担当へ。
+- task: `logging-tail-retention`。Windows の既存 Workflow で start / status 確認済み、active / version 1 / deliveryPending 0。Phase B の出口では task 全体を終了しない。
+- Phase A snapshot の取得案内・状態: A3 凍結 commit の本文を既存 Storage にローカル固定済み（未昇格）。本 B 出口チャットの取得案内を C 担当へ渡す。送信側の fetch・hash 検証・本文閲覧済みだが、取得側の別 session の fetch・閲覧確認は未完了。Cloud でのレビューは assist のまま、正式 A2 完了へ遡及変更しない。
+- Phase B result snapshot の取得案内・状態: 固定 implementation head の完全 diff、製品・恒久 fixture、静的 DLL 照合、機械検査、未確認事項を既存 Storage にローカル固定済み（未昇格）。本 B 出口チャットの同じ取得案内をローカル C 担当へ渡す。送信側 fetch・閲覧済み、取得側の別 session の確認は未完了。Unity 結果を含まず、GO / C′ 用の最終証拠ではない。
 - evidence bundle の取得案内・状態: 未生成。C 担当から C′ / D 担当へ。
 - C′ blind bundle の取得案内・状態: 未生成。所見と分離して C′ 担当へ。
-- 引継ぎ票: 次は Phase B、ローカル Windows PC で §2〜§5 の凍結範囲を実装し、テストコードを整備する。読む範囲は §0〜§5 および §5.1 の A3 採否・制約。開始入力として別途渡される凍結 commit SHA、clean な HEAD、PR 状態ブロックを照合し、不一致なら停止する。必要な権限は通常の repo 編集、対象限定の Unity Editor コンパイル確認、既存 Workflow / Storage の通常操作。task は上記 ID で start / status を確認し、終了済みなら既存規約の resume を行う。新しい設計判断は A へ戻す。Unity テスト・Build は C 担当で、B から実行しない。実装結果と未実行事項、implementation head と次の発見 C への票を記録して B を終える。A snapshot の保存・引渡し未完了は明記してローカルの既存経路で対応し、formal A2 完了と誤記しない。#185 の完了済み作業台は復活させない。
+- 引継ぎ票: 次はローカル Windows PC の発見 C。別途渡すこの票を含む引継ぎ commit SHA と clean な HEAD、上記 implementation head（HEAD の祖先、そこからの差分は HANDOFF のみ）、PR 状態ブロックを照合する。読む範囲は §0〜§8 と §5.1 の凍結採否・制約。取得案内は本 B 出口チャットのリンク先（worktree 外に保全）で、A / B snapshot を別 session で fetch・hash 検証・閲覧して引渡し確認を完了する。必要権限は通常 repo 読取・既存 Workflow / Storage・Unity Editor と標準 run-tests.ps1。起動前に対象 project・既存 Editor・残存 lock を確認し、初期パッケージ導入とコンパイルを完了して §5 の起点 filter から検証する。同期条件不成立・DLL 不一致・責務や API 等の設計変更が必要なら A へ戻す。B は C の実行・判定、C′ 起動を代行しない。次担当は同一 PC を想定し、実装・記録 commit は未 push。別 host を割り当てる場合は配布と到達性の成立を別途確認する。Cloud assist と正式 A2 未完了の記録を維持する。
 
 ## 1. 目的と対象外
 
@@ -123,11 +123,22 @@ namespace、フォルダ、asmdef は既存のまま。新しい汎用 helper �
 
 ## 6. Phase B 実装結果
 
-未着手。製品コード・テストコードの変更なし。implementation head は未固定。result snapshot 未生成。
+- 担当: Codex / GPT-6 系 / OpenAI、ローカル Windows PC（2026-11-15 JST）。入力 f9a78fb1e60f8cf43c5cff76371181381b66a220 と clean HEAD、§0、PR #192 を照合。別作業の未追跡 HANDOFF と既存 branch を保護し、clean な既存専用 checkout を指定 branch へ切替えた。
+- 製品: BufferedJsonFormatter は inner の呼出しだけを catch、失敗は既存 callback 一度と return。callback 例外を隔離し、成功時だけ JSON と UTF-8 Environment.NewLine をまとめて外側へ GetSpan / Copy / Advance 各1回で確定。WithLineBreak は常に false、全経路 finally Reset。外側 writer 例外は再送出。factory は provider ごとに同じ独立通知 callback を wrapper と InternalErrorLogger に配線。公開 API・依存・asmdef・所有順・MessagePack・LoggerFailureFile は変更なし。
+- AC1: 既存 gate・容量余裕・両 Write 回数0・producer / disposer / watchdog 完了と raw 保全を維持し、両 provider の正常 A 一件だけの完全出力を必須化。成功対照は通知0 bytes。
+- AC2 / N1: 失敗のみ、A→失敗B→C と成功対照を別 directory の恒久 fixture に追加。正規化前の全 bytes を厳密 UTF-8 / 環境改行で区切り、余剰行・空行・断片・終端不備を拒否。通知は LF 終端・UTC O 形式・4 field・provider 各1件を検査し、固定 probe failure と stack 情報の不在を検査。Unity の反射 getter が通知する外側 TargetInvocationException 型名を期待し、Message / inner は出力しない。AC2 の raw も assertion 失敗時に保全。
+- AC3 / AC4: 70000 bytes staging 後の連続失敗、1.2 MB 成功 / 失敗、通知 callback 例外、次 entry の断片不在と容量復帰、外側 GetSpan / Advance 失敗の再送出・通知0回を単体テスト化。失敗時の外側 GetSpan / GetMemory / Advance 呼出し0を数える。
+- AC5: 既存 Vector3 / JSON field / 巨大正常行 / 並行 producer / 通知・rolling rotation / default MessagePack・telemetry / realtime I/O 分類 fixture を維持。実行結果は未取得。
+- 配置と規模: 計画の製品2 file・テスト3 file に限定。tail fixture は400行で500行停止条件内。単体 fixture の増加は同じ entry 確定境界の失敗検証。厳密 bytes / 通知 assertion は既存 tail fixture 内の test 支援として共有し、新しい helper 型や依存を追加していない。設計の再開を要する変更なし。
+- 原因照合: LFS 実体の同梱 ZLogger.dll の SHA-256 が §4.1 と一致。dnfile / dncil で writer の IL を読取り、WithLineBreak 一度読取、変換例外による drain Flush 迂回、DisposeAsync に writer 最終 Flush が無いことを確認。静的照合であり修正成功の実測ではない。
+- 機械検査: contract-audit -BaseRef は §0 の implementation base を使用、errors 0 / warnings 0。docs-audit errors 0 / warnings 1（既存 program の harvest 警告）。git diff --check 成功。原出力は B result snapshot に収録。
+- コンパイル確認: Unity 6000.6.0f1 / CLI 1.0.0-beta.8 で専用 project を開いたが、初期 Package Manager 導入画面（64/81）と AssetDatabase Initial Refresh Start 以後の compile 完了を確認できず、未確認。Pipeline 到達不可で正常 close も不可。Scene 等の編集前で未保存変更が無いことを確認し、今回起動した Editor だけを CLI --force で停止・終了確認。対象の lock file は残存するが非保持と確認。他作業の Editor は操作していない。既知 native 終了 stall の追加調査ではない。
+- 未実行・未判定: Unity 全テスト、Build、AC1〜5 / N1 の実 Unity 成功、C / C′。C が初期 import / コンパイルを確認し、§5 の限定 filter・関連回帰・graphics 全 EditMode を実行する。製品受け入れ条件を免除しない。
+- 保存・引渡し: §0 の A / B snapshot と B 出口の取得案内を参照。送信側検証と取得側の別 session 確認を区別し、後者は C 担当へ未完了として引き渡す。従前の assist を正式 A2 へ読み替えない。
 
 ### 動作確認
 
-未実施。現計画ではテスト以外の実操作は対象なし。B 完了時に確定する。
+対象なし。凍結計画にテスト・Build 以外の実操作条件は無い。Unity のテスト検証を代替・省略しない。
 
 ## 7. Phase C
 
