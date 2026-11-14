@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `C`（判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。次は進行役が C' を起こす。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `C'`（C' 1 巡目完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。C と C' の突き合わせは Phase D で行う。次は owner との Phase D。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `89604c70`
@@ -19,9 +19,10 @@
 - Phase B result snapshot の取得案内・状態: 未生成（repository の差分は文書だけ。実験の script は repository の外にあり、次項）
 - 実験の Editor script の取得案内・状態: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。
-- C' blind bundle の取得案内・状態: 未生成
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した（§8）。取得案内は実験の project に置いた。
 - 引継ぎ票:
   - 次の Phase・役割: Phase C から C' までの進行役（動作確認は `対象なし`）。owner が desktop から直接起こす新しい session で、これまでの会話ではなく本書を入力にする。進行役は判断担当（発見 C と判定 C）→（script の誤りによるやり直しがあれば、その実行担当）→ C' の各担当をそれぞれ新しい session または CLI で起こし、各担当の出口の記録と票の更新を確かめて次へ進める。各担当の起動指示には、その時点の引き継ぐ commit の SHA と、evidence bundle の取得案内の所在を渡す。進行役自身はレビュー・判定・監査をしない。
+  - 進み具合（2026-11-14、C' の後）: (3) も完了した（§8。C' 1 巡目は GO・NO、阻害する findings なし、差し戻しなし）。進行役の担当範囲は終わった。次は (4) の Phase D を owner と行う（C と C' の突き合わせ、§7.2 の「owner へ返す内容」、harvest、evidence の保存・引渡しの確認）。
   - 進み具合（2026-11-14）: (1) は完了した（§7.2。発見 C で阻害する誤りは無く、判定 C の読みは GO・NO）。(2) は不要になった。進行役は (3) から再開する。GO・NO の内容（§7.2 の「owner へ返す内容」）は C' の後に (4) で owner と扱う。
   - 次の作業: (1) 判断担当（Phase B と異なるモデル）が evidence bundle を fetch し、script（bundle の `StampSpike.cs`。sha256 は実行前に照合済み、§7）と record を読んで発見 C を行う。現在の問いを阻害する script の誤りが無ければ、同じ record で判定 C を行う（batch は implementation head の script を B 以外の実行担当が取った観測なので、判定の入力にしてよい。再実行しない）。AC の合否と §2.5 の 4 つの読みを §7 に記録する。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。(2) script の誤りで未判定になる時に限り、§2.5 のとおり batch を 1 回だけやり直す（新しい実行担当の session。§5 の検証経路と §7 の実行の記録のとおり）。(3) 判定 C の後、所見を含まない C' blind bundle を作り（入力は bundle の record・log・script と、HANDOFF は Phase B 完了時点の commit `c2947bd8` の blob。§7 の記録と発見 C・判定 C の所見は入れない）、§5 の予約どおり C' を Grok 系（cursor-agent）で行い、§8 に記録する。(4) Phase D は owner と行う（§0 の harvest to）。
   - 読む範囲: 進行役は §0、§2.5、§5、§6、§7。判断担当は既定のとおり（§0〜§7）。C' は blind bundle だけを読む。
@@ -431,7 +432,24 @@ AC3b の上乗せ（ms、厳しい読み。割る値は N の build の最小で
 
 ## 8. Phase C'
 
-未着手
+- 担当方式: AI（cursor-agent の CLI、1 回。進行役が起動し、出力をそのまま本節へ記録した。進行役は監査をしていない）
+- 種別と巡: 最終 C'（高コスト証拠なし）、1 巡目、全体。2026-11-14。
+- 受け取った決定記録の版: なし
+- 使用した blind audit bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した写しを C' の workspace にした（120 file）。中身は、判定 C と同じ evidence bundle の `record/`・`run.log`・`Assets/Spike/`、Phase B 完了時点の commit `c2947bd8` の本書の blob、base から `c2947bd8` までの本書以外の差分（program の表の 1 行）、`AGENTS.md`、監査の指示書。`run-notes.txt`（実行の記録）、§7、発見 C・判定 C の所見は入れていない。取得案内は実験の project に置き、所在は起動指示で渡す。C' の出力の原文も同じ所に置いた。
+- 確認範囲・方法: blind bundle の全体。record の行、`record/outputs/`、`tep/`、`run.log`、script の行を AC ごとに読み、期待値は §5 の fixture の値から導いた（script の `ac*` の行は使っていない）。Unity は再実行していない。
+- 判定: **GO・NO。** M と F2 は AC1・AC2・AC4・AC5 を満たすが、両方とも AC3b が不合格である（緩い読みの上乗せが M は 23.7〜24.4%、F2 は 25.0〜29.1%。基準は 5%）。§2.5 の 2 番に当たる。満たせなかったのは条件 2。上乗せの大半は印の計算（約 3.0 秒。Scene ごとの依存の列挙を含む）で、書き込み、`Refresh` の差、戻し、build の差はそれぞれ約 0.1〜0.3 秒。測った手順は、印を書いて `Refresh`、戻して `Refresh` だけ。AC ごとの読みは、AC0 合格、AC1 合格、AC2 合格（(g) 成立）、AC3 は (a)〜(d) 合格、(e) は texture で値が変わらず、material は未判定、AC3b 不合格、AC4 合格、AC5 合格、AC6 合格。build の鍵は K1（順位 1）。
+- 現在の問いを阻害する findings: なし（凍結条件と AGENTS.md の、この問いを止める違反は見つからなかった。条件 2 の不合格は AC3b の定義どおりの結果で、script の誤りではない）。
+- 後続スライスへ移送する findings（全て (B)）:
+  - AC3 (e) の material 側が未確認。`Dep.mat` に色を代入した後、中身が変わった再 import が log に無く、import の出力 ID は作った時の値のまま。「material でも値が変わらない」は、編集が file に落ちたことを示していない。GO・NO は AC3b で先に決まるので、この穴は鍵の順位 1 の確定だけを弱める。
+  - §5 が record に求めた値の一部が欠けている。小さい列の印の file の sha256 は 12 桁で、規模の列は 300 個をまとめた hash だけ。出力先の絶対 path は無く、`outputEmptyBefore=True` だけ。規模の build の印の値の走査は 5 個に切ってある（接頭辞は全 file を見ている）。規模の fixture が texture を持たないという限界の文が record に無い。版の切り替えの時の FBX の Warning は record に写していない（AC5 (c) が見る build の相と段 3 には、印だけが出す Error・Warning は無い）。
+  - AC3b (a2) の「出力」を全 file と読むと、manifest が毎回違うことだけで未判定になる。§6 の `.cf`・`.resS` の読みと、書いた数 0 を合わせると (a)・(a2) は成り立ち、AC3b は不合格になる。
+  - model の頂点は印なしでも出力に入る（C3）。B6 が示すのは、印がこの頂点の更新を妨げないことだけ。model の階層と Transform は測っていない。
+  - 上乗せを下げる別の手順は測っていない（製品が既に持つ依存閉包を使い回す、`GetDependencies` を Scene の数だけ呼ばない、`Refresh` を製品の 1 回にまとめる）。計算だけで 5%（M 約 767 ms、F2 約 733 ms）を超えている。
+- 残存リスク: TEP が新しいかの判定は、build の開始の 1 秒前より後の更新なら真になる（今回は build ごとに BuildHistory の directory が別で、取り違えは起きていない）。規模の `.cf` は全てを突き合わせていない。出力の生バイトは bundle に無く、float の列は script の走査結果に依る。AC0 が落ちても script は止まらない（今回は成り立った）。build が途中で落ちた時の戻し、開いている Scene、読み取り専用の file、prefab variant・override・unpack、FBX、実データでの上乗せ、別の PC の `Library` は §2.3 のとおり測っていない。F2 を開いている Editor で読み直す場合は、この batch の 1 回では見ていない。
+- 監査できなかった範囲: Unity の再実行、network、workspace の外、git の実際の diff（入力の patch と HANDOFF だけを見た）。`StampSpike.cs` の sha256 を開始時の棚卸しの値と照合し直していない。build ごとの棚卸しの全文は残っていない（差が空だという record の行と、開始・終了の 6 file の一致だけを見た）。規模の build の出力は script が消すので、走査し直しと全 sha の突き合わせはできない。`run.log` の Warning を種別ごとに数えていない。
+- 独立性: Phase A（Anthropic）、Phase B（Anthropic）、発見 C の実行担当・判断担当（Anthropic）には関与していない。Phase A の外部レビュー（cursor[bot]、§5.1）が使ったモデルは公開されておらず、確かめられなかった。独立性の制約として記録する（risk `normal`、強化条件は必須ではない）。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし（blind bundle だけを入力にした）。
+- 担当・モデル: cursor-agent、Grok 4.7 High（`grok-4.7-high`）。
 
 ## 9. Phase D
 
