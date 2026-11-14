@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `C'`（**revision 1 の C' 1 巡目（最終 C'）完了、2026-11-14（§8.1）。C' の読みは CONDITIONAL ACCEPT (iii)、現在の問いを阻害する findings（(A)）は無い。** 以下は revision 1 の判定 C 完了時点の記述: **revision 1 の発見 C・判定 C 完了、2026-11-14（§7.4）。§2.5 の読みは CONDITIONAL ACCEPT (iii)**（M と F2 は成り立ち、AC3b は M が未判定、F2 が不合格）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い（§7.3）。次は revision 1 の C' 1 巡目。以下は revision 1 の Phase B 完了時点の記述: **revision 1 の Phase B 完了、2026-11-14（§6.1）。次は発見 C の実行担当。** 以下は revision 1 の A3 凍結版の記述: **revision 1 の A3 凍結版。** 2026-11-14 に owner の承認で凍結した。A2 1 件の指摘 8 件を全て採用した（§5.2）。A2 入力版は commit `ff80a6a0`。2026-11-14。AC3b の印の計算の手順だけを、製品の依存閉包を受け取る形に変えた（§5.2）。A3 で凍結するまで、revision 0 の条件（§2・§5 の revision 0 の文）は §7.2・§8 の結果を読むためにだけ使う。owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `C'`（**owner の決定記録 D1（§2.6）で M + K1 を S2-2b の入力に採った、2026-11-14。次は Phase D、その後に外部レビュー（owner の指示）。** 以下は C' 完了時点の記述: **revision 1 の C' 1 巡目（最終 C'）完了、2026-11-14（§8.1）。C' の読みは CONDITIONAL ACCEPT (iii)、現在の問いを阻害する findings（(A)）は無い。** 以下は revision 1 の判定 C 完了時点の記述: **revision 1 の発見 C・判定 C 完了、2026-11-14（§7.4）。§2.5 の読みは CONDITIONAL ACCEPT (iii)**（M と F2 は成り立ち、AC3b は M が未判定、F2 が不合格）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い（§7.3）。次は revision 1 の C' 1 巡目。以下は revision 1 の Phase B 完了時点の記述: **revision 1 の Phase B 完了、2026-11-14（§6.1）。次は発見 C の実行担当。** 以下は revision 1 の A3 凍結版の記述: **revision 1 の A3 凍結版。** 2026-11-14 に owner の承認で凍結した。A2 1 件の指摘 8 件を全て採用した（§5.2）。A2 入力版は commit `ff80a6a0`。2026-11-14。AC3b の印の計算の手順だけを、製品の依存閉包を受け取る形に変えた（§5.2）。A3 で凍結するまで、revision 0 の条件（§2・§5 の revision 0 の文）は §7.2・§8 の結果を読むためにだけ使う。owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `9197e907`
@@ -20,14 +20,14 @@
 - 実験の Editor script の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。revision 1 の script: ローカル固定済み（未昇格）。実行した script を revision 1 の evidence bundle に収録した（次項。sha256 は起動指示の値と一致、§7.3）。原本はローカル PC の repository の外の新しい実験 project（revision 0 の project とは別）にある。
 - evidence bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。revision 1 の evidence bundle: ローカル固定済み（未昇格）。発見 C の実行担当が同じ task に `evidence stage` で固定し（125 file）、実行担当と判断担当がそれぞれ別の process の fetch で hash の照合を通して読んだ（§7.3、§7.4）。取得案内は revision 1 の実験の project に置き、所在は起動指示で渡す。
 - C' blind bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した（§8）。取得案内は実験の project に置いた。revision 1 の C' blind bundle: ローカル固定済み（未昇格）。進行役が同じ task に `evidence stage` で固定し（128 file）、別の process の fetch で hash の照合を通した写しを C' の workspace にした（§8.1）。取得案内は revision 1 の実験の project に置き、所在は起動指示で渡す。
-- 引継ぎ票（revision 1 の判定 C の出口。revision 1 の発見 C の実行担当への票は commit `ccd75872` の本節にある）:
-  - 次の Phase・役割: C'（revision 1 の 1 巡目、全体。最終 C'。高コスト証拠なし）。担当は §5 で予約した Grok 系（cursor-agent）。進行役が blind bundle を作って起動し、出力を §8 に記録する（revision 0 と同じ方式。進行役は監査をしない）。
-  - 次の作業: 進行役は、revision 1 の evidence bundle（判定 C と同じ。`record/`・`run.log`・`Assets/Spike/`）、Phase B の出口の commit `ccd75872` の本書の blob、base から `ccd75872` までの本書以外の差分、`AGENTS.md`、監査の指示書から blind bundle を作り、`evidence stage` で固定して、別の process の fetch で照合した写しを C' の workspace にする。`run-notes.txt`（実行の記録）と、本書の §7.3・§7.4（この票を含む commit で足した記録）と §0 のこの票は入れない。C' は §2.2 の AC と §2.5 の読みを、期待値を §5 の fixture の値から導いて独立に行う（record の `ac*`・`holds` は補助値）。
-  - 読む範囲: C' は所定の blind 入力だけ。進行役は §0 と §8。
-  - 必要な権限: Artifact Storage の `evidence stage`・`fetch`（事前承認の範囲）、cursor-agent の起動（Grok 系のモデルを明示する）。Unity は起動しない。
-  - 停止規則: C' の出力が GO・NO / CONDITIONAL ACCEPT の判定と findings を持たない時は、同じ重さで撃ち直さず owner へ返す。
-  - 引き渡さないもの: 判定 C（§7.4）の結論と所見（blind のため）。
-  - 引き継ぐ commit: この票を含む commit（revision 1 の判定 C の出口。SHA は起動指示で渡す）。
+- 引継ぎ票（owner の決定記録 D1 の後。revision 1 の C' への票は commit `e4db0a44` の本節にある）:
+  - 次の Phase・役割: Phase D（保存・引渡し確認、harvest）。その後、owner の指示で外部レビューに出す。push・PR の更新は owner の指示を待つ。
+  - 次の作業: review-evidence.md の「Phase D の保存・引渡し確認」に従い、revision 1 の evidence bundle・C' blind bundle・C' の出力の原文の保存と取得案内を確かめる。harvest は §0 の harvest to に、§7.4 の結論と §2.6 の D1 を前提の文付きで写す。GitHub Pages に載せる内容は owner と決める。
+  - 読む範囲: 既定のとおり（§0）。harvest のために §2.5・§2.6・§7.4・§8.1。
+  - 必要な権限: Artifact Storage の `fetch`（事前承認の範囲）、文書の編集と commit。Unity は起動しない。
+  - 停止規則: 未保存の evidence や取得できない bundle があれば、再実測せずに owner へ返す。
+  - 引き渡さないもの: なし。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
 
 ## 1. 目的と対象外
 
@@ -169,7 +169,13 @@
 ### 2.6 A3 後の例外承認・決定記録
 
 - A3 後の例外承認: なし
-- 決定記録: なし（revision 1 は、AC3b の測る中身を変えるので決定記録ではなく revision にした。§0 の owner の決定）
+- 決定記録（revision 0）: なし（revision 1 は、AC3b の測る中身を変えるので決定記録ではなく revision にした。§0 の owner の決定）
+- 決定記録 D1（revision 1、2026-11-14、owner。判定 C（§7.4）と C' 1 巡目（§8.1）の後に適用）:
+  - 結論: §2.5 の 4 番 (iii) の読みとして、**印の形 M と build の鍵 K1 の組を S2-2b の入力に採る**。追加の実測はしない。F2 は AC3b 不合格を付けた代替として残す。
+  - 変えないもの: AC3b の結果（M は未判定、F2 は不合格）と §2.5 の読み（CONDITIONAL ACCEPT (iii)）は書き換えない。凍結条件の意味・合否を変えないので、revision ではなく決定記録にした。
+  - 理由: M の上乗せのうち build の差を除いた固定の部分（書き込み・戻し・2 回の `Refresh`・計算）は 4.75〜4.80% で、回ごとにほぼ一定だった。厳しい読みで 5% を超えた 2 回は build の差（53〜65 ms）の分で、N1 の遅さと同じ種類のばらつきなので、測り直しても 5% の上下が入れ替わるだけで新しい判断材料にならない。上乗せの約 8 割は書き込み・戻し・`Refresh` で、印の計算は約 110 ms なので、下げる余地は S2-2b の手順の側にある（§7.4 の L2。測っていない）。規模の想定（Scene 300、prefab 3,000）でこの水準なら、方式の選択としては足りると owner が判断した。
+  - 運ぶ条件: AC3b の結果を写す時は §2.5 の 3 番の前提の文を必ず付ける。S2-2b の A1 は、印の計算と書き込みを製品の snapshot の後・adapter の `Refresh` の前に置き、その snapshot の閉包をそのまま使えることを最初に確かめる条件にする（閉包を `Refresh` の後に作り直す形では約 3 秒、割る値の約 2 割が乗り、成り立たない）。
+  - C' に渡す範囲: C' の指摘への裁定ではないので、C' の決定記録には入れない（2 巡目は予定していない）。
 
 ### 2.7 本文へ転記した実装制約
 
