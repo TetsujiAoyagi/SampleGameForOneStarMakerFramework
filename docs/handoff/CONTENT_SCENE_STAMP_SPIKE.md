@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `A`（**A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。次は Phase B。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `B`（Phase B 完了、2026-11-14。実験の Editor script を書き、compile を確認した（§6）。Phase A は A3 凍結版 revision 0 のまま。次は発見 C。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
-- implementation head commit: `未固定`
+- implementation head commit: `89604c70`
 - risk: `normal`（製品 code と SampleGame を変えない。実測は repository の外の project で行い、この repository に入るのは文書だけ）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -16,17 +16,18 @@
 - harvest to: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」（印の形と検知の鍵を測った結果、測っていないもの）、program §8 のこのスライスの行と S2-2b の行。S2-2b の A1 は事実の文書のその節を再開入力として読む（S2-2b の初稿へ結論を写さない）。結論が出たら、既存の GitHub Pages（`gh-pages` ブランチ）も更新する（2026-11-14 の owner の依頼。載せる内容は Phase D で owner と決める）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§5.3、§8）。S2-2b の A1 初稿（`docs/handoff/CONTENT_PREFAB_STAMP.md`、ブランチ `claude/content-prefab-stamp` の作業ツリーにある未 commit の file。本スライスは読むだけで変えない）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（repository の差分は文書だけ。実験の script は repository の外にあり、次項）
+- 実験の Editor script の取得案内・状態: 未保存（Artifact Storage には入れていない。ローカル PC の repository の外の実験 project にあり、取得先と sha256 は起動指示で渡す）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B の実装担当（新しい session）。
-  - 次の作業: §4 の順序で、repository の外に新しく作る空の project（§2.7）に、実験の Editor script 1 つを書く。Editor を batch で 1 回起動して compile が通ることを確かめる（build は呼ばない）。この repository に入れるのは本書の §6 と本票だけで、script は git に入れない。script の置き場は tree の外（取得案内と起動指示）で次の担当へ渡す。
-  - 読む範囲: 既定のとおり。
-  - 必要な権限: Unity Editor の起動（repository の外の実験の project で、compile の確認だけ）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら止めて返す。凍結した条件の意味や合否を変える必要が出たら、Phase A を新しい revision として再開する。この repository の `unity/` の下では Unity を起動しない（I1）。
+  - 次の Phase・役割: 発見 C の実行担当（新しい session。Phase B と異なるモデル。動作確認は `対象なし`）。
+  - 次の作業: §5 の「操作・実行時・目視条件の検証経路」のとおり、実験の project を開いている Editor が無いことを確かめ、`record/` と `Out/` が無い状態から、`-executeMethod StampSpike.Run` で batch を 1 回実行する（所要は規模の fixture の作成と build の数で長い）。record（`record/record.txt`、`record/outputs/`、`record/tep/`、`record/inventory-*.txt`）・Unity の log・script を evidence bundle に入れ、判断担当へ渡す。裁定（AC の合否、§2.5 の 4 つの読み）は判断担当が record を読んで行う。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。
+  - 読む範囲: 既定のとおり（実行担当は §0、§5、§6）。§6 の「Phase C へ渡すこと」を読む。
+  - 必要な権限: Unity Editor の起動（repository の外の実験 project のみ。この repository の `unity/` では起動しない（I1））、その project の `Library` の cache 消去（script が `CleanBuildCache()` を呼ぶ）、長時間の実行。
+  - 停止規則: record に `HALT` の行が出たら止めて判断担当へ返す（§2.5 の未判定）。`HALT` でなく `EXCEPTION` の行で止まり、原因が script の誤りと分かる場合に限り、§2.5 のとおり batch を 1 回だけやり直してよい。process が `END`（または `HALT`・`EXCEPTION`）の行の後も終わらない時は、その PID だけを止め、時刻と PID を実行の記録に残す（既知の終了 stall は調査しない）。
   - 引き渡さないもの: なし。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は PR の状態ブロックと起動指示で渡す）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の出口。SHA は起動指示で渡す）。
 
 ## 1. 目的と対象外
 
@@ -337,7 +338,27 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 
 ## 6. Phase B 実装結果
 
-未着手
+2026-11-14。§4 の順序 (1)〜(5) のとおり、実験の Editor script を 1 つ書き、compile を確認した。この repository の差分は本書（§0 と §6）だけで、製品・SampleGame・`unity/` は変えていない（I1、AC6）。implementation head 欄は、repository の実装差分が無いので、A3 凍結版の commit `89604c70` を指す（そこから HEAD までの差分は HANDOFF だけ）。実験の script が実装の本体で、取得案内は §0 のとおり。
+
+**書いたもの（repository の外。git に入れていない）。** 空の project（Unity 6000.6.0f1、package なし）に `Assets/Spike/Root.cs`（root の型）と `Assets/Spike/Editor/StampSpike.cs`（約 950 行。§3 の予想の約 400 行より大きい。段ごとの record の出力と、record 用の判定の導出が行を使った。構造は分けていない）。入口は 2 つ: `StampSpike.Run`（§5 の batch の段 1〜段 9、1 process）と `StampSpike.CompileCheck`（compile の確認だけ。build を呼ばない）。
+
+**確認したこと。**
+- Editor を batch で 1 回起動し、`StampSpike.CompileCheck` が compile を通って終了行を書くことを確かめた（Unity 6000.6.0f1。compile の error 0）。
+- `pwsh tools/contract-audit.ps1` は errors=0、warnings=0。`pwsh tools/docs-audit.ps1` は errors=0（warning 1 件は program の §7(C)・§8(C') の既存の指摘で、本スライスと無関係）。
+- **未実行:** `StampSpike.Run`（Unity の build を伴う全ての段）。Phase B は build を行わない（§4）。
+
+**B 適応（凍結した条件の意味は変えていない）。**
+- 規模の列（段 8）を行う印の形は、script が段 5・段 6 の record から自動で決める。「成り立つ」の導出は AC1、AC2、AC4、AC5 (a)・(c) で、AC5 (b)（印ありの出力と基準 R の出力の一致）は導出に入れない。AC5 (b) は Scene の file の一致が合否に入らず（§2.2）、build ごとに作り直す file の見分け方が出力の拡張子（`.json`、`BuildManifestHash.txt`）に頼るためである。AC5 (b) で .json・`BuildManifestHash.txt` を除く非 Scene の file に差があれば、script はその一覧を record に書き、判断担当が読む。規模の block は、AC5 (b) だけを理由に省くより、測って判断担当に渡す方が、build の上限（16 回）の中で情報が増える。
+- 規模の列の「Scene の出力が T0 と同じ名前・同じ sha256」（AC3b (a)・(a2)）は、規模では目印の列で Scene の file を見分けられない（Scene 300 個を全 file に当てる走査は重い）ので、`.cf` と `.resS` の file の (名前, sha256) の集合の一致で測る。`.json` の manifest と `BuildManifestHash.txt` は build ごとに作り直すので除く。判断担当は、出力の一覧（`record/outputs/`）から読み直せる。
+- script が record に書く `ac1`・`ac2`・`ac2g`・`ac3`・`ac4`・`ac5`・`ac5b`・`ac3b` の行と `holds` は、判断担当が読み直せる補助の導出値で、合否の裁定ではない（§5 の「判定 C の照合 script の方式: 持たない」を変えていない）。
+- `Dep` と規模の prefab の Renderer は `MeshRenderer`（`MeshFilter` なし）にした。material の参照だけが要るため。material の shader は `Standard`（無ければ `Sprites/Default`）。
+- 検知の観測（段 2）の鍵 K2 は reflection（`GetSourceAssetFileHash`・`GetSourceAssetMetaFileHash`）、K3 は `ArtifactKey` と `LookupArtifact` の reflection で呼ぶ（先行確認と同じ呼び方）。
+
+**Phase C へ渡すこと。**
+- 起動: `<Unity 6000.6.0f1 の Unity.exe> -batchmode -nographics -projectPath <実験の project> -executeMethod StampSpike.Run -logFile <log>`。実行の前に、実験の project の `record/` と `Out/` を消す（`Out/` に前回の出力が残ると、script は出力先が既にあるとして build を止める）。`Library` は残してよい（段 4 の前に `CleanBuildCache()` を呼ぶ）。
+- script は `Run` の最後に `EditorApplication.Exit(0)` を呼ぶ。終了行は `END`、止めた時は `HALT`、想定外の例外は `EXCEPTION`。中間の終了行は `MIDEND`（段 7 の後）。record は 1 行ごとに追記するので、途中で process が落ちても、そこまでの行が残る。
+- script が `HALT` で止まる条件は 4 つ: project が repository に見える（AC6）、fixture が v1 でない、各 Scene の印の入力が fixture から導いた一覧と違う（段 1）、段 2・段 3 の後の棚卸しが基準と違う。規模の fixture が §5 の数に合わない時は `HALT` でなく `scale fixture gate false` を書いて規模の block だけを行わない。
+- 規模の fixture の作成は、prefab 3,000 個と Scene 300 個を Unity の API で作る。所要は測っておらず、段 8 の最初の `scale prefabs created` と `scale fixture created` の行に ms が出る。
 
 ## 7. Phase C
 
