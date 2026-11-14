@@ -34,9 +34,9 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](../SKILL.md#公開点とgit履歴) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、その SHA は票に書かず tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
+Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](publish-and-history.md) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、その SHA は票に書かず tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
 
-途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](../SKILL.md#公開点とgit履歴) に従う。
+途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](publish-and-history.md) に従う。
 
 この節の入力版と snapshot の規則（HANDOFF と snapshot の組、snapshot の閲覧、切り直し後の版、Cloud・別 host の assist）は目的レビューに適用しない。目的レビューの入力は [Phase A の内部フロー](#phase-a-の内部フロー) に従う。
 
@@ -64,7 +64,7 @@ Phase B の完了 head で、検証経路に書いた条件のうち offline の
 
 - **対象外:** テスト suite、Unity バッチテスト、Build、高コスト証拠。これらは従来どおり Phase C と最終証拠ラウンドが担当する。Unity テスト・Build を要する条件は、ここで実行しない。
 - **担当:** 検証経路で条件ごとに決めた実行担当。B の session が実行できる条件は、B が出口で行ってよい。別の環境が要る条件（例: 仮想化された host 内の実行）は、その環境の実行担当が行う。実行担当は検証経路の手順だけを実行し、対象 head、コマンド、生の出力、事前・事後の観測と、検証経路の期待との差の有無を残す。GO / NO-GO と合否は書かない。差を見て B へ戻すのも実行担当である。想定外の結果が出ても、原因調査や再実行で埋めない。
-- **結果の扱い:** 検証経路の期待と違う観測があれば、発見 C を待たずに B へ戻す。この往復は、B と発見 C の差し戻しの巡（SKILL の 1 巡の定義、上限 4 巡）に数える。最初の動作確認は数えない。実行担当を用意できない条件は、理由と担当を記録して `未実施` とする。発見 C は開始してよいが、`未実施` は判定 C を完了と記録する前に解消する（取得は判定 C の担当が行ってよい）。未実施が無ければ `なし`、検証経路に該当する条件が無いスライスだけ `対象なし` と記録し、`対象なし` 以外は判定 C のゲート対象である。
+- **結果の扱い:** 検証経路の期待と違う観測があれば、発見 C を待たずに B へ戻す。この往復は、B と発見 C の差し戻しの巡（[1 巡の定義](phase-c.md)、上限 4 巡）に数える。最初の動作確認は数えない。実行担当を用意できない条件は、理由と担当を記録して `未実施` とする。発見 C は開始してよいが、`未実施` は判定 C を完了と記録する前に解消する（取得は判定 C の担当が行ってよい）。未実施が無ければ `なし`、検証経路に該当する条件が無いスライスだけ `対象なし` と記録し、`対象なし` 以外は判定 C のゲート対象である。
 - **出口:** 動作確認の担当は、最後の手順として HANDOFF の引継ぎ票（PR が存在する間は PR の状態ブロックも）を次の担当（発見 C、差し戻しなら B）へ更新する。この記録 commit の implementation head 欄の扱いは [引継ぎ票](#引継ぎ票) に従う。
 - **判定 C との関係:** 判定 C は GO 候補 head で同じ条件の証拠を揃える。動作確認の対象 head が GO 候補 head と同じで、B 以外の実行担当が取った生の観測なら、判定 C はそれを判定の入力にしてよい。B の session が取った観測は判定の入力にしない（[実行担当と判断担当](#実行担当と判断担当)）。
 
@@ -141,6 +141,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 各 Phase の出口の担当は、次の担当が会話履歴なしで始められるよう、HANDOFF §0 に引継ぎ票を書く。正本は HANDOFF §0 とする。
 
 - 次の Phase と役割、次の作業。モデル名は書かない
+- 次の担当が読む HANDOFF の範囲。既定は [SKILL.md](../SKILL.md#作業ごとの読み先) の表にあり、既定と違う時だけ、既定の代わりになる範囲の全体を書く（節の番号がテンプレートと違う、経緯だけの節がある、既定の外に読ませる節がある）。読む順の案内であり、次の担当は必要なら範囲外も読む
 - 凍結した Phase A の revision、implementation base / head。値は §0 の `implementation base commit` / `implementation head commit` 行（以下「implementation head 欄」）を正とし、票に再述しない。書き方は下記。stage を使う場合は取得案内の所在（reference と packageSha256 の実値は取得案内に置き、tracked HANDOFF と PR 本文には転記しない）
 - 入力となる各 snapshot・bundle の取得案内の在処と状態
 - 必要な権限（Unity、実操作、資格情報、sandbox 外実行）
@@ -161,7 +162,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 
 ### 実行担当と判断担当
 
-判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、[引継ぎ票](#引継ぎ票) と取得案内の所在を書く。push は [公開点](../SKILL.md#公開点とgit履歴) の規則に従う）で終える。
+判定 C の判断担当が判定必須テストや高コスト証拠を実行できない場合、B の session は実行を代行しない。判定 C 用に新しく開いた実行担当の session が凍結済みのコマンドだけを実行し、生結果を判断担当へ渡す。照合 script を代行実行する場合は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) の実行環境の条件に従う。実行担当も Phase C に属する。B の session は B の出口（commit し、[引継ぎ票](#引継ぎ票) と取得案内の所在を書く。push は [公開点](publish-and-history.md) の規則に従う）で終える。
 
 ### PR 状態ブロック
 
@@ -176,7 +177,7 @@ PR の本文先頭に、HANDOFF §0 の最小の写しとして状態ブロッ�
 
 ### Cloud の担当
 
-Cloud は凍結入力を読む役（A2・C'）を既定とし、B の修正ループに入るのは例外とする。Cloud の担当が割り当てられた Phase 境界では、PR 作成、状態ブロックの更新、対象 SHA の push を必須の手順とする。Cloud のエージェントは、リモートのブランチの HANDOFF と PR の状態ブロックから、現在の Phase、固定 head、次の担当を判断する。PR の有無にかかわらず、必要な固定 Evidence を取得・検証・閲覧できない Cloud の作業は **assist** とし、正規の発見 C・判定 C・C' と扱わない。PR 作成や push だけで正規の担当に昇格させない。別 host / Cloud から Evidence を取得する仕組みが成立していない間は、状態ブロックには証拠の取得はローカル担当と書く。
+Cloud は凍結入力を読む役（A2・C'）を既定とし、B の修正ループに入るのは例外とする。Cloud の担当が割り当てられた Phase 境界では、PR 作成、状態ブロックの更新、対象 SHA の [push](publish-and-history.md) を必須の手順とする。Cloud のエージェントは、リモートのブランチの HANDOFF と PR の状態ブロックから、現在の Phase、固定 head、次の担当を判断する。PR の有無にかかわらず、必要な固定 Evidence を取得・検証・閲覧できない Cloud の作業は **assist** とし、正規の発見 C・判定 C・C' と扱わない。PR 作成や push だけで正規の担当に昇格させない。別 host / Cloud から Evidence を取得する仕組みが成立していない間は、状態ブロックには証拠の取得はローカル担当と書く。
 
 ## HANDOFF の必須内容
 
