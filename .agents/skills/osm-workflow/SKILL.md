@@ -31,10 +31,10 @@ description: >-
 | Phase B（実装） | [phase-b.md](references/phase-b.md) | Phase の責任、新しい事実の分類、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 |
 | 動作確認（Phase B の後） | [operation-check.md](references/operation-check.md) | Phase の責任、検証経路の成立、動作確認（Phase B の後）、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 |
 | Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) | 「Phase A の内部フロー」「PR 状態ブロック」「Cloud の担当」以外の全節 |
-| Phase C'（独立監査） | [phase-c-prime.md](references/phase-c-prime.md) | Phase の責任、意思決定境界とスコープ停止、モデル選定と独立性、引継ぎ票、HANDOFF の必須内容、構造レビュー、レビュー証拠と C' の盲検性 |
+| Phase C'（独立監査） | [phase-c-prime.md](references/phase-c-prime.md) | Phase の責任、動作確認（Phase B の後）、意思決定境界とスコープ停止、モデル選定と独立性、引継ぎ票、HANDOFF の必須内容、構造レビュー、レビュー証拠と C' の盲検性 |
 | commit の整理、tag、push、PR の作成・更新 | [publish-and-history.md](references/publish-and-history.md) | 指定なし |
 
-節を指定した行では、`##` の節は配下の `###` を含み、PR が存在する間は「PR 状態ブロック」、Cloud の担当が割り当てられているなら「Cloud の担当」も読む。
+節を指定した行では、`##` の節は配下の `###` を含み、PR が存在する間は「PR 状態ブロック」、Cloud の担当が割り当てられているなら「Cloud の担当」も読む。「モデル選定と独立性」の強化条件を見るときは、「Phase A の内部フロー」の高リスクの例の段落も読む。
 
 ## Phase D: 保存・引渡しと後始末
 
