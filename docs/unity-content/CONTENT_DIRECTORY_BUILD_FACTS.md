@@ -72,9 +72,24 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **OSM を含まない最小の再現:** package を持たない project で、prefab（子の位置 (1,2,3)）の instance を置いた Scene を build → prefab を (4,5,6) にして build → `CleanBuildCache()` の後に build、の 3 回で、2 回目は (1,2,3) のまま（build instruction 4 個中、変更 0）、3 回目で (4,5,6) になった。
 - **Scene に意味のない変更を入れた時:** 値を 1 つ変える、空の GameObject を足す、のどちらでも、その build は新しい版になったが、Scene を元のバイトに戻して build すると古い版に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。
 - **回避（最小の再現の project で成立）:** Scene に `EditorOnly` tag の GameObject を印の置き場として 1 つ置き、build の直前にその名前を、Scene が焼き込む prefab（`GetDependencies(scene, true)` の `.prefab`）の中身のハッシュに書き換え、build の後に Scene を元のバイトに戻す。prefab を v1 → v2 → v2 → v1 → v2 と進めて戻した 5 回の build で、全て正しい版が出た。2 回目は Scene の 1 個だけを作り直し、3〜5 回目は作り直し 0 で、v1 に戻した build は 1 回目と同じ出力を再利用した。印の名前は出力に無く、全 build の後の Scene は元のバイトと一致した。build のたびに印の object を新しく足す形は、object の fileID が毎回変わって Scene のバイトが毎回違い、正しいが cache が当たらなかった。
-- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。製品の build 経路への印の方式の実装は後続（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）。
+- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。印を source に残さない形と、prefab の file を読まない検知の鍵は、下の「印の形と検知の鍵」で測った。製品の build 経路への実装は後続（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）。
 
-測っていないもの（結果を変えうる）: Player の build、別の PC・`Library`、実データ（SampleGame）、prefab variant・override を持つ instance・unpack した prefab、入れ子の prefab と複数の Scene での印の方式、build が途中で落ちた時の Scene の戻し、`BuildContentOptions.CleanBuildCache` が `CleanBuildCache()` と同じ効果か、cache を消した build の所要。
+### 印の形と検知の鍵
+
+印を source に残さない 2 つの形と、prefab の file を読まない検知の鍵を、1 回の batch で測った（2026-11-14、program §8 の S2-2b-0）。範囲: repository の外の package を持たない空の project、Unity 6000.6.0f1、1 つの Unity process の batch で Content Directory の build 36 回。小さい fixture は、2 段の入れ子の prefab（`Inner` を nest した `Mid` を、さらに nest した `Outer`）を置いた Scene、同じ prefab を置いた Scene 2 つ、`.obj` の model を置いた Scene、prefab を置かない Scene。規模の fixture は合成で、Scene 300（1 つ約 1 MB、prefab の instance 420 個）、prefab 3,000（3 分の 1 は入れ子）、material 10、texture は無い。
+
+- **測った印の形:** どちらも build の直前に印の文字列を text で書き、build の後に元のバイトへ戻す。Scene を Unity の API で開いて保存しない。**M** は Scene の `.meta` の `userData` の行に書く（Scene 本体は書かない）。**F2** は Scene の file の末尾（最後の document の `SceneRoots`）に Unity が知らない key の行を 1 つ足し、戻しは file を元の長さに切り詰める。
+- **印の値:** Scene ごとの依存閉包（製品の `AssetDependencySnapshotBuilder` と同じ除外をした `GetDependencies(scene, true)`）のうち、main asset が `GameObject` の物と `ModelImporter` が import した物を path の序数順に並べ、検知の鍵の値を連ねてハッシュにした。
+- **成り立ったこと（M と F2 で同じ）:** 入れ子の内側の prefab、2 つの Scene が共有する prefab をそれぞれ編集した build は、編集した物を焼き込む Scene の serialized file だけを書き、他の Scene は書かなかった（書いた数は `BuildContentTEP.json` の `BuildPipeline::WriteSerializedFile` の event で数えた）。model を編集した build も、Scene のうちその model を置いた Scene だけを書き（他に書いたのは model 自身の出力）、他の Scene は書かなかった。これは書いた数の観察で、model の頂点は印なしでも出力に入る（下の「model の頂点」）ので、印が model の編集を検知した証拠ではない。変更なしの build と前の版へ戻した build は Scene を 1 つも書かず、出力はその版の前回の出力と名前・sha256 で一致した。全ての build の後、`Assets` の下の全ての file が build の前と同じバイトだった。印の文字列は出力に無く、印を書いた最後の build の出力は、同じ source を印なしで build した出力と Scene の file を含めて一致した。印による Error・Warning は無い。規模の fixture でも、source を変えない印ありの build は Scene を書かず、同じ出力を出した。
+- **Scene の `.meta` も再利用の鍵に入る:** `.meta` の `userData` だけを変えた build で Scene は作り直され、元のバイトへ戻した build は前の出力を再利用した（M）。
+- **検知の鍵:** `AssetDatabase.GetAssetDependencyHash`（public）は、prefab と model の編集で値が変わり、元のバイトへ戻すと最初の値に戻り、更新時刻だけを変えても変わらなかった。入れ子の外側の prefab の値は、外側の file を変えなくても内側の編集で変わった。prefab が参照する texture や material を変えても、prefab の値は変わらなかった（material の変更が file に落ちたことは確かめた）。`AssetDatabaseExperimental.LookupArtifact` の ID は全ての時点で `GetAssetDependencyHash` と同じ値だった（build の鍵には `GetAssetDependencyHash` を使った）。internal の `GetSourceAssetFileHash` は file のバイトにだけ追従し、外側の prefab の値は内側の編集で変わらなかった。
+- **model の頂点:** `.obj` の頂点の編集は、印なしでも出力に入った（Mesh は Scene に焼き込まれない）。model の編集のうち階層と Transform は測っていない。
+- **何も変えていない build への上乗せ（規模の fixture、各形 3 回）:** 印の計算、書き込み、`Refresh` の差、戻し、戻し後の `Refresh`、build の差を足し、印なしの変更なしの build の最小（約 15.8 秒）で割った。**M は 4.75〜5.16%、F2 は 4.79〜6.29%。** 印の計算は約 110 ms（0.7%）で、上乗せの約 8 割は書き込み・戻し・2 回の `Refresh` だった。M は build の差を除くと 4.75〜4.80% でほぼ一定、5% を超えた 2 回は build の差（53〜65 ms）の分だった。F2 は戻しと戻し後の `Refresh` が M より重い。印なしの変更なしの build は回によって約 15.7〜22.3 秒と揺れた（各 block の最初の回が約 6 秒遅い）。
+- **上乗せの値の前提（この値を引く時は必ず付ける）:** 上の値は、印の計算と書き込みを製品の snapshot の後・adapter の `Refresh` の前に置き、その snapshot の閉包をそのまま使う場合の値である。閉包を `Refresh` の後に作り直す形では、閉包を作る所要（製品の snapshot の所要ではなく、`GetDependencies` と除外だけの所要。この batch で 2,954〜3,480 ms、割る値の 18.7〜22.1%）を足して読み直す。足すと両形とも 5% を大きく超える。
+- **測っていない手順:** 印の `Refresh` を製品の `Refresh` とまとめる、Scene の間で鍵の結果を使い回す。上乗せの大半はこの側にある。
+- **S2-2b への入力:** 判定は CONDITIONAL ACCEPT で、M の上乗せは 5% の合否が**未判定**（4.75〜5.16%）、F2 は**不合格**（4.79〜6.29%）だった。owner は 2026-11-14 に、この判定を書き換えずに、M と `GetAssetDependencyHash` の組を S2-2b の入力に採った。F2 は不合格の代替として残した（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。この組の上乗せの値は、上の前提（印の計算と書き込みを製品の snapshot の後・adapter の `Refresh` の前に置き、その snapshot の閉包をそのまま使う）の下でだけ成り立つ。
+
+測っていないもの（結果を変えうる）: Player の build、別の PC・`Library`、実データ（SampleGame）、texture を持つ規模の fixture、prefab variant・override を持つ instance・unpack した prefab、model の階層と Transform の編集、開いている Editor での build（測ったのは batch だけ）、build が途中で落ちた時の Scene の戻し、開いている Scene と読み取り専用の file、印の他の形（印の object を Scene に差し込む形、YAML のコメント行は公開文書が非対応と書く）、file の更新時刻で全バイトの読みを省く検知、`AssetPostprocessor` で prefab の保存を拾う検知、`BuildContentOptions.CleanBuildCache` が `CleanBuildCache()` と同じ効果か、cache を消した build の所要。
 
 ## 同じ `Library` での再 build の所要
 
@@ -99,7 +114,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 ## 確かめていないこと
 
-- 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読んだ。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。
+- 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読み、Scene の `.meta` のバイトも鍵に入ることを「印の形と検知の鍵」で観察した。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
 - 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（中身が同じ file では見分けられず、上の節の推測を実測で確かめていない。中身が違う file では、後から登録した側の版が出た。「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」）。
 - 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、prefab variant（Scene に置いた prefab instance と nested prefab は、上の節で焼き込みと差分 build の取りこぼしを測った）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
