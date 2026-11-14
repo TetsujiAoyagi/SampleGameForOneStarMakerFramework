@@ -62,6 +62,20 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 測っていないもの（結果を変えうる）: Player、別の PC・`Library` で build した base、実データ（SampleGame）、archive、3 つ以上の directory、上書きが 2 つ以上、上書きで script の code や field を変えた時、URP の `Lit` の variant、Scene に置いた prefab instance・nested prefab・sprite atlas・audio、Domain Reload 有効の Play、Scene を load した後に上書きを登録する順、Play の途中の上書きの解除、GPU 側の資源の重複。fixture は 1 つ。
 
+## 製品の build 経路で作った上書きと、prefab を編集した後の差分 build
+
+製品の `BuildContentCoordinator` で、編集した asset の集合から逆引きした root だけを上書きとして build した（2026-11-14、S2-2）。fixture は合成 1 つで、root は 6 つ（編集した texture を material 経由で直接参照する Scene、prefab の instance を置いた Scene、入れ子の prefab の instance を置いた Scene、Object の root の prefab、上書きに入らない Scene 2 つ）。prefab は variant でなく、override が無く、unpack していない instance。source を v1 で base を `Full` で build・publish し、source を v2 にしてから上書きを別の contentSet で build し、fixture の source を消した Editor の Play で base → 上書きの順に登録して読んだ。同じ観測を、root を load する順だけが違う 2 つの Unity process で採り、一致した。
+
+- **成り立ったこと:** 逆引きは、実 `AssetDatabase` の閉包から、編集の影響を受ける 4 root を選び、上書きに入らない 2 root を含まなかった。上書きの build は base の directory と workspace の file を 1 つも変えなかった。編集した texture を直接参照する Scene と、Object の root の prefab は上書きの版で出た。上書きに入らなかった Scene は base の版で出て、上書きに入った Scene と base だけの Scene が同じ texture を直接参照すると、同じ Play に 2 つの版が出た。両方の root が直接参照する共有の texture の実体は 2 つ、base だけの root が使う texture は 1 つで、重複の報告と合った。
+- **成り立たなかったこと:** Scene に置いた prefab の instance と、入れ子の prefab の instance は、上書きから読んでも v1 だった。上書きの directory の中で、その Scene の file は base と同じ sha256 で、v2 の値（子の位置の float 列）はどの file にも無かった。
+- **原因（同じ `Library` の build cache）:** 次の 3 つの観察で切り分けた。base を build した process と別の Editor process で上書きを build しても v1。同じ `Library` で base を `Full` で build し直しても v1。`BuildPipeline.CleanBuildCache()` の後に上書きを build すると v2。Unity が `Library/BuildHistory/<build>/BuildContentTEP.json` に残す trace（`SerializeBuildInstructions` の `changedCount` / `unchangedCount`）では、prefab を編集した後の build で Scene の build metadata は作り直されたが、Scene の build instruction は変わらず、前回書いた serialized file が再利用された。build した Scene には prefab の instance が展開されて焼き込まれる（実行時の Scene は prefab を参照しない）ので、差分 build の判定が Scene の file だけを見ていると、prefab の編集を取りこぼす。上書きに限らず、prefab を編集した後に同じ `Library` で行う Content Directory の build 全般に起きる。build は成功し、Warning も出ない。
+- **OSM を含まない最小の再現:** package を持たない project で、prefab（子の位置 (1,2,3)）の instance を置いた Scene を build → prefab を (4,5,6) にして build → `CleanBuildCache()` の後に build、の 3 回で、2 回目は (1,2,3) のまま（build instruction 4 個中、変更 0）、3 回目で (4,5,6) になった。
+- **Scene に意味のない変更を入れた時:** 値を 1 つ変える、空の GameObject を足す、のどちらでも、その build は新しい版になったが、Scene を元のバイトに戻して build すると古い版に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。
+- **回避（最小の再現の project で成立）:** Scene に `EditorOnly` tag の GameObject を印の置き場として 1 つ置き、build の直前にその名前を、Scene が焼き込む prefab（`GetDependencies(scene, true)` の `.prefab`）の中身のハッシュに書き換え、build の後に Scene を元のバイトに戻す。prefab を v1 → v2 → v2 → v1 → v2 と進めて戻した 5 回の build で、全て正しい版が出た。2 回目は Scene の 1 個だけを作り直し、3〜5 回目は作り直し 0 で、v1 に戻した build は 1 回目と同じ出力を再利用した。印の名前は出力に無く、全 build の後の Scene は元のバイトと一致した。build のたびに印の object を新しく足す形は、object の fileID が毎回変わって Scene のバイトが毎回違い、正しいが cache が当たらなかった。
+- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。製品の build 経路への印の方式の実装は後続（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）。
+
+測っていないもの（結果を変えうる）: Player の build、別の PC・`Library`、実データ（SampleGame）、prefab variant・override を持つ instance・unpack した prefab、入れ子の prefab と複数の Scene での印の方式、build が途中で落ちた時の Scene の戻し、`BuildContentOptions.CleanBuildCache` が `CleanBuildCache()` と同じ効果か、cache を消した build の所要。
+
 ## 同じ `Library` での再 build の所要
 
 同じ `Library` のまま、製品の publish と同じ条件で build を繰り返した時の所要を測った（2026-11-12〜13、各番 1 回ずつ）。条件: root の集合ごとに固定の出力先を毎回空にしてから書く、`name` と root asset は毎回新規、`Uncompressed`、1 build = 1 つの Unity process（batch）。所要は `BuildPipeline.BuildContentDirectory` の呼び出しだけで、Unity の起動と import を含まない。製品の `BuildContentCoordinator` は通していない。fixture は合成で、1024×1024 の読めない texture 300 枚、それを持つ URP `Lit` の material 300、Scene 100（各 Scene が material 20 を直接参照）。root の集合は X（Scene 0〜59）と Y（Scene 40〜99）で、出力はどちらも 660 file・約 142 MB。
@@ -85,10 +99,10 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 ## 確かめていないこと
 
-- 増分 build cache の仕組み（何を単位に、どこに持つか。上の節は所要の実測だけで、`CleanBuildCache` の build の log に cache を使わなかったことを示す行は無い）。
+- 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読んだ。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
 - 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（中身が同じ file では見分けられず、上の節の推測を実測で確かめていない。中身が違う file では、後から登録した側の版が出た。「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」）。
-- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、Scene に置いた prefab instance・nested prefab・prefab variant（instance は置いた側の file に焼き込まれる）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
+- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、prefab variant（Scene に置いた prefab instance と nested prefab は、上の節で焼き込みと差分 build の取りこぼしを測った）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
 - 実データ（SampleGame）での重複の量。
 
 ## 測り直し

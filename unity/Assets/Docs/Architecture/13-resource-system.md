@@ -103,6 +103,27 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。Play 停止と明示 close を
 同じ「完全 drain」として書かない。
 
+#### base と上書きの登録契約（S2-2 で定めた。Runtime の強制は未実装）
+
+開発時の Editor の Play で、取得した目的 build（base）に手元で build した上書きを重ねる時に、登録する側が守る文である。
+上書きの作り方は [18 章](18-asset-description.md)「上書きの build と逆引き（現況）」、実測は
+[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の 2 つの上書きの節。
+`AssetManagement` は今も Content Directory を 1 つしか登録できず（2 件目を拒む）、下の文を強制する実装は S3 が持つ。
+「禁止」は未測定のため契約で塞ぐ意味で、後続が測れば解ける。
+
+- **順序:** base を先に、上書きを後に登録する。逆の順では base の版が出た（実測）。
+- **個数:** base 1 つと上書き 0 か 1 つ。編集が増えたら、和集合の編集で上書きを作り直す（2 つ以上は未測定のため禁止）。
+- **時点:** 両方の登録を、最初の Scene と asset の load より前に終える（load の後の登録は未測定のため禁止）。
+- **同じ id の物:** 上書きの登録中は、上書きにある id の物の base の版を選べない。どちらの root から引いても上書きの版を得る（実測。製品の既定の制約として受け入れた）。
+- **logical key の解決:** 両方の root の entry から引き、同じ key が両方にあれば上書きの entry を採る（設計上の規則。上書きにだけある root、移動・rename で id が変わった Scene のため。後者の実測は S3）。
+- **重ねてよい組み合わせ:** 上書きは、作った時に記録した base の identity（contentSet・revision・target・transport manifest の digest）と宣言の名前が一致する base にだけ重ねる。合わなければ登録せず、作り直しを求める（記録と build 時の照合は実装済み、登録時の照合は S3）。
+- **解除:** Play の終わりまで両方を保持し、どちらから載せた物も全て離してから、上書き → base の順に解除する。途中の解除と base を先に解除する順は禁止（後から登録した側の解除が、先に登録した側から載せた物を Error なしに壊した実測がある）。
+- **範囲:** 上書きは Editor の Play だけで使い、Player は 1 つの目的 build だけを載せる（Player は未測定）。
+- **実体の重複:** 上書きの root と base の root の両方が直接参照する共有 asset は実体が 2 つになり、状態を持つ asset（参照の同一性で共有する ScriptableObject 等）は別の実体に分かれる。上書きの build は、`Assets/` の下の該当 asset の一覧を preflight に出す（実測で一覧と実体の数が合った）。
+- **上書きの中身:** 上書きの root は build の時の手元の版で作られる。渡していない手元の編集も、上書きの root が直接参照していれば入るので、同じ Play に同じ asset の 2 つの版が出うる（実測）。
+- **既知の不成立:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の差分 build が古い Scene の出力を再利用し、上書きに編集が入らない。回避は program §8 の S2-2b。
+- **測った設定:** Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き。prefab の証拠は variant・override・unpack の無い instance に限る（Domain Reload 有効は S3、別の PC の base は S4）。
+
 ### DIST transport と disk cache の境界
 
 OSM transport manifest v1 は UTF-8 JSON で、product、contentSet、revision、
