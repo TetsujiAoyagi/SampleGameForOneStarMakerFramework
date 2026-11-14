@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -23,7 +24,7 @@ namespace OneStarMaker.Tests.Foundation
         private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(30);
 
         [Test]
-        public void Factory_TailSerializationFailure_RecordsBothProviders()
+        public void Factory_TailSerializationFailure_PreservesAInBothProviders()
         {
             // This directory is intentionally outside the checkout and survives every outcome.
             var result = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "osm-tail-evidence-" + Guid.NewGuid().ToString("N"))).FullName;
@@ -56,7 +57,14 @@ namespace OneStarMaker.Tests.Foundation
                     facts.Add("rolling-notice=" + NoticeState(failure.Notices, "rolling-json"));
                     facts.Add("realtime-notice=" + NoticeState(failure.Notices, "realtime-json"));
                 }
-                Assert.IsTrue(established, "Observation conditions or evidence collection failed; see " + result);
+                Assert.IsTrue(established, "Synchronization conditions or evidence collection failed; see " + result);
+                AssertRows(control.Rolling!, "A");
+                AssertRows(control.Realtime!, "A");
+                Assert.IsTrue(control.NoticesRead);
+                Assert.AreEqual(0, control.Notices.Length);
+                AssertRows(failure.Rolling!, "A");
+                AssertRows(failure.Realtime!, "A");
+                AssertFailureNotices(failure.Notices);
             }
             finally
             {
@@ -173,14 +181,14 @@ namespace OneStarMaker.Tests.Foundation
                 try
                 {
                     var files = Directory.GetFiles(root, "logging-errors_*.txt");
-                    var lines = new List<string>();
+                    var noticeBytes = new List<byte>();
                     foreach (var file in files)
                     {
                         var bytes = ReadShared(file);
                         SaveBytes(saved, Path.GetFileName(file), bytes, facts);
-                        lines.AddRange(Encoding.UTF8.GetString(bytes).Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+                        noticeBytes.AddRange(bytes);
                     }
-                    observation.Notices = lines.ToArray();
+                    observation.Notices = noticeBytes.ToArray();
                     observation.NoticesRead = true;
                     facts.Add(name + ": notice-files=" + files.Length);
                 }
@@ -213,8 +221,56 @@ namespace OneStarMaker.Tests.Foundation
             var text = Encoding.UTF8.GetString(bytes);
             return "A-id=" + text.Contains("\"Id\":\"A\"") + "; B-id=" + text.Contains("\"Id\":\"B\"");
         }
-        private static string NoticeState(string[] lines, string provider)
-            => lines.Any(x => x.Contains("|" + provider + "|")) ? "lines-present" : "no-lines";
+        private static string NoticeState(byte[] bytes, string provider)
+            => Encoding.UTF8.GetString(bytes).Contains("|" + provider + "|") ? "lines-present" : "no-lines";
+
+        // 正規化せず全 bytes の行境界を検査する。空行や失敗 entry の断片も不合格。
+        internal static void AssertRows(byte[] bytes, params string[] ids)
+        {
+            var text = new UTF8Encoding(false, true).GetString(bytes);
+            var rows = text.Split(new[] { Environment.NewLine }, StringSplitOptions.None);
+            Assert.AreEqual(ids.Length + 1, rows.Length);
+            Assert.AreEqual(string.Empty, rows[rows.Length - 1], "Exactly one terminating newline is required.");
+            for (var i = 0; i < ids.Length; i++)
+            {
+                StringAssert.DoesNotContain("\r", rows[i]);
+                StringAssert.DoesNotContain("\n", rows[i]);
+                StringAssert.StartsWith("{", rows[i]);
+                StringAssert.EndsWith("}", rows[i]);
+                using var doc = JsonDocument.Parse(rows[i]);
+                Assert.AreEqual(JsonValueKind.Object, doc.RootElement.ValueKind);
+                Assert.AreEqual(ids[i], doc.RootElement.GetProperty("Id").GetString());
+                Assert.AreEqual(17, doc.RootElement.GetProperty("Probe").GetProperty("Value").GetInt32());
+            }
+        }
+
+        internal static void AssertFailureNotices(byte[] bytes)
+        {
+            var text = new UTF8Encoding(false, true).GetString(bytes);
+            StringAssert.DoesNotContain("probe failure", text);
+            StringAssert.DoesNotContain("StackTrace", text);
+            StringAssert.DoesNotContain("get_Value", text);
+            StringAssert.DoesNotContain(" at ", text);
+            var lines = text.Split(new[] { '\n' }, StringSplitOptions.None);
+            Assert.AreEqual(3, lines.Length);
+            Assert.AreEqual(string.Empty, lines[2]);
+            var providers = new List<string>();
+            foreach (var line in lines.Take(2))
+            {
+                var fields = line.Split('|');
+                Assert.AreEqual(4, fields.Length);
+                Assert.IsTrue(DateTime.TryParseExact(fields[0], "O", CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var timestamp));
+                Assert.AreEqual(DateTimeKind.Utc, timestamp.Kind);
+                Assert.AreEqual(timestamp.ToString("O", CultureInfo.InvariantCulture), fields[0]);
+                providers.Add(fields[1]);
+                Assert.AreEqual("provider-write-error", fields[2]);
+                // Unity の反射 getter は probe failure をこの外側の型で包む。
+                // 通知はその型名だけを残し、inner の Message や stack を出さない。
+                Assert.AreEqual("System.Reflection.TargetInvocationException", fields[3]);
+            }
+            CollectionAssert.AreEquivalent(new[] { "rolling-json", "realtime-json" }, providers);
+        }
         private static byte[] ReadShared(string path)
         {
             using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -255,6 +311,7 @@ namespace OneStarMaker.Tests.Foundation
                 var sha = process.StandardOutput.ReadToEnd().Trim();
                 process.WaitForExit();
                 facts.Add("checkout-head=" + sha + "; git-exit=" + process.ExitCode);
+                facts.Add("test-assembly=" + typeof(AppLoggerTailFailureTests).Assembly.Location + "; sha256=" + Hash(typeof(AppLoggerTailFailureTests).Assembly.Location));
                 facts.Add("unity=" + UnityEngine.Application.unityVersion + "; utc=" + DateTime.UtcNow.ToString("O"));
                 return process.ExitCode == 0 && sha.Length == 40 && sha.All(Uri.IsHexDigit);
             }
@@ -266,7 +323,7 @@ namespace OneStarMaker.Tests.Foundation
             internal bool Completed, ABoth, BLogged, BBoth, BFailed, TimedOut, NoticesRead, IdentityMatches;
             internal int WritesAtB = -1, SpanWritesAtB = -1;
             internal byte[]? Rolling, Realtime;
-            internal string[] Notices = Array.Empty<string>();
+            internal byte[] Notices = Array.Empty<byte>();
         }
         private sealed class Probe
         {

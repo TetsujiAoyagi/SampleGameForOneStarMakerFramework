@@ -198,7 +198,8 @@ namespace OneStarMaker.Foundation.Logging
             // ここでは IncludeScopes を有効にせず L0 Unity Log JSON へ相関値を載せない。
             // Telemetry は JsonFileTelemetrySink が producer-owned 値を structured property
             // として明示的に渡すので、L0 でも同じ session/frame 軸を検索できる。
-            options.InternalErrorLogger = exception => _failures.Write(provider, exception);
+            Action<Exception> reportFailure = exception => _failures.Write(provider, exception);
+            options.InternalErrorLogger = reportFailure;
             options.UseFormatter(() =>
             {
                 var formatter = new SystemTextJsonZLoggerFormatter
@@ -209,7 +210,7 @@ namespace OneStarMaker.Foundation.Logging
                 // 既定の null 省略・escaping 等を残したまま、値変換だけを追加する。
                 // wrapper と buffer は provider ごとに生成し、その寿命内だけで再利用する。
                 formatter.JsonSerializerOptions.Converters.Add(new Vector3JsonConverter());
-                return new BufferedJsonFormatter(formatter);
+                return new BufferedJsonFormatter(formatter, reportFailure);
             });
         }
 

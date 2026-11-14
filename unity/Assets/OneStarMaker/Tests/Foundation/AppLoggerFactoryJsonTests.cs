@@ -75,6 +75,40 @@ namespace OneStarMaker.Tests.Foundation
             Assert.AreEqual(4, notices.Count(l => l.Contains("|realtime-json|provider-write-error|")));
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void BothProviders_EntryBoundariesAndNoticesAreExact(bool failing, bool surroundingSuccess)
+        {
+            // SetUp が run ごとに独立した directory を用意する。通知は通常出力と分ける。
+            var saved = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "osm-json-boundary-evidence-" + Guid.NewGuid().ToString("N"))).FullName;
+            TestContext.Progress.WriteLine("Entry boundary evidence: " + saved);
+            try
+            {
+                var realtime = Path.Combine(_root, "realtime.jsonl");
+                using (var factory = new AppLoggerFactory(_root, File.Create(realtime), rollingSizeKb: 16384, realtimeLogFormat: RealtimeLogFormat.Json))
+                {
+                    var logger = factory.CreateLogger("EntryBoundary");
+                    if (surroundingSuccess) logger.LogInformation("{Id} {Probe}", "A", new BoundaryProbe(false));
+                    if (failing) logger.LogInformation("{Id} {Probe}", "B", new BoundaryProbe(true));
+                    if (surroundingSuccess) logger.LogInformation("{Id} {Probe}", "C", new BoundaryProbe(false));
+                }
+                var rolling = Directory.GetFiles(_root, "*.log");
+                Assert.LessOrEqual(rolling.Length, 1);
+                var expected = surroundingSuccess ? new[] { "A", "C" } : Array.Empty<string>();
+                AppLoggerTailFailureTests.AssertRows(rolling.Length == 0 ? Array.Empty<byte>() : File.ReadAllBytes(rolling[0]), expected);
+                AppLoggerTailFailureTests.AssertRows(File.ReadAllBytes(realtime), expected);
+                var notices = Directory.GetFiles(_root, "logging-errors_*.txt").SelectMany(File.ReadAllBytes).ToArray();
+                if (failing) AppLoggerTailFailureTests.AssertFailureNotices(notices);
+                else Assert.AreEqual(0, notices.Length);
+            }
+            finally
+            {
+                foreach (var file in Directory.GetFiles(_root)) File.Copy(file, Path.Combine(saved, Path.GetFileName(file)));
+            }
+        }
+
         [TestCase(300000)]
         [TestCase(1200000)]
         public void BothProviders_LargeNormalEntriesSurviveColdAndWarmBuffers(int characters)
@@ -229,6 +263,14 @@ namespace OneStarMaker.Tests.Foundation
         {
             public Cycle Self => this;
             public override string ToString() => "cycle";
+        }
+
+        private sealed class BoundaryProbe
+        {
+            private readonly bool _fail;
+            internal BoundaryProbe(bool fail) => _fail = fail;
+            public int Value => _fail ? throw new InvalidOperationException("probe failure") : 17;
+            public override string ToString() => "probe";
         }
 
         private sealed class FailingStream : MemoryStream

@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers;
+using System.Text;
 using ZLogger;
 
 namespace OneStarMaker.Foundation.Logging
@@ -10,10 +11,17 @@ namespace OneStarMaker.Foundation.Logging
     internal sealed class BufferedJsonFormatter : IZLoggerFormatter
     {
         private readonly IZLoggerFormatter _inner;
+        private readonly Action<Exception> _onFailure;
+        private static readonly byte[] NewLine = Encoding.UTF8.GetBytes(Environment.NewLine);
         private readonly EntryBuffer _buffer = new EntryBuffer();
 
-        internal BufferedJsonFormatter(IZLoggerFormatter inner) => _inner = inner;
-        public bool WithLineBreak => _inner.WithLineBreak;
+        internal BufferedJsonFormatter(IZLoggerFormatter inner, Action<Exception> onFailure)
+        {
+            _inner = inner;
+            _onFailure = onFailure;
+        }
+        // provider はこの値を worker 開始時に読む。失敗 entry に改行を足させない。
+        public bool WithLineBreak => false;
         internal int RetainedCapacity => _buffer.Capacity;
 
         public void FormatLogEntry(IBufferWriter<byte> writer, IZLoggerEntry entry)
@@ -22,15 +30,28 @@ namespace OneStarMaker.Foundation.Logging
             {
                 // Utf8JsonWriter は変換の途中でも Advance する。外側へ直接渡すと、
                 // 後続の変換失敗時に既に出た断片を取り消せず、次の JSON 行を壊す。
-                _inner.FormatLogEntry(_buffer, entry);
+                try
+                {
+                    _inner.FormatLogEntry(_buffer, entry);
+                }
+                catch (Exception exception)
+                {
+                    // worker へ再送出すると同じ drain の正常行まで Flush を迂回する。
+                    // 独立通知の失敗も drain を止めず、失敗 entry は一切確定しない。
+                    try { _onFailure(exception); }
+                    catch (Exception) { }
+                    return;
+                }
+                NewLine.AsSpan().CopyTo(_buffer.GetSpan(NewLine.Length));
+                _buffer.Advance(NewLine.Length);
+                // JSON と改行をまとめて一度だけ確定する。外側 I/O 例外は捕捉せず、
+                // provider の InternalErrorLogger へ届かせて変換失敗と区別する。
                 var destination = writer.GetSpan(_buffer.WrittenCount);
                 _buffer.WrittenSpan.CopyTo(destination);
                 writer.Advance(_buffer.WrittenCount);
-                // 改行は provider が WithLineBreak を見て一度だけ書く。
             }
             finally
             {
-                // 変換例外は握り潰さず provider の InternalErrorLogger へ届かせる。
                 // 外側へのコピー中の I/O 失敗は巻き戻せないが、次 entry へは持ち越さない。
                 _buffer.Reset();
             }
