@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `C'`（**owner の決定記録 D1（§2.6）で M + K1 を S2-2b の入力に採った、2026-11-14。次は Phase D、その後に外部レビュー（owner の指示）。** 以下は C' 完了時点の記述: **revision 1 の C' 1 巡目（最終 C'）完了、2026-11-14（§8.1）。C' の読みは CONDITIONAL ACCEPT (iii)、現在の問いを阻害する findings（(A)）は無い。** 以下は revision 1 の判定 C 完了時点の記述: **revision 1 の発見 C・判定 C 完了、2026-11-14（§7.4）。§2.5 の読みは CONDITIONAL ACCEPT (iii)**（M と F2 は成り立ち、AC3b は M が未判定、F2 が不合格）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い（§7.3）。次は revision 1 の C' 1 巡目。以下は revision 1 の Phase B 完了時点の記述: **revision 1 の Phase B 完了、2026-11-14（§6.1）。次は発見 C の実行担当。** 以下は revision 1 の A3 凍結版の記述: **revision 1 の A3 凍結版。** 2026-11-14 に owner の承認で凍結した。A2 1 件の指摘 8 件を全て採用した（§5.2）。A2 入力版は commit `ff80a6a0`。2026-11-14。AC3b の印の計算の手順だけを、製品の依存閉包を受け取る形に変えた（§5.2）。A3 で凍結するまで、revision 0 の条件（§2・§5 の revision 0 の文）は §7.2・§8 の結果を読むためにだけ使う。owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `D`（**Phase D の保存・引渡し確認と harvest を済ませた、2026-11-14（§9）。GitHub Pages の内容の決定、外部レビュー、push・PR の更新、本書の削除、task の終了は owner の指示を待つ。** 以下は D1 の時点の記述: **owner の決定記録 D1（§2.6）で M + K1 を S2-2b の入力に採った、2026-11-14。次は Phase D、その後に外部レビュー（owner の指示）。** 以下は C' 完了時点の記述: **revision 1 の C' 1 巡目（最終 C'）完了、2026-11-14（§8.1）。C' の読みは CONDITIONAL ACCEPT (iii)、現在の問いを阻害する findings（(A)）は無い。** 以下は revision 1 の判定 C 完了時点の記述: **revision 1 の発見 C・判定 C 完了、2026-11-14（§7.4）。§2.5 の読みは CONDITIONAL ACCEPT (iii)**（M と F2 は成り立ち、AC3b は M が未判定、F2 が不合格）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い（§7.3）。次は revision 1 の C' 1 巡目。以下は revision 1 の Phase B 完了時点の記述: **revision 1 の Phase B 完了、2026-11-14（§6.1）。次は発見 C の実行担当。** 以下は revision 1 の A3 凍結版の記述: **revision 1 の A3 凍結版。** 2026-11-14 に owner の承認で凍結した。A2 1 件の指摘 8 件を全て採用した（§5.2）。A2 入力版は commit `ff80a6a0`。2026-11-14。AC3b の印の計算の手順だけを、製品の依存閉包を受け取る形に変えた（§5.2）。A3 で凍結するまで、revision 0 の条件（§2・§5 の revision 0 の文）は §7.2・§8 の結果を読むためにだけ使う。owner の決定で Phase A を revision 1 として再開する、2026-11-14（§0 の引継ぎ票の owner の決定）。revision 0 の C' 1 巡目は完了、2026-11-14（§8）。C' の読みも **GO・NO** で、現在の問いを阻害する findings は無い。判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `9197e907`
@@ -20,12 +20,13 @@
 - 実験の Editor script の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。revision 1 の script: ローカル固定済み（未昇格）。実行した script を revision 1 の evidence bundle に収録した（次項。sha256 は起動指示の値と一致、§7.3）。原本はローカル PC の repository の外の新しい実験 project（revision 0 の project とは別）にある。
 - evidence bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。revision 1 の evidence bundle: ローカル固定済み（未昇格）。発見 C の実行担当が同じ task に `evidence stage` で固定し（125 file）、実行担当と判断担当がそれぞれ別の process の fetch で hash の照合を通して読んだ（§7.3、§7.4）。取得案内は revision 1 の実験の project に置き、所在は起動指示で渡す。
 - C' blind bundle の取得案内・状態（revision 0）: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合を通した（§8）。取得案内は実験の project に置いた。revision 1 の C' blind bundle: ローカル固定済み（未昇格）。進行役が同じ task に `evidence stage` で固定し（128 file）、別の process の fetch で hash の照合を通した写しを C' の workspace にした（§8.1）。取得案内は revision 1 の実験の project に置き、所在は起動指示で渡す。
-- 引継ぎ票（owner の決定記録 D1 の後。revision 1 の C' への票は commit `e4db0a44` の本節にある）:
-  - 次の Phase・役割: Phase D（保存・引渡し確認、harvest）。その後、owner の指示で外部レビューに出す。push・PR の更新は owner の指示を待つ。
-  - 次の作業: review-evidence.md の「Phase D の保存・引渡し確認」に従い、revision 1 の evidence bundle・C' blind bundle・C' の出力の原文の保存と取得案内を確かめる。harvest は §0 の harvest to に、§7.4 の結論と §2.6 の D1 を前提の文付きで写す。GitHub Pages に載せる内容は owner と決める。
-  - 読む範囲: 既定のとおり（§0）。harvest のために §2.5・§2.6・§7.4・§8.1。
-  - 必要な権限: Artifact Storage の `fetch`（事前承認の範囲）、文書の編集と commit。Unity は起動しない。
-  - 停止規則: 未保存の evidence や取得できない bundle があれば、再実測せずに owner へ返す。
+- C' の出力の原文の取得案内・状態: ローカル固定済み（未昇格）。Phase D で revision 0 と revision 1 の C' の出力を、blind 入力とは別の bundle として同じ task に `evidence stage` で固定し、別の process の fetch で hash の照合と原 file との一致を確かめた（§9）。取得案内はそれぞれの実験の project に置き、所在は起動指示で渡す。
+- 引継ぎ票（Phase D の後。Phase D への票は commit `a475b8b7` の本節にある）:
+  - 次の Phase・役割: owner（Phase D の残り）。その後、owner の指示で外部レビューに出す。
+  - 次の作業: GitHub Pages（`gh-pages`）に載せる内容を owner と決めて更新する。外部レビュー、push・PR の更新（状態ブロックと本文の要約を最終 head に合わせる）、本書の削除（program の S2-2b-0 の行の link も直す）、`workflow-task.ps1 end`、実験の project の後始末は、owner の指示ごとに行う。
+  - 読む範囲: §9。harvest の確認には事実の文書「印の形と検知の鍵」と program §8 の S2-2b-0・S2-2b の行。
+  - 必要な権限: 文書の編集と commit。push・`gh-pages` の更新・task の終了は owner の指示が要る。Unity は起動しない。
+  - 停止規則: owner の指示の無い操作（push、PR の更新、`gh-pages` の更新、本書の削除、task の終了、追加の実測）はしない。
   - 引き渡さないもの: なし。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す）。
 
@@ -691,4 +692,16 @@ Unity の再実行、network、workspace の外、git の実 diff は見てい�
 
 ## 9. Phase D
 
-未着手
+- 種別: Phase D の担当（保存・引渡し確認、harvest）。2026-11-14。Unity は起動していない。追加の実測はしていない。
+- 引き継いだ commit: `a475b8b7`（HEAD と一致を確認）。implementation head は `9197e907`。
+- C / C' の突合（revision 1）: 判定 C（§7.4）と C' 1 巡目（§8.1）の読みは、どちらも §2.5 の 4 番 (iii) の CONDITIONAL ACCEPT で一致した。AC ごとの読み（AC0〜AC6、M の AC3b が未判定・F2 の AC3b が不合格、build の鍵は K1 の順位 1）と上乗せの値も一致した。C' の (B) は全て判定 C の後続の入力・残存リスク（§7.4 の L2〜L6）と同じ物か、阻害しない物（実験 script の `Shader.Find(...) ?? ...` と `#nullable enable` の欠落は repository の外の 1 回限りの script で、`Dep.mat` の変更は sha256 で確かめてある。`run.log` の Burst の例外は record の LOG と段 3 の Error に無い）。食い違いは無い。revision 0 の判定 C と C'（GO・NO）も一致していた（§7.2、§8）。
+- マージ判断: owner の決定記録 D1（§2.6）で M + K1 を S2-2b の入力に採った。owner の意向で、Phase D の後に外部レビューへ出す。push・PR の更新・マージは owner の指示を待つ。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認（同一 bundle の確認済み結果は再利用）:
+  - revision 1 の evidence bundle（125 file）と C' blind bundle（128 file）、revision 0 の evidence bundle（117 file）と C' blind bundle（120 file）: §7.1・§7.3・§7.4・§8・§8.1 の別 process の fetch の確認を再利用した。Phase D では `evidence inspect` で 4 つとも state `staged`（`locality` は `local`）で残っていることだけを確かめた。
+  - C' の出力の原文（revision 0 の最終出力、revision 1 の最終出力と stream-json の全体）: 実験の project にしか無く、未保存だった。Phase D で同じ task に `evidence stage` で固定し（revision 0 が 1 file、revision 1 が 2 file。blind 入力とは別の bundle）、別の process の fetch で hash の照合が通り、取り出した全 file の sha256 が実験の project の原 file と一致した。秘密を含まないことは送信前に確かめた。
+  - 判定の所見と削除前の本書の必要部分: 本書の commit（git の履歴）にある。
+  - Evidence の日次清掃 job: 非仮想化の pwsh の `evidence schedule status` は `passed`（job の最終回は `partial`、blocked 1。本 task の artifact は task が終わっていないので清掃の対象外）。
+- 取得案内の引渡し確認（削除予定 worktree だけに残さない）: 4 つの bundle の案内は従来どおり各実験の project にある（§0）。C' の出力の案内は、Phase D で各実験の project に新しく置いた。どれも repository の worktree の外で、所在は起動指示で渡す。`locality` は全て `local`（未昇格）。owner の指示が無いので `evidence promote` はしていない。
+- harvest: [事実の文書](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」に「印の形と検知の鍵」を足した（測った形と鍵、成り立ったこと、上乗せの値と §2.5 の 3 番の前提の文、測っていない手順・形・鍵、D1）。program §8 の S2-2b-0 と S2-2b の行を更新した（D1 と、S2-2b の A1 が最初に確かめる条件）。GitHub Pages（`gh-pages`）は未更新。載せる内容は owner と決める（§0 の harvest to）。
+- 削除確認: 本書は削除していない。削除は owner の指示を待つ（program の S2-2b-0 の行は本書へ link している）。
+- 通常の task 終了・後始末の状態と未完了事項: task `content-scene-stamp-spike` は `active/end-not-recorded`、`workflow-task.ps1 end` は owner の指示を待つ。実験の project 2 つ（`Library`・`Out/` を含む）は原 source として残してある。未完了: GitHub Pages の内容の決定と更新、外部レビュー、push・PR の更新、本書の削除、task の終了、実験の project の後始末。
