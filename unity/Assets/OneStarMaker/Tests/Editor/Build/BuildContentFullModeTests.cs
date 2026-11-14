@@ -179,6 +179,117 @@ namespace OneStarMaker.Tests.Editor.Build
             }
         }
 
+        // ───── 上書きの build（HANDOFF CONTENT_OVERLAY_BUILD の AC4） ─────
+
+        [Test]
+        public void OverlayBuild_PassesTheDeclarationToTheAdapter()
+        {
+            var declaration = Declaration("purpose_a");
+            var adapter = new ContentOverlaySelectionTests.ManifestAdapter();
+            var result = new BuildContentCoordinator(adapter).Build(OverlayRequest(NewArtifactsRoot(), "overlay_a", "purpose_a", declaration));
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(adapter.Declaration, Is.SameAs(declaration));
+            Assert.That(result.Declaration, Is.SameAs(declaration));
+            Assert.That(result.Mode, Is.EqualTo(BuildContentMode.Full));
+        }
+
+        [Test]
+        public void Publish_RejectsOverlayBuild_WithoutCreatingDestinationOrStaging()
+        {
+            var result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter())
+                .Build(OverlayRequest(NewArtifactsRoot(), "overlay_a", null, null));
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(ReadOutcome(result).overlay, Is.True);
+            var transport = Path.Combine(NewOutsideDirectory(), "transport");
+            var final = Path.Combine(transport, result.Identity);
+            Assert.Throws<InvalidOperationException>(() => ContentTransportPublisher.Publish(result, final));
+            Assert.That(Directory.Exists(final), Is.False);
+            Assert.That(Directory.Exists(Path.Combine(transport, ".staging")), Is.False);
+        }
+
+        [Test]
+        public void Publish_RejectsSubsetBuildWithoutOverlayMark()
+        {
+            // public な絞りで作った plan を、上書きの記録なしの既存のコンストラクタで Full に build した場合（印は無い）。
+            var t = ContentOverlaySelectionTests.Topology.Create();
+            var request = new BuildContentRequest(t.Plan.WithSelectedSubset(new[] { "SceneDirect" }), t.Snapshot, "subset", NewArtifactsRoot(),
+                null, null, BuildContentMode.Full);
+            var result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter()).Build(request);
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(ReadOutcome(result).overlay, Is.False);
+            var transport = Path.Combine(NewOutsideDirectory(), "transport");
+            var final = Path.Combine(transport, result.Identity);
+            Assert.Throws<InvalidOperationException>(() => ContentTransportPublisher.Publish(result, final));
+            Assert.That(Directory.Exists(final), Is.False);
+            Assert.That(Directory.Exists(Path.Combine(transport, ".staging")), Is.False);
+        }
+
+        [TestCase("base_a")]
+        [TestCase("BASE_A")]
+        [TestCase("Base_a")]
+        public void OverlayBuild_SameContentSetAsBase_IsRejectedBeforeReports(string contentSet)
+        {
+            var root = NewArtifactsRoot();
+            var adapter = new ContentOverlaySelectionTests.ManifestAdapter();
+            Assert.Throws<ArgumentException>(() => new BuildContentCoordinator(adapter).Build(OverlayRequest(root, contentSet, null, null)));
+            Assert.That(adapter.Calls, Is.Zero);
+            Assert.That(Directory.Exists(Path.Combine(root, "reports")), Is.False);
+            Assert.That(Directory.Exists(Path.Combine(root, "work")), Is.False);
+        }
+
+        [TestCase("", "rev", "target", "digest")]
+        [TestCase("set", " ", "target", "digest")]
+        [TestCase("set", "rev", "", "digest")]
+        [TestCase("set", "rev", "target", null)]
+        public void BaseIdentity_RejectsEmptyFields(string contentSet, string revision, string target, string? digest)
+        {
+            Assert.Throws<ArgumentException>(() => new ContentOverlayBaseIdentity(contentSet, revision, target, digest!, null));
+        }
+
+        [Test]
+        public void BaseIdentity_RejectsAnEmptyDeclarationName()
+        {
+            Assert.Throws<ArgumentException>(() => new ContentOverlayBaseIdentity("set", "rev", "target", "digest", ""));
+        }
+
+        [TestCase("purpose_a", null)]
+        [TestCase(null, "purpose_a")]
+        [TestCase("purpose_a", "purpose_b")]
+        public void OverlayBuild_DeclarationNameMismatch_IsRejectedBeforeReports(string? baseName, string? overlayName)
+        {
+            var root = NewArtifactsRoot();
+            var adapter = new ContentOverlaySelectionTests.ManifestAdapter();
+            var declaration = overlayName == null ? null : Declaration(overlayName);
+            Assert.Throws<ArgumentException>(() => new BuildContentCoordinator(adapter).Build(OverlayRequest(root, "overlay_a", baseName, declaration)));
+            Assert.That(adapter.Calls, Is.Zero);
+            Assert.That(Directory.Exists(Path.Combine(root, "reports")), Is.False);
+        }
+
+        [Test]
+        public void OverlayBuild_BaseTargetMismatch_IsRejectedBeforeReports()
+        {
+            var root = NewArtifactsRoot();
+            var t = ContentOverlaySelectionTests.Topology.Create();
+            var selection = ContentOverlaySelection.Select(t.Plan, t.Snapshot, new[] { ContentOverlaySelectionTests.EditedTex });
+            var request = new BuildContentRequest(selection,
+                new ContentOverlayBaseIdentity("base_a", "rev-1", "Android-Player", "digest-1", null), "overlay_a", root, null, null);
+            var adapter = new ContentOverlaySelectionTests.ManifestAdapter();
+            Assert.Throws<ArgumentException>(() => new BuildContentCoordinator(adapter).Build(request));
+            Assert.That(adapter.Calls, Is.Zero);
+            Assert.That(Directory.Exists(Path.Combine(root, "reports")), Is.False);
+        }
+
+        private static BuildContentRequest OverlayRequest(string root, string contentSet, string? baseDeclarationName, BuildPurposeDeclaration? declaration)
+        {
+            var t = ContentOverlaySelectionTests.Topology.Create();
+            var selection = ContentOverlaySelection.Select(t.Plan, t.Snapshot, new[] { ContentOverlaySelectionTests.EditedTex });
+            return new BuildContentRequest(selection, ContentOverlaySelectionTests.BaseIdentity(baseDeclarationName), contentSet, root, declaration, null);
+        }
+
+        private static BuildPurposeDeclaration Declaration(string name) =>
+            new BuildPurposeDeclaration(name, new[] { "Root" }, new BuildRequest(Array.Empty<BuildTag>()),
+                new BuildRepresentationSelection(new[] { "Full" }, BuildRepresentationMode.First));
+
         // 観測の Unity の file 名の長さ（37 文字）に合わせた合成の名前。
         private static readonly string UnityFileName = new string('u', 33) + ".cf";
 

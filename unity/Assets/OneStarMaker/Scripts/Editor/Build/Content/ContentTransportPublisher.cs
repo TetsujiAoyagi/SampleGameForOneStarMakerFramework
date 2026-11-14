@@ -31,6 +31,14 @@ namespace OneStarMaker.Editor.Build.Content
                 throw new InvalidOperationException("Build result and outcome identity do not match.");
             if (outcome.buildMode != nameof(BuildContentMode.Full))
                 throw new InvalidOperationException("Only a Full build can be published (buildMode='" + outcome.buildMode + "').");
+            // 上書きと、selected を絞っただけの build は、宣言の選択の一部しか持たないので配らない。上書きは outcome の印で、
+            // 印の無い絞り（public な BuildPlan.WithSelectedSubset から記録なしで作った plan）は preflight の除外の理由 code で拒む。
+            // excluded の行は `stableKey|reason|dimension|value` だが key に `|` が入りうるので、どの区切りに理由 code があっても拒む
+            // （誤って一致するのは拒む側だけ）。
+            if (outcome.overlay)
+                throw new InvalidOperationException("An overlay build cannot be published.");
+            if (preflight.excluded.Any(x => x.Split('|').Contains(nameof(OneStarMaker.Build.Selection.BuildExclusionReasonCode.NotInSubset))))
+                throw new InvalidOperationException("A build of a selected subset cannot be published.");
 
             var final = Path.GetFullPath(publishRoot);
             var sourceRoot = Path.GetFullPath(result.ContentPath!);
@@ -129,6 +137,7 @@ namespace OneStarMaker.Editor.Build.Content
         {
             public string identity = "";
             public string buildMode = "";
+            public bool overlay;
         }
 
         [Serializable]
@@ -137,6 +146,7 @@ namespace OneStarMaker.Editor.Build.Content
             public string identity = "";
             public string target = "";
             public string contentSet = "";
+            public string[] excluded = Array.Empty<string>();
             public string[] closure = Array.Empty<string>();
         }
     }

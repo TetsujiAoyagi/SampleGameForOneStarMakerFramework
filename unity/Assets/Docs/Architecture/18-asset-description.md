@@ -184,6 +184,37 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
   この build 側 fixture だけでは本番非 Scene Description、型付き load、サブアセット一般化、
   Runtime の所有・解放、Player への接続を証明しない。型付き Runtime load と寿命は次節の BS3 で検証した。
 
+### 上書きの build と逆引き（現況）
+
+取得した目的 build（base）に、手元で編集した asset の影響を受ける root だけを build した上書きを重ねるための Editor の入口
+（S2-2）。登録の実装（`AssetManagement` が base と上書きを持つこと）は無く、S3 の範囲である。登録する側の契約は
+[13 章](13-resource-system.md)「base と上書きの登録契約」。
+
+- **逆引き:** `ContentOverlaySelection.Select(plan, snapshot, editedPaths)` は I/O を持たない。編集した path を正規化し
+  （`\` を `/`、`X.meta` を `X`、その後の重複を 1 件）、plan の selected の root のうち、snapshot の依存閉包に編集を 1 つでも含む root を選ぶ。
+  閉包との突き合わせだけ大文字小文字を無視する。当たらなかった編集は理由つきで結果に残る（`OutsideAssets`: ordinal の `Assets/` の外、
+  `NotInAnyClosure`: どの selected の root の閉包にも無い）。編集が空か当たる root が 0 なら、plan を持たない「上書き不要」の結果
+  （`IsOverlayRequired == false`）を返し、呼び手は build しない。selected の root に閉包がちょうど 1 つ対応しない入力は例外で拒む。
+  `SharedAssets` は「上書きの root の閉包の和集合」と「上書きに入らなかった selected の root の閉包の和集合」の共通部分で、
+  上書きの Scene と base の Scene で実体が 2 つになる候補の一覧である。
+- **plan の絞り:** `BuildPlan.WithSelectedSubset(stableKeys)` は selected の部分集合を残し、外れた候補を
+  `BuildExclusionReasonCode.NotInSubset` の除外にする（key は変えず、元の除外を残す）。空・selected に無い key・null は拒む。
+  Selection は上書きの語彙を持たない。
+- **build:** `BuildContentRequest(selection, baseIdentity, contentSet, artifactsRoot, declaration, requirements)` は plan と snapshot を
+  逆引きの結果からだけ取り、mode を `Full` に固定する。coordinator は report を書く前に、base と同じ contentSet（大文字小文字を無視）、
+  base と違う宣言の名前、base と違う target を拒む。`ContentOverlayBaseIdentity` は base の contentSet・revision・target・
+  transport manifest の digest（と任意の宣言の名前）を持ち、空の欄を拒む。
+- **report の追加の欄:** preflight と outcome の両方に `overlay`（上書きの印）。preflight だけに `overlayBase`
+  （`contentSet`・`revision`・`target`・`manifestDigest`・`declarationName`）、`overlayEdits`、`overlayRoots`（`stableKey`・`logicalKey`・`edits`）、
+  `overlayUnmatched`（`path`・`reason`）、`overlaySharedAssets`。上書きでない build では印が false、配列が空、`overlayBase` の各欄が空文字。
+- **publish の拒否:** `ContentTransportPublisher.Publish` は、outcome の `overlay` か、preflight の `excluded` に `NotInSubset` があれば拒む。
+  上書きと、selected を絞っただけの build は配らない。
+- **既知の不成立（未解消）:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の Unity の差分 build が
+  古い Scene の出力を再利用し、上書きに編集が入らない（[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)
+  「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）。編集した texture 等を直接参照する Scene と、Object の root の
+  prefab は正しく入る。回避（Scene に、焼き込む prefab のハッシュの印を持たせる）は program §8 の S2-2b。それまで、Scene に prefab を
+  置く project でこの入口を使う時は、build の前に `BuildPipeline.CleanBuildCache()` が要る（差分 build を全て捨てる）。
+
 ### Runtime の Content Directory 解決とロード（現況）
 
 `Runtime/BuildContent/` の `ContentDirectorySession` は、移設済み local directory を

@@ -41,6 +41,7 @@ namespace OneStarMaker.Editor.Build.Content
             // 呼出側に任意の出力先を許さない。contentSet は path segment としても使うため先に検証する。
             // work は同じ target/contentSet で再利用し、content/{identity} は成功ごとに別名で残す。
             ValidateSegment(request.ContentSet);
+            if (request.Overlay != null) ValidateOverlay(request);
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var approvedRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "artifacts", "bs2b"));
             var testRoot = Path.GetFullPath(Path.Combine(projectRoot, "..", "TestResults", "bs3-fixture"));
@@ -60,12 +61,14 @@ namespace OneStarMaker.Editor.Build.Content
             // Unity I/O の前に plan と snapshot を照合し、失敗でも preflight を残す。
             // ここで止めた場合は成功 directory を作らず、構造化 issue を outcome に記録する。
             var projection = BuildContentProjection.Create(request.Plan, request.Snapshot);
-            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection, request.Requirements);
+            BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection,
+                request.Requirements, request.Overlay);
+            var isOverlay = request.Overlay != null;
             if (!projection.IsValid)
             {
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
                     "Preflight failed", projection.Issues.ToArray(), request.Declaration, request.Mode);
-                BuildContentReport.WriteOutcome(outcome, failure);
+                BuildContentReport.WriteOutcome(outcome, failure, isOverlay);
                 return failure;
             }
             var published = false;
@@ -100,7 +103,7 @@ namespace OneStarMaker.Editor.Build.Content
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
                     Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode);
-                BuildContentReport.WriteOutcome(outcome, success);
+                BuildContentReport.WriteOutcome(outcome, success, isOverlay);
                 return success;
             }
             catch (Exception ex)
@@ -111,9 +114,26 @@ namespace OneStarMaker.Editor.Build.Content
                 if (published && Directory.Exists(final)) Directory.Delete(final, true);
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
                     ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) }, request.Declaration, request.Mode);
-                BuildContentReport.WriteOutcome(outcome, failure);
+                BuildContentReport.WriteOutcome(outcome, failure, isOverlay);
                 return failure;
             }
+        }
+
+        // 上書きの build を、report を書く前に拒む条件。
+        // (1) base と同じ contentSet は同じ workspace を使い、Full の build が base の workspace を空にする。Windows では
+        //     大文字小文字だけ違う名前も同じ folder になる（ValidateSegment は両方を通す）ので、大小を無視して比べる。
+        // (2) 宣言の名前と target が base の記録と違う上書きは、登録契約 C6 で重ねられない物になるので作らない。
+        //     宣言付きの base に宣言なしの上書き（その逆も）も名前の不一致として拒む。
+        private static void ValidateOverlay(BuildContentRequest request)
+        {
+            var b = request.Overlay!.BaseIdentity;
+            if (string.Equals(b.ContentSet, request.ContentSet, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("An overlay must not use the base content set '" + b.ContentSet + "' (case-insensitive).");
+            if (!string.Equals(b.DeclarationName, request.Declaration?.Name, StringComparison.Ordinal))
+                throw new ArgumentException("The overlay declaration '" + (request.Declaration?.Name ?? "(none)") +
+                                            "' does not match the base declaration '" + (b.DeclarationName ?? "(none)") + "'.");
+            if (!string.Equals(b.Target, TargetName, StringComparison.Ordinal))
+                throw new ArgumentException("The base target '" + b.Target + "' does not match the build target '" + TargetName + "'.");
         }
 
         // workspace の中身だけを消す。字句上の包含（Child）だけでは、途中の segment や中の directory が
