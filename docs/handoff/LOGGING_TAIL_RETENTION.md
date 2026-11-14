@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 1、A1 完成・A2 assist 確認済み。正式 A2 / A3 未完了）
+- status: `A`（revision 1、owner により A3 仕様凍結済み・Phase B 待ち。A2 レビューは assist、snapshot の保存・引渡しは未完了）
 - branch: `codex/logging-tail-retention-design`
 - implementation base commit: `41099fb7a2c7e191d940614024031898214eed28`
 - implementation head commit: 未固定
@@ -13,11 +13,11 @@
 - expires: 2026-11-30 または置換 revision
 - harvest to: Architecture §12 G5、Issue #183
 - task: `logging-tail-retention`。Cloud Linux の `workflow-task.ps1 start` は `store-root-unavailable`、未登録。対応済み Windows 環境で開始する。store の代替実装・迂回はしない。
-- Phase A snapshot の取得案内・状態: 未保存。Cloud では Windows 専用 Storage を利用できない。原入力を保全し、対応済み環境で A 担当が固定・取得確認する。現環境での snapshot を欠く構造レビューは assist とし、正式な A2 完了に数えない。
+- Phase A snapshot の取得案内・状態: 未保存。Cloud では Windows 専用 Storage を利用できない。凍結した仕様はこの票を含む commit の HANDOFF 本文とし、ローカル PC の担当がその固定版を既存 Storage へ保存・引渡しする。保存・取得未完了を成功と読み替えず、今回の owner の凍結指示によって過去の assist を正式 A2 完了へ遡及変更しない。
 - Phase B result snapshot の取得案内・状態: 未生成。B 担当から動作確認・C 担当へ。
 - evidence bundle の取得案内・状態: 未生成。C 担当から C′ / D 担当へ。
 - C′ blind bundle の取得案内・状態: 未生成。所見と分離して C′ 担当へ。
-- 引継ぎ票: 次は Phase A。A2 入力版の構造・代替構成レビューと snapshot の正式な受渡し、未決事項の解消、owner による A3 採否・凍結を行う。B へはまだ渡さない。読む範囲は全節。Unity テストを必要とする初回検証は C 担当へ。既存 PR #185 の完了済み作業台は復活させず、その製品修正をこの新スライスで扱う。
+- 引継ぎ票: 次は Phase B、ローカル Windows PC で §2〜§5 の凍結範囲を実装し、テストコードを整備する。読む範囲は §0〜§5 および §5.1 の A3 採否・制約。開始入力として別途渡される凍結 commit SHA、clean な HEAD、PR 状態ブロックを照合し、不一致なら停止する。必要な権限は通常の repo 編集、対象限定の Unity Editor コンパイル確認、既存 Workflow / Storage の通常操作。task は上記 ID で start / status を確認し、終了済みなら既存規約の resume を行う。新しい設計判断は A へ戻す。Unity テスト・Build は C 担当で、B から実行しない。実装結果と未実行事項、implementation head と次の発見 C への票を記録して B を終える。A snapshot の保存・引渡し未完了は明記してローカルの既存経路で対応し、formal A2 完了と誤記しない。#185 の完了済み作業台は復活させない。
 
 ## 1. 目的と対象外
 
@@ -60,7 +60,7 @@ N1（AC1/AC2 共通、I3/S1）: 各失敗 run の Dispose 後の通知全 bytes 
 - 後続の問いと所有者: Player/AOT の実証は Issue #183 の後続 `LOGGING_JSON_PLAYER_VALIDATION` 候補、I/O 障害下の保持・回復は同 Issue の `LOGGING_IO_RECOVERY` 候補。どちらも本スライスの実装キューにしない。
 - GO: AC1〜5 と判定必須検証が揃うこと。観測のみで GO にした #185 と異なり、A 不在は NO-GO。CONDITIONAL ACCEPT は設けない。
 - 停止規則: 最低条件達成で終了。必要な所有者・公開 API・asmdef・配置変更、DLL 経路の不一致、同期条件不成立は A へ戻す。未知を無断で除外しない。
-- A3 後の例外承認・決定記録: なし（未凍結）。
+- A3 後の例外承認・決定記録: なし。凍結時の owner 指示と保存・レビューの制約は §5.1 に記録。
 - 実装制約: Game → Framework、公開 ILogger<T>、Unity .cs の #nullable enable、record 禁止、テストの Task.Delay / Thread.Sleep 禁止を守る。Unity テストは C が標準 run-tests.ps1 から行い、B は実行しない。Unity 偽 null、path 予算を維持。ZLogger DLL と MessagePack formatter は変更しない。
 
 ### 今回の原因照合（静的）
@@ -108,16 +108,18 @@ namespace、フォルダ、asmdef は既存のまま。新しい汎用 helper �
 
 ### 5.1 A2 の独立レビューと A3 の採否
 
-- 目的レビュー: 目的・利用者の原文だけを別 session へ渡した。正常 A 保持、B 断片の排除、通知が drain を阻害しないこと、利用者の追加 Flush / 待機 / 再送 / API を要求しないことを要求。再試行・永続キュー・I/O 回復は不要との所見。主担当の提案はすべてを AC1〜5 と対象外に反映。入力 sha256: `b129637158ae23eb3dec9b119e5340cb83aa781b403cef7517a386b60998e770`（UTF-8/LF、目的本文 + 改行 + 利用者本文、末尾改行なし）。担当は新規 session、起動モデル指定 `gpt-6.1-sol` / OpenAI（担当の自己申告は GPT-6 系）。
-- 構造レビュー（assist）: 新規 session、起動モデル指定 `gpt-6.1-terra` / OpenAI（自己申告 GPT-6 系）。入力は A2 commit `cf013d0bed2dfb42d11750b6332082f7d3e49517` の本文 sha256 `7a537ae7ef186684d7547bf6350dbc761f6ff57b05b3df3731fc91452641eaa1`。git show で全文と hash を確認し、implementation base の formatter / factory / 通知 / 関連テストを静的照合。I1 の drain 中断、I2 の余分な改行、I3 の通知例外・I/O 誤分類の反例順序を挙げ、計画の捕捉境界と検証が対応することを確認。配置・責務・依存・所有・寿命に修正必須の矛盾なしとの所見。Player/AOT・I/O 回復・producer/Dispose 競合は対象外のまま。DLL IL の独立再照合・Unity は未実施。snapshot 未保存のため正式 A2 に数えず、owner の A3 採否も未実施。
-- 高リスクの代替構成レビュー: 初稿を見ていない新規 session（起動指定 `gpt-6-sol` / OpenAI）へ、目的・利用者・現況・問い・制約の A0 原入力だけを渡した。entry staging 内の失敗隔離と drain 継続を第一候補、確定済み正常行を明示 flush する案を代替とした。通知を provider 外に保ち、公開 API・所有順変更が必要なら停止する所見。主担当は第一候補を採用提案、代替は writer 抽象を越えるため不採用提案。正式採否は A3。
+- 目的レビュー: 目的・利用者の原文だけを別 session へ渡した。正常 A 保持、B 断片の排除、通知が drain を阻害しないこと、利用者の追加 Flush / 待機 / 再送 / API を要求しないことを要求。再試行・永続キュー・I/O 回復は不要との所見。指摘はすべてを AC1〜5 と対象外に反映し、A3 で採用。入力 sha256: `b129637158ae23eb3dec9b119e5340cb83aa781b403cef7517a386b60998e770`（UTF-8/LF、目的本文 + 改行 + 利用者本文、末尾改行なし）。担当は新規 session、起動モデル指定 `gpt-6.1-sol` / OpenAI（担当の自己申告は GPT-6 系）。
+- 構造レビュー（assist）: 新規 session、起動モデル指定 `gpt-6.1-terra` / OpenAI（自己申告 GPT-6 系）。入力は A2 commit `cf013d0bed2dfb42d11750b6332082f7d3e49517` の本文 sha256 `7a537ae7ef186684d7547bf6350dbc761f6ff57b05b3df3731fc91452641eaa1`。git show で全文と hash を確認し、implementation base の formatter / factory / 通知 / 関連テストを静的照合。I1 の drain 中断、I2 の余分な改行、I3 の通知例外・I/O 誤分類の反例順序を挙げ、計画の捕捉境界と検証が対応することを確認。配置・責務・依存・所有・寿命に修正必須の矛盾なしとの所見。Player/AOT・I/O 回復・producer/Dispose 競合は対象外のまま。DLL IL の独立再照合・Unity は未実施。snapshot 未保存のため正式 A2 に数えず、当時の owner の A3 採否は未実施で、最終の採否は本節末尾に記録。
+- 高リスクの代替構成レビュー: 初稿を見ていない新規 session（起動指定 `gpt-6-sol` / OpenAI）へ、目的・利用者・現況・問い・制約の A0 原入力だけを渡した。entry staging 内の失敗隔離と drain 継続を第一候補、確定済み正常行を明示 flush する案を代替とした。通知を provider 外に保ち、公開 API・所有順変更が必要なら停止する所見。主担当は第一候補を採用し、代替は writer 抽象を越えるため不採用。A3 でその採否を確定した。
 - 外部レビュー（assist）: PR #192 の [外部所見](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/192#issuecomment-6877207631) と [要約](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/192#issuecomment-6877098384) を確認。いずれも同じ A2 入力 commit / 本文内容 hash（上記）に対する所見で、内容が重複し、担当間の独立性は確認できないため1件に数える。cursor[bot]、初回はモデル系列未確認だったが、下記の再レビューで Grok 4.7 / xAI と自己申告された。DLL の制御フローを逆コンパイルで照合し方針妥当、IL offset 自体は未照合、正式 A2 / A3 ではないとの自己申告。
-- 外部指摘の採用案（owner の A3 採否は未実施）: R1 は §4.3 に内側 catch → 失敗通知 return / 成功改行追加 → 外側1回確定 → 全体 finally Reset の順を明記。誤った Reset 順と別 Advance を防ぐため採用提案。R2 は AC2 を正規化前の生 bytes による行境界検査とし、中間空行を隠す ParseLines を禁止。I2 の抜けを防ぐため採用提案。R3 は AC1/AC2 共通 N1 に provider 別の1行・形式・秘密非露出と不合格例を追加。I3/S1 の通知欠落と機微情報混入を検出するため採用提案。容量注記は AC1 に既存の `65533 - 1024` と両 Write 回数0を維持。現在の問い・責務配置・目的・利用者・対象外を変えず、不採用・後続への移送追加はなし。
-- 外部再レビュー（assist）: [再レビュー所見](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/192#issuecomment-6877312042) とその要約を確認。入力 commit `4d2c51239f6fb7accd311b51df2221992616f715`、本文 sha256 `bede3b0bc248ef5ab78eb18039bdcf88ca83cf65f971e112ebfb5d5f127d5048`。担当は前回と同じ系列（自己申告 Grok 4.7 / xAI）。R1〜R3 は文面上解消し、追加指摘は AC2 の通知条件の対象の曖昧さと fixture Message の検査対象。主担当は採用提案として AC1/AC2 の成功対照を通知0行、AC2 の二つの失敗 run だけを N1 と明記し、AC1/AC2 の失敗 Message を `probe failure` に固定した。新しい機構・責務・対象外の変更はなし。正式 A2 / A3 とは扱わず、owner の採否は未実施。
+- 外部指摘の採用（owner が本節末尾で A3 凍結を指示）: R1 は §4.3 に内側 catch → 失敗通知 return / 成功改行追加 → 外側1回確定 → 全体 finally Reset の順を明記。誤った Reset 順と別 Advance を防ぐため採用。R2 は AC2 を正規化前の生 bytes による行境界検査とし、中間空行を隠す ParseLines を禁止。I2 の抜けを防ぐため採用。R3 は AC1/AC2 共通 N1 に provider 別の1行・形式・秘密非露出と不合格例を追加。I3/S1 の通知欠落と機微情報混入を検出するため採用。容量注記は AC1 に既存の `65533 - 1024` と両 Write 回数0を維持。現在の問い・責務配置・目的・利用者・対象外を変えず、不採用・後続への移送追加はなし。
+- 外部再レビュー（assist）: [再レビュー所見](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/192#issuecomment-6877312042) とその要約を確認。入力 commit `4d2c51239f6fb7accd311b51df2221992616f715`、本文 sha256 `bede3b0bc248ef5ab78eb18039bdcf88ca83cf65f971e112ebfb5d5f127d5048`。担当は前回と同じ系列（自己申告 Grok 4.7 / xAI）。R1〜R3 は文面上解消し、追加指摘は AC2 の通知条件の対象の曖昧さと fixture Message の検査対象。主担当が修正案として AC1/AC2 の成功対照を通知0行、AC2 の二つの失敗 run だけを N1 と明記し、AC1/AC2 の失敗 Message を `probe failure` に固定した。新しい機構・責務・対象外の変更はなし。レビューそのものを正式 A2 / A3 と扱わず、owner の最終採否は本節末尾に記録。
 - C′ 独立性の更新: この外部担当（自己申告 Grok 4.7 / xAI）は Phase A 関与済みのため C′ の予約から除外する。他の A 関与済み担当も踏まえ、未関与の系列・ベンダーを優先して選定する。未確認の系列を未関与と推測しない。
 - A2 後の改訂と公開: owner が 2026-11-14 に「Pushして、またレビューしてもらうので」と明示したため、上記の修正案と補助レビュー記録を再レビュー用の追加 commit として公開する。通常の A2 途中版を commit しない規則に対する今回の公開指示を優先し、最初の A2 入力版は書き換えない。この票を含む commit が再レビュー入力であり、本文の内容 hash は取得時に照合する。正式な snapshot の保存・引渡しや A3 凍結を代替しない。
 - 設計文書の機械検査: docs-audit は errors 0（既存 program の警告1）、contract-audit は errors 0 / warnings 0、git diff --check 成功。Unity テストは A の対象外で未実行。
-- A3: 未実施。未決事項は正式な snapshot 引渡し、A2 指摘の採否、owner による境界凍結。人間の採否を推測しない。
+- 最終の外部設計レビュー（assist）: [追加修正必須指摘なしの所見](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/192#issuecomment-6877502715)。対象 commit `406c912e0c7aebbf3991944849a68131d10cc9f6`、本文 sha256 `f036604dd43d2378faefb18d49b82457e4ab258c7f167c7cdea65659c291f09f`。HANDOFF 全節、implementation base の製品コード・既存 fixture、upstream writer の静的照合。実装や Unity 実測、正式 snapshot の受渡しを認定しないとの留保を維持。担当の正確なモデル系列は未確認で、Phase A 関与済みとして C′ 候補から除外。
+- A3 統合・採否: 2026-11-14、owner が「新しいレビューで指摘無し、という事で凍結しましょう」「実装自体はローカルPCでやるべき」と明示。主担当 Codex / GPT-6 系 / OpenAI が本 HANDOFF の revision 1 を仕様凍結した。目的レビューの保証、entry 内隔離案、R1〜R3、容量余裕、対照/失敗 run の通知区別と Message 固定を採用。明示 flush・独自 processor・vendor 更新案は §4 の理由で不採用。スコープ追加・保留指摘はなし。公開レビューの assist と snapshot 保存未完了はそのまま記録し、正式 A2 完了と偽らず、owner の本指示でローカル Phase B へ渡す。
+- 凍結の限界: 仕様の凍結であり製品修正・Unity 成功・Evidence 保存完了ではない。残る運用上の未完了は A snapshot の保存・取得・引渡しで、対応済みローカル環境の担当へ渡す。§2 の実装境界と §5 の C 必須テストは緩めない。
 
 ## 6. Phase B 実装結果
 
