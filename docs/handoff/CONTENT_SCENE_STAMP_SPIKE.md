@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b-0。S2-2b から切り出した）
-- status: `C`（発見 C の実行担当が batch を 1 回実行し、record を evidence bundle に固定した、2026-11-14（§7）。裁定は未着手。次は Phase C から C' までの進行役。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
+- status: `C`（判定 C 完了、§2.5 の読みは **GO・NO**（M と F2 は成り立ったが、両方とも AC3b が不合格）、2026-11-14（§7.2）。発見 C で阻害する script の誤りは無く、batch のやり直しは無い。次は進行役が C' を起こす。発見 C の実行担当は 2026-11-14 に batch を 1 回実行し、record を evidence bundle に固定した（§7.1）。Phase B は 2026-11-14 に完了（§6）。Phase A は A3 凍結版 revision 0 のまま。以下は Phase A の経緯: **A3 凍結版、revision 0。** 2026-11-14 に owner の承認で凍結した。A2 の 2 件、凍結前の外部レビュー 5 巡（draft PR #191）、主担当の自己点検を反映してある（§5.1）。A2 入力版は commit `37ec408e`、外部レビューの対象は 1 巡目が commit `8259fb0c`、2 巡目が `d5b60674`、3 巡目が `719ea649`、4 巡目が `006334ba`、5 巡目が `2c657c6b`）
 - branch: `claude/content-scene-stamp-spike`（PR の base は `develop`）
 - implementation base commit: `41099fb7`（`develop` の head、2026-11-14）
 - implementation head commit: `89604c70`
@@ -18,16 +18,17 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（repository の差分は文書だけ。実験の script は repository の外にあり、次項）
 - 実験の Editor script の取得案内・状態: ローカル固定済み（未昇格）。実行した script を evidence bundle に収録した（次項、§7）。原本はローカル PC の repository の外の実験 project にある。
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。取得案内は実験の project に置き、所在は起動指示で渡す。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。Artifact Storage の task `content-scene-stamp-spike` に `evidence stage` で固定し、別の process の fetch で hash の照合と必須の file の閲覧を確かめた（§7）。判断担当も別の process の fetch で照合を通して読んだ（§7.2）。取得案内は実験の project に置き、所在は起動指示で渡す。
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase C から C' までの進行役（動作確認は `対象なし`）。owner が desktop から直接起こす新しい session で、これまでの会話ではなく本書を入力にする。進行役は判断担当（発見 C と判定 C）→（script の誤りによるやり直しがあれば、その実行担当）→ C' の各担当をそれぞれ新しい session または CLI で起こし、各担当の出口の記録と票の更新を確かめて次へ進める。各担当の起動指示には、その時点の引き継ぐ commit の SHA と、evidence bundle の取得案内の所在を渡す。進行役自身はレビュー・判定・監査をしない。
+  - 進み具合（2026-11-14）: (1) は完了した（§7.2。発見 C で阻害する誤りは無く、判定 C の読みは GO・NO）。(2) は不要になった。進行役は (3) から再開する。GO・NO の内容（§7.2 の「owner へ返す内容」）は C' の後に (4) で owner と扱う。
   - 次の作業: (1) 判断担当（Phase B と異なるモデル）が evidence bundle を fetch し、script（bundle の `StampSpike.cs`。sha256 は実行前に照合済み、§7）と record を読んで発見 C を行う。現在の問いを阻害する script の誤りが無ければ、同じ record で判定 C を行う（batch は implementation head の script を B 以外の実行担当が取った観測なので、判定の入力にしてよい。再実行しない）。AC の合否と §2.5 の 4 つの読みを §7 に記録する。script が record に書く `ac*`・`holds` の行は補助の導出値で、期待値は §5 の fixture の値から導き直す。(2) script の誤りで未判定になる時に限り、§2.5 のとおり batch を 1 回だけやり直す（新しい実行担当の session。§5 の検証経路と §7 の実行の記録のとおり）。(3) 判定 C の後、所見を含まない C' blind bundle を作り（入力は bundle の record・log・script と、HANDOFF は Phase B 完了時点の commit `c2947bd8` の blob。§7 の記録と発見 C・判定 C の所見は入れない）、§5 の予約どおり C' を Grok 系（cursor-agent）で行い、§8 に記録する。(4) Phase D は owner と行う（§0 の harvest to）。
   - 読む範囲: 進行役は §0、§2.5、§5、§6、§7。判断担当は既定のとおり（§0〜§7）。C' は blind bundle だけを読む。
   - 必要な権限: 判断担当は evidence bundle の fetch だけで足り、Unity を起動しない。やり直しの実行担当は §5 の検証経路の権限（repository の外の実験 project でだけ Unity を起動。この repository の `unity/` では起動しない（I1））。C' は cursor-agent（AGENTS.md の契約どおり Grok 系だけ。Codex CLI は 2026-11-12 から使えない）。§5 の予約が「Phase A・B・C に関与していないか」を満たすかは C' を起こす時に確かめ（Phase A の外部レビュー（cursor[bot]、§5.1）が使ったモデルを含む）、満たさなければ独立性の制約として §8 に記録する（risk `normal` のため強化条件は必須ではない）。判断担当のモデルが進行役と同じ等で独立性が弱まる場合も、同じく制約として記録する（高コストのモデルへ上げない）。push は SKILL の公開点の規則に従う。
   - 停止規則: 判定 C の判断担当が `HALT`・未判定と読んだ時は、§2.5 の停止規則のとおり owner へ返す。やり直しは 1 回まで。C' の指摘による差し戻しは SKILL の上限（3 巡）に従う。
   - 引き渡さないもの: C' に §7 の記録、発見 C・判定 C の所見、PR 本文を渡さない。
-  - 引き継ぐ commit: この票を含む commit（発見 C の実行の記録。SHA は起動指示と PR #191 の状態ブロックで渡す）。
+  - 引き継ぐ commit: この票を含む commit（発見 C・判定 C の判断の記録。SHA は起動指示と PR #191 の状態ブロックで渡す）。C' の blind bundle に入れる HANDOFF は、この commit ではなく (3) のとおり `c2947bd8` の blob とする。
 
 ## 1. 目的と対象外
 
@@ -375,7 +376,58 @@ owner は 2026-11-14 に次を決めた。未決事項は無い。
 
 ### 7.2 発見 C・判定 C の判断
 
-未着手
+- 種別: 判断担当（発見 C と判定 C）。2026-11-14。Unity は起動していない。batch のやり直しは無い。
+- 引き継いだ commit: `3e2f8552`（HEAD と一致を確認）。implementation head は `89604c70`。base から `3e2f8552` までの差分は `docs/` の 2 file だけ。
+- 使用した evidence bundle の取得案内・状態: §0 と同じ案内（ローカル固定済み（未昇格））。別の process の fetch で期待 packageSha256 の照合が通り、収録の 117 file を読んだ。bundle の `StampSpike.cs` の sha256 は §7.1 の実行前の値と同じ。
+- 独立性: 判断担当は Phase B と異なるモデル（commit の trailer で確かめた）。発見 C の実行担当とは同じモデルだが、実行担当は判断をしていない（§7.1）。進行役のモデルは確かめていない。独立性の制約として記録する（risk `normal`）。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors=0、warnings=0。
+
+**発見 C（script と record の構造・統制）。** 現在の問いを阻害する script の誤りは無い。やり直しはしない。
+- 責務マップとの照合: 実験の script は repository の外の 1 file（約 950 行。予想の約 400 行との差は §6 が説明している）。repository の差分は文書だけ。
+- AC3b (b) の上乗せは、script では計算（`StampInputs` の依存の列挙と型の判定、K1、`Hash128`）、書き込み、書き込み後の `Refresh` から N の `Refresh` を引いた値、戻し、戻し後の `Refresh`、build の差（負なら 0）の合計である。割る値は N の build の最小、引く値は最小（厳しい読み）と中央値（緩い読み）。§2.2 の定義と合う。record の T1〜T3 の値から合計を計算し直し、record の値と一致した。
+- 印の値の計算で、prefab・model の file を file の API で開く経路は無い（`KeyOf` の K0 だけが file を読み、段 2 の観測にだけ使う）。
+- 次の 4 点は判定を変えないので、阻害する誤りに入れない。
+  - N1: AC3 (e) の material の変更で、`Dep.mat` のバイトが変わったことを record が示していない（`SaveAssets` の後の sha256 を書いていない）。(e) は鍵の順位（GO・YES と CONDITIONAL ACCEPT (ii) の分かれ目）にだけ効き、下の GO・NO に影響しない。
+  - N2: 規模の build の AC5 (a) の走査は、接頭辞（`osm-stamp`・`OsmStamp`）と、印の値のうち最初の 5 つだけを探す。形が成り立つかの導出は、全ての印の値を探す小さい fixture の列で行っている。
+  - N3: 計算の所要は、依存の列挙、型の判定（`GetMainAssetTypeAtPath`・`AssetImporter.GetAtPath`）、鍵の取得に分けて採っていない。AC3b の不合格の内訳（§2.5 の GO・NO が求める粒度）は record で足りる。
+  - N4: 実行中に、無関係な project の Unity の batch が 3 本動いていた（§7.1）。所要の値に CPU の競合が入りうる。上乗せは 5% の基準の約 5 倍で、この競合で合否は変わらないと読む。
+
+**判定 C（AC ごと。期待値は §5 の fixture の値から導いた。script の `ac*`・`holds` の行は読み直しにだけ使った）。**
+
+| AC | M | F2 | 根拠（record・`record/outputs/`） |
+|---|---|---|---|
+| AC0 | 成立（共通） | — | C2 の `SOuter` の `.cf`（目印 (40,41,42) を持つ file）が `Inner` の (1,2,3) を持ち (4,5,6) を持たない。C2 の書いた数 0 |
+| AC1 | 成立 | 成立 | B1〜B6 の各回で、`SOuter` の file が `Mid` (10,11,12)・`Outer` (7,8,9) とその回の `Inner` の列だけを持ち、`SShared1`・`SShared2` がその回の `Shared` の列だけを持つ。`Model` の頂点は `.resS` にあり、その回の版だけがある（v1 (-31,32,33)、v2 (-34,35,36) は import した Mesh から作った値） |
+| AC2 | 成立 | 成立 | 書いた数は B2 1、B3 0、B4 0、B5 2、X2 0。B3 の Scene の file は B2 と、B4 は B1 と名前・sha256 が一致。B5 の `SOuter` は B2 と一致。印を入れた file の sha256 は B2=B3、B1=B4。X1・X2 で固定の文字列が build の直前に残り、X2 の `SOuter` は `Inner` の v1。(g): path の指標は働き（B2 は `SOuter`、B5 は `SShared1`・`SShared2`、B6 は `SModel`）、B6 に禁止の path は無い。ID の指標も働き（B2・B5 の ID はどれも B1 にある）、B6 の ID に B2・B5 の ID は無い。B6 の `SModel` 以外の印の file と出力は B5 と一致 |
+| AC3 | 鍵: K1 成立、K2 成立、K3 成立 | — | 段 2 の値で、`Inner` と `Model.obj` は v2 で変わり、v1 のバイトで最初の値に戻り、更新時刻だけでは変わらない（v2 をもう一度書くと v2 の値）。K3 の値は全ての時点で K1 と同じ。(e): K1・K2・K3 とも、texture の変更でも material の変更でも `Dep` の値は変わらない（N1 の限界あり）。K2 は `Inner` の編集で `Mid`・`Outer` の値が変わらない（file のバイトだけを見る）。build の鍵は K1、§2.7 の (1) |
+| AC3b | **不合格** | **不合格** | 規模の fixture の照合は全て通った（prefab 3,000、入れ子 1,000、material 10、Scene ごとの instance 420、file 約 1.01 MB）。両形とも T3 まで届き、(a)・(a2) が成り立つ。緩い読みの上乗せが割る値の 5% を超える（下の表）ので、順に当てはめた 4 番目で不合格 |
+| AC4 | 成立 | 成立 | 小さい列と規模の列の全ての build で、前後の棚卸しが一致。batch の終わりの棚卸しは始め（6 file）と名前・バイトとも一致 |
+| AC5 | 成立 | 成立 | (a) どの出力にも印の文字列が無い（N2 の範囲）。(b) B6 と R の出力は、Scene の file を含めて名前・sha256 が全て一致（manifest と `BuildManifestHash.txt` を除く）。(c) 出た Warning は C1 にもある「Fallback fonts are not supported」だけで、段 3 の Error・Warning は 0 |
+| AC6 | 成立（共通） | — | ブランチの差分は `docs/` だけ。record の project は repository の外で、開始時の棚卸しは実験の script と root の型の 6 file だけ |
+
+AC3b の上乗せ（ms、厳しい読み。割る値は N の build の最小で、M 15,343、F2 14,658）:
+
+| 回 | 計算 | 書き込み | `Refresh` の差 | 戻し | 戻し後の `Refresh` | build の差 | 合計（厳しい / 緩い） |
+|---|---|---|---|---|---|---|---|
+| M T1 | 3,048 | 263 | 97 | 152 | 105 | 35 | 3,701（24.1%）/ 3,665（23.9%） |
+| M T2 | 3,014 | 268 | 102 | 150 | 105 | 155 | 3,792（24.7%）/ 3,637（23.7%） |
+| M T3 | 3,029 | 267 | 97 | 157 | 105 | 353 | 4,008（26.1%）/ 3,746（24.4%） |
+| F2 T1 | 3,002 | 204 | 118 | 207 | 137 | 0 | 3,667（25.0%）/ 3,667（25.0%） |
+| F2 T2 | 3,042 | 205 | 118 | 212 | 129 | 16 | 3,721（25.4%）/ 3,705（25.3%） |
+| F2 T3 | 3,024 | 208 | 105 | 219 | 119 | 994 | 4,669（31.9%）/ 4,263（29.1%） |
+
+**§2.5 の読み: GO・NO（2 番）。** 上から順に当てはめた。
+- 1 番（未判定）には当たらない: AC0 は成立し、batch は `MIDEND` と `END` まで動き（`HALT`・`EXCEPTION` なし）、AC6 は成立。
+- 2 番（GO・NO）に当たる: 成り立つ印の形は M と F2 の 2 つで（AC1・AC2・AC4・AC5 を全て満たす）、その全てで AC3b が不合格。
+- 3 番（GO・YES）・4 番（CONDITIONAL ACCEPT）は、2 番に当たったので当てはめない。
+
+**owner へ返す内容（3 条件ごと）。**
+- 条件 1（cache）: M と F2 の両方で満たした。小さい fixture では、変更なしと前の版へ戻した build が Scene を書かず（書いた数 0）、編集した prefab を置いた Scene だけを書き、model だけの編集で他の Scene を作り直さなかった（AC2 (g) を 2 つの指標で読めた）。規模でも、source を変えない印ありの build が書いた数 0 で T0 と同じ出力を出した。
+- 条件 2（安い検知）: 鍵は満たした。K1（`GetAssetDependencyHash`、public）は file を開かずに、中身の変更・戻し・更新時刻だけの変更を正しく区別し、入れ子の外側の prefab の値も内側の編集に追従した。**しかし規模（Scene 300、prefab 3,000）での 1 回の上乗せが、印なしの build の約 24〜32% で、5% を満たさない。** 上乗せの約 8 割は印の値の計算（Scene ごとに `GetDependencies(scene, true)` で依存を列挙し、`GameObject` と `ModelImporter` の物に絞って K1 を連ねる。300 Scene で約 3.0 秒）である。測ったのは「Scene ごとに依存を列挙して値を作る → 書いて `Refresh` → build → 戻して `Refresh`」の手順だけで、別の手順（例えば、製品の build の入力の snapshot が既に持つ依存閉包（§1）を使い回す、列挙を Scene の間で共有する）は測っていない。
+- 条件 3（source）: M と F2 の両方で満たした。全ての build の後、`Assets` の下の全ての file が build の前と同じ名前・同じバイトだった。印の文字列は出力に無く、B6 の出力は印なしの基準 R と Scene の file を含めて一致した。
+- 測っていないもの: 印の形 E・F、検知の代替 K4・K5（§2.7）。K2 は成り立ったが build に使っていない。model の編集は印なしでも取りこぼされなかった（C3 で v2 の頂点が出た）ので、B6 が示すのは「印が model の頂点の編集を妨げない」ことだけで、model の編集のうち Scene に焼き込まれる側（階層、Transform）は測っていない。範囲は 1 process の batch、Unity 6000.6.0f1、texture を持たない合成の規模の fixture で、CPU の競合がありうる（N4）。
+
+- 停止規則: GO・NO で終了する（§2.5）。追加の実測はしない。§0 の次の作業 (3) の C' へ進む。
 
 ## 8. Phase C'
 
