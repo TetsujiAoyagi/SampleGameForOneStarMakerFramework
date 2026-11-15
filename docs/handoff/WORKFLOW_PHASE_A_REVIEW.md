@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（revision 2、公開レビュー指摘の修正。前headのC/C′は新headへ流用しない）
+- status: `B`（revision 2、発見 C の差し戻しと公開レビュー 6902992449 の修正。判定 C・C′ は未実施）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: この票を含む commit
+- implementation head commit: 9c203c395e2813df8bff46abd9202afa1fc6512f
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
 - Phase B result snapshot / evidence / C′ blind bundle: 旧headのraw・所見・最終記録はローカル固定・取得確認済みで保持する。新headはB出口後に固定diffと新検証を別途保存・配布する。旧bundleを新headの合格証拠としない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次はCの修正差分確認・判定、その後C′。§0と§5〜§10、固定diffと本chatの取得案内から成果物を確認する。旧headの所見は既存StorageとGit履歴に保持し、新headの合格根拠にしない。人間のmerge指示・task全体完了指示は未取得であり自動実行しない。worktreeとGit外原記録を保持する。採用後の観察は既存B/C記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は B（差し戻しの修正）。§7 の発見 C の指摘 F2 と、PR #194 のコメント 6902992449（公開レビュー 1 巡）を、既存 AC と責務マップの範囲の B 適応として 1 commit で修正する。範囲を超える判断が要るなら実装せず §6 に理由を書いて返す。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。修正後の次担当は発見 C（差し戻しを出した C の session が続ける）。C′ は起動しない。旧 head の所見は Git 履歴と既存 Storage に保持し、新 head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -85,7 +85,20 @@
 
 ## 7. Phase C
 
-- 新head: 未実施。旧headの原記録・所見は既存StorageとGit履歴で保持するが、新headの判定へ流用しない。
+- 種別: 発見 C（head 9c203c39）。差し戻し。GO 判定なし、C′ 未起動。旧 head の原記録・所見は既存 Storage と Git 履歴で保持し、この head の判定へ流用しない。
+- 担当・モデル: 新規 session、Claude Fable 5.2（Anthropic）。B の gpt-6.1-terra（OpenAI）と別モデル。owner の引継ぎ指示で開始した。前 session が起こした C 実行担当は報告を残さず終了しており、その生結果は入力にしていない。
+- 固定入力: base abfb29af / head 9c203c39 の commit 固定 diff（HANDOFF 以外 13 file）。HEAD・clean・origin の一致と、PR 状態ブロックの 3 つの SHA を開始時に照合した。
+- 構造適合: 13 file は §3 の責務マップ内。AGENTS.md の変更は条件付き 3 項目の 3 行だけで、code 契約の行は base と一致。A2 の固定 base と copy、Cloud・別 host の例外、A3 の Draft PR と凍結記録、`未固定` の停止句、C′ の blind session は AC1〜AC3 と対応する。
+- 現在の問いを阻害する findings:
+  - F2（AC4「対応が欠ける文は動かさない」）: 旧 AGENTS の「本番の Scene / Prefab / Addressables 等の変更は依頼された範囲に限り、広範な再生成・上書きは個別に影響を確認する」に対応する文が移動先で欠けている。`osm-unity-editor/SKILL.md` に残るのは「依頼範囲外の…を広く再生成・上書きする」の禁止だけで、範囲外の小さな変更の制限と、広範な再生成・上書きの個別の影響確認が無い。9c203c39 で転記段落を削った時に生じた。Unity の他の 11 文、stall の 5 文、Storage の 6 文は移動先と必読経路（AGENTS の 3 行、`phase-b.md`、`phase-c.md`、Harness README、Artifacts README、`review-evidence.md`）に到達する。
+- 公開レビュー 6902992449（同じ head 宛て、前 session の後に着信）: C の阻害指摘ではなく、公開レビュー 1 巡として B が扱う。
+  - 指摘 1（`edited` で PR 本文・タイトルの編集のたびに Offline checks 全体が再実行される）は事実。9c203c39 の pull_request run は 2 回あり、どちらも `Require develop PR base` を含む全 job が走った。§10 で入れた `edited` の副作用である。C からの補足: develop の ruleset に必須 status check は無い。job を `if` で skip する形にすると、本文編集の run の skipped が同じ SHA の先行 run の結果より後に並ぶ。重い job の check を上書きしない構成（base 検査を別 workflow にする等）も B が比較する。
+  - 指摘 2（AGENTS.md L31 の発火条件）は規則の欠落ではない。L31 を削ると、Unity テスト・Build を計画・実行する担当から Skill への必読経路が AGENTS から消えるので、C は現状維持を支持する。
+  - 指摘 4（`phases-and-handoff.md` L41 の段落分け）は内容を変えない整形。採否は B。
+- 後続スライスへ移送する findings: なし。
+- 実行（発見用。判定必須としては未実行扱いで、修正後の head でやり直す）: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` 38 executed / 0 failed、`git diff --check` 合格。全て exit 0、実行前後で HEAD と clean を確認。workflow から抽出した base 検査の本文は `develop` で exit 0、`main`・`Develop`・空で exit 1。
+- 判定必須のうち未実行: 判定 C の全部。#193 / #194 の公開時系列の机上確認、新版側の smoke（9c203c39 で移動先の本文と AGENTS の入口の文言が変わったので、旧 head の新版 3 回はこの head の観測ではない。旧版側は base のままで入力も同じ）。
+- 未確認事項: push event での skip は workflow の `if` の読取りだけで、実 run は merge 前には無い。
 
 ## 8. Phase C′
 
