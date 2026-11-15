@@ -209,11 +209,28 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
   `overlayUnmatched`（`path`・`reason`）、`overlaySharedAssets`。上書きでない build では印が false、配列が空、`overlayBase` の各欄が空文字。
 - **publish の拒否:** `ContentTransportPublisher.Publish` は、outcome の `overlay` か、preflight の `excluded` に `NotInSubset` があれば拒む。
   上書きと、selected を絞っただけの build は配らない。
-- **既知の不成立（未解消）:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の Unity の差分 build が
-  古い Scene の出力を再利用し、上書きに編集が入らない（[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)
-  「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）。編集した texture 等を直接参照する Scene と、Object の root の
-  prefab は正しく入る。回避（Scene に、焼き込む prefab のハッシュの印を持たせる）は program §8 の S2-2b。それまで、Scene に prefab を
-  置く project でこの入口を使う時は、build の前に `BuildPipeline.CleanBuildCache()` が要る（差分 build を全て捨てる）。
+- **Scene に焼き込む prefab の版の印:** Unity の差分 build は Scene の file と `.meta` のバイトを鍵にし、Scene に焼き込まれる prefab の
+  編集を鍵に入れない（[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)
+  「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）。そのため `UnityContentDirectoryAdapter` は、build の間だけ
+  Scene の `.meta` の `userData` の行に、その Scene が焼き込む prefab と model の版の印を書き、build の後に元のバイトへ戻す。目的 build と
+  上書きの build の両方に効き、cache を捨てず、prefab が変わっていない Scene は作り直されない。
+  - 印を書く Scene は、projection の root のうち `.unity` で、閉包（`ProjectedContent.Closure`）に main asset が `GameObject` か
+    importer が `ModelImporter` の asset を持つ物。印の値は、それらの path の序数順に path と `AssetDatabase.GetAssetDependencyHash` を
+    連ねた列の sha256。製品の snapshot の閉包をそのまま使い、依存閉包を作り直さず、asset の file のバイトを読まない。
+  - 手順は、検査 → 前回の残りの戻し → 印の書き込み → 製品の `AssetDatabase.Refresh()`（印のための `Refresh` は別に呼ばない）→ build →
+    戻し（`ImportAsset`）。検査から製品の `Refresh` までを `DisallowAutoRefresh` / `AllowAutoRefresh` で囲む。`try` は 1 つ目の `.meta` を
+    書く前に始まり、`finally` の片付けの段は互いに止めない。build の後、`Assets/` と `ProjectSettings/` の全 file は build の前と同じバイトで、
+    印は出力に入らない。
+  - **build を止める条件:** 印を書く Scene か、前回の印の戻しの対象の Scene が Editor で開いている（変更の有無を問わない。開いている
+    Scene の `.meta` を書くと Editor が「modified externally」の dialog で main thread を止める）、その `.meta` が読み取り専用、
+    `userData` が空でも自分の印でもない値。どれも、どの file も書く前に `BuildFailure` で止まり、message に Scene の path を出す。
+    印を書かず戻しの対象でもない Scene は、開いていても未保存でも止めない。
+  - **異常終了からの回復:** 書く前に元のバイトを `Library/OneStarMaker/ScenePrefabStamp/<Scene の GUID>.json` に記録する。戻せずに
+    終わった印は、次の build の始めに記録から戻る（GUID から今の path を引くので、Scene を移動した後も戻る）。記録が失われた印
+    （`Library` を消した後）は、その Scene を root に含む次の build が `userData` の形から戻す。残った印を理由に build を止めない。
+    build の間に `.meta` の印の行以外が変わっていた時は、印の行だけを戻して Warning を出す。
+  - 外に保存するハッシュは持たず、public な型と issue code は増やしていない。測っていない範囲（Player、別の PC・`Library`、prefab
+    variant・override・unpack、開いている Editor での実 build）は実測の事実の「製品の build 経路での印」にある。
 
 ### Runtime の Content Directory 解決とロード（現況）
 

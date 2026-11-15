@@ -72,7 +72,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **OSM を含まない最小の再現:** package を持たない project で、prefab（子の位置 (1,2,3)）の instance を置いた Scene を build → prefab を (4,5,6) にして build → `CleanBuildCache()` の後に build、の 3 回で、2 回目は (1,2,3) のまま（build instruction 4 個中、変更 0）、3 回目で (4,5,6) になった。
 - **Scene に意味のない変更を入れた時:** 値を 1 つ変える、空の GameObject を足す、のどちらでも、その build は新しい版になったが、Scene を元のバイトに戻して build すると古い版に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。
 - **回避（最小の再現の project で成立）:** Scene に `EditorOnly` tag の GameObject を印の置き場として 1 つ置き、build の直前にその名前を、Scene が焼き込む prefab（`GetDependencies(scene, true)` の `.prefab`）の中身のハッシュに書き換え、build の後に Scene を元のバイトに戻す。prefab を v1 → v2 → v2 → v1 → v2 と進めて戻した 5 回の build で、全て正しい版が出た。2 回目は Scene の 1 個だけを作り直し、3〜5 回目は作り直し 0 で、v1 に戻した build は 1 回目と同じ出力を再利用した。印の名前は出力に無く、全 build の後の Scene は元のバイトと一致した。build のたびに印の object を新しく足す形は、object の fileID が毎回変わって Scene のバイトが毎回違い、正しいが cache が当たらなかった。
-- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。印を source に残さない形と、prefab の file を読まない検知の鍵は、下の「印の形と検知の鍵」で測った。製品の build 経路への実装は後続（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）。
+- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。印を source に残さない形と、prefab の file を読まない検知の鍵は、下の「印の形と検知の鍵」で測り、製品の build 経路に実装した（S2-2b、PR #193。下の「製品の build 経路での印」、契約は [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) §4）。
 
 ### 印の形と検知の鍵
 
@@ -90,6 +90,27 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **S2-2b への入力:** 判定は CONDITIONAL ACCEPT で、M の上乗せは 5% の合否が**未判定**（4.75〜5.16%）、F2 は**不合格**（4.79〜6.29%）だった。owner は 2026-11-14 に、この判定を書き換えずに、M と `GetAssetDependencyHash` の組を S2-2b の入力に採った。F2 は不合格の代替として残した（[program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。この組の上乗せの値は、上の前提（印の計算と書き込みを製品の snapshot の後・adapter の `Refresh` の前に置き、その snapshot の閉包をそのまま使う）の下でだけ成り立つ。
 
 測っていないもの（結果を変えうる）: Player の build、別の PC・`Library`、実データ（SampleGame）、texture を持つ規模の fixture、prefab variant・override を持つ instance・unpack した prefab、model の階層と Transform の編集、開いている Editor での build（測ったのは batch だけ）、build が途中で落ちた時の Scene の戻し、開いている Scene と読み取り専用の file、印の他の形（印の object を Scene に差し込む形、YAML のコメント行は公開文書が非対応と書く）、file の更新時刻で全バイトの読みを省く検知、`AssetPostprocessor` で prefab の保存を拾う検知、`BuildContentOptions.CleanBuildCache` が `CleanBuildCache()` と同じ効果か、cache を消した build の所要。
+
+### 製品の build 経路での印
+
+M と `GetAssetDependencyHash` の組を製品の `UnityContentDirectoryAdapter` に実装し、製品の `BuildContentCoordinator` で測った（2026-11-15、S2-2b、PR #193、Unity 6000.6.0f1、batch）。印の計算と書き込みは製品の snapshot の閉包をそのまま使い、製品の `Refresh` の前に書いてその `Refresh` で読ませる（印のための `Refresh` は無い）。fixture は合成 1 つで、入れ子の prefab（`Inner` を nest した `Outer`）の instance を置いた Scene、共有の prefab `Shared` の instance を置いた Scene 2 つ、prefab を置かない対照の Scene。同じ `Library` で 7 回 build した: B1 全て v1 で `Full`、B2 `Inner` だけ v2 で `Incremental`、B3 変更なしで `Incremental`、B4 `Inner` を v1 に戻して `Incremental`、B5 全て v2 で `Full`、B6 `Outer` だけ v1 に戻した source から逆引きした root を上書きとして build、B5' `CleanBuildCache()` の後に B5 と同じ source で `Full`。版は子の位置の float 列を出力の `.cf` で探して読んだ。
+
+- **入れ子と共有の prefab の編集が入った:** 7 回とも、出力の各 Scene はその回の手元の版の列だけを持った。B2 で、内側の prefab を外側の prefab 経由でだけ焼き込む Scene が (`Inner` v2, `Outer` v1) になった（印の無い時は v1 のままだった経路）。上書き（B6）の Scene も (`Inner` v2, `Outer` v1) で、Scene の file は B2 と同じ ContentHash だった。
+- **差分 build の再利用が残った:** `Incremental` の回の `BuildPipeline::WriteSerializedFile` の event で、B2 は印の値が変わった Scene だけを書き、B3 は Scene を 1 つも書かなかった（書いたのは毎回新しい生成 root だけ）。B4 の 4 Scene の ContentHash は B1 と同じだった。
+- **source が戻った:** 7 回とも、`coordinator.Build` が戻った直後に `Assets/` と `ProjectSettings/` の全 file が build の前と同じ sha256 で、各 Scene の `.meta` の `userData` は build の前と同じ（空）、生成 folder は残らなかった。対照の Scene の file と `.meta` は、14 回の前後とも sha256 と更新時刻が変わらなかった。
+- **印は出力に入らなかった:** 7 回とも出力に印の接頭辞は無く、B5 と B5' の 4 Scene の file は同じ ContentHash だった。Scene 以外の file には B5 と B5' で差があり、印と無関係にも起きる（「build をまたぐ同じ file」）ので、ここでは判定に使っていない。
+- **失敗経路（EditMode test、build の呼び出しを差し替えて）:** build の失敗・例外、build の前の例外、戻さずに終わった印の次の build での戻し（印の対象に含む時と、記録だけが残る時）、印の行以外を変えた `.meta` の部分的な戻しと Warning、2 つ目の `.meta` の書き込みの失敗、`Library` を消した後の印、Scene を移動した後の戻しで、build の後の `.meta` が元のバイトに戻った。開いている Scene・未保存の Scene・読み取り専用・自分の印でない `userData` では、どの file も書かずに止まった。
+- **開いている Editor での観察（実 build ではない）:** `DisallowAutoRefresh` の区間の中で書いた `.meta` は、自動 refresh で import されず、明示の `Refresh` で import された。開いている Scene の `.meta` を書いて import すると、Scene は読み直されず未保存の変更も付かなかったが、次の Editor の更新で「The open scene(s) have been modified externally」の dialog が出て main thread が止まった（戻した後も同じ）。このため、開いている Scene を書く build は止める。`Refresh` が script の compile を起こしても、`Refresh` は compile を始めて戻り、直後の行と `finally` は走り、domain reload は C# のスタックが抜けた後に起きた（1 回の観察）。
+- **測っていないもの（結果を変えうる）:** Player の build、別の PC・`Library`、実データ（SampleGame）、prefab variant・override を持つ instance・unpack した prefab、開いている Editor での実 build、Unity の build が importer を保存し直すか、host の project の `AssetPostprocessor`、上乗せの所要（owner の決定で測り直さず、上の「印の形と検知の鍵」の値の前提に合う置き方を構造で確かめた）。
+- **測り直し:** harness は製品に残さず、git の commit `2bc0c108` の `unity/Assets/OneStarMaker/Tests/Editor/Spikes/PrefabStamp/` にある（PR #193）。その commit を別の worktree に取り出し、Editor を閉じ、active build target を StandaloneWindows64 の Player にして、次の 2 つを順に別々の Unity process で実行する。record は `TestResults/pst/<run id>/` に書かれ、第 2 process が record と写した build の履歴から判定の行を計算し直す。B5' の `CleanBuildCache()` は、その PC の `Library` の build cache を全て捨てる。process の自然終了を待たず、XML と record の終了行で完了を読む（[Harness README](../../tools/Harness/README.md) の既知の終了 stall）。
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PrefabStamp.PrefabStampBuildProcess.Build
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PrefabStamp.PrefabStampVerdictProcess.Verdict
+```
 
 ## 同じ `Library` での再 build の所要
 

@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' 1 巡目を 2026-11-15 に完了した（PASS）。C' の後の外部レビュー（PR #193）を 2026-11-15 に記録した（実装の変更なし）。Phase D は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' 1 巡目を 2026-11-15 に完了した（PASS）。C' の後の外部レビュー（PR #193）を 2026-11-15 に記録した（実装の変更なし）。Phase D を 2026-11-15 に行った（マージ判断: マージする））
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `2bc0c108`
@@ -24,10 +24,10 @@
   - 次の Phase・役割: Phase D（owner の突合とマージ判断、保存・引渡し確認、harvest、HANDOFF 削除）。判定 C 2 回目（§7）と C' 1 巡目（§8）を初めて突き合わせる。
   - 読む範囲: 全節。
   - 必要な権限: マージは owner。Evidence の保存・引渡し確認と日次清掃 job の確認（review-evidence の Phase D）。
-  - 停止規則: harvest と HANDOFF 削除はマージの判断の後。harness（`Tests/Editor/Spikes/PrefabStamp/`）は §3 のとおり Phase D で消す。§2.6 の DR-1 の hook の例外を消す。
+  - 停止規則: harvest と HANDOFF 削除はマージの判断の後。harness（`Tests/Editor/Spikes/PrefabStamp/`）は §3 のとおり Phase D で消す。§2.6 の DR-1 の hook の例外を消す。（Phase D で全て済み。§9）
   - Evidence: 発見 C 1〜3 回目用・判定 C 1・2 回目用・C' blind bundle はローカル固定済み（未昇格）。取得案内は進行役の共有メモにある。
   - 引き渡さないもの: なし。
-  - 未決: C' の確認範囲の限界（§8）を受け入れるか（owner の判断）。
+  - 未決: なし（C' の確認範囲の限界は 2026-11-15 に owner が受け入れた。§9）。
 ## 1. 目的と対象外
 
 - 目的: 製品の build 経路で Content Directory を build する時、Scene に置いた prefab の instance（入れ子を含む）を編集した後に同じ `Library` で build し直しても、出力の Scene が、build した時点の手元の prefab の版を焼き込んだものになるようにする。目的 build と上書きの build の両方に効かせる。cache を捨てず、prefab が変わっていない Scene では差分 build の再利用を失わない。prefab が変わったかの検知は、prefab の file を読まない軽さに保つ。build が終わった後の source には、build が書いた物を何も残さない。Editor で開いて保存していない Scene を含む build は止めてよく、その編集を壊さない。
@@ -474,4 +474,12 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 
 ## 9. Phase D
 
-未着手
+2026-11-15、進行役（本 session）が owner の指示で行った。
+
+- C / C' の突合: 判定 C 2 回目（GO、findings なし）と C' 1 巡目（PASS、F-01 は後続の入力）は、同じ head `2bc0c108` と同じ判定 evidence で、AC1〜AC10（AC8'）の全てを成立と読み、結論が一致した。食い違う所見は無い。C' の F-01（`docs-audit` の program の harvest の促し）は判定 C の外で、後続スライスの入力に残す（本スライスの harvest は program の S2-2b の行だけを更新し、§7・§8 全体の整理はしない）。C' の後の外部レビュー（Cursor の bot の F1）は事実確認で起きないと分かり（§8）、owner の依頼した独立レビュー（PR #193 のコメント、2026-11-15）も新しい blocking finding なしで GO の維持とした。
+- マージ判断: owner（root）が 2026-11-15 に、外部レビューに blocker が無いことを確かめてマージを指示した。§8 の未決「C' の確認範囲の限界」は owner が受け入れた（判定 C 2 回目が AC 行に依らず record で照合している）。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 発見 C 1〜3 回目用（2 回目の限定実行を含む）・判定 C 1・2 回目用・C' blind bundle の 7 束と、Phase D で新たにローカル固定したレビューの生出力の束（発見 C・判定 C・C' の指示書・最終出力・stream-json・stderr。所見の束で、盲検入力とは別）の計 8 束を、別の pwsh process で取得案内の reference と期待 packageSha256 から fetch し、全て `passed`、`stagingMissing` 0 だった。取得した束の XML の先頭（判定 C 2 回目と C' の束は total 1911、failed 0、root `Passed`）と MANIFEST を読めた。日次清掃 job は `evidence schedule status` が `passed`。全てローカル固定済み（未昇格）。
+- 取得案内の引渡し確認: 8 束の取得案内は進行役の共有メモ（git 管理外、削除予定の worktree の外）にある。
+- harvest: [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) §4 の「既知の不成立（未解消）」を「Scene に焼き込む prefab の版の印」の契約に置き換えた。[13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md) の「既知の不成立」の行を解消の記述にした。[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) に「製品の build 経路での印」（製品の経路の測定結果、開いている Editor での観察、測っていないもの、測り直し）を足し、前の節の「後続」の文を更新した。program §8 の S2-2b の行を完了にした。I1 (j) の経路（`Refresh` の domain reload で `finally` が走らない）は前提が誤りだったので書いていない。
+- 削除確認: harness（`Tests/Editor/Spikes/`、本スライスで足した folder ごと）を消した。測り直しは commit `2bc0c108` から取り出す（実測の事実の「測り直し」）。§2.6 の DR-1 の hook の一時例外を消した（git 管理外）。本書はこの記録の commit の後、マージの前に消す。
+- 通常の task 終了・後始末の状態と未完了事項: マージの後に `workflow-task.ps1 end`（completed）を記録し、本スライスの worktree・review の packet・`TestResults` の生出力を後始末する（元証拠は 8 束の取得を確かめた後に消す）。未完了事項は無い。
