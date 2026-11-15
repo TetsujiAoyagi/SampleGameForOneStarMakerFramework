@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
-- implementation head commit: `269f8223`
+- implementation head commit: この票を含む commit（差し戻し 1 巡目の修正。差し戻し前は `269f8223`）
 - risk: `high`（全ての製品の Content Directory build が、build の間だけ利用者の Scene の `.meta` を書き換える。破壊的な生成器に当たる）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -19,16 +19,16 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 発見 C 1 回目用と判定 C 1 回目用（判定必須 1 だけ）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、判定 C 1 回目から Phase B（差し戻し 1 巡目）へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄（head は差し戻し前の版）。引き継ぐ commit はこの票を含む commit（判定 C 1 回目の記録）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
-  - 次の Phase・役割: Phase B（差し戻し 1 巡目）。§7 の判定 C 1 回目の F1〜F3（AC5 (g)・AC7 (a)(d)・AC10。全て B 適応）を直す。修正後は実装と票を 1 つの commit で切り（implementation head 欄は「この票を含む commit」）、§6 に差し戻しの修正を足し、票を発見 C（2 回目）宛てに書き換える。
-  - 読む範囲: 既定（§0〜§5）と、差し戻しなので §6〜§8。
-  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head `269f8223` が HEAD の祖先で、`git diff --stat 269f8223 HEAD` が本書だけである。
-  - 必要な権限: 対象を限定した Editor の操作とコンパイル確認（AGENTS.md の Phase B の範囲）。Unity の test・harness・build の実行と判定は Phase C の責任で、B は行わない。
-  - 停止規則: §4 の差し戻す条件（§2.7 の外の書き方、Scene 本体を書く、印のための `Refresh`、閉包の作り直し、coordinator・public な型の変更）に当たる修正が要るなら止めて A 再開を報告する。凍結した AC の文言を変えない。新しい事実は「新しい事実の分類」で分ける。
-  - Evidence: 発見 C 1 回目用・判定 C 1 回目用の evidence bundle はローカル固定済み（未昇格）。C' blind bundle は未生成。
+- 引継ぎ票（2026-11-15、Phase B（差し戻し 1 巡目）から発見 C（2 回目）へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base は上の欄。implementation head と引き継ぐ commit は、どちらもこの票を含む commit（差し戻し 1 巡目の修正と本書の記録を 1 つにした commit）で、その SHA は起動指示で渡す（PR の状態ブロックは push の担当が更新する。B は push していない）。
+  - 次の Phase・役割: 発見 C（2 回目）。動作確認は `対象なし`（§5）。差し戻し 1 巡目の修正（§6 の「差し戻し 1 巡目」）が §7 の判定 C 1 回目の F1〜F3 を解くかを、凍結した AC で確かめる。修正は test の手順だけで、製品の source は変えていない。
+  - 読む範囲: phase-c.md の定める範囲（§0〜§8）。
+  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、implementation head 欄が「この票を含む commit」で、`HEAD^..HEAD` に `docs/handoff/` 以外の file（`ScenePrefabStampEditorTests.cs`）がある。`git diff --stat 269f8223 HEAD` が本書と `ScenePrefabStampEditorTests.cs` だけである。
+  - 必要な権限: phase-c.md の範囲。Unity の test・harness は進行役の session が実行担当として実行する（§2.6 DR-1）。
+  - 停止規則: 凍結した AC の文言を変えない。新しい事実は「新しい事実の分類」で分ける。
+  - Evidence: 発見 C 1 回目用・判定 C 1 回目用の evidence bundle はローカル固定済み（未昇格）。差し戻し後の head の発見 C 2 回目用・判定 C 用は未生成。C' blind bundle は未生成。
   - 引き渡さないもの: なし（C' には §7 を渡さない）。
-  - 未決: なし。
+  - 未決: なし。B で Editor のコンパイル確認と `contract-audit` を実行できなかった（§6）。
 ## 1. 目的と対象外
 
 - 目的: 製品の build 経路で Content Directory を build する時、Scene に置いた prefab の instance（入れ子を含む）を編集した後に同じ `Library` で build し直しても、出力の Scene が、build した時点の手元の prefab の版を焼き込んだものになるようにする。目的 build と上書きの build の両方に効かせる。cache を捨てず、prefab が変わっていない Scene では差分 build の再利用を失わない。prefab が変わったかの検知は、prefab の file を読まない軽さに保つ。build が終わった後の source には、build が書いた物を何も残さない。Editor で開いて保存していない Scene を含む build は止めてよく、その編集を壊さない。
@@ -304,6 +304,17 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness の 2 つの process は実行していない（Phase C）。Editor のコンパイル確認は済み（最後の変更の後に recompile が `compilationFailed: false`、新しい file の nullable の warning なし）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。AC1（製品の `Refresh` にまとめた印を Unity の build が読むか）の初回確認は §5 のとおり Phase C の限定実行。EditMode の成功の test は、build の継ぎ目の時点で `AssetImporter.userData` が印の値であることも確かめる（製品の `Refresh` が印を import した証拠。Unity の build が読む証拠ではない）。
 - implementation head commit: この票を含む commit
 - Phase B 担当・ベンダー: 本 session（Anthropic）
+
+### 差し戻し 1 巡目（2026-11-15、判定 C 1 回目の F1〜F3）
+
+- 修正（`ScenePrefabStampEditorTests.cs` だけ。製品の source・harness・凍結した AC は変えていない。3 件とも判定 C の分類どおり B 適応で、§4 の差し戻す条件に当たらない）:
+  - F1（AC5 (g)）: build の継ぎ目の観測（`Observe`）が固定の 3 つの path（移動前の `S1.unity` を含む）の `.meta` を読んでいた。観測の対象を「今回の root と fixture の Scene のうち `.meta` が今ある物」にした。製品の戻しは記録の GUID から今の path を引いており（`ScenePrefabStamp.cs` の `Prepare` の記録のループと `RestoreWritten`）、移動前の path を読む経路は無いことを確かめた。あわせて、移動後の Scene の build の間の `.meta` が今回の印を持つことと、継ぎ目が 1 回呼ばれたことを test に足した（移動後の Scene を今回も印の対象に含む AC5 (g) の経路を通った証拠）。
+  - F2（AC7 (a)(d)、と同じ手順を使う `OpenSceneThatNeedsNoStamp_DoesNotStop`）: batch の Editor では `new GameObject` だけでは Scene が dirty にならない。未保存の変更を作る手順を 1 つの helper（`MakeUnsavedEdit`）にまとめ、GameObject を対象の Scene に移してから `EditorSceneManager.MarkSceneDirty` で dirty を明示に付け、`isDirty` が true であることを前提として確かめる。対象は判定 C の 7 件のうち F1 以外の 6 件と、同じ手順の `UnsavedSceneThatIsNotActive_Stops`（判定 C で Failed の 1 件）。製品の停止の判定（AC8' により、印・戻しの対象の Scene が開いていれば変更の有無にかかわらず止める）は変えていない。
+  - F3（AC10）: F1・F2 の 7 件の解消による。他の差分は無い。
+- 新しい事実の分類: batch の Editor で GameObject の追加が Scene を dirty にしないことは、test の手順の問題（B 適応）。製品は I2 の判定に `isDirty` を使うが、AC8' の下では開いている対象の Scene を全て止めるので、batch で `isDirty` が立たないことは製品の停止に影響しない。
+- 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness は実行していない（Phase C）。**Editor のコンパイル確認は未実行**（この session では `tools/unity-editor.cmd` と PowerShell の script の実行が承認されず、Editor に接続できなかった）。**`pwsh tools/contract-audit.ps1` も同じ理由で未実行**。発見 C で両方を実行すること。差分は test の 1 file で、使った API（`EditorSceneManager.MarkSceneDirty`、`SceneManager.MoveGameObjectToScene`、`Enumerable.Distinct`）は同じ file の既存の `using` の範囲。
+- implementation head commit: この票を含む commit
+- 担当・ベンダー: 本 session（Anthropic）
 
 ### 動作確認
 

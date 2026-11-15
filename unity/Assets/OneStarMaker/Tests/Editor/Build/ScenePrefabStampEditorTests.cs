@@ -31,6 +31,7 @@ namespace OneStarMaker.Tests.Editor.Build
         private SceneSetup[] _setup = Array.Empty<SceneSetup>();
         private string _s1 = "", _s2 = "", _plain = "";
         private int _buildCalls;
+        private string[] _observed = Array.Empty<string>();
         private readonly Dictionary<string, string> _metaDuringBuild = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _importerDuringBuild = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _metaBefore = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -201,6 +202,9 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(AssetDatabase.MoveAsset(_s1, moved), Is.Empty);
             var result = Build(new[] { moved });
             Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(_buildCalls, Is.EqualTo(1));
+            // 移動後の Scene も今回の印の対象なので、build の間は移動後の .meta が今回の印を持つ。
+            Assert.That(State(_metaDuringBuild[moved]), Is.EqualTo(UserDataState.OwnStamp));
             Assert.That(File.ReadAllText(Disk(moved + ".meta")), Is.EqualTo(_metaBefore[_s1]));
             Assert.That(AssetImporter.GetAtPath(moved).userData, Is.Empty);
         }
@@ -212,8 +216,7 @@ namespace OneStarMaker.Tests.Editor.Build
         {
             Remember(_s1, _s2);
             var scene = EditorSceneManager.OpenScene(second ? _s2 : _s1, OpenSceneMode.Single);
-            new GameObject("UnsavedEdit");
-            Assert.That(scene.isDirty, Is.True);
+            MakeUnsavedEdit(scene);
             var result = Build(new[] { _s1, _s2 });
             AssertFailure(result, second ? _s2 : _s1);
             Assert.That(_buildCalls, Is.Zero);
@@ -229,8 +232,7 @@ namespace OneStarMaker.Tests.Editor.Build
             EditorSceneManager.OpenScene(_plain, OpenSceneMode.Single);
             var scene = EditorSceneManager.OpenScene(_s2, OpenSceneMode.Additive);
             SceneManager.SetActiveScene(SceneManager.GetSceneByPath(_plain));
-            SceneManager.MoveGameObjectToScene(new GameObject("UnsavedEdit"), scene);
-            Assert.That(scene.isDirty, Is.True);
+            MakeUnsavedEdit(scene);
             var result = Build(new[] { _s1, _s2 });
             AssertFailure(result, _s2);
             AssertUntouched(_s1, _s2);
@@ -273,7 +275,7 @@ namespace OneStarMaker.Tests.Editor.Build
             LeaveStamp(_s1);
             Remember(_s1);
             var scene = EditorSceneManager.OpenScene(_s1, OpenSceneMode.Single);
-            new GameObject("UnsavedEdit");
+            MakeUnsavedEdit(scene);
             var result = Build(stampedAgain ? new[] { _s1, _s2 } : new[] { _s2 });
             AssertFailure(result, _s1);
             Assert.That(_buildCalls, Is.Zero);
@@ -325,7 +327,7 @@ namespace OneStarMaker.Tests.Editor.Build
             // 印を書かず戻しの対象でもない Scene は、開いていても未保存でも止めない（file に触れない）。
             Remember(_s1, _plain);
             var scene = EditorSceneManager.OpenScene(_plain, OpenSceneMode.Single);
-            new GameObject("UnsavedEdit");
+            MakeUnsavedEdit(scene);
             var result = Build(new[] { _s1, _plain });
             Assert.That(result.IsSuccess, Is.True, result.Summary);
             AssertRestored(_s1);
@@ -338,6 +340,7 @@ namespace OneStarMaker.Tests.Editor.Build
         private BuildContentResult Build(IReadOnlyList<string> scenes,
             Func<BuildContentDirectoryParameters, UnityContentBuildResult>? build = null, (string path, string guid)? overrideGuid = null)
         {
+            _observed = scenes.Concat(new[] { _s1, _s2, _plain }).Distinct(StringComparer.Ordinal).ToArray();
             var candidates = scenes.Select(path =>
             {
                 var guid = overrideGuid != null && overrideGuid.Value.path == path ? overrideGuid.Value.guid : AssetDatabase.AssetPathToGUID(path);
@@ -372,11 +375,13 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         // build の呼び出しの時点の .meta と、Unity が import した userData。
+        // 今回の root と fixture の Scene のうち、今ある物だけを見る（移動した Scene の移動前の path は file が無い）。
         private void Observe()
         {
             _buildCalls++;
-            foreach (var path in new[] { _s1, _s2, _plain })
+            foreach (var path in _observed)
             {
+                if (!File.Exists(Disk(path + ".meta"))) continue;
                 _metaDuringBuild[path] = File.ReadAllText(Disk(path + ".meta"));
                 _importerDuringBuild[path] = AssetImporter.GetAtPath(path).userData;
             }
@@ -442,6 +447,16 @@ namespace OneStarMaker.Tests.Editor.Build
         }
 
         private static UserDataState State(string meta) => ScenePrefabStampRules.FindUserData(meta).State;
+
+        // 開いている Scene に未保存の変更を作る。batch の Editor では GameObject を足しただけでは Scene が dirty にならない
+        // （判定 C 1 回目の F2）ので、変更を足した上で dirty の印を明示に付ける。対話の Editor でも同じ状態になる。
+        private static void MakeUnsavedEdit(Scene scene)
+        {
+            var go = new GameObject("UnsavedEdit");
+            SceneManager.MoveGameObjectToScene(go, scene);
+            EditorSceneManager.MarkSceneDirty(scene);
+            Assert.That(scene.isDirty, Is.True, "the test could not create unsaved changes in " + scene.path);
+        }
 
         private string CreatePrefab(string name)
         {
