@@ -28,9 +28,9 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **新規または編集する Unity側の `.cs` は先頭に `#nullable enable` を置く。** 既存ファイルからも外さない。未対応の既存ファイルは残っており、一括整備は別スライスとする。
 - **path は `tools/path-budget.json` の予算に従う。** Unity 同梱の Mono は長い path を開けないので、repo 相対 path の長さと checkout のルートの長さを予算で制限する。数値と vendor の例外はその file だけにあり、contract-audit の検査 9 と `run-tests.ps1` の起動前検査が判定する。置き場所は指定しない。詳細は `tools/Harness/README.md`。
 - **Unity の偽 null を忘れない。** 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` / `ReferenceEquals` を使わず、`== null` / `!= null` で判定する。
-- **Unity Editor の運用:** 必要なローカル Editor 操作と Phase B/C の権限は [osm-unity-editor](.agents/skills/osm-unity-editor/SKILL.md) を必読とする。
+- **Unity Editor の運用:** Editor 操作やUnityテスト・Buildを計画・実行する作業では、着手前に [osm-unity-editor](.agents/skills/osm-unity-editor/SKILL.md) を読む。
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。
-- **既知のUnity native終了stall:** 調査の反復を避け、[Harness READMEの停止規則](tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) を必読とする。
+- **既知のUnity native終了stall:** Unityテスト実行前、または終了stallの調査前に [Harness READMEの停止規則](tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) を読む。
 - **参照 0 を削除理由にしない。** 未使用 API は意図的な先行宣言やフェーズ外の場合があり、置き換え残骸と確認できたものだけが削除候補になる。
 - **Artifact Storageの通常操作:** 対象作業では [事前承認](tools/Artifacts/README.md#エージェント操作の事前承認) と [レビュー証拠の保存・配布](.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) を必読とする。
 - **PR の base は `develop`。** `main` は既定ブランチとして使わない。

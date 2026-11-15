@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C′`（revision 2、実装・判定 C・独立監査完了。merge前）
+- status: `B`（revision 2、公開レビュー指摘の修正。前headのC/C′は新headへ流用しない）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: e41c56a9c9ad4b2a965e31384a90255bd9212ee2
+- implementation head commit: この票を含む commit
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
-- Phase B result snapshot / evidence / C′ blind bundle: B結果はCが取得・閲覧確認済み。判定raw・C所見は別packageでローカル固定済み（未昇格）。C′がblind rawと時系列一次事実の補足を別sessionでfetch・閲覧・内容照合し、rootもC所見を独立取得した。C′所見と最終記録の取得案内は本chatへ渡す。Cloud/別hostの取得成立は主張しない。
+- Phase B result snapshot / evidence / C′ blind bundle: 旧headのraw・所見・最終記録はローカル固定・取得確認済みで保持する。新headはB出口後に固定diffと新検証を別途保存・配布する。旧bundleを新headの合格証拠としない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次はDの人間によるPR確認・merge判断。§0と§5〜§9、固定diffと本chatの取得案内から成果物を確認する。実装headは上欄のまま。人間のmerge指示・task全体完了指示は未取得であり自動実行しない。worktreeとGit外原記録を保持する。採用後の観察は既存B/C記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次はCの修正差分確認・判定、その後C′。§0と§5〜§10、固定diffと本chatの取得案内から成果物を確認する。旧headの所見は既存StorageとGit履歴に保持し、新headの合格根拠にしない。人間のmerge指示・task全体完了指示は未取得であり自動実行しない。worktreeとGit外原記録を保持する。採用後の観察は既存B/C記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -76,35 +76,30 @@
 ## 6. Phase B 実装結果
 
 - 実装: A2の固定baseとHANDOFF copy、Cloud例外、A3 Draft PR・人間の凍結確認、C′のblind session、関連参照を更新。AGENTSの条件付き3項目を既存正本の入口に移し、Phase Cのstall必読を追加。audit説明を現行のB権限に合わせ、CIでPR baseをdevelopに制限した。
-- 条項別の移動・必読経路・機械検査の有無はGit外の既存作業記録に記載。AGENTSの他の全行は元版と一致。UTF-8/LF bytesは7945から5778。
+- 条項別の移動・必読経路・機械検査の有無はGit外の既存作業記録に記載。AGENTSのcode契約は元版と一致。初回実装のUTF-8/LF bytesは7945から5778（今回修正後は§10）。
 - 軽い確認: `pwsh -NoProfile -File tools/docs-audit.ps1` はエラー0、既存のharvest警告1。`pwsh -NoProfile -File tools/contract-audit.ps1` はエラー0・警告0（検査8は通常taskのためnot-applicable）。`git diff --check` 合格。
-- smoke準備: fork履歴なしの新規sessionでfixtureの読取・receipt作成・再読取が可能と確認。CLI経路は環境のpolicyにより読取が拒否され未実行。設定緩和・迂回なし。実smokeと親指示非混入の成立確認はCで行う。3項目の移動はその結果まで暫定。
+- smoke準備: fork履歴なしの新規sessionでfixtureの読取・receipt作成・再読取が可能と確認。CLI経路は環境のpolicyにより読取が拒否され未実行。設定緩和・迂回なし。実旧headのsmoke原記録は既存Storageで保持する。新headの確認状況は§7/§8に記録する。
 - 未実行: §5の完全な条項照合・PR #193/#194時系列、contract-audit tests、Harness.Tests、CIのPR/develop・PR/他base・pushの3分岐、smoke、判定C/C′。実Unity・実Storage操作は対象外。
 - implementation head commit: この票を含む commit
 - Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI
 
 ## 7. Phase C
 
-- 種別・判定: 発見・判定 C 完了、GO。AC1〜AC6に対する現在の問いを阻害する欠陥なし。C′は未実施で、merge許可ではない。
-- 担当・独立性: 新規sessionのgpt-6-astra/high（起動時の指定値、serving fingerprint未取得）。Bのgpt-6.1-terraと別モデル。固定入力を既存Artifact Storageからfetch・閲覧し、A3/B snapshotと完全diffのGit blob一致を確認した。
-- 構造・契約: 13変更fileは責務マップ内。AGENTS差分は条件付き3行のみで他の全行は一致。移動表のUnity12・stall5・Storage6条項、必読経路、リンク/anchorを照合した。code契約・B/C責任・固定head・C′blindは保持され、製品code/asset/asmdef・新基盤の変更なし。
-- A2/A3/Cloud/公開履歴: 通常A2の固定base＋copy/hash、必要時だけの補助snapshot、Cloud例外とassist、Draft公開後の修正、人間の凍結確認が整合。#193のA2→統合Draft→外部3巡→凍結、#194の公開修正→revision 2凍結→Bを机上で区別できた。旧「未固定ならB以外停止」が無くても、C/C′のcommit固定入力条件は残り、未固定を正式C入力にする認可はない。
-- 実行: `pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` registered/selected/executed各38の同集合・failed0。`pwsh -NoProfile -File tools/docs-audit.ps1` errors0 / 既存harvest警告1、`pwsh -NoProfile -File tools/contract-audit.ps1` errors0 / warnings0（検査8はnot-applicable）。全てexit0。Unity回帰は§5の適用除外。
-- CI3分岐: workflowから抽出した追加stepのbodyはPR/develop exit0、PR/他base exit1。pushはevent条件でskipし、既存push検査を保持。初回抽出はPython既定encodingにより失敗し呼出しexit64だったため、元ログを保持してUTF-8明示で修正した。GitHub engine全体の模倣ではない。
-- 限定smoke: 3場面×旧新各1回、計6別session、同じgpt-6-astra/low/fork-none指定。各pairの依頼/fixture値はbyte一致、旧新ラベル・正解・他回答は非提示。6件とも必要な文書を完成し、不要停止・重大な誤指摘は確認しなかった。stallは強制終了と調査予算を保持、Storageは確認済み取得を再利用して再承認せず、B結果はテスト未実行をCへ引き渡した。実Unity/Storage動作の成功証明ではない。
-- smoke経路の限界: documented fork-noneの履歴非継承、明示prompt、repo外fixture、祖先/user-level AGENTS不存在を根拠に採用。完全native startup traceは無く、モデル自己申告やtoken差による非注入証明はしていない。最初の2sessionは成果物生成後のusage-limit通知を保存し、owner指示後に同じsessionで既存成果物を再利用した。追加trialなし。
-- 効率・未確認: AGENTSはUTF-8/LF 7945→5778 bytes。役割別の参照集合と操作時刻はrawに保存。実token未取得、所要時間は使用枠停止を含むため比較不能。今回のfixture準備を通常A2の追加負担にしない。一般的な無劣化・遵守率・性能改善は実証していない。次の2〜3sliceの既存B/C記録での観察を維持する。
-- 保存・引渡し: offline raw、smoke入力・原回答・成果物・操作記録をC所見/採点/PR会話から分離して既存Storageへローカル固定済み。取得案内は本chatのrootへ渡す。別sessionの取得確認は未完了。C′へC所見を渡さない。C′起動・push・PR最終更新はroot担当。
+- 新head: 未実施。旧headの原記録・所見は既存StorageとGit履歴で保持するが、新headの判定へ流用しない。
 
 ## 8. Phase C′
 
-- 種別・判定: 初回・最終C′ PASS、現在の問いを阻害する欠陥0。独立監査完了後にCのGOと突合し、矛盾なし。
-- 担当・独立性: 新規fork-none session、requested gpt-6.1-sol/high。Bのgpt-6.1-terra、Cのgpt-6-astraと別model。PR会話、可変HANDOFF、C所見・採点・結論を事前に読まず、同じ固定base/headとblind rawを監査した。serving fingerprintは未取得、同じOpenAI系列という限界を残す。
-- 確認: 完全diff・A3/B・23移動条項/必読経路・CI source/生結果・offline原ログと対象集合・6smokeの原入力/原回答/成果物/操作記録を独自に閲覧。規則コピー120件とGit blob、および3pairの課題入力はbyte不一致0。新たなsource変更や重複試験は行っていない。
-- 取得確認: 188fileのblind入力と、同時点のAPI原取得からPR本文/C解釈を除いた時系列補足1fileを独立fetchし有限use/releaseまで完了。時系列の元packageへの収録不足は既存一次事実の補完で解消し、新しい観測/再試験やhead変更はない。rootはC′所見と取得確認を別途閲覧した。
-- 残存リスク: native startupの完全trace・実配信model指紋・実token未取得。操作記録はactorのjournalであり完全tool traceではない。fixtureのローカル文書作成に限るため、実Unity/実サービス、遵守率、一般的な品質無劣化・性能改善は未実証。停止時間を含むelapsedは比較不能。凍結した採用後観察を維持する。
+- 新head: 未実施。新しい固定diffと証拠を使う別sessionのblind監査を待つ。
 
 ## 9. Phase D
 
-- 実装と検証結果をPR #194へ反映し、人間の確認へ渡す。C/C′の突合は上記どおり。必要な原記録・両所見・取得確認・最終HANDOFFは既存Artifact Storageへ保存し、取得案内は本chatの既存引渡し先に保持する。
-- merge、harvest、HANDOFF削除、task全体終了、worktree削除は未実施。人間のmerge/完了指示を推測しない。taskはactive、現在のworktreeと原記録を保持する。
+- merge、harvest、HANDOFF削除、task全体終了、worktree削除は未実施。taskはactive、現在のworktreeと原記録を保持する。
+
+## 10. 公開レビュー修正（2026-11-16）
+
+- 入力: PR #194のコメント6893305170・6896983978・6902725811。ownerの「レビュー来てるから確認してみて」に基づき修正。旧判定対象はe41c56a9、前回配布commitは3becb7c0。既存AC1〜AC5と責務マップに対するB適応であり、目的・受け入れ境界や検証予算を増やさない。
+- 採用（合流前4点）: `未固定`時のB以外の停止句を復元。C′後の実装pushと早期pushの条件、Cloud・別host A2の例外を同じ規則に整合。Unity/Storageの全文転記を削り、既存節にLibrary/Lockfileと保護・対象外非削除の不足分だけを残す。AGENTSの必読に着手・実行・調査の発火条件を明記。
+- 採用（補足6点）: templateのA3凍結記録欄とPRの凍結状態、外部指摘で目的を変えた際の目的レビューと他の変更の再レビュー要否の人間裁定、Aの公開時のpublish規則必読、HANDOFF copyをcheckout外へ配置、Cloud以外の別host A2、CIのPR editedイベントを明記。
+- 後続候補: 自己SHA規則/handoff lint、レビュー巡数上限、low/trivial経路、旧H1/H2c等の分岐整理、A0予防策/Workflow suiteのCI追加/過去PR再生基盤。この5群は今回の凍結ACの欠陥修正に必要でなく、新設計・予算を要するため着手しない。別PRや新programも自動作成しない。
+- B確認: docs audit errors0/warnings2、contract audit errors0/warnings0（784 C# files、検査8対象外）、変更2Skillのquick_validate合格。diff check合格。新headのCで全23条項の到達とcode契約不変、CI trigger/baseを確認する。AGENTSはUTF-8/LF 5823 bytes、HANDOFFを除く全変更file合計はbase比496 bytes減。新headのC/C′は未実施。旧6smokeは旧headの観測として保持し、新headで実行したとは記載しない。Unity/product codeは変更しない。
+- 中断時: 現worktreeの差分を保持し、上記の残検証とC/C′から続ける。既存raw/取得案内はGit外で保全し、秘密・内部reference/hash/pathをPRへ転記しない。merge・終了・清掃は引き続き未実施。

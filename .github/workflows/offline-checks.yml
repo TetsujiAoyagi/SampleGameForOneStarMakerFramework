@@ -11,6 +11,8 @@ on:
       - main
       - develop
   pull_request:
+    # base の変更でも Require develop PR base を再実行する。
+    types: [opened, synchronize, reopened, edited]
 
 # どの job も checkout して読むだけなので、GITHUB_TOKEN は読み取りに絞る。
 permissions:

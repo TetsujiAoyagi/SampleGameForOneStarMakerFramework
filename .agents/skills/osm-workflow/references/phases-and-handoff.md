@@ -34,11 +34,11 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-同一PCの通常 A2 は commit を要しない。既存 code と規則は固定 base commit の clean detached checkout から読み、同時点の HANDOFF 固定 copy と SHA-256 を渡す。担当は読む前に checkout の HEAD・clean 状態と copy の hash を照合し、送信元の可変 tree を正本にしない。改訂版も同様に固定する。A2 記録に base SHA と HANDOFF hash を残す。目的レビューは原文だけを渡す別規則に従う。
+同一PCの通常 A2 は commit を要しない。既存 code と規則は固定 base commit の clean detached checkout から読み、checkout の外に置いた同時点の HANDOFF 固定 copy と SHA-256 を渡す。担当は読む前に checkout の HEAD・clean 状態と copy の hash を照合し、送信元の可変 tree を正本にしない。改訂版も同様に固定する。A2 記録に base SHA と HANDOFF hash を残す。目的レビューは原文だけを渡す別規則に従う。
 
 Git 外の補助 file がレビューに必要な場合だけ、既存の Phase A snapshot と [取得経路](review-evidence.md#保存先とリモートへの配布) を使い、同時点の内容を固定して渡す。全 A2 に新しい manifest・stage / fetch・取得 receipt を要求しない。A3 凍結 script 方式では script と期待値も必要な入力であり、読めなければ正規レビューにしない。
 
-Cloud A2 で Git 配布が必要な場合だけ、例外として A2 入力 commit と push を許す。Cloud という理由だけでは切らない。Git 外の必須証拠が取得・閲覧できなければ assist とし、例外 commit は PR 作成や B 開始の認可にならない。A3 統合案を commit して Draft PR を作り、外部計画レビューする。公開後の修正はレビュー1巡につき原則1 commit とする。人間の凍結判断、対象 revision と次担当 B を記録してから凍結版を commit し、その SHA を票の外で渡す。C / C' が使う凍結済み Phase A snapshot の取得案内・状態を §0 に記録する。判定 C の期待値と照合 script は [置き場所](review-evidence.md#判定-c-の照合-script) に従う。
+Cloud・別 host の A2 で Git 配布が必要な場合だけ、例外として A2 入力 commit と push を許す。Cloud・別 host という理由だけでは切らない。受取側も固定版を照合し、Git 外の必須証拠が取得・閲覧できなければ assist とする。例外 commit は PR 作成や B 開始の認可にならない。A3 統合案を commit して Draft PR を作り、外部計画レビューする。公開後の修正はレビュー1巡につき原則1 commit とする。外部指摘の採否は人間が A3 で裁定し、目的・利用者を変えた場合は既存の目的レビューのやり直しに従う。それ以外の設計・受け入れ条件の変更は、影響する A2 観点の再レビューの要否と理由も採否に記録する。人間の凍結判断、対象 revision と次担当 B を記録してから凍結版を commit し、その SHA を票の外で渡す。C / C' が使う凍結済み Phase A snapshot の取得案内・状態を §0 に記録する。判定 C の期待値と照合 script は [置き場所](review-evidence.md#判定-c-の照合-script) に従う。
 
 この節の固定 checkout と copy・補助 file の規則は目的レビューに適用しない。既に進行中の task の再計画は求めない。
 
@@ -156,7 +156,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 - 渡された SHA と自分の worktree の HEAD が一致し、作業ツリーが dirty でない。HEAD の tree の HANDOFF にその票がある。
 - implementation head 欄が SHA なら、それが HEAD の祖先であり（`git merge-base --is-ancestor <implementation head> HEAD`）、implementation head から HEAD までの差分が `docs/handoff/` の HANDOFF だけである（`git diff --stat <implementation head> HEAD`）。他の file が差分に出れば implementation head の固定が壊れている。
 - 欄の値全体が「この票を含む commit」なら、HEAD と親の差分（`git diff --stat HEAD^ HEAD`）に `docs/handoff/` 以外の file があるときだけ implementation head は HEAD 自身である。差分が HANDOFF だけなら、記録 commit が欄を句にしている（句の引き継ぎ、SHA から句への戻し）ので停止する。
-- 欄が `未固定` なら Phase A の出口である。B は渡された commit の HANDOFF で人間の凍結記録、対象 revision、票の次担当 B を照合し、いずれかが無ければ停止する。`未固定` だけでは B 開始の根拠にならない。
+- 欄が `未固定` なら Phase A の出口であり、自分が Phase B の担当でなければ停止する。B は渡された commit の HANDOFF で人間の凍結記録、対象 revision、票の次担当 B を照合し、いずれかが無ければ停止する。`未固定` だけでは B 開始の根拠にならない。
 - 欄の値が SHA、「この票を含む commit」、`未固定` のどれでもなければ停止する。
 - PR が存在する間（C' を除く。C' は PR を読まない）は、状態ブロックの `引き継ぐ commit` が渡された SHA および HEAD と一致し、implementation base / head が §0 の欄と一致する。`引き継ぐ commit` は票の中の値とは比べない。欄が句のときは、状態ブロックの implementation head は `引き継ぐ commit` と同じ SHA である（状態ブロックは tree の外なので SHA を書ける）。
 

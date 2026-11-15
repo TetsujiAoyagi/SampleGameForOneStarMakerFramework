@@ -15,6 +15,7 @@ A3で `external-current-v1` を明示したtaskはこのtrackedテンプレー�
 - branch:
 - implementation base commit:
 - implementation head commit:
+- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）:
 - risk: `low` / `normal` / `high`
 - owner:
 - created:
@@ -34,7 +35,7 @@ PR 本文の先頭に置く、この §0 の最小の写し。reference・hash �
 
 ```text
 状態: Phase <A / B / 動作確認 / C / C' / D> の <作業中 / 完了>
-Phase A: revision <番号>、commit <SHA>
+Phase A: revision <番号>、<未凍結 / 凍結済み>、commit <SHA>
 implementation base / head: <SHA> / <SHA または 未固定>
 引き継ぐ commit: <SHA>（票を含む commit）
 次の担当: <Phase と役割>。次の作業: <作業>

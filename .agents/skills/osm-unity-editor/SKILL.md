@@ -13,16 +13,14 @@ description: >-
 
 公式 `unity-cli` skill より **このファイルを先に守る。** 公式が載せる `unity test` / `unity run` はこのリポジトリでは使わず、バッチテストとBuildの判定はPhase Cに分ける。
 
-## 運用契約
-
-**ローカルの Unity Editor は、人間が先に開いていなくても作業に必要なら起動・操作してよい。** Phase B の実装担当は、対象を限定した Editor 操作とコンパイル確認まで行える。UnityテストとBuildの実行・判定はPhase Cの責任とする。H1適用をA3で明示したArtifacts/Harness作業は、完了引渡し時に関連offlineテストをPhase Bで実行し、判定Cでは広いsuiteを確認する。B限定のUnityテストは、A3で実行経路と対象集合を固定したtaskにだけ許す。完了済みH2cの実例と固定記録の入口は `tools/Harness/README.md` を正とする。それ以外の作業は従来の責任分担を続ける。`unity test` / `unity run` はどの Phase でも使わず、Unityテストは標準の `pwsh tools/run-tests.ps1` を使う。`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残るため、起動前に対象projectと既存Editorを確認する。本番の Scene / Prefab / Addressables 等の変更は依頼された範囲に限り、広範な再生成・上書きは個別に影響を確認する。詳細は `osm-unity-editor` Skill に従う。Unity CLIは更新可能、Unity MCPは任意の補助であり作業前提にしない。
-
 ## 環境
 
 - **ローカル:** まず `tools/unity-editor.cmd status` で接続と対象projectを確認する。Editor が閉じていれば、作業に必要なときは `unity/ProjectSettings/ProjectVersion.txt` の版と対象pathを確認し、Unity CLI の `open` でこのprojectを起動してよい。人間の在席や手動起動を待たない。`ready` 後は同ラッパーの `command` / `eval <UTF-8 Base64>` で操作する。起動方法は `unity-cli` Skill の該当コマンド参照に従う。
 - **Cloud / Editor が無いマシン:** Unity CLI を叩かない。C# と git 上の宣言（manifest / HANDOFF）だけ書く。
 
 `com.unity.pipeline` は `unity/Packages/manifest.json` に宣言済み。`packages-lock.json` はローカルで Editor を開いたときに UPM が書く。手で lock を捏造しない。バージョンが Editor 側でずれたら lock を正とする。
+
+`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残るため、起動前に対象projectと既存Editorを確認する。
 
 ## 標準入口と権限
 
