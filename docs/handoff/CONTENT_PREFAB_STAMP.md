@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `A`（A3 統合版、未凍結。A2 の 3 件の独立レビューを採否に分類して反映した（§5.1）。2026-11-15 に owner が、凍結の前に draft PR で外部レビューを受けると決めた）
+- status: `A`（A3 統合版に凍結前の外部レビュー（PR #193）と主担当の点検を反映した版、未凍結。A3 凍結の承認待ち）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `未固定`
@@ -20,13 +20,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票（2026-11-15、A3 の凍結へ）:
-  - 次の Phase・役割: Phase A の A3（主担当と owner）。この票を含む commit は A3 統合版（未凍結）で、owner の指示で draft PR に載せ、外部レビューを受ける。外部レビューの指摘を §5.1 の採否の表に足して分類し（目的・利用者の 2 欄の文言を問う指摘は owner が裁定する。2 欄を変えたら、未関与の担当で目的レビューを 1 回やり直す）、反映した版を owner の凍結の承認の後に A3 凍結版として commit する。凍結版の票は Phase B へ向けて書き直す（引き継ぐ commit は凍結版の commit で、SHA は起動指示と PR 状態ブロックで渡す）。
+  - 次の Phase・役割: Phase A の A3（主担当と owner）。この票を含む commit は、A3 統合版に凍結前の外部レビュー（PR #193）と主担当の点検を反映した版（未凍結）である。owner が凍結を承認したら、票を Phase B へ向けて書き直して A3 凍結版を commit する（引き継ぐ commit は凍結版の commit で、SHA は起動指示と PR 状態ブロックで渡す）。外部レビューをもう 1 巡受ける場合は、指摘を §5.1 の表に足して分類する（目的・利用者の 2 欄の文言を問う指摘は owner が裁定し、2 欄を変えたら未関与の担当で目的レビューを 1 回やり直す）。
   - 読む範囲: Phase A の定めどおり全節。
   - 開始時の照合: Phase A の内部なので SHA の照合は無い。ブランチ `claude/content-prefab-stamp` の HEAD がこの票を含む commit で、作業ツリーが dirty でないことを確かめる。
   - 必要な権限: なし（A3 は Unity を起動しない）。
   - 引き渡さないもの: なし。
-  - Phase A の commit の例外: Phase A の commit は A2 入力版と A3 凍結版の 2 点と定めるが、owner の外部レビューの指示（2026-11-15）で、この A3 統合版を 3 点目の commit として公開する。凍結版は別の commit として切る。
-  - 未決: 外部レビューの指摘の採否と、A3 凍結の承認。
+  - Phase A の commit の例外: Phase A の commit は A2 入力版と A3 凍結版の 2 点と定めるが、owner の外部レビューの指示（2026-11-15）で、A3 統合版とその外部レビューの修正を公開 PR の commit として積んでいる（公開 PR の 1 巡ごとの修正 1 commit）。凍結版は別の commit として切る。
+  - 未決: A3 凍結の承認。
 ## 1. 目的と対象外
 
 - 目的: 製品の build 経路で Content Directory を build する時、Scene に置いた prefab の instance（入れ子を含む）を編集した後に同じ `Library` で build し直しても、出力の Scene が、build した時点の手元の prefab の版を焼き込んだものになるようにする。目的 build と上書きの build の両方に効かせる。cache を捨てず、prefab が変わっていない Scene では差分 build の再利用を失わない。prefab が変わったかの検知は、prefab の file を読まない軽さに保つ。build が終わった後の source には、build が書いた物を何も残さない。Editor で開いて保存していない Scene を含む build は止めてよく、その編集を壊さない。
@@ -72,11 +72,11 @@
 
 **不変条件**（起きてはいけないこと）
 
-- **I1 build の後に、build が書いた物を source に残さない。** build の成否にかかわらず、build が書いた Scene の `.meta` は build の始めのバイトに戻り、Unity の `AssetDatabase` も戻した版を見る。Scene の file 本体と、`Assets/`・`ProjectSettings/` の他の file は、build の前後で同じバイトである。build の間に build 以外が `.meta` の印の行以外を変えていた時は、印の行だけを元の形に戻し、他の行は触らずに Warning で知らせる。異常終了で戻せなかった印は、次の build の始めに戻る。
-  - 主張を崩しうる既存の経路: (a) 書いた後、`try` に入る前の処理（生成 folder の作成、marker の書き込み、製品の `Refresh`）が例外で止まり、戻しの処理に入らない（現在の adapter は `try` を 42 行の `Refresh` の後に始める）。(b) Unity の build 自体の異常終了・Editor の強制終了で `finally` が走らない。(c) 戻した `.meta` を `AssetDatabase` が import し直さず、次の操作（次の build の snapshot・利用者の Inspector）が印の版の `userData` を見る。(d) build の後、戻す前に Unity が asset を保存し直し（`SaveAssets` 等で importer を書き戻し）、元と違う版で `.meta` を上書きする。(e) 次の build の始めの「残りの戻し」が、利用者が後から変えた `.meta` を古いバイトで上書きする。(f) 書いている途中で 1 つの `.meta` の書き込みが失敗し（別の process が共有なしで開いている等）、それまでに書いた分が残る。(g) 書き込みと戻しが起こす Scene の再 import に、利用者の project の `AssetPostprocessor` が反応して別の source file を書く。(h) 異常終了の後に `Library` の記録が失われ（利用者が `Library` を消す）、次の build が印の付いた `.meta` を「元のバイト」として保存し、以後その版へ「戻し」続ける。(i) `finally` の片付けの 1 段（戻しの import、生成物の `DeleteAsset`）が例外を出し、残りの段が走らない。
-  - 探索した境界: adapter と coordinator の build の手順、`PlayerBuildProjectMutation` の前例、S2-2b-0 の batch（戻しと戻し後の `Refresh` で `Assets` の下の全 file が元のバイト）、A2 のアーキテクチャゲートが挙げた (f)〜(i)。未確認: 開いている Editor（batch でない）での `.meta` の書き換えと戻しの観測、Unity の build が importer を保存し直すか、host の project の `AssetPostprocessor`（SampleGame 以外）。
+- **I1 build の後に、build が書いた物を source に残さない。** build の成否にかかわらず、build が書いた Scene の `.meta` は build の始めのバイトに戻り、Unity の `AssetDatabase` も戻した版を見る。Scene の file 本体と、`Assets/`・`ProjectSettings/` の他の file は、build の前後で同じバイトである。build の間に build 以外が `.meta` の印の行以外を変えていた時は、印の行だけを元の形に戻し、他の行は触らずに Warning で知らせる。異常終了で戻せなかった印は、記録が残っていれば次の build の始めに戻る（記録が失われた印は、その Scene を root に含む次の build の始めに戻る）。
+  - 主張を崩しうる既存の経路: (a) 書いた後、`try` に入る前の処理（生成 folder の作成、marker の書き込み、製品の `Refresh`）が例外で止まり、戻しの処理に入らない（現在の adapter は `try` を 42 行の `Refresh` の後に始める）。(b) Unity の build 自体の異常終了・Editor の強制終了で `finally` が走らない。(c) 戻した `.meta` を `AssetDatabase` が import し直さず、次の操作（次の build の snapshot・利用者の Inspector）が印の版の `userData` を見る。(d) build の後、戻す前に Unity が asset を保存し直し（`SaveAssets` 等で importer を書き戻し）、元と違う版で `.meta` を上書きする。(e) 次の build の始めの「残りの戻し」が、利用者が後から変えた `.meta` を古いバイトで上書きする。(f) 書いている途中で 1 つの `.meta` の書き込みが失敗し（別の process が共有なしで開いている等）、それまでに書いた分が残る。(g) 書き込みと戻しが起こす Scene の再 import に、利用者の project の `AssetPostprocessor` が反応して別の source file を書く。(h) 異常終了の後に `Library` の記録が失われ（利用者が `Library` を消す）、次の build が印の付いた `.meta` を「元のバイト」として保存し、以後その版へ「戻し」続ける。(i) `finally` の片付けの 1 段（戻しの import、生成物の `DeleteAsset`）が例外を出し、残りの段が走らない。(j) 製品の `Refresh` が保留中の script の変更を compile し domain reload を起こすと、C# の `finally` が走らない（(b) と同じく次の build の始めの戻しで回復する）。(k) 開いている Editor で、`.meta` の書き込みが製品の `Refresh` より前に自動 refresh で import される（batch でしか測っていない）。(l) Scene を移動・改名した後に、記録の path が古いまま戻しが file を見つけられない。
+  - 探索した境界: adapter と coordinator の build の手順、`PlayerBuildProjectMutation` の前例、S2-2b-0 の batch（戻しと戻し後の `Refresh` で `Assets` の下の全 file が元のバイト）、A2 のアーキテクチャゲートが挙げた (f)〜(i)、外部レビュー（PR #193）が挙げた (k)・(l)、主担当の点検で足した (j)。未確認: 開いている Editor（batch でない）での `.meta` の書き換えと戻しの観測、Unity の build が importer を保存し直すか、host の project の `AssetPostprocessor`（SampleGame 以外）。
 - **I2 保存していない編集を壊さない。** build が印を書く Scene が Editor で開かれて未保存の変更を持つ時、build はどの file も書く前に止まり、未保存の変更はそのまま残る。印を書く Scene の `.meta` が読み取り専用の時も、どの file も書く前に止まる。
-  - 主張を崩しうる既存の経路: 既存の build は、開いている Scene の未保存の変更を無視して保存済みの file を build する（書かないので無害だった）。印を書くと Scene の asset が import し直され、Editor が開いている Scene を disk から読み直すと未保存の変更が消えうる。複数の Scene のうち一部を書いた後に別の Scene で止まると、書いた分が残る（I1 (f)）。
+  - 主張を崩しうる既存の経路: 既存の build は、開いている Scene の未保存の変更を無視して保存済みの file を build する（書かないので無害だった）。印を書くと Scene の asset が import し直され、Editor が開いている Scene を disk から読み直すと未保存の変更が消えうる。複数の Scene のうち一部を書いた後に別の Scene で止まると、書いた分が残る（I1 (f)）。前回の異常終了で残った印の戻しは `.meta` を書いて import するので、検査より前に行うと、印が残った Scene を開いて未保存の変更を持たせた状態で、戻しの import が未保存の変更を消してから止まる（外部レビュー F1）。
   - 探索した境界: 同上。未確認: 開いている Scene の `.meta` を書き換えて import させた時に、Editor がその Scene を読み直すか・dialog を出すか（§5 の未知の操作経路）。
 - **I3 印は出力に入らない。** 出力のどの file にも印の文字列が無く、印を入れた差分 build の Scene の file は、同じ source を cache を捨てて build した時の Scene の file と同じ sha256 である。
   - 主張を崩しうる既存の経路: `userData` が Scene の serialized file や他の file の中身に入る。Scene 以外の file の差（PR #180 の未統制の観察: script をまとめた file・URP `Lit`・`Resources/unity_builtin_extra` が build の組み合わせで別の hash になった。§2.8 U4）は印と無関係にも起きるので、本条件の判定に使わず record にだけ残す（A2 のアーキテクチャゲートの指摘 F11 で絞った）。
@@ -95,15 +95,15 @@
 AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で閉じる。「最終の版」は、その build の直前の手元の source の版をいう。
 
 - **AC1（S1）入れ子と共有の prefab の編集が入る。** §5 の fixture で、build の列 B1〜B6 と B5' の各回の出力に含まれる各 Scene の `.cf` が、その回の最終の版の子の位置の float 列を全て持ち、前の版の float 列を持たない（B6 は上書きなので、出力に含まれる Scene だけを見る）。合格例: B2（内側の prefab だけ v2）で、外側の prefab の instance を置いた `SOuter` の `.cf` が内側の v2 の列を持つ。不合格例: B2 で、内側の prefab を外側の prefab 経由でだけ焼き込む `SOuter` が v1 の列を持つ。
-- **AC2（S1）上書きにも入る。** B6 は、B5 と同じ `Library` で、`Outer` だけを v1 に戻した source から、編集した prefab をもとに `ContentOverlaySelection` が逆引きした root だけを上書きとして build する。`SOuter` の (`Outer` v1, `Inner` v2) はそれまでどの回も build していない組み合わせである。上書きの出力の `SOuter` の `.cf` が (7,8,9) と (4,5,6) を持ち、(10,11,12) を持たない（S2-2 の F-1 が、この経路で起きない）。
+- **AC2（S1）上書きにも入る。** B6 は、B5 と同じ `Library` で、`Outer` だけを v1 に戻した source から、編集した prefab をもとに `ContentOverlaySelection` が逆引きした root だけを上書きとして build する。`SOuter` の (`Outer` v1, `Inner` v2) は B2 と同じ組み合わせで、直前の B5（(v2, v2)）とは違う。上書きの出力の `SOuter` の `.cf` が (7,8,9) と (4,5,6) を持ち、(10,11,12) を持たず、`SOuter` の file の sha256 が B2 の `SOuter` と一致する（S2-2 の F-1 が、この経路で起きない。印が効かない実装は B5 の版を出す）。
 - **AC3（S2）再利用。** Unity の `Library/BuildHistory/<build>/BuildContentTEP.json` で、`Incremental` の回だけを数える（`Full` は workspace を空にするので数えない）。prefab を変えていない回（B3）は Scene の serialized file を 1 つも書かない（`BuildPipeline::WriteSerializedFile` の event の数え方は S2-2b-0 と同じ）。B2 で書く Scene の serialized file は `SOuter` の分だけである。prefab を前の版に戻した回（B4）の各 Scene の file の sha256 が、同じ版で build した回（B1）と一致する。
 - **AC4（S3）印を要らない Scene は書かれない。** fixture の対照の Scene `SPlain` の file と `.meta` は、全ての build の前後で sha256 と更新時刻が変わらない。
-- **AC5（I1）build の後に source が戻る。** harness の各 build で、`coordinator.Build` が戻った直後（harness が `Refresh`・`ImportAsset` を呼ぶ前）に、fixture の各 Scene の `.meta` の sha256 が build の前に harness が記録した値と一致し、`AssetImporter.GetAtPath(<scene>).userData` が build の前の値と一致し、`Assets/`（fixture の folder と adapter の生成 folder を除く）と `ProjectSettings/` の全 file の sha256 が build の前と一致する。各 Scene の file 本体の sha256 と更新時刻は変わらない。失敗経路（EditMode test。adapter の Unity の build の呼び出しを差し替える継ぎ目で確かめる。「元の値」は異常を起こす前に test が記録した値）: (a) 印を書いた後に build の呼び出しが失敗（継ぎ目が失敗を返す、または例外を投げる）した時も戻る。(b) 印を書いた後、build の呼び出しより前に止まった時（root の GUID の不一致を test が起こす）も戻る。(c) 印を書いたまま戻さずに終わった時（異常終了を模して、書いた後に戻しの処理を呼ばない）、次の build の始めに元の値に戻る。(d) (c) の後に利用者がその `.meta` の印の行以外を変えていた時は、次の build は印の行だけを元の形に戻し、他の行を変えず、`Debug.LogWarning` で Scene の path を出して続ける（`LogAssert.Expect` で確かめる）。(e) 印を書く Scene が 2 つあり、2 つ目の `.meta` を test が `FileShare.None` で開いたまま build した時、1 つ目の `.meta` が元の値に戻り、build は `BuildFailure` を返す。(f) 記録が無く、`userData` が印の形の行を持つ `.meta`（`Library` を消した後を模す）は、次の build の始めに印の行だけが元の形に戻り、Warning が出る。
+- **AC5（I1）build の後に source が戻る。** harness の各 build で、`coordinator.Build` が戻った直後（harness が `Refresh`・`ImportAsset` を呼ぶ前）に、fixture の各 Scene の `.meta` の sha256 が build の前に harness が記録した値と一致し、`AssetImporter.GetAtPath(<scene>).userData` が build の前の値と一致し、`Assets/`（fixture の folder の中の Scene とその `.meta` 以外を含む）と `ProjectSettings/` の全 file の sha256 が build の前と一致し、adapter の生成 folder（`Assets/OneStarMakerGenerated/BS2b` の下）が残っていない。各 Scene の file 本体の sha256 と更新時刻は変わらない。失敗経路（EditMode test。adapter の Unity の build の呼び出しを差し替える継ぎ目で確かめる。「元の値」は異常を起こす前に test が記録した値）: (a) 印を書いた後に build の呼び出しが失敗（継ぎ目が失敗を返す、または例外を投げる）した時も戻る。(b) 印を書いた後、build の呼び出しより前に止まった時（root の GUID の不一致を test が起こす）も戻る。(c) 印を書いたまま戻さずに終わった時（異常終了を模して、書いた後に戻しの処理を呼ばない）、次の build の始めに元の値に戻る。(d) (c) の後に利用者がその `.meta` の印の行以外を変えていた時は、次の build は印の行だけを元の形に戻し、他の行を変えず、`Debug.LogWarning` で Scene の path を出して続ける（`LogAssert.Expect` で確かめる）。(e) 印を書く Scene が 2 つあり、2 つ目の `.meta` を test が `FileShare.None` で開いたまま build した時、1 つ目の `.meta` が元の値に戻り、build は `BuildFailure` を返す。(f) 記録が無く、`userData` が印の形の行を持つ `.meta`（`Library` を消した後を模す）は、次の build の始めに印の行だけが元の形に戻り、file 全体の sha256 が印を書く前の値と一致し、Warning が出る。(g) 印を書いたまま戻さずに終わった後、その Scene を移動してから build した時も、次の build の始めに移動後の `.meta` が元の値に戻る。
 - **AC6（I3）印は出力に入らない。** 全ての build の出力の file のバイトに、印の文字列の接頭辞が無い。B5 の出力の各 Scene の file が、`BuildPipeline.CleanBuildCache()` の後に同じ source で build した B5' の Scene の file と同じ sha256 である。Scene 以外の file の B5 と B5' の差は record に残すが、この AC の合否に使わない。合格例: `SOuter`・`SShared1`・`SShared2`・`SPlain` の file が B5 と B5' で同じ sha256。不合格例: 印を入れた `SOuter` の file だけが B5 と B5' で違う。
-- **AC7（I2）未保存の編集と読み取り専用で止まる。** EditMode test で、(a) 印を書く Scene を Editor で開いて未保存の変更を持たせた時、(b) 印を書く Scene の `.meta` を読み取り専用にした時、(c) 印を書く Scene の `.meta` の `userData` が空でない時、build は `BuildFailure` の outcome を返し、その message が Scene の path を持ち、build の root のどの Scene の file と `.meta` も sha256 が変わらず、(a) の未保存の変更が Editor に残っている。止まるのは印を書く前で、差し替えた Unity の build の呼び出しは 0 回。印を書く Scene が 2 つあり、2 つ目だけが (a)〜(c) の時も、1 つ目の `.meta` は書かれない。
+- **AC7（I2）未保存の編集と読み取り専用で止まる。** EditMode test で、(a) 印を書く Scene を Editor で開いて未保存の変更を持たせた時、(b) 印を書く Scene の `.meta` を読み取り専用にした時、(c) 印を書く Scene の `.meta` の `userData` が空でない時、build は `BuildFailure` の outcome を返し、その message が Scene の path を持ち、build の root のどの Scene の file と `.meta` も sha256 が変わらず、(a) の未保存の変更が Editor に残っている。止まるのは印を書く前で、差し替えた Unity の build の呼び出しは 0 回。印を書く Scene が 2 つあり、2 つ目だけが (a)〜(c) の時も、1 つ目の `.meta` は書かれない。(d) 前回の印が残った Scene（記録あり）を開いて未保存の変更を持たせた時も、build は同じく止まり、どの `.meta` も書かず（残った印も戻さない）、未保存の変更が残る。(e) `userData` の値が空白 2 つ以上・タブなど、§2.7 の空の形でない時も (c) と同じく止まる。
 - **AC8（I1・I2）開いている変更の無い Scene。** 印を書く Scene を Editor で開いて変更を持たない時、build は成功し、build の後もその Scene が開かれたまま未保存の変更を持たず、`.meta` は AC5 のとおり戻る（EditMode test。継ぎ目が成功を返す）。この AC の経路は未確認（§5）。
 - **AC8'（AC8 の代替）。** 印を書く Scene が Editor で開いていれば、変更の有無にかかわらず build は `BuildFailure` を返し、どの file も書かれず、差し替えた Unity の build の呼び出しは 0 回（EditMode test）。Phase B が AC8 の経路を確かめて不成立だった時だけ、AC8 に替えてこの AC を判定に使う。どちらを採ったかを §6 に記録する（U3 (b) への切り替え。A3 で合意済み）。
-- **AC9（S4）閉包の使い回しと書き込みの時点。** 単体 test で、印の値が、渡した閉包の path の列と、path ごとに返す（印の対象か、鍵の値）だけから決まり、閉包の並びの順に依らない。Phase C が、新しい 2 file と adapter の差分に `GetDependencies` と、`.meta` 以外の file を読む API（`File.Read*`・`FileStream` 等）の参照が無いこと、印の書き込みが製品の `Refresh` より前にあり印のための `Refresh` が無いことを差分で確かめる。
+- **AC9（S4）閉包の使い回しと書き込みの時点。** 単体 test で、印の値が、渡した閉包の path の列と、path ごとに返す（印の対象か、鍵の値）だけから決まり、閉包の並びの順に依らない。Phase C が差分で次を確かめる。新しい 2 file と adapter の差分に `GetDependencies` の参照が無い。印の値の計算が asset の file のバイトを読まない（記録の置き場と `.meta` の読み書きは許す）。印の書き込みが製品の `Refresh` より前にあり、印を build に読ませるための別の `Refresh` が無い（戻しの `ImportAsset` は数えない）。検査の後から製品の `Refresh` までが `AssetDatabase.DisallowAutoRefresh`／`AllowAutoRefresh` の対で囲まれ、`finally` で戻る。
 - **AC10（全体）非退行と範囲。** 全 EditMode 回帰が通る（XML の failed 0 と root result `Passed`）。差分は §3 の file と §5 の harness と文書だけで、`Scripts/Runtime/`、coordinator、SampleGame の source を変えない。
 
 ### 2.3 ここでは答えない問いと所有する後続
@@ -137,13 +137,13 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 
 2026-11-15 の owner の回答（U3・U5）と A3 の採否（§5.1）を反映した版。
 
-- **書く担当と時点:** `UnityContentDirectoryAdapter.Build` が、`ValidateTarget` と `CleanupOrphans`（と残りの戻し）の後、生成 folder の作成と製品の `AssetDatabase.Refresh()` より前に印を書き、その `Refresh` で Unity に読ませる。印のための `Refresh` を別に呼ばない。印の scope（`IDisposable`）は 1 つ目の `.meta` を書く前に開き、書き込みのループを scope の中に置く。scope は生成 folder の作成・製品の `Refresh`・root の作成・build を囲み、どこで例外が出ても戻す（現在の `try` の開始位置を前へ広げる）。coordinator は変えない。目的 build と上書きの build の区別をしない（どちらも同じ adapter を通る）。
+- **書く担当と時点:** `UnityContentDirectoryAdapter.Build` が、`ValidateTarget` と `CleanupOrphans`（と残りの戻し）の後、生成 folder の作成と製品の `AssetDatabase.Refresh()` より前に印を書き、その `Refresh` で Unity に読ませる。印のための `Refresh` を別に呼ばない。印の scope（`IDisposable`）は 1 つ目の `.meta` を書く前に開き、書き込みのループを scope の中に置く。検査の後から製品の `Refresh` までを `AssetDatabase.DisallowAutoRefresh` と `AllowAutoRefresh` の対で囲み（`finally` で戻す）、開いている Editor の自動 refresh が印の書き込みを製品の `Refresh` より前に import しないようにする。scope は生成 folder の作成・製品の `Refresh`・root の作成・build を囲み、どこで例外が出ても戻す（現在の `try` の開始位置を前へ広げる）。coordinator は変えない。目的 build と上書きの build の区別をしない（どちらも同じ adapter を通る）。
 - **印を書く Scene:** projection の root のうち `.unity` の物で、その root の閉包（`ProjectedContent.Closure`）に印の対象を 1 つ以上持つ物。対象を持たない Scene の file と `.meta` には触れない。この選択は純粋な規則（§3 の `ScenePrefabStampRules`）に置く。
 - **印の値:** root の閉包のうち、main asset の型が `GameObject` の物と、importer が `ModelImporter` の物を印の対象にし、path の序数順に「path と `AssetDatabase.GetAssetDependencyHash(path)` の値」を連ねた列の sha256 を 16 進で書く。閉包を作り直さず（`GetDependencies` を呼ばず）、asset の file のバイトを読まない。PC ごとに値が違っても、cache が当たらないだけで出力の正しさは変わらない。鍵の結果を Scene の間で使い回すかは B が決めてよい（同じ path の鍵を 1 回の build の中で 1 回だけ取る形は、値を変えない）。
-- **全てを検査してから書く:** 印を書く全 Scene について、`.meta` の `userData` の行が 1 行で見つかり値が空か、`.meta` が読み取り専用か、Scene が Editor で開かれて未保存の変更を持つか（AC8' を採った時は「開いているか」）を先に調べ、1 つでも止まる理由があれば、どの file も書かずに例外で止める（coordinator の既存の経路で `BuildFailure` になる。message に Scene の path と理由を書く）。`userData` が空でない、複数行の値を持つ、行が無い `.meta` は止める理由に入れる（空の行だけを印の対象にするので、印の行を元の形へ戻す規則が一意になる）。
+- **全てを検査してから書く:** source へ書く操作と import の前に、今回書く全ての `.meta`（印を書く Scene と、次の build の始めの戻しの対象）について検査する。順は「検査 → 戻し → 印の書き込み」で、検査で止まる時は戻しも行わず、残った印は次に書き込める build が戻す。未保存の変更は Editor に load されている全ての Scene（active でないものを含む）から見る。印を書く Scene については、`.meta` の `userData` の行が 1 行で見つかり値が空か、`.meta` が読み取り専用か、Scene が Editor で開かれて未保存の変更を持つか（AC8' を採った時は「開いているか」）を先に調べ、1 つでも止まる理由があれば、どの file も書かずに例外で止める（coordinator の既存の経路で `BuildFailure` になる。message に Scene の path と理由を書く）。`userData` が空でない、複数行の値を持つ、行が無い `.meta` は止める理由に入れる。空の形は `userData:` の直後が行末か、空白 1 つで行末の 2 つだけとし、空白 2 つ以上やタブは止める（印の行を元の形へ戻す規則がバイトで一意になる）。戻しの対象については、読み取り専用か、Editor で開かれて未保存の変更を持つかを調べる。
 - **書き方:** `.meta` の text の `userData:` の行の値だけを印の文字列に置き換え、他の行と改行の形（LF・CRLF）は変えない。印の文字列は固定の接頭辞と、元の行の末尾の空白の有無を表す 1 文字と、値の 16 進からなり、英数字と `-` だけを使う（引用なしの YAML の scalar として有効で、Unity が書き直す理由を作らない）。書き込みは `Library` の下の一時 file に書いてから置き換え、途中で落ちても `.meta` が半端なバイトにならないようにする（一時 file を `Assets/` の下に置かない）。Scene を Unity の API で開いて保存しない。製品の `Refresh` で印を Unity が読まない（AC1 不成立）時に、書いた後に Scene ごとに `AssetDatabase.ImportAsset` で読ませる形へ替えるのは S4 に触れるので、B 適応にせず A 再開とする。
-- **記録:** 書く前に、`.meta` ごとの元のバイトを `Library` の下の本スライス専用の場所に保存し、Scene の path・元の sha256・書いた後の sha256 を記録してから書く。記録の file 名は Scene の GUID から作り、path の長さを Scene の path に依らせない。記録の置き場は internal の引数で差し替えられ、test は一時 folder を使う。
-- **戻し（build の後と、次の build の始めで同じ規則）:** Scene ごとに、今の `.meta` が (1) 書いた後の sha256 のままなら元のバイトに戻す。(2) 違うが `userData` の行が自分の印の形なら、その行だけを元の形（記録した末尾の空白の有無）に戻し、他の行は触らず、`Debug.LogWarning` で Scene の path を出す。(3) `userData` の行が自分の印の形でなければ触らず、Warning を出す。(4) file が無ければ Warning を出す。どの場合も、その Scene の処理が終わってから、その Scene の記録を消す（まとめて消さない）。戻した Scene は Unity に import させる（`ImportAsset` か `Refresh` かは B が選ぶ。0 回にはしない）。次の build の始め（`CleanupOrphans` と同じ時点）には、記録が残っている Scene に加えて、記録が無いのに `userData` の行が印の形を持つ root の Scene の `.meta`（`Library` が消された後）にも (2) を当てる。
+- **記録:** 書く前に、`.meta` ごとの元のバイトを `Library` の下の本スライス専用の場所に保存し、Scene の path・元の sha256・書いた後の sha256 を記録してから書く。記録は Scene の GUID も持ち、file 名は Scene の GUID から作り、path の長さを Scene の path に依らせない。戻す時は GUID から今の path を引き（`AssetDatabase.GUIDToAssetPath`）、Scene の移動・改名の後も戻せるようにする。記録の置き場は internal の引数で差し替えられ、test は一時 folder を使う。
+- **戻し（build の後と、次の build の始めで同じ規則）:** Scene ごとに、今の `.meta` が (1) 書いた後の sha256 のままなら元のバイトに戻す。(2) 違うが `userData` の行が自分の印の形なら、その行だけを元の形（記録した末尾の空白の有無）に戻し、他の行は触らず、`Debug.LogWarning` で Scene の path を出す。(3) `userData` の行が自分の印の形でなければ触らず、Warning を出す。(4) file が無ければ Warning を出す。どの場合も、その Scene の処理が終わってから、その Scene の記録を消す（まとめて消さない）。戻した Scene は `AssetDatabase.ImportAsset` で Unity に import させる（0 回にはしない。`Refresh` は使わない）。次の build の始め（`CleanupOrphans` と同じ時点）には、記録が残っている Scene に加えて、記録が無いのに `userData` の行が印の形を持つ root の Scene の `.meta`（`Library` が消された後）にも (2) を当てる。
 - **片付けの段を互いに止めない:** `finally` の片付け（印の戻し、戻した Scene の import、生成物の `DeleteAsset`）は段ごとに例外を受け止め、最初の例外を保持して残りの段を走らせ、最後に保持した例外を投げ直す。段の順は B が決めてよい。
 - **Unity の build の継ぎ目:** adapter は「`BuildContentDirectoryParameters` を受け取り、成否を返す」internal の継ぎ目で `BuildPipeline.BuildContentDirectory` を呼ぶ。`BuildReport` を読む処理は既定の実装の中に置き、test の差し替えは成功・失敗・例外を返せる。
 - **開いている Scene（U3、2026-11-15 の owner 決定）:** 未保存の変更を持つ Scene は止める。変更の無い開いている Scene は書いて戻す（AC8）。AC8 が成り立たない時の代替は、印を書く Scene が開いていれば全て止める（AC8'）。印を書かない Scene は開いていても未保存でも止めない（file に触れないので壊さない）。
@@ -167,7 +167,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 | `Scripts/Editor/Build/Content/ScenePrefabStamp.cs`（新規） | 1 回の build の印の I/O: 検査、記録と元のバイトの保存、書く、戻す、戻した Scene の import、次の build の始めの戻し。path から（印の対象か、鍵）を返す継ぎ目 1 つと、記録の置き場の internal の引数を持つ | 書き方・戻し方・Editor の状態の扱いが変わる時 | 1 回の build（`IDisposable` の scope）。記録は `Library` の下で次の build まで | `UnityEditor`（`AssetDatabase`・`EditorSceneManager`）、`ScenePrefabStampRules`、projection の型 | internal | EditMode test（一時 Scene と一時 prefab。Unity の build なし） | adapter と同じ寿命と依存。adapter に入れると adapter が 2 つの I/O（生成 root と利用者の `.meta`）を持つので分ける | 0 → 約 200 |
 | `Scripts/Editor/Build/Content/UnityContentDirectoryAdapter.cs` | 印の scope を `CleanupOrphans` の後・製品の `Refresh` の前に開き、build の後に閉じる。次の build の始めの戻しを `CleanupOrphans` の時点で呼ぶ。`finally` の片付けの段を互いに止めない。Unity の build を「parameters を受け取り成否を返す」internal の継ぎ目で呼ぶ | 印の時点の変更 | 既存 | 既存 + `ScenePrefabStamp` | internal（変わらず） | 既存 + AC5・AC7・AC8 の EditMode test | 既存 | 173 → 約 210 |
 | `Tests/Editor/Build/ScenePrefabStampRulesTests.cs`（新規） | 純粋な規則の単体 test | — | — | — | — | — | 既存の `Tests/Editor/Build` | 0 → 約 180 |
-| `Tests/Editor/Build/ScenePrefabStampEditorTests.cs`（新規） | AC5 (a)〜(f)・AC7・AC8・AC8' の EditMode test | — | test ごとの一時 folder と一時の記録の置き場 | — | — | — | 同上 | 0 → 約 280 |
+| `Tests/Editor/Build/ScenePrefabStampEditorTests.cs`（新規） | AC5 (a)〜(g)・AC7 (a)〜(e)・AC8・AC8' の EditMode test | — | test ごとの一時 folder と一時の記録の置き場 | — | — | — | 同上 | 0 → 約 280 |
 | `Tests/Editor/Spikes/PrefabStamp/`（新規、Phase D で削除） | AC1〜AC6 の実 build の harness（`[Explicit]`） | — | process ごとの record | — | — | — | 実 build を伴う確認は製品の test に残さない前例（S2-0〜S2-2b-0） | 0 → 約 400 |
 
 - 行数警報: どれも 500 行未満。adapter の増加は約 21% で警報に当たらない。
@@ -182,7 +182,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 
 ## 5. テストとレビュー計画
 
-- 単体テスト: `ScenePrefabStampRulesTests`（印を書く Scene の選択（`.unity` で対象を持つ root だけ）、`userData` の行の検出が 0・1・2 行と複数行の値と空でない値で止まる、置き換えが他の行と改行の形（LF・CRLF）と元の末尾の空白の有無を保ち戻しで往復する、印の文字列が英数字と `-` だけ、印の値が閉包の順に依らず path と鍵の値のどちらの変更でも変わり印の対象外の path で変わらない、戻しの判断 (1)〜(4)）。EditMode test の fixture に CRLF の `.meta` を 1 つ入れる。
+- 単体テスト: `ScenePrefabStampRulesTests`（印を書く Scene の選択（`.unity` で対象を持つ root だけ）、`userData` の行の検出が 0・1・2 行と複数行の値と空でない値で止まる、置き換えが他の行と改行の形（LF・CRLF）と元の末尾の空白の有無を保ち戻しで往復する、印の文字列が英数字と `-` だけ、印の値が閉包の順に依らず path と鍵の値のどちらの変更でも変わり印の対象外の path で変わらない、空の形（`userData:` の直後が行末か空白 1 つ）だけを受け、空白 2 つ以上・タブを止める、戻しの判断 (1)〜(4)）。EditMode test の fixture に CRLF の `.meta` を 1 つ入れる。
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Build`（C が根拠付きで変更可）。
 - 判定必須テスト（GO 候補 head）。別々の Unity process で、この順に:
   1. `pwsh tools/run-tests.ps1`（全 EditMode 回帰）。合格は XML の failed 0 と root result `Passed`（`step.json` は VFX の Inconclusive で常に `failed` なので使わない）。他の Unity を止めてから実行する。
@@ -190,14 +190,15 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   3. harness の第 2 process（record と `Library/BuildHistory` から AC1〜AC6 を計算し直す）。
   - 2 と 3 は XML の total が 1 以上で failed 0、record に終了行があることを harness が最後まで動いた確認とし、判定 C が record を AC ごとに読む。process の自然終了をゲートにしない（既知の終了 stall は `tools/Harness/README.md` の規則）。
 - fixture と build の列（Phase B が名前を決めてよい）: 一時 folder に、内側の prefab `Inner`（子の位置 v1 (1,2,3) / v2 (4,5,6)）、`Inner` を nest した `Outer`（自分の子 v1 (7,8,9) / v2 (10,11,12)）、共有の `Shared`（v1 (13,14,15) / v2 (16,17,18)）。Scene は `SOuter`（`Outer` の instance）、`SShared1`・`SShared2`（どちらも `Shared` の instance）、対照の `SPlain`（prefab なし）。B1: 全て v1 で `Full`。B2: `Inner` だけ v2、`Incremental`。B3: 変更なし、`Incremental`。B4: `Inner` を v1 に戻す、`Incremental`。B5: `Inner`・`Shared`・`Outer` を v2、`Full`（目的 build の mode で prefab の編集が入ることを見る）。B6: B5 の後（B5' の前に行う）、`Outer` だけ v1 に戻した source から、`ContentOverlaySelection` で逆引きした root を、別の contentSet の上書きとして `Incremental` で build。B5': B6 で戻した `Outer` を v2 に戻し、`CleanBuildCache()` の後に B5 と同じ source を `Full` で build。期待値は fixture の source の値から導き、実装の出力から作らない。
-- record が必ず持つ値: head、Unity の版、各 build の identity・mode・root、build の前と `coordinator.Build` の直後の各 Scene の file と `.meta` の sha256・更新時刻と `userData` の値、`Assets/`（fixture と生成 folder を除く）と `ProjectSettings/` の全 file の sha256、各出力の file の名前と sha256、各 Scene の `.cf` の float 列の有無、`BuildContentTEP.json` の該当値（Scene の serialized file を書いた event の数と対象）、終了行。
+- record が必ず持つ値: head、Unity の版、各 build の identity・mode・root、build の前と `coordinator.Build` の直後の各 Scene の file と `.meta` の sha256・更新時刻と `userData` の値、`Assets/`（fixture の中の Scene とその `.meta` 以外を含む）と `ProjectSettings/` の全 file の sha256、`coordinator.Build` の直後に生成 folder が残っているか、各出力の file の名前と sha256、各 Scene の `.cf` の float 列の有無、`BuildContentTEP.json` の該当値（Scene の serialized file を書いた event の数と対象）、終了行。
 - 全 EditMode 回帰の適用除外: なし。
 - 統合・Unity テスト: 上の 2 と 3。
 - 発見 C の限定実行: harness が最後まで動く確認として 2 と 3 を各 1 回実行してよい（結果は判定に使わない）。
 - 操作・実行時・目視条件の検証経路: 全て上の Unity バッチと EditMode test で閉じる。担当は Phase C の実行担当で、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1 -Filter <完全名>` を起動する。初期状態は Editor を閉じ、active build target が StandaloneWindows64 の Player、作業ツリーが clean。目視は無い。証拠は record・XML・log を evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路:
   - 印の書き込みを製品の `Refresh` にまとめた時に Unity の Content Directory build が印を読むか（AC1・AC3）: 未確認。初回確認は Phase C の限定実行（Unity の build を伴うため。Phase A・B は build を行わない）。不成立時: Scene ごとに `ImportAsset` で読ませる形に替える。S4 に触れるので A 再開として A3 に戻す（§2.7）。
-  - 開いている変更の無い Scene の `.meta` を書いて import させた時に、Editor がその Scene を読み直すか・dialog を出すか・未保存の扱いにするか（AC8）: 未確認。初回確認は Phase B（Editor の操作として、一時 Scene を開いた状態で `.meta` の `userData` を書いて import させ、戻して import させ、Scene が開かれたまま・未保存の変更なし・dialog なしかを観測する。Unity の build を伴わない）。不成立時: 印を書く Scene が開いていれば全て止める（U3 (b)、A3 で合意する代替）。
+  - 開いている変更の無い Scene の `.meta` を書いて import させた時に、Editor がその Scene を読み直すか・dialog を出すか・未保存の扱いにするか（AC8）: 未確認。初回確認は Phase B（Editor の操作として、`DisallowAutoRefresh` の区間の中で、一時 Scene を開いた状態で `.meta` の `userData` を書いて import させ、戻して import させ、Scene が開かれたまま・未保存の変更なし・dialog なしかを観測する。Unity の build を伴わない）。不成立時: 印を書く Scene が開いていれば全て止める（U3 (b)、A3 で合意する代替）。
+  - 開いている Editor で、`DisallowAutoRefresh` の区間の中で書いた `.meta` が製品の `Refresh` より前に import されないか（I1 (k)）: 未確認。初回確認は Phase B（上の AC8 の観測と同じ Editor の操作で、書いた直後と `Refresh` の後の `AssetImporter.userData` を見る）。不成立時: 区間の中で import される経路を特定してから、新しい事実の分類に従う。
   - 開いている Editor（batch でない）で書いて戻した `.meta` を Unity が保存し直さないか（I1 (d)）: 未確認。上の Phase B の確認と、AC5 の EditMode test（開いている Editor で走る）で観測する。
   - 成立済み: 実 build の harness を EditMode の `[Explicit]` test から別の Unity process で流す経路（S2-0〜S2-2）。`.cf` のバイト走査で float 列を探す観測と `BuildContentTEP.json` の読み取り（S2-2 と S2-2b-0）。
 - 人間の判断が必要な条件: なし。
@@ -205,8 +206,8 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - 判定 C の照合 script の方式: 判定 C の offline 実行（harness の第 2 process）。期待値は fixture の source の値から導く。機械向けの期待値 file は持たない。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - A0/A1 主担当・モデル・ベンダー: 本 session（Anthropic）。A0 は program §8 の S2-2b の行、事実の文書の同じ節と「印の形と検知の鍵」、S2-2 の HANDOFF（commit `52612ede`）、PR #180 の commit `00119ac2` の観察、製品の `Editor/Build/Content` と `Editor/Build/Materialization` の source を入力とした。A1 の書き直し（2026-11-15）は base `980a69ad` で現況を取り直した。
-- C' 用に予約した担当・モデル・ベンダー: Grok 系（cursor-agent）。A2 は Anthropic の系列だけで行い、Grok 系を使っていない。
-- 独立性の強化条件を満たせない場合の理由: 未定（B・C の担当を決めた時に書く。owner が依頼する外部レビューの担当の系列も、C' の未関与の判定に数える）。
+- C' 用に予約した担当・モデル・ベンダー: なし。A2 は Anthropic の系列だけで行ったが、owner が依頼した凍結前の外部レビュー（PR #193、cursor の Grok 系）で Grok 系も Phase A に関与した。C' に使える系列は他に無い（Google 系は使えない）。
+- 独立性の強化条件を満たせない場合の理由: Phase A で Anthropic と Grok の両系列が関与したため、C' は Phase B・C に関与していない担当で行い、`独立性制約あり` と記録する（Phase A に未関与の系列は残っていない）。
 
 ### 5.1 A2 の独立レビューと A3 の採否
 
@@ -244,6 +245,20 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   | R3 | 契約の検査で `.meta` に印が無いことを grep する | 不採用 | 検査の仕組みを増やす。AC5 と次の build の戻しで足りる |
   | R3 | 入れ子を 2 段（`Inner`⊂`Mid`⊂`Outer`）にし、prefab の root も fixture に入れる | 不採用 | 2 段の入れ子は S2-2b-0 で測り済みで、本スライスの問いは製品の経路への組み込み。1 段で入れ子の経路を通る。prefab の root は S3 の対象外の判定で、規則は単体 test で確かめる |
   | R3 | 鍵の値を Scene の間で使い回す | 保留（B の選択） | §2.7 で B が決めてよいとした（値を変えない） |
+
+- 凍結前の外部レビュー（2026-11-15、owner の依頼。PR #193 の cursor のコメント 2 件、担当は Grok 系の cursor-agent、入力は A3 統合版 `c02bc9d4` の HANDOFF 全文と base の source）と、主担当が Phase C・C' の観点で行った点検（H）の採否:
+
+  | 指摘 | 内容 | 採否 | 理由・反映先 |
+  |---|---|---|---|
+  | X F1 | 残った印の戻しが未保存の検査より前に `.meta` を書いて import し、未保存の変更を消してから止まりうる（I2） | 採用 | §2.7 の順を「検査 → 戻し → 書き込み」にし、戻しの対象も検査する。load されている全 Scene の未保存を見る。止まる時は戻さない。I2 の経路、AC7 (d) |
+  | X F2 | 開いている Editor では、印の書き込みが製品の `Refresh` より前に自動 refresh で import されうる（S4） | 採用 | 検査の後から製品の `Refresh` までを `DisallowAutoRefresh` の対で囲む。戻しの import は `ImportAsset` に固定。I1 (k)、AC9、§5 の未知の操作経路（Phase B で観測） |
+  | X F3 | AC5 の照合範囲が F6 の採用より狭い（fixture の prefab と生成 folder を除いていた） | 採用 | AC5 で fixture の Scene 以外も照合し、生成 folder が残れば不合格。record も合わせた |
+  | X F4 | AC9 の差分検査が記録の読み戻しと戻しの `Refresh` を不合格にする | 採用 | AC9 を「印の値の計算が asset のバイトを読まない（記録と `.meta` は許す）」「印を読ませる別の `Refresh` が無い（戻しの `ImportAsset` は数えない）」に直した |
+  | X F5 | 記録の無い戻しがバイトで一意でない（空白 2 つ・タブ）、Scene の移動後に戻せない | 採用 | 空の形を 2 つに限り、他は止める（AC7 (e)）。AC5 (f) で file 全体の sha256 を見る。記録に GUID を持ち今の path を引く（I1 (l)、AC5 (g)） |
+  | X | Grok 系が Phase A に関与し、C' の未関与ではなくなる | 採用（記録） | §5 の C' の予約を外し、C' は `独立性制約あり` で行うと書いた |
+  | H1 | AC2 の「B6 の (`Outer` v1, `Inner` v2) はどの回も build していない」は誤りで、B2 と同じ組み合わせ | 採用 | AC2 を直し、B6 の `SOuter` の file が B2 と同じ sha256 であることを足した（正しい実装は B2 を再利用でき、印が効かない実装は B5 の版を出すので、F-1 の経路は捕まる） |
+  | H2 | 記録の無い残りの戻しは今回の root の Scene しか見ないので、I1 の「次の build の始めに戻る」が言い過ぎ | 採用 | I1 の文を「記録が失われた印は、その Scene を root に含む次の build の始めに戻る」に絞った。全 Scene の `.meta` を毎回走査する案は、build ごとの読みを増やすので採らない |
+  | H3 | 製品の `Refresh` が script の compile と domain reload を起こすと `finally` が走らない | 採用（経路の記録） | I1 (j)。回復は異常終了と同じ次の build の始めの戻しで足り、新しい AC は足さない（AC5 (c) が同じ回復を確かめる） |
 
 ## 6. Phase B 実装結果
 
