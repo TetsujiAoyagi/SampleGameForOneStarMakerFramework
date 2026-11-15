@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
-- implementation head commit: この票を含む commit
+- implementation head commit: `2bc0c108`
 - risk: `high`（全ての製品の Content Directory build が、build の間だけ利用者の Scene の `.meta` を書き換える。破壊的な生成器に当たる）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -17,17 +17,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3、§8 の S2-2・S2-2b-0・S2-2b の行）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）。本スライスは `Scripts/Runtime/` を変えないので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない制約の対象外
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
+- evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）・発見 C 3 回目用（diff と機械検査）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、Phase B（差し戻し 2 巡目）から発見 C（3 回目）へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。implementation head と引き継ぐ commit はどちらもこの票を含む commit（差し戻し 2 巡目の修正と票を 1 つの commit で切った）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
-  - 次の Phase・役割: 発見 C（3 回目）。動作確認は対象なし（§5）。§6 の差し戻し 2 巡目の修正（R2）を、前の head `5a97103a` からの差分と base からの差分で確かめる。この head ではコンパイル確認と `contract-audit` が未実行（§6）なので、発見 C で行う。
+- 引継ぎ票（2026-11-15、発見 C 3 回目から判定 C 2 回目へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（発見 C 3 回目の記録）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 次の Phase・役割: 判定 C 2 回目（実行担当と判断担当）。GO 候補 head は implementation head（未解決の blocker なし。B との往復 2 巡）。§5 の判定必須テスト 1〜3 を、この順に別々の Unity process で実行し、判断担当が XML・record・log を AC ごとに読む。
   - 読む範囲: 既定（§0〜§8）。
-  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file（`PrefabStampHarness.cs`）がある。`git diff --stat 5a97103a HEAD` が本書と `PrefabStampHarness.cs` だけである。
-  - 必要な権限: §5 の発見 C の限定実行（harness の 2 つの process を各 1 回、起点 filter）を行うなら、sandbox 外の承認済み経路で Unity を起動する権限。
-  - 停止規則: 凍結した AC の文言を変えない。新しい事実は「新しい事実の分類」で分ける。発見 C は GO 判定をしない。
-  - Evidence: 上の evidence bundle の欄のとおり（発見 C 3 回目用は未生成）。C' blind bundle は未生成。
-  - 引き渡さないもの: なし（C' には §7 を渡さない）。
+  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head `2bc0c108` が HEAD の祖先で、`git diff --stat 2bc0c108 HEAD` が本書だけである。PR の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に、implementation base / head が上の欄に一致する。
+  - 必要な権限: Unity の test の実行（`pwsh tools/run-tests.ps1`。§5 の初期状態: Editor を閉じ、active build target が StandaloneWindows64 Player、作業ツリーが clean）。harness の第 1 process は実 build を伴い、B5p の前に `BuildPipeline.CleanBuildCache()` を呼ぶ。sandbox 外の実行は既存の承認済み経路に従う。
+  - 停止規則: §4 の差し戻す条件に当たる指摘は Phase A を新しい revision で再開する。新しい事実は「新しい事実の分類」で分ける。既知の Unity の終了 stall は `tools/Harness/README.md` の規則に従う。
+  - Evidence: 上の evidence bundle の欄のとおり。判定 C 2 回目用と C' blind bundle は未生成。
+  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない（§7 は C' の入力にしない）。
   - 未決: なし。
 ## 1. 目的と対象外
 
@@ -302,7 +302,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   - AC5 (e) の test は、HANDOFF の `FileShare.None`（書く前の検査の読み取りで止まり、何も書かない）に加えて `FileShare.Read`（1 つ目を書いた後、2 つ目の置き換えで止まる）も確かめる。
   - EditMode test と harness は、active build target が StandaloneWindows64 Player でないと `Assert.Ignore`（既存の `BuildContentDirectoryIntegrationTests` と同じ）で走らない。判定 C は XML で `ScenePrefabStamp*` の test が skipped でないことを確かめる。
 - 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness の 2 つの process は実行していない（Phase C）。Editor のコンパイル確認は済み（最後の変更の後に recompile が `compilationFailed: false`、新しい file の nullable の warning なし）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。AC1（製品の `Refresh` にまとめた印を Unity の build が読むか）の初回確認は §5 のとおり Phase C の限定実行。EditMode の成功の test は、build の継ぎ目の時点で `AssetImporter.userData` が印の値であることも確かめる（製品の `Refresh` が印を import した証拠。Unity の build が読む証拠ではない）。
-- implementation head commit: この票を含む commit
+- implementation head commit: `269f8223`
 - Phase B 担当・ベンダー: 本 session（Anthropic）
 
 ### 差し戻し 1 巡目（2026-11-15、判定 C 1 回目の F1〜F3）
@@ -313,7 +313,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   - F3（AC10）: F1・F2 の 7 件の解消による。他の差分は無い。
 - 新しい事実の分類: batch の Editor で GameObject の追加が Scene を dirty にしないことは、test の手順の問題（B 適応）。製品は I2 の判定に `isDirty` を使うが、AC8' の下では開いている対象の Scene を全て止めるので、batch で `isDirty` が立たないことは製品の停止に影響しない。
 - 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness は実行していない（Phase C）。**Editor のコンパイル確認は未実行**（この session では `tools/unity-editor.cmd` と PowerShell の script の実行が承認されず、Editor に接続できなかった）。**`pwsh tools/contract-audit.ps1` も同じ理由で未実行**。発見 C で両方を実行すること。差分は test の 1 file で、使った API（`EditorSceneManager.MarkSceneDirty`、`SceneManager.MoveGameObjectToScene`、`Enumerable.Distinct`）は同じ file の既存の `using` の範囲。
-- implementation head commit: この票を含む commit
+- implementation head commit: `5a97103a`
 - 担当・ベンダー: 本 session（Anthropic）
 
 ### 差し戻し 2 巡目（2026-11-15、発見 C 2 回目の R2）
@@ -322,7 +322,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   - R2（AC5）: `PstFixture.Create` が marker（`Assets/OsmPst/osm-pst.marker`）を `File.WriteAllText` で書いた直後に、`AssetDatabase.ImportAsset(…, ForceSynchronousImport)` で import するようにした。import の後に marker の `.meta` が無ければ例外で止める（harness 自身の失敗にし、B1 の inventory の差として黙って出さない）。これで B1 の build の前の inventory に marker の `.meta` が入り、製品の `Refresh` が足す file は無くなる。inventory の取り方・AC5 の計算（第 2 process）は変えていない。
 - 新しい事実の分類: なし（R2 は harness の fixture の作り方の不備で、印の契約と責務配置に関わらない）。
 - 未実行: Unity の test と harness は実行していない（Phase C）。**Editor のコンパイル確認は未実行**、**`pwsh tools/contract-audit.ps1` も未実行**（この session では Unity の process の確認・PowerShell の script の実行が承認されなかった）。発見 C で両方を実行すること。差分は harness の 1 file の 6 行で、使った API（`AssetDatabase.ImportAsset`、`ImportAssetOptions.ForceSynchronousImport`、`File.Exists`）は同じ file の既存の `using` の範囲。
-- implementation head commit: この票を含む commit
+- implementation head commit: `2bc0c108`
 - 担当・ベンダー: 本 session（Anthropic）
 
 ### 動作確認
@@ -402,6 +402,18 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - 機械検査: `contract-audit` errors 0、warnings 0。`docs-audit` errors 0、warnings 1（program の harvest の促し）。
 - B との往復: 2 巡目へ。
 - 担当・モデル: 担当 1・2 とも会話履歴の無い新しい cursor-agent のプロセス（`grok-4.7-high`、xAI、`--mode=ask`。約 6 分と約 7 分）。担当 2 には担当 1 の結果と限定実行の生出力を渡した。Phase B の差し戻し 1 巡目は会話履歴の無い新しい Claude CLI のプロセス（Anthropic）。
+
+### 発見 C（3 回目、2026-11-15、差し戻し 2 巡目の後）
+
+- 種別: 発見。GO 判定はしていない。C' は起動していない。
+- 対象: implementation base `980a69ad` から head `2bc0c1080e415695d873a8dd90cf0d0230712910`（差し戻し 2 巡目の修正。commit 固定）。開始時の照合（起動指示の SHA と HEAD の一致、clean、implementation head 欄が「この票を含む commit」だけで `HEAD^..HEAD` に `PrefabStampHarness.cs` があること、`git diff --stat 5a97103a HEAD` が本書とその harness だけ）は一致した。§6 の 3 つの節（Phase B、差し戻し 1・2 巡目）の implementation head の行が句のまま残っていたので、本記録でそれぞれの実値に直した。
+- 使用した evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。base..head と前の head..head の diff・stat・name-status、head での `contract-audit`・`docs-audit`。取得案内は進行役の共有メモにある。
+- 静的レビュー: 差し戻しなし。R2 は解消した（fixture の作成で marker を書いた直後に `ImportAsset(ForceSynchronousImport)` し、`.meta` が無ければ例外で止める。`Create` は build の列の前で、inventory は各 build の直前と `coordinator.Build` の直後なので、B1 の前の一覧に marker の `.meta` が入る。AC5 の計算と照合の範囲は変わらない）。新しい findings なし。差分は harness の 6 行と本書だけ。
+- 限定実行: なし（判定 C で 1〜3 を実行する）。
+- 機械検査: `contract-audit` errors 0、warnings 0。`docs-audit` errors 0、warnings 1（program の harvest の促し）。
+- 未確認事項: この head の Editor でのコンパイル、Unity の test、harness（判定 C の範囲）。
+- B との往復: 2 巡（判定 C 1 回目の差し戻しと、発見 C 2 回目の差し戻し）。上限 4 巡の内。
+- 担当・モデル: 会話履歴の無い新しい cursor-agent のプロセス（`grok-4.7-high`、xAI、`--mode=ask`、約 5 分）。Phase B の差し戻し 2 巡目は会話履歴の無い新しい Claude CLI のプロセス（Anthropic）。
 
 ## 8. Phase C'
 
