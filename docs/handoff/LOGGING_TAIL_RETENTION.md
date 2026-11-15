@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（revision 1 の実装・テストコード整備完了、ローカル発見 C 待ち。コンパイル未確認、Unity テスト・Build 未実行）
+- status: `C`（revision 1 の発見 C・判定 C 完了。固定入力による独立 C′ 待ち）
 - branch: `codex/logging-tail-retention-design`
 - implementation base commit: `41099fb7a2c7e191d940614024031898214eed28`
 - implementation head commit: `0f05175fd188c366f44322c8bd7c0d2f94a42be3`
@@ -12,12 +12,12 @@
 - created: 2026-11-14
 - expires: 2026-11-30 または置換 revision
 - harvest to: Architecture §12 G5、Issue #183
-- task: `logging-tail-retention`。Windows の既存 Workflow で start / status 確認済み、active / version 1 / deliveryPending 0。Phase B の出口では task 全体を終了しない。
-- Phase A snapshot の取得案内・状態: A3 凍結 commit の本文を既存 Storage にローカル固定済み（未昇格）。本 B 出口チャットの取得案内を C 担当へ渡す。送信側の fetch・hash 検証・本文閲覧済みだが、取得側の別 session の fetch・閲覧確認は未完了。Cloud でのレビューは assist のまま、正式 A2 完了へ遡及変更しない。
-- Phase B result snapshot の取得案内・状態: 固定 implementation head の完全 diff、製品・恒久 fixture、静的 DLL 照合、機械検査、未確認事項を既存 Storage にローカル固定済み（未昇格）。本 B 出口チャットの同じ取得案内をローカル C 担当へ渡す。送信側 fetch・閲覧済み、取得側の別 session の確認は未完了。Unity 結果を含まず、GO / C′ 用の最終証拠ではない。
-- evidence bundle の取得案内・状態: 未生成。C 担当から C′ / D 担当へ。
-- C′ blind bundle の取得案内・状態: 未生成。所見と分離して C′ 担当へ。
-- 引継ぎ票: 次はローカル Windows PC の発見 C。別途渡すこの票を含む引継ぎ commit SHA と clean な HEAD、上記 implementation head（HEAD の祖先、そこからの差分は HANDOFF のみ）、PR 状態ブロックを照合する。読む範囲は §0〜§8 と §5.1 の凍結採否・制約。取得案内は本 B 出口チャットのリンク先（worktree 外に保全）で、A / B snapshot を別 session で fetch・hash 検証・閲覧して引渡し確認を完了する。必要権限は通常 repo 読取・既存 Workflow / Storage・Unity Editor と標準 run-tests.ps1。起動前に対象 project・既存 Editor・残存 lock を確認し、初期パッケージ導入とコンパイルを完了して §5 の起点 filter から検証する。同期条件不成立・DLL 不一致・責務や API 等の設計変更が必要なら A へ戻す。B は C の実行・判定、C′ 起動を代行しない。次担当は同一 PC を想定し、実装・記録 commit は未 push。別 host を割り当てる場合は配布と到達性の成立を別途確認する。Cloud assist と正式 A2 未完了の記録を維持する。
+- task: `logging-tail-retention`。Windows の既存 Workflow で start / status 確認済み、active / version 1 / deliveryPending 0。Phase C の出口を task 全体の終了へ変換しない。
+- Phase A snapshot の取得案内・状態: 既存 Storage にローカル固定済み（未昇格）。B 出口の取得案内から、別の C 実行 session が fetch・期待 hash 検証・凍結本文閲覧を完了。送信側だけの確認ではない。Cloud の assist を正式 A2 完了へ遡及変更しない。
+- Phase B result snapshot の取得案内・状態: 既存 Storage にローカル固定済み（未昇格）。同じ C 実行 session が fetch・期待 hash 検証・完全 diff と必須原記録の閲覧を完了。B snapshot 自体に Unity 結果を加筆せず、判定証拠は別 bundle に固定した。
+- evidence bundle の取得案内・状態: 同じ implementation base / head の凍結仕様・完全 diff・Unity 生証拠・機械検査を既存 Storage にローカル固定済み（未昇格）。本 Phase C 出口の共通取得案内を C′ / D 担当へ渡す。取得側 C 実行 session の fetch・hash 検証・必須内容閲覧、および新規判定 C の原記録閲覧を確認済み。
+- C′ blind bundle の取得案内・状態: 上記と同じ固定 package を所見と分離した専用取得案内で C′ へ渡す。C の結論・指摘・疑念、PR、可変 HANDOFF 全文は C′ 入力に含めない。取得側 C′ の確認は未完了。
+- 引継ぎ票: 次はローカル Windows PC の独立 C′。入力は本 Phase C 出口で別途渡す blind 取得案内と、その同じ base / head の固定 package のみ。C′ は PR・可変 HANDOFF・C の所見を読まない。通常 Workflow / Storage の既存権限で別 session の fetch・期待 hash 検証・閲覧を記録し、凍結条件と生証拠を監査する。テストの重複実行は不要。B 適応の差し戻しは C/C′ と異なる担当へ、API・依存・所有者・寿命・配置等の設計変更が必要なら A へ戻す。実装 head を変えたら旧判定を新 head へ流用しない。実装・記録 commit は同一 PC 向けに未 push。Cloud assist と正式 A2 未完了の記録を維持し、マージ・harvest・task 全体終了は行わない。
 
 ## 1. 目的と対象外
 
@@ -142,7 +142,15 @@ namespace、フォルダ、asmdef は既存のまま。新しい汎用 helper �
 
 ## 7. Phase C
 
-未着手
+- 発見 C: 新規 cursor-agent / `grok-4.7-high`（実績 Grok 4.7 256K High / xAI）、ask mode。固定 base / head の完全 diff を全文読み、責務マップ・契約・凍結失敗経路を先に確認。阻害欠陥なし、差し戻しなし。GO 判定は行っていない。製品2 file と既存テスト3 file の配置・所有・依存は計画どおり。単体 fixture の50%超増加は同じ entry 確定境界の検証で非分割妥当、tail fixture は400行で停止条件内。
+- 判定 C: 発見 C と別の新規 cursor-agent / 同じ実績 Grok 4.7 256K High、ask mode。B の GPT-6 系と異なるモデル。発見 C の所見を入力せず、共通固定 package の凍結仕様・完全 diff・原記録から I1〜I3 / S1、AC1〜AC5 / N1 に阻害欠陥なし、判定必須証拠が揃ったとして合格。担当・session・モデルの実績原記録は非公開 Evidence に保存する。
+- 実行担当: 上記レビュー2担当とは別の新規 Grok 4.7 256K High session。Unity 6000.6.0f1 の初期 import と compile を通過し、標準 `pwsh tools/run-tests.ps1` のみ使用。起点の3クラスは20/20 Passed、関連2クラスは8/8 Passed、`-WithGraphics`・空 filter の全 EditMode は1861/1861 Passed。各 XML の failed / skipped / inconclusive はすべて0。対象5クラスは7・1・12・4・4件で全件収録。全件の6 assembly は929・255・40・291・345・1件。
+- 終了状態: 上記3実行は XML 成功と別に wrapper / Unity process の exit 0 と自然終了を確認。全 EditMode の Unity process は約10分40秒。既知 native 終了 stall は再現せず、dump・原因調査・全件再実行は行っていない。別 project の既存 Editor は停止していない。Build / Player / AOT は凍結範囲外で未実行。
+- 生証拠: XML、全テスト名、実行コマンド・filter・graphics 条件、Unity / runner 生ログ・終了記録、fixture の全 bytes / notice、実行 assembly / DLL の path・hash を共通 bundle に収録。focused と full の tail `observations.txt` は、同じテスト process の checkout head、test assembly、ZLogger、Microsoft.Logging の実 path / hash、両 gate・B 正常復帰・両 Write 0・watchdog / producer / Dispose 完了を記録。正常 A は両 provider 各231 bytes、失敗通知は215 bytes・2行で N1 を満たし、成功対照は通知0。AC2 の A→C 2行と失敗のみ0 bytes も原記録で確認。
+- 収録時の訂正: 実行担当の中間記録は DLL runtime path を未採取としたが、元の tail `observations.txt` に既に存在し、判定 C が原記録で確認した。オーケストレーターがこの原記録を見落とし、tail 1件の追加観測（`-ObserveUnity`、1/1 Passed、process exit 0）と通常 Editor の読み取り専用 identity 観測を行った。追加分は補足であり元の必須3実行の代用ではない。原記録・中間記録・来歴を改変して取り繕わず保存する。
+- 未確認と来歴: テスト process 内の Logging.Abstractions の Location は未採取。別の通常 Editor では Unity の BCLExtensions がロードされ、vendored の Abstractions とは hash が異なる。ZLogger / Microsoft.Logging / test assembly の hash は元のテスト内観測と一致する。この別 Editor 観測を元のテスト process の load 一覧と扱わない。related の PID は実行担当が未採取で、オーケストレーターの別観測として保全した。ask の判定担当は git porcelain 等を再実行せず、実行担当とオーケストレーターの開始・終了照合の原記録を使用した。
+- 機械検査: `pwsh tools/contract-audit.ps1 -BaseRef` は上記 base に固定、errors 0 / warnings 0。`pwsh tools/docs-audit.ps1` は errors 0 / warnings 1（別 program の既存警告）、`git diff --check` は exit 0。Unity / tests が自動変更した vendor meta と URP 設定は差分を保全し、開始時 clean だった該当 path だけを HEAD に復元。実装変更・B 修正はなく、GO 候補 head は当初のまま。ローカル tag `evidence/logging-tail-retention/1` で保持する。
+- 保存・引渡し: A/B snapshot の取得側確認は完了。判定 C / C′ 共通入力はローカル固定済み（未昇格）で、取得側 C の fetch・期待 hash 検証・必須ファイル閲覧と判定担当の原記録閲覧を確認済み。所見は blind 入力から隔離。C′ の取得・監査は次担当。B↔C の修正往復0、C′差し戻し0。後続は既定の Player/AOT、I/O 回復、D の G5 harvest で、現スライスへ追加しない。
 
 ## 8. Phase C′
 
