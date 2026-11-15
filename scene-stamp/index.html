@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene の印の形と上乗せ</title>
+<meta name="description" content="prefab を編集した後の Content Directory の差分 build で古い prefab が残る不具合の回避を、印を source に残さない 2 つの形と、prefab の file を読まない検知の鍵で測り、Scene 300 の規模で build への上乗せを実測した記録。">
+<style>
+:root{
+  --bg:#fbfaf7; --fg:#1d1c1a; --muted:#5f5b54; --line:#dcd7cd; --card:#ffffff;
+  --accent:#2f5d8a; --ok:#2e7d4f; --bad:#b3412f; --code:#f1eee7;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+    --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181b; --fg:#e8e6e1; --muted:#a29d94; --line:#33373d; --card:#1e2125;
+  --accent:#7fb0e0; --ok:#6cc596; --bad:#ec8a78; --code:#262a2f;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.85 "Hiragino Sans","Noto Sans JP","Yu Gothic UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:48px 16px 80px}
+h1{font-size:1.75rem;line-height:1.4;margin:0 0 .4em}
+h2{font-size:1.25rem;margin:2.4em 0 .6em;padding-top:.6em;border-top:1px solid var(--line)}
+h3{font-size:1.05rem;margin:1.6em 0 .4em}
+p,li{color:var(--fg)}
+.lede{color:var(--muted);margin:0 0 1.6em}
+.scope{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px;font-size:.92rem;color:var(--muted)}
+.premise{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:6px;padding:12px 16px;font-size:.95rem}
+code{background:var(--code);padding:.1em .35em;border-radius:4px;font-size:.88em;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:1.2em 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .k{font-size:.8rem;color:var(--muted)}
+.card .v{font-size:1.9rem;font-weight:700;line-height:1.2;margin:.15em 0}
+.card .d{font-size:.85rem;color:var(--muted)}
+.table-wrap{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:560px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right;white-space:nowrap}
+td:first-child{white-space:nowrap}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--bad);font-weight:700}
+figure{margin:1.4em 0}
+figcaption{font-size:.85rem;color:var(--muted);margin-top:.4em}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.85rem;color:var(--muted);margin:0 0 .6em;padding:0;list-style:none}
+.legend li{color:var(--muted);display:flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px}
+.note{font-size:.9rem;color:var(--muted)}
+footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<h1>Scene の印を source に残さず、prefab の編集を差分 build に効かせる</h1>
+<p class="lede"><a href="../content-overlay-build/">前の記事</a>で、prefab を編集して同じ project で Content Directory を build し直すと、Scene に古い prefab が残ると分かりました。回避は、Scene に「焼き込む prefab のハッシュ」の印を持たせることでした。今回は、その印を source に一切残さない形と、prefab の file を読まない検知の鍵を測り、Scene 300 個の規模で build への上乗せを測った記録です。</p>
+
+<div class="scope">範囲: repository の外の package を持たない空の project、Unity 6000.6.0f1、1 つの Unity process の batch で Content Directory の build 36 回（2026-11-14）。規模の fixture は合成で、Scene 300（1 つ約 1 MB、prefab の instance 420 個）、prefab 3,000（3 分の 1 は入れ子）、material 10、texture は無し。開いている Editor での build、Player の build、実データでは測っていません。</div>
+
+<h2>きっかけ</h2>
+<p>前の記事の回避は、印の置き場の GameObject を Scene に 1 つ置き、build の直前にその名前を prefab の中身のハッシュに書き換える形でした。これには 2 つの宿題が残っていました。置き場の object が source に残ること、そして印の値を作るために prefab の file を開いて中身を読むことです。また、入れ子の prefab と、複数の Scene が同じ prefab を置く場合は測っていませんでした。</p>
+<p>そこで、次の 3 つを同時に満たす形を探しました。</p>
+<ul>
+<li><strong>cache が正しく効く:</strong> 編集した prefab を焼き込む Scene だけを作り直し、変更なしと前の版へ戻した build は前の出力を再利用する。</li>
+<li><strong>検知が安い:</strong> prefab の file を開かずに編集を検知し、規模の project で、何も変えていない build への上乗せが印なしの build の 5% 以下。</li>
+<li><strong>source に残らない:</strong> build の後、<code>Assets</code> の下の全ての file が build の前と同じバイトで、印は出力にも残らない。</li>
+</ul>
+
+<h2>測った印の形</h2>
+<p>どちらの形も、build の直前に印の文字列を text として書き、build の後に元のバイトへ戻します。Scene を Unity の API で開いて保存することはしません。</p>
+<div class="table-wrap">
+<table>
+<thead><tr><th>形</th><th>書く場所</th><th>戻し方</th></tr></thead>
+<tbody>
+<tr><td><strong>M</strong></td><td>Scene の <code>.meta</code> の <code>userData</code> の行（Scene 本体は書かない）</td><td>元のバイトを書き戻す</td></tr>
+<tr><td><strong>F2</strong></td><td>Scene の file の末尾（最後の document の <code>SceneRoots</code>）に、Unity が知らない key の行を 1 つ足す</td><td>file を元の長さに切り詰める</td></tr>
+</tbody>
+</table>
+</div>
+<p>M が成り立つのは、Scene の <code>.meta</code> も差分 build の再利用の鍵に入るからです。<code>.meta</code> の <code>userData</code> だけを変えた build で Scene は作り直され、元のバイトへ戻した build は前の出力を再利用しました。</p>
+<p>印の値は、Scene の依存閉包のうち main asset が <code>GameObject</code> の物と <code>ModelImporter</code> が import した物を path の序数順に並べ、それぞれの検知の鍵の値を連ねてハッシュにしたものです。</p>
+
+<h2>検知の鍵: <code>GetAssetDependencyHash</code> を prefab ごとに引く</h2>
+<p><code>AssetDatabase.GetAssetDependencyHash</code>（public）を prefab と model に対して引くと、次のように振る舞いました。</p>
+<ul>
+<li>prefab と model の編集で値が変わり、元のバイトへ戻すと最初の値に戻った。更新時刻だけを変えても値は変わらなかった。</li>
+<li>入れ子の外側の prefab の値は、外側の file を変えなくても、内側の prefab の編集で変わった。</li>
+<li>prefab が参照する texture や material を変えても、prefab の値は変わらなかった。</li>
+</ul>
+<p>どれも file を開かずに得た値です。比べた他の鍵では、<code>AssetDatabaseExperimental.LookupArtifact</code> の ID は全ての時点で <code>GetAssetDependencyHash</code> と同じ値でした。internal の <code>GetSourceAssetFileHash</code> は file のバイトにだけ追従し、外側の prefab の値は内側の編集で変わりませんでした。build の鍵には <code>GetAssetDependencyHash</code> を使いました。</p>
+
+<h3>前の記事との食い違い</h3>
+<p>前の記事の「途中で分かったこと」には、<code>GetAssetDependencyHash</code> は prefab や texture を編集しても値が変わらず、依存の中身を表す値としては使えなかった、と書きました。あれは Scene に対して引いた値の話です。Scene の値は、Scene が置いた prefab を編集しても変わりません。一方、prefab そのものに対して引けば、上のとおり prefab の編集で変わり、入れ子の内側の編集にも追従します。だから、Scene が焼き込む prefab ごとに値を引いて連ねれば、検知の鍵になります。</p>
+
+<h2>cache の正しさと source（M と F2 で同じ）</h2>
+<ul>
+<li>入れ子の内側の prefab、2 つの Scene が共有する prefab をそれぞれ編集した build は、編集した物を焼き込む Scene の serialized file だけを書き、他の Scene は書かなかった。</li>
+<li>変更なしの build と前の版へ戻した build は、Scene を 1 つも書かず、出力はその版の前回の出力と名前・sha256 で一致した。</li>
+<li>model を編集した build も、その model を置いた Scene だけを書いた。ただし model の頂点は印なしでも出力に入る（Mesh は Scene に焼き込まれない）ので、これは印が model の編集を検知した証拠ではない。model の階層と Transform の編集は測っていない。</li>
+<li>全ての build の後、<code>Assets</code> の下の全ての file が build の前と同じバイトだった。印の文字列は出力に無く、印を書いた最後の build の出力は、同じ source を印なしで build した出力と Scene の file を含めて一致した。印による Error・Warning は無い。</li>
+<li>規模の fixture でも、source を変えない印ありの build は Scene を書かず、同じ出力を出した。</li>
+</ul>
+<p class="note">書いた数は、Unity が <code>Library/BuildHistory</code> に残す <code>BuildContentTEP.json</code> の <code>BuildPipeline::WriteSerializedFile</code> の event で数えました。</p>
+
+<h2>1 回目の失敗: Scene ごとに依存を列挙すると上乗せが 24〜32%</h2>
+<p>最初の batch では、印の値を作るために Scene ごとに <code>GetDependencies(scene, true)</code> で依存を列挙しました。cache の正しさと source の条件は両方の形で満たしましたが、何も変えていない build への上乗せが、印なしの build の約 24〜32% になりました。上乗せの約 8 割は印の値の計算で、300 Scene で約 3.0 秒かかり、その大半が Scene ごとの依存の列挙でした。</p>
+<p>直し方は、依存の列挙を印の側でやめることです。製品の build 経路は、build の入力の snapshot を作る時に依存閉包を既に持っています。印の計算はその閉包を受け取り、自分では <code>GetDependencies</code> を呼ばない形に分けました。2 回目の batch では、閉包を作る所要を上乗せに入れずに別に記録しました。</p>
+<div class="cards">
+  <div class="card"><div class="k">1 回目: 印の計算（300 Scene）</div><div class="v bad">約 3.0 秒</div><div class="d">Scene ごとに依存を列挙。上乗せ 約 24〜32%</div></div>
+  <div class="card"><div class="k">2 回目: 印の計算（300 Scene）</div><div class="v ok">約 110 ms</div><div class="d">受け取った閉包から作る。割る値の約 0.7%</div></div>
+</div>
+
+<h2>2 回目の上乗せ</h2>
+<p>上乗せは、印の計算、書き込み、書き込み後の <code>Refresh</code> の差、戻し、戻し後の <code>Refresh</code>、build の差の合計です。印なしの変更なしの build 3 回の最小（M 15,752 ms、F2 15,768 ms）で割りました。build の差は、印ありの build から印なしの build を引いた値（負なら 0）で、印なしの 3 回の最小を引くのが厳しい読み、中央値を引くのが緩い読みです。</p>
+
+<figure>
+<ul class="legend">
+  <li><i style="background:var(--s1)"></i>計算</li>
+  <li><i style="background:var(--s2)"></i>書き込み</li>
+  <li><i style="background:var(--s3)"></i><code>Refresh</code> の差</li>
+  <li><i style="background:var(--s4)"></i>戻し</li>
+  <li><i style="background:var(--s5)"></i>戻し後の <code>Refresh</code></li>
+  <li><i style="background:var(--s6)"></i>build の差（厳しい読み）</li>
+</ul>
+<svg viewBox="0 0 480 278" role="img" aria-label="M と F2 の各 3 回の上乗せの内訳を、印なしの build に対する割合で積み上げた横棒。5% に線がある">
+  <g font-size="15" fill="var(--fg)">
+    <line x1="64.0" y1="8" x2="64.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="64.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">0%</text>
+    <line x1="114.0" y1="8" x2="114.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="114.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">1%</text>
+    <line x1="164.0" y1="8" x2="164.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="164.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">2%</text>
+    <line x1="214.0" y1="8" x2="214.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="214.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">3%</text>
+    <line x1="264.0" y1="8" x2="264.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="264.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">4%</text>
+    <line x1="314.0" y1="8" x2="314.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="314.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">5%</text>
+    <line x1="364.0" y1="8" x2="364.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="364.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">6%</text>
+    <line x1="414.0" y1="8" x2="414.0" y2="248" stroke="var(--line)" stroke-width="1"/>
+    <text x="414.0" y="268" text-anchor="middle" fill="var(--muted)" font-size="13">7%</text>
+    <line x1="314.0" y1="2" x2="314.0" y2="248" stroke="var(--fg)" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="0" y="33">M T1</text>
+    <rect x="64.0" y="16" width="34.2" height="24" fill="var(--s1)"><title>M T1 計算: 114 ms（0.72%）</title></rect>
+    <rect x="100.2" y="16" width="82.8" height="24" fill="var(--s2)"><title>M T1 書き込み: 267 ms（1.70%）</title></rect>
+    <rect x="184.9" y="16" width="31.3" height="24" fill="var(--s3)"><title>M T1 Refresh の差: 105 ms（0.67%）</title></rect>
+    <rect x="218.3" y="16" width="46.9" height="24" fill="var(--s4)"><title>M T1 戻し: 154 ms（0.98%）</title></rect>
+    <rect x="267.1" y="16" width="32.6" height="24" fill="var(--s5)"><title>M T1 戻し後の Refresh: 109 ms（0.69%）</title></rect>
+    <rect x="301.7" y="16" width="18.6" height="24" fill="var(--s6)"><title>M T1 build の差: 65 ms（0.41%）</title></rect>
+    <text x="478" y="33" text-anchor="end" fill="var(--fg)">5.16%</text>
+    <text x="0" y="69">M T2</text>
+    <rect x="64.0" y="52" width="31.6" height="24" fill="var(--s1)"><title>M T2 計算: 106 ms（0.67%）</title></rect>
+    <rect x="97.6" y="52" width="86.6" height="24" fill="var(--s2)"><title>M T2 書き込み: 279 ms（1.77%）</title></rect>
+    <rect x="186.2" y="52" width="30.1" height="24" fill="var(--s3)"><title>M T2 Refresh の差: 101 ms（0.64%）</title></rect>
+    <rect x="218.3" y="52" width="47.8" height="24" fill="var(--s4)"><title>M T2 戻し: 157 ms（1.00%）</title></rect>
+    <rect x="268.1" y="52" width="33.9" height="24" fill="var(--s5)"><title>M T2 戻し後の Refresh: 113 ms（0.72%）</title></rect>
+    <text x="478" y="69" text-anchor="end" fill="var(--fg)">4.80%</text>
+    <text x="0" y="105">M T3</text>
+    <rect x="64.0" y="88" width="33.2" height="24" fill="var(--s1)"><title>M T3 計算: 111 ms（0.70%）</title></rect>
+    <rect x="99.2" y="88" width="90.1" height="24" fill="var(--s2)"><title>M T3 書き込み: 290 ms（1.84%）</title></rect>
+    <rect x="191.3" y="88" width="27.5" height="24" fill="var(--s3)"><title>M T3 Refresh の差: 93 ms（0.59%）</title></rect>
+    <rect x="220.8" y="88" width="45.6" height="24" fill="var(--s4)"><title>M T3 戻し: 150 ms（0.95%）</title></rect>
+    <rect x="268.4" y="88" width="31.6" height="24" fill="var(--s5)"><title>M T3 戻し後の Refresh: 106 ms（0.67%）</title></rect>
+    <rect x="302.1" y="88" width="14.8" height="24" fill="var(--s6)"><title>M T3 build の差: 53 ms（0.34%）</title></rect>
+    <text x="478" y="105" text-anchor="end" fill="var(--fg)">5.10%</text>
+    <text x="0" y="155">F2 T1</text>
+    <rect x="64.0" y="138" width="31.3" height="24" fill="var(--s1)"><title>F2 T1 計算: 105 ms（0.67%）</title></rect>
+    <rect x="97.3" y="138" width="61.7" height="24" fill="var(--s2)"><title>F2 T1 書き込み: 201 ms（1.27%）</title></rect>
+    <rect x="161.0" y="138" width="36.1" height="24" fill="var(--s3)"><title>F2 T1 Refresh の差: 120 ms（0.76%）</title></rect>
+    <rect x="199.1" y="138" width="72.8" height="24" fill="var(--s4)"><title>F2 T1 戻し: 236 ms（1.50%）</title></rect>
+    <rect x="273.9" y="138" width="38.6" height="24" fill="var(--s5)"><title>F2 T1 戻し後の Refresh: 128 ms（0.81%）</title></rect>
+    <rect x="314.5" y="138" width="30.3" height="24" fill="var(--s6)"><title>F2 T1 build の差: 102 ms（0.65%）</title></rect>
+    <text x="478" y="155" text-anchor="end" fill="var(--fg)">5.66%</text>
+    <text x="0" y="191">F2 T2</text>
+    <rect x="64.0" y="174" width="31.6" height="24" fill="var(--s1)"><title>F2 T2 計算: 106 ms（0.67%）</title></rect>
+    <rect x="97.6" y="174" width="65.9" height="24" fill="var(--s2)"><title>F2 T2 書き込み: 214 ms（1.36%）</title></rect>
+    <rect x="165.5" y="174" width="35.4" height="24" fill="var(--s3)"><title>F2 T2 Refresh の差: 118 ms（0.75%）</title></rect>
+    <rect x="202.9" y="174" width="60.8" height="24" fill="var(--s4)"><title>F2 T2 戻し: 198 ms（1.26%）</title></rect>
+    <rect x="265.7" y="174" width="36.4" height="24" fill="var(--s5)"><title>F2 T2 戻し後の Refresh: 121 ms（0.77%）</title></rect>
+    <rect x="304.0" y="174" width="28.1" height="24" fill="var(--s6)"><title>F2 T2 build の差: 95 ms（0.60%）</title></rect>
+    <text x="478" y="191" text-anchor="end" fill="var(--fg)">5.40%</text>
+    <text x="0" y="227">F2 T3</text>
+    <rect x="64.0" y="210" width="32.6" height="24" fill="var(--s1)"><title>F2 T3 計算: 109 ms（0.69%）</title></rect>
+    <rect x="98.6" y="210" width="90.6" height="24" fill="var(--s2)"><title>F2 T3 書き込み: 292 ms（1.85%）</title></rect>
+    <rect x="191.2" y="210" width="32.2" height="24" fill="var(--s3)"><title>F2 T3 Refresh の差: 108 ms（0.68%）</title></rect>
+    <rect x="225.4" y="210" width="60.8" height="24" fill="var(--s4)"><title>F2 T3 戻し: 198 ms（1.26%）</title></rect>
+    <rect x="288.2" y="210" width="59.8" height="24" fill="var(--s5)"><title>F2 T3 戻し後の Refresh: 195 ms（1.24%）</title></rect>
+    <rect x="350.0" y="210" width="26.2" height="24" fill="var(--s6)"><title>F2 T3 build の差: 89 ms（0.56%）</title></rect>
+    <text x="478" y="227" text-anchor="end" fill="var(--fg)">6.29%</text>
+  </g>
+</svg>
+<figcaption>規模の fixture で各形 3 回、何も変えていない build への上乗せの内訳（厳しい読み、印なしの build に対する割合）。右の数字は合計。緩い読みでは build の差が全ての回で 0 なので、緑の手前までが緩い読みの合計です。点線が 5%。</figcaption>
+</figure>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>回</th><th class="n">計算</th><th class="n">書き込み</th><th class="n">Refresh の差</th><th class="n">戻し</th><th class="n">戻し後の Refresh</th><th class="n">build の差<br>厳しい / 緩い</th><th class="n">合計<br>厳しい / 緩い</th></tr></thead>
+<tbody>
+<tr><td>M T1</td><td class="n">114</td><td class="n">267</td><td class="n">105</td><td class="n">154</td><td class="n">109</td><td class="n">65 / 0</td><td class="n">813（5.16%）/ 748（4.75%）</td></tr>
+<tr><td>M T2</td><td class="n">106</td><td class="n">279</td><td class="n">101</td><td class="n">157</td><td class="n">113</td><td class="n">0 / 0</td><td class="n">757（4.80%）/ 756（4.80%）</td></tr>
+<tr><td>M T3</td><td class="n">111</td><td class="n">290</td><td class="n">93</td><td class="n">150</td><td class="n">106</td><td class="n">53 / 0</td><td class="n">803（5.10%）/ 750（4.76%）</td></tr>
+<tr><td>F2 T1</td><td class="n">105</td><td class="n">201</td><td class="n">120</td><td class="n">236</td><td class="n">128</td><td class="n">102 / 0</td><td class="n">892（5.66%）/ 790（5.01%）</td></tr>
+<tr><td>F2 T2</td><td class="n">106</td><td class="n">214</td><td class="n">118</td><td class="n">198</td><td class="n">121</td><td class="n">95 / 0</td><td class="n">851（5.40%）/ 756（4.79%）</td></tr>
+<tr><td>F2 T3</td><td class="n">109</td><td class="n">292</td><td class="n">108</td><td class="n">198</td><td class="n">195</td><td class="n">89 / 0</td><td class="n">992（6.29%）/ 903（5.72%）</td></tr>
+</tbody>
+</table>
+</div>
+<p class="note">単位は ms。印なしの変更なしの build は、M が 22,316 / 16,089 / 15,752 ms、F2 が 22,053 / 16,054 / 15,768 ms でした。</p>
+
+<div class="cards">
+  <div class="card"><div class="k">M（<code>.meta</code> に書く）</div><div class="v">未判定</div><div class="d">4.75〜5.16%。緩い読みは全ての回で 5% 以下、厳しい読みは 2 回が 5% を超えた</div></div>
+  <div class="card"><div class="k">F2（Scene の末尾に足す）</div><div class="v bad">不合格</div><div class="d">4.79〜6.29%。緩い読みでも 2 回が 5% を超えた</div></div>
+</div>
+
+<div class="premise"><strong>この値の前提:</strong> 上の上乗せは、印の計算と書き込みを製品の snapshot の後・adapter の <code>Refresh</code> の前に置き、その snapshot の閉包をそのまま使う場合の値です。閉包を <code>Refresh</code> の後に作り直す形では、閉包を作る所要（製品の snapshot の所要ではなく、<code>GetDependencies</code> と除外だけの所要。この batch で 2,954〜3,480 ms、割る値の 18.7〜22.1%）を足して読み直します。足すと両形とも 5% を大きく超えます。</div>
+
+<h3>内訳から読めること</h3>
+<ul>
+<li>印の計算は約 110 ms（約 0.7%）で、上乗せの約 8 割は書き込み・戻し・2 回の <code>Refresh</code> だった。</li>
+<li>M は build の差を除くと 4.75〜4.80% でほぼ一定で、5% を超えた 2 回は build の差（53〜65 ms）の分だった。5% までの余裕は 31〜40 ms しかない。</li>
+<li>F2 は、戻し（Scene 300 個の切り詰め）と戻し後の <code>Refresh</code> が M より重い。</li>
+<li>印なしの変更なしの build は約 15.7〜22.3 秒と揺れた（各 block の最初の回が約 6 秒遅い）。M の 5% の上下は、この揺れと 1 回ずつの build の差で分かれる。</li>
+<li>測っていない手順: 印の <code>Refresh</code> を製品の <code>Refresh</code> とまとめる、Scene の間で鍵の結果を使い回す。上乗せの大半はこの側にある。</li>
+</ul>
+
+<h2>OSM での扱い</h2>
+<ul>
+<li>製品の build 経路への実装は次のスライスにする。印の形は M、検知の鍵は <code>GetAssetDependencyHash</code> から始め、F2 は不合格の代替として残す。</li>
+<li>次のスライスでは、まず上の前提（印の計算と書き込みを製品の snapshot の後・<code>Refresh</code> の前に置き、閉包をそのまま使う）が製品の形で成り立つかを確かめる。開いている Editor での build もそこで確かめ、結論が覆りうる。</li>
+</ul>
+
+<h2>測っていないこと</h2>
+<p class="note">Player の build、別の PC・<code>Library</code>、実データ（SampleGame）、texture を持つ規模の fixture、prefab variant・override を持つ instance・unpack した prefab、model の階層と Transform の編集、開いている Editor での build（測ったのは batch だけ）、build が途中で落ちた時の Scene の戻し、開いている Scene と読み取り専用の file、印の他の形（印の object を Scene に差し込む形、YAML のコメント行）、file の更新時刻で全バイトの読みを省く検知、<code>AssetPostprocessor</code> で prefab の保存を拾う検知、<code>BuildContentOptions.CleanBuildCache</code> が <code>CleanBuildCache()</code> と同じ効果か、cache を消した build の所要。</p>
+
+<footer>
+<p><a href="../">記事の一覧</a>　前の記事: <a href="../content-overlay-build/">prefab を編集して build し直すと、Scene に古い prefab が残る</a></p>
+<p>実測の事実: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/blob/develop/docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md">CONTENT_DIRECTORY_BUILD_FACTS.md</a>。計画・判定・スパイクの記録: <a href="https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/191">PR #191</a>。2026-11-15。</p>
+</footer>
+</main>
+</body>
+</html>
