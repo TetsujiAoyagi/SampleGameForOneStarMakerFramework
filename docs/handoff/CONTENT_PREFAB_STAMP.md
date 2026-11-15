@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' 1 巡目を 2026-11-15 に完了した（PASS）。Phase D は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `2bc0c108`
@@ -18,17 +18,16 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）・発見 C 3 回目用（diff と機械検査）・判定 C 2 回目用（判定必須 1〜3）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
-- C' blind bundle の取得案内・状態: 未生成（判定 C 2 回目の evidence から作る）
-- 引継ぎ票（2026-11-15、判定 C 2 回目から C' へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（判定 C 2 回目の記録）。C' は PR とこの票を読まない。
-  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C と同じ base / head と判定 evidence を、所見を含まない blind bundle で監査する。高コスト証拠は無い。
-  - 読む範囲: C' は HANDOFF を読まない。入力は blind bundle だけ（Phase A の凍結版と所見を含まない Phase B の実装結果として、Phase B 完了時点 `269f8223` の本書の blob、HANDOFF を除いた base..head の完全 diff、判定 C と同じ判定必須 1〜3 の生出力、機械検査）。
-  - 開始時の照合: C' の担当は blind bundle の manifest の base / head と、渡された source の写しの head が一致することを確かめる。
-  - 必要な権限: 読み取りだけ。
-  - 停止規則: C' の指摘で B へ戻す往復は別に数えて上限 3 巡。
-  - Evidence: 判定 C 2 回目用 evidence bundle はローカル固定済み（未昇格）。C' blind bundle は進行役が作る。
-  - 引き渡さないもの: 発見 C・判定 C の結論・指摘・要約（§7）と、それを転載した §6 の差し戻しの節、§2.6 の決定記録（C' 自身の前巡の指摘への裁定ではない）。
-  - 未決: なし。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある
+- 引継ぎ票（2026-11-15、C' から Phase D へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（C' の記録）で、その SHA は PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 次の Phase・役割: Phase D（owner の突合とマージ判断、保存・引渡し確認、harvest、HANDOFF 削除）。判定 C 2 回目（§7）と C' 1 巡目（§8）を初めて突き合わせる。
+  - 読む範囲: 全節。
+  - 必要な権限: マージは owner。Evidence の保存・引渡し確認と日次清掃 job の確認（review-evidence の Phase D）。
+  - 停止規則: harvest と HANDOFF 削除はマージの判断の後。harness（`Tests/Editor/Spikes/PrefabStamp/`）は §3 のとおり Phase D で消す。§2.6 の DR-1 の hook の例外を消す。
+  - Evidence: 発見 C 1〜3 回目用・判定 C 1・2 回目用・C' blind bundle はローカル固定済み（未昇格）。取得案内は進行役の共有メモにある。
+  - 引き渡さないもの: なし。
+  - 未決: C' の確認範囲の限界（§8）を受け入れるか（owner の判断）。
 ## 1. 目的と対象外
 
 - 目的: 製品の build 経路で Content Directory を build する時、Scene に置いた prefab の instance（入れ子を含む）を編集した後に同じ `Library` で build し直しても、出力の Scene が、build した時点の手元の prefab の版を焼き込んだものになるようにする。目的 build と上書きの build の両方に効かせる。cache を捨てず、prefab が変わっていない Scene では差分 build の再利用を失わない。prefab が変わったかの検知は、prefab の file を読まない軽さに保つ。build が終わった後の source には、build が書いた物を何も残さない。Editor で開いて保存していない Scene を含む build は止めてよく、その編集を壊さない。
@@ -135,6 +134,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - A3 後の例外承認: なし
 - 決定記録:
   - DR-1（2026-11-15、owner、適用: 本スライスの Phase C・C'）: 担当の選び方の特例。cursor-agent で Grok 系以外のモデルを使ってよく、Claude CLI も使ってよい。ただし Fable 系・Astra 系はどの経路でも使わず、Sonnet も担当にしない。Phase C・C' を B と別の系列にできない時の `独立性制約あり` を owner が受け入れ、その時は `独立性制約あり（owner 受容）` と記録する。独立性のために高コストの上位モデルへ上げない。各担当は会話履歴の無い新しいプロセスとし、Unity の test と harness は進行役の session が実行担当として実行し、生の出力だけを判断担当に渡す。凍結条件の意味・合否を変えない（AGENTS.md の cursor-agent の常時契約への、この slice の Phase C・C' だけの owner の例外）。
+  - DR-1 の適用の記録（2026-11-15）: C' の起動を、cursor-agent を Grok 系に限る git 管理外の hook が止めた。owner がその hook に、本スライスの C' の packet を workspace にする起動だけを許す一時例外（Fable・Astra・Sonnet は許さない）を足した。Phase D でこの例外を消す。
 
 ### 2.7 本文へ転記した実装制約
 
@@ -446,7 +446,22 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 
 ## 8. Phase C'
 
-未着手
+### C'（1 巡目、2026-11-15）
+
+- 結論: **PASS**（現在の問いを阻害する欠陥なし）。
+- 対象: implementation base `980a69ad` から head `2bc0c1080e415695d873a8dd90cf0d0230712910`（判定 C 2 回目と同じ head と判定 evidence）。
+- 入力（blind audit bundle、66 file、ローカル固定済み（未昇格）。取得案内は進行役の共有メモ）: Phase B 完了時点 `269f8223` の本書の blob（凍結した Phase A revision 1 と所見を含まない Phase B の実装結果。§6 の差し戻しの節・§7・§2.6 の決定記録を含まない）、本書を除く base..head の完全 diff・stat・name-status、判定 C 2 回目と同じ判定必須 1〜3 の生出力（XML・step・Unity の log・console・exit）、harness の run の directory と出力の zip、実行担当の executor-note と stall の記録、head での `contract-audit`・`docs-audit`。加えて head の source の写し（本書を除く、`AGENTS.md`・`.agents/`・`docs/`・`tools/Harness/README.md`・`unity/Assets/OneStarMaker/Scripts`・`Tests`・`unity/Assets/Docs` ほか）。C' 用決定記録は無い（1 巡目）。発見 C・判定 C の結論・指摘・要約は渡していない。
+- 盲検性の制約: 差し戻しの修正で B が test と harness のコメントに判定 C 1 回目の指摘の ID（「判定 C 1 回目の F2」）と、harness の第 2 process の役割として「判定 C が読む」を書いており、implementation の diff を通して C' に見える。所見の結論そのものは diff の外にある。
+- 条件・AC の判断（担当）: I1〜I3・S1〜S4 は実装（`ScenePrefabStamp.cs` の検査 → 戻し → 書き込み・開いている Scene の拒否・記録と戻し・`ImportAsset`、adapter の `DisallowAutoRefresh` 〜 製品の `Refresh` 〜 `AllowAutoRefresh` と `finally` の段の分離）に反映されている。AC1〜AC6 は harness の第 2 process の record（各 step の観測値と AC 行）と `build-facts.json`（7 回とも成功、inventory の差なし、生成 folder なし、`finished: true`）。AC7・AC8' は判定必須 1 の XML（`ScenePrefabStampEditorTests` 25 件 Passed）。AC9 は `ScenePrefabStampRulesTests` 30 件 Passed と adapter の差分（別の `Refresh` なし、`GetDependencies` の追加なし）。AC10 は判定必須 1 の XML（total 1911、failed 0、root `Passed`）と name-status（`Scripts/Runtime/`・coordinator を変えていない）。
+- findings:
+
+| ID | 分類 | 内容 | 一次証拠 |
+|---|---|---|---|
+| F-01 | 後続スライスの入力 | `docs-audit` の warning 1 件（program 文書の §7・§8 が埋まっており harvest の頃合い）。実装・受け入れ条件の違反ではない | `docs-audit.log` の WARN の行 |
+
+- 残存リスク・監査できなかった範囲（担当）: `t1-step.json` の `failed` は Inconclusive 25 件によるもので、凍結した合否は XML で読む。既知の終了 stall が判定必須 1 で 1 回出て手動で止めた（Harness README の停止規則と矛盾しない）。`content-output.zip` は展開していない。
+- 確認範囲の限界（進行役の記録。所見ではない）: 担当の実行は約 2 分で、AC1〜AC6 は harness の AC 行と `build-facts.json` を主な根拠にしている（指示書は AC 行を信用せず record の値と凍結した文言で照合するよう求めた）。cursor-agent のコスト規律に従い撃ち直していない。受け入れるかは Phase D の owner の判断。
+- 担当・モデル・独立性: 会話履歴の無い新しい cursor-agent のプロセス（`gpt-5.3-codex`、OpenAI、`--mode=ask`、約 2 分）。Phase A（Anthropic・xAI）、B（Anthropic）、C（xAI）のどれにも関与していない系列で、強化条件を満たす（§5 の Phase A の記録「C' に使える系列は他に無い」は、DR-1 で cursor-agent の OpenAI 系が使えるようになったので当たらなくなった）。上の盲検性の制約がある。
 
 ## 9. Phase D
 
