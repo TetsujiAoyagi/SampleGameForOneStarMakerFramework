@@ -10,9 +10,9 @@ on:
     branches:
       - main
       - develop
+  # 既定の opened / synchronize / reopened だけで起動する。edited は PR の本文・タイトルの
+  # 編集でも発火して重い job を再実行するので加えない。base の検査は pr-base.yml が持つ。
   pull_request:
-    # base の変更でも Require develop PR base を再実行する。
-    types: [opened, synchronize, reopened, edited]
 
 # どの job も checkout して読むだけなので、GITHUB_TOKEN は読み取りに絞る。
 permissions:
@@ -33,12 +33,6 @@ jobs:
       # 検査9（path 予算）と docs-audit はリポジトリ全体を対象にする。
       # 検査1 の基点は、pull_request ではその PR の base、統合先への push では push 前の head。
       # push で統合先を基点にすると HEAD 自身との差分になり、検査1 が 0 件になる。
-      - name: Require develop PR base
-        if: github.event_name == 'pull_request'
-        env:
-          PR_BASE: ${{ github.base_ref }}
-        run: |
-          if ($env:PR_BASE -cne 'develop') { throw "Pull requests must target develop." }
       - name: Contract audit
         env:
           BASE_REF: ${{ github.event_name == 'push' && github.event.before || format('origin/{0}', github.base_ref) }}

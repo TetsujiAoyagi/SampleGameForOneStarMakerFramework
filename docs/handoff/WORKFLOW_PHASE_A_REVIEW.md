@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（revision 2、発見 C の差し戻しと公開レビュー 6902992449 の修正。判定 C・C′ は未実施）
+- status: `C`（revision 2、発見 C の差し戻し F2 と公開レビュー 6902992449 の修正を B が完了。発見 C の再レビュー待ち。判定 C・C′ は未実施）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: 9c203c395e2813df8bff46abd9202afa1fc6512f
+- implementation head commit: この票を含む commit
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
 - Phase B result snapshot / evidence / C′ blind bundle: 旧headのraw・所見・最終記録はローカル固定・取得確認済みで保持する。新headはB出口後に固定diffと新検証を別途保存・配布する。旧bundleを新headの合格証拠としない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は B（差し戻しの修正）。§7 の発見 C の指摘 F2 と、PR #194 のコメント 6902992449（公開レビュー 1 巡）を、既存 AC と責務マップの範囲の B 適応として 1 commit で修正する。範囲を超える判断が要るなら実装せず §6 に理由を書いて返す。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。修正後の次担当は発見 C（差し戻しを出した C の session が続ける）。C′ は起動しない。旧 head の所見は Git 履歴と既存 Storage に保持し、新 head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は発見 C（差し戻し 1 巡目の修正後 head の再レビュー。差し戻しを出した C の session が続ける）。§6 の「差し戻し修正」に F2 と公開レビュー 6902992449 の各指摘の採否と、責務マップに対する CI file の判断を記録した。照合は F2 の解消、CI の分割（`edited` の副作用の解消と PR/develop・PR/他 base・push の 3 分岐）、段落分けで内容が変わっていないこと。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。C′ は起動しない。旧 head の所見は Git 履歴と既存 Storage に保持し、新 head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -80,8 +80,15 @@
 - 軽い確認: `pwsh -NoProfile -File tools/docs-audit.ps1` はエラー0、既存のharvest警告1。`pwsh -NoProfile -File tools/contract-audit.ps1` はエラー0・警告0（検査8は通常taskのためnot-applicable）。`git diff --check` 合格。
 - smoke準備: fork履歴なしの新規sessionでfixtureの読取・receipt作成・再読取が可能と確認。CLI経路は環境のpolicyにより読取が拒否され未実行。設定緩和・迂回なし。実旧headのsmoke原記録は既存Storageで保持する。新headの確認状況は§7/§8に記録する。
 - 未実行: §5の完全な条項照合・PR #193/#194時系列、contract-audit tests、Harness.Tests、CIのPR/develop・PR/他base・pushの3分岐、smoke、判定C/C′。実Unity・実Storage操作は対象外。
+- 差し戻し修正（c9bb52e5 から、発見 C の F2 と公開レビュー 6902992449 を 1 commit で修正。既存 AC4・AC5 と責務マップの範囲の B 適応）:
+  - F2 採用: `osm-unity-editor/SKILL.md` の「Editor 操作でやってはいけない」の項を、旧 AGENTS の文（本番の Scene / Prefab / Addressables 等の変更は依頼範囲に限り、広範な再生成・上書きは個別に影響を確認する）の 2 つの制限を両方持つ文に置き換えた。必読経路は既存の AGENTS の入口と `phase-b.md` のまま。
+  - 指摘 1 採用（構成は C の補足に従い別 workflow）: `offline-checks.yml` から `edited` と base 検査の step を外して base の既定 trigger に戻し、base 検査だけを `.github/workflows/pr-base.yml`（ubuntu、checkout なし、`permissions: {}`、`opened`/`synchronize`/`reopened`/`edited`）へ移した。同じ workflow 内で job を `if` で skip する案は、本文編集の run の skipped が重い job の check 名を上書きするので採らない。push は `offline-checks.yml` の従来どおりで base 検査の対象外。責務マップの CI の行（PR base 属性の検査）と同じ責務を CI の file 2 つに分けただけで、新しい依存・所有者・runtime 依存は無いと判断した。base 変更時に contract-audit も再実行する提案は採らない: base 版の挙動（base 変更で再実行しない）と同じで AC5 の要求外。次の push で更新される旨を workflow に注記した。
+  - 指摘 2 不採用: L31 を削ると Unity テスト・Build を計画・実行する担当から Skill への必読経路が AGENTS から消える。レビュー自身も規則の欠落は無いとし、C も現状維持を支持した。
+  - 指摘 4 採用: `phases-and-handoff.md` の「Phase A の commit と snapshot」第 3 段落を「A3 統合案を commit して…」の前で 2 段落に分けた。文言は変えていない。
+  - 指摘 3 は C の検証範囲への提案で、B の変更対象ではない。
+  - B 確認: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` 38 executed / 0 failed、`git diff --check`（新 file を含む）合格。`pr-base.yml` の run 本文を抜き出して bash で実行し、`develop` で exit 0、`main`・`Develop`・空で exit 1。YAML parser と actionlint はこの環境に無く、workflow の構文と GitHub 上の trigger（本文編集で Offline checks が起動しないこと、base 変更で PR base が起動すること）は未確認で、push 後の実 run で確かめる。§3 の責務マップ本文は凍結内容なので書き換えていない。
 - implementation head commit: この票を含む commit
-- Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI
+- Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI（初回と §10）。差し戻し修正の担当、Claude Opus 5.5、Anthropic（c9bb52e5 からの 1 commit）
 
 ## 7. Phase C
 

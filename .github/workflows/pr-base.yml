@@ -1,0 +1,29 @@
+name: PR base
+
+# PR の base が develop であることだけを検査する。
+# base の変更は edited でしか届かないので edited を含めるが、edited は本文・タイトルの
+# 編集でも発火する。重い Offline checks を巻き込まず、同じ check 名を skipped で
+# 上書きしないよう、この軽い検査だけを別 workflow に分けている。
+# base を変えても Offline checks（contract-audit の検査1 の基点を含む）は再実行されず、
+# 次の push で更新される。
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+# checkout せず、イベントの属性だけを読む。
+permissions: {}
+
+jobs:
+  pr-base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require develop PR base
+        env:
+          PR_BASE: ${{ github.base_ref }}
+        # 大文字小文字も区別する（Develop 等は不合格）。
+        run: |
+          if [ "$PR_BASE" != "develop" ]; then
+            echo "Pull requests must target develop." >&2
+            exit 1
+          fi

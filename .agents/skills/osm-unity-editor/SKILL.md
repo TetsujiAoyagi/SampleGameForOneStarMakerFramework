@@ -50,7 +50,7 @@ description: >-
 - 単独の `git mv` をシーン移送の正本にする（GUID は `move_asset` が運ぶ）
 - Safe Mode（コンパイルエラーで Pipeline が載らない）を YAML 編集で迂回する。C# を直して Editor を立て直す
 - Cloud セッションで `unity` バイナリを入れて接続確認したことにする
-- 依頼範囲外の本番 Scene / Prefab / Addressables asset を広く再生成・上書きする。Test/Build用assetや出力は作業範囲と生成先を確認して扱う
+- 本番の Scene / Prefab / Addressables 等を依頼された範囲の外で変更する。範囲内でも広範な再生成・上書きは、個別に影響を確認してから行う。Test/Build用assetや出力は作業範囲と生成先を確認して扱う
 
 ## テスト
 
