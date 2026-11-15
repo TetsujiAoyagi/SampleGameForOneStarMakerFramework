@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `2bc0c108`
@@ -17,17 +17,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3、§8 の S2-2・S2-2b-0・S2-2b の行）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）。本スライスは `Scripts/Runtime/` を変えないので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない制約の対象外
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）・発見 C 3 回目用（diff と機械検査）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、発見 C 3 回目から判定 C 2 回目へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（発見 C 3 回目の記録）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
-  - 次の Phase・役割: 判定 C 2 回目（実行担当と判断担当）。GO 候補 head は implementation head（未解決の blocker なし。B との往復 2 巡）。§5 の判定必須テスト 1〜3 を、この順に別々の Unity process で実行し、判断担当が XML・record・log を AC ごとに読む。
-  - 読む範囲: 既定（§0〜§8）。
-  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head `2bc0c108` が HEAD の祖先で、`git diff --stat 2bc0c108 HEAD` が本書だけである。PR の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に、implementation base / head が上の欄に一致する。
-  - 必要な権限: Unity の test の実行（`pwsh tools/run-tests.ps1`。§5 の初期状態: Editor を閉じ、active build target が StandaloneWindows64 Player、作業ツリーが clean）。harness の第 1 process は実 build を伴い、B5p の前に `BuildPipeline.CleanBuildCache()` を呼ぶ。sandbox 外の実行は既存の承認済み経路に従う。
-  - 停止規則: §4 の差し戻す条件に当たる指摘は Phase A を新しい revision で再開する。新しい事実は「新しい事実の分類」で分ける。既知の Unity の終了 stall は `tools/Harness/README.md` の規則に従う。
-  - Evidence: 上の evidence bundle の欄のとおり。判定 C 2 回目用と C' blind bundle は未生成。
-  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない（§7 は C' の入力にしない）。
+- evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）・発見 C 3 回目用（diff と機械検査）・判定 C 2 回目用（判定必須 1〜3）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
+- C' blind bundle の取得案内・状態: 未生成（判定 C 2 回目の evidence から作る）
+- 引継ぎ票（2026-11-15、判定 C 2 回目から C' へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（判定 C 2 回目の記録）。C' は PR とこの票を読まない。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C と同じ base / head と判定 evidence を、所見を含まない blind bundle で監査する。高コスト証拠は無い。
+  - 読む範囲: C' は HANDOFF を読まない。入力は blind bundle だけ（Phase A の凍結版と所見を含まない Phase B の実装結果として、Phase B 完了時点 `269f8223` の本書の blob、HANDOFF を除いた base..head の完全 diff、判定 C と同じ判定必須 1〜3 の生出力、機械検査）。
+  - 開始時の照合: C' の担当は blind bundle の manifest の base / head と、渡された source の写しの head が一致することを確かめる。
+  - 必要な権限: 読み取りだけ。
+  - 停止規則: C' の指摘で B へ戻す往復は別に数えて上限 3 巡。
+  - Evidence: 判定 C 2 回目用 evidence bundle はローカル固定済み（未昇格）。C' blind bundle は進行役が作る。
+  - 引き渡さないもの: 発見 C・判定 C の結論・指摘・要約（§7）と、それを転載した §6 の差し戻しの節、§2.6 の決定記録（C' 自身の前巡の指摘への裁定ではない）。
   - 未決: なし。
 ## 1. 目的と対象外
 
@@ -414,6 +414,35 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - 未確認事項: この head の Editor でのコンパイル、Unity の test、harness（判定 C の範囲）。
 - B との往復: 2 巡（判定 C 1 回目の差し戻しと、発見 C 2 回目の差し戻し）。上限 4 巡の内。
 - 担当・モデル: 会話履歴の無い新しい cursor-agent のプロセス（`grok-4.7-high`、xAI、`--mode=ask`、約 5 分）。Phase B の差し戻し 2 巡目は会話履歴の無い新しい Claude CLI のプロセス（Anthropic）。
+
+### 判定 C（2 回目、2026-11-15）
+
+- 種別: 判定。**結論: GO**（implementation head `2bc0c108`）。§2.1 の I1〜I3・S1〜S4 が、AC8'（§6）を含む AC1〜AC10 で全て成立した。高コスト証拠は無い。
+- 対象: implementation base `980a69ad` から head `2bc0c1080e415695d873a8dd90cf0d0230712910`（commit 固定。判定 evidence の head として local の軽量 tag `evidence/content-prefab-stamp/2` を付けた。判定 C 1 回目の head `269f8223` には `evidence/content-prefab-stamp/1`）。引き継いだ commit は `8e383ebe`（発見 C 3 回目の記録）。開始時の照合は全て一致した。判定必須テストは implementation head を detached で checkout して実行した。
+- 使用した evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`、59 file（判定必須 1〜3 の XML・step・Unity の log・console・exit、harness の run の directory（record・build-facts・inventory・写した build history）、harness の出力の zip、stall の記録、executor-note、diff、索引）。取得案内は進行役の共有メモにある。判断担当には fetch した写しを渡した（同一 PC の取得と閲覧を確認した）。
+- 実行担当: 進行役の session（sandbox 外の承認済み経路。各回の前後で作業ツリーは clean、他の Unity は無し。owner が当日 Windows Defender の除外を足して PC を再起動した後）。
+- 判定必須 1（空 filter の全 EditMode）: XML total 1911、passed 1884、failed 0、inconclusive 25、skipped 2（`[Explicit]` の harness 2 件）、root result `Passed`。`ScenePrefabStampEditorTests` 25 件・`ScenePrefabStampRulesTests` 30 件は全て Passed で skipped 0。`step.json` は Inconclusive だけを理由に `failed`・exit 1（§5 のとおり合否に使わない）。XML の完成後に既知の終了 stall（thread 1 本で CPU 時間が増加、log は終了処理の行で停止）が出たので、今回起動した PID だけを `Win32_Process.Terminate` で止めた（時刻・PID・CPU の値を記録。XML の end-time の約 4.5 分後）。
+- 判定必須 2（harness の第 1 process）: XML total 1、failed 0。B1〜B6・B5p の 7 回とも成功、record の終了行 `finished: true`。自然終了。
+- 判定必須 3（harness の第 2 process）: XML total 1、failed 0。record の終了行 `finished: true`。自然終了。
+- AC ごとの判定（判断担当。harness の AC 行を信用せず、record の値と凍結した文言で照合した）:
+
+| AC | 判定 | 一次証拠 |
+|---|---|---|
+| AC1 | 成立 | B2 の `SOuter` が (`Inner` v2, `Outer` v1) の列を持つ。B2 の `SOuter` の ContentHash は B1 と違う。B5 は (v2, v2) と `Shared` v2 |
+| AC2 | 成立 | B6 は上書き（`overlay: true`、root `SOuter`）。B6 の `SOuter` の ContentHash は B2 と同じで、`Outer` v2 の列を持たない |
+| AC3 | 成立 | `Incremental` は B2〜B4。B2 で書いた Scene の serialized file は `SOuter` だけ。B3 は生成 root だけで Scene を書かない。B4 の 4 Scene の ContentHash は B1 と一致 |
+| AC4 | 成立 | `SPlain` の file と `.meta` の sha256 と更新時刻が 7 回の build の前後 14 件とも同じ |
+| AC5 | 成立 | 7 回とも build の前と `coordinator.Build` の直後の inventory の差が無く、生成 folder は残らず、`userData` は全て空。EditMode の (a)〜(g) は Passed。重なる戻しの分岐に中間の書き込みと `ImportAsset` は無い（`ScenePrefabStamp.cs` 161〜166 行） |
+| AC6 | 成立 | 全ての出力に印の接頭辞が無い。B5 と B5' の 4 Scene の ContentHash が同じ。Scene 以外の差は record に残り、合否に使わない |
+| AC7 | 成立 | 未保存・読み取り専用・`userData` の 4 形・残った印の Scene の test が Passed |
+| AC8' | 成立 | 開いている変更の無い Scene（Single・Additive）と、開いている残った印の Scene の test が Passed |
+| AC9 | 成立 | 印の値の単体 test が Passed。新しい 2 file と adapter に `GetDependencies` は無く、`DisallowAutoRefresh` → `Apply` → 製品の `Refresh` → `AllowAutoRefresh`、`finally` で戻す |
+| AC10 | 成立 | 判定必須 1 の XML。差分は §3 の file、§5 の harness、本書だけ |
+
+- findings: なし。
+- 観察（合否に使わない）: B1 などで `Importer(DefaultImporter) generated inconsistent result` の Warning が Scene に出るが、その後の `.meta` の sha256 と `userData` は build の前と同じ。
+- 未確認事項: `content-output.zip` の `.cf` のバイトの再走査はしていない（harness の第 2 process の record で読んだ）。
+- 担当・モデル: 判断担当は会話履歴の無い新しい cursor-agent のプロセス（`grok-4.7-high`、xAI、`--mode=ask`、約 5 分）。Phase B（Anthropic）と別の系列。
 
 ## 8. Phase C'
 
