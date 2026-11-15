@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（revision 2、凍結済み・実装完了）
+- status: `C`（revision 2、判定 C 完了・C′待ち）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: この票を含む commit
+- implementation head commit: e41c56a9c9ad4b2a965e31384a90255bd9212ee2
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
-- Phase A snapshot の取得案内・状態: 旧案とレビュー記録はローカル固定済み（未昇格）、別sessionの取得確認済み。revision 2は本chatの案内で渡す。
-- Phase B result snapshot / evidence / C′ blind bundle: 未生成
+- Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
+- Phase B result snapshot / evidence / C′ blind bundle: B結果はCが取得・閲覧確認済み。判定rawとC所見を別packageでローカル固定済み（未昇格）。案内は本chatのroot担当へ引渡し、受け手のfetch・閲覧確認は未完了。C′は所見を除いた固定rawを使う。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は発見 C。§0〜§8 と固定差分を読み、§5 の条項・読取経路・#193/#194 の時系列照合、offline 検査、PR base の3分岐、別sessionの限定smokeを実施する。移動表とsmoke準備記録は既存の引渡し先にある。成立しないsmokeは未実行とし、対応する移動を見送る。Unity製品code、実Unity、実Storage清掃、別taskは対象外。C′は所定のblind入力のみ。
+- 引継ぎ票: 次はC′（独立監査）。rootが所見を除いた固定rawの取得案内と本記録commitのSHAを渡す。C′は可変HANDOFF・PR会話・C所見を読まず、凍結revision 2・B結果・同一implementation headの完全diff・offline生結果・6件の限定smoke原入力/原回答/操作記録だけを監査する。取得・閲覧が成立しなければ未実施のまま停止する。実Unity、実Storage清掃、mergeは対象外。C担当はC′を起動しない。
 
 ## 1. 目的と対象外
 
@@ -85,7 +85,16 @@
 
 ## 7. Phase C
 
-未着手
+- 種別・判定: 発見・判定 C 完了、GO。AC1〜AC6に対する現在の問いを阻害する欠陥なし。C′は未実施で、merge許可ではない。
+- 担当・独立性: 新規sessionのgpt-6-astra/high（起動時の指定値、serving fingerprint未取得）。Bのgpt-6.1-terraと別モデル。固定入力を既存Artifact Storageからfetch・閲覧し、A3/B snapshotと完全diffのGit blob一致を確認した。
+- 構造・契約: 13変更fileは責務マップ内。AGENTS差分は条件付き3行のみで他の全行は一致。移動表のUnity12・stall5・Storage6条項、必読経路、リンク/anchorを照合した。code契約・B/C責任・固定head・C′blindは保持され、製品code/asset/asmdef・新基盤の変更なし。
+- A2/A3/Cloud/公開履歴: 通常A2の固定base＋copy/hash、必要時だけの補助snapshot、Cloud例外とassist、Draft公開後の修正、人間の凍結確認が整合。#193のA2→統合Draft→外部3巡→凍結、#194の公開修正→revision 2凍結→Bを机上で区別できた。旧「未固定ならB以外停止」が無くても、C/C′のcommit固定入力条件は残り、未固定を正式C入力にする認可はない。
+- 実行: `pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` registered/selected/executed各38の同集合・failed0。`pwsh -NoProfile -File tools/docs-audit.ps1` errors0 / 既存harvest警告1、`pwsh -NoProfile -File tools/contract-audit.ps1` errors0 / warnings0（検査8はnot-applicable）。全てexit0。Unity回帰は§5の適用除外。
+- CI3分岐: workflowから抽出した追加stepのbodyはPR/develop exit0、PR/他base exit1。pushはevent条件でskipし、既存push検査を保持。初回抽出はPython既定encodingにより失敗し呼出しexit64だったため、元ログを保持してUTF-8明示で修正した。GitHub engine全体の模倣ではない。
+- 限定smoke: 3場面×旧新各1回、計6別session、同じgpt-6-astra/low/fork-none指定。各pairの依頼/fixture値はbyte一致、旧新ラベル・正解・他回答は非提示。6件とも必要な文書を完成し、不要停止・重大な誤指摘は確認しなかった。stallは強制終了と調査予算を保持、Storageは確認済み取得を再利用して再承認せず、B結果はテスト未実行をCへ引き渡した。実Unity/Storage動作の成功証明ではない。
+- smoke経路の限界: documented fork-noneの履歴非継承、明示prompt、repo外fixture、祖先/user-level AGENTS不存在を根拠に採用。完全native startup traceは無く、モデル自己申告やtoken差による非注入証明はしていない。最初の2sessionは成果物生成後のusage-limit通知を保存し、owner指示後に同じsessionで既存成果物を再利用した。追加trialなし。
+- 効率・未確認: AGENTSはUTF-8/LF 7945→5778 bytes。役割別の参照集合と操作時刻はrawに保存。実token未取得、所要時間は使用枠停止を含むため比較不能。今回のfixture準備を通常A2の追加負担にしない。一般的な無劣化・遵守率・性能改善は実証していない。次の2〜3sliceの既存B/C記録での観察を維持する。
+- 保存・引渡し: offline raw、smoke入力・原回答・成果物・操作記録をC所見/採点/PR会話から分離して既存Storageへローカル固定済み。取得案内は本chatのrootへ渡す。別sessionの取得確認は未完了。C′へC所見を渡さない。C′起動・push・PR最終更新はroot担当。
 
 ## 8. Phase C′
 
