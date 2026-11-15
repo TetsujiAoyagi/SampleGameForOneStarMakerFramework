@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `A`（A3 統合版に凍結前の外部レビュー 3 巡（PR #193）と主担当の点検を反映した版、未凍結。A3 凍結の承認待ち）
+- status: `B`（Phase A revision 1 を 2026-11-15 に owner の承認で凍結した。Phase B は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `未固定`
@@ -19,14 +19,16 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、A3 の凍結へ）:
-  - 次の Phase・役割: Phase A の A3（主担当と owner）。この票を含む commit は、A3 統合版に凍結前の外部レビュー 3 巡（PR #193）と主担当の点検を反映した版（未凍結）である。owner が凍結を承認したら、票を Phase B へ向けて書き直して A3 凍結版を commit する（引き継ぐ commit は凍結版の commit で、SHA は起動指示と PR 状態ブロックで渡す）。外部レビューをもう 1 巡受ける場合は、指摘を §5.1 の表に足して分類する（目的・利用者の 2 欄の文言を問う指摘は owner が裁定し、2 欄を変えたら未関与の担当で目的レビューを 1 回やり直す）。
-  - 読む範囲: Phase A の定めどおり全節。
-  - 開始時の照合: Phase A の内部なので SHA の照合は無い。ブランチ `claude/content-prefab-stamp` の HEAD がこの票を含む commit で、作業ツリーが dirty でないことを確かめる。
-  - 必要な権限: なし（A3 は Unity を起動しない）。
+- 引継ぎ票（2026-11-15、Phase B へ）:
+  - 凍結した Phase A: revision 1。A3 凍結版はこの票を含む commit で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 次の Phase・役割: Phase B（実装）。§3 の責務マップと §4 の順で、§2.7 の制約の中だけを実装し、設計判断を増やさない。§5 の未知の操作経路のうち Phase B が初回確認を持つ 2 つ（開いている変更の無い Scene の `.meta` を書いて戻した時の Editor の振る舞い（AC8）、`DisallowAutoRefresh` の区間で書いた `.meta` が製品の `Refresh` より前に import されないか（I1 (k)））を Editor の操作で確かめ、AC8 と AC8' のどちらを判定に使うかを §6 に書く。harness（§5 の第 1・第 2 process）も実装する。
+  - 読む範囲: 既定（§0〜§5）。
+  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head 欄は `未固定`（Phase A の出口）なので、Phase B の担当だけが引き継ぐ。PR が存在するので、状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致することも確かめる。
+  - 必要な権限: Unity Editor の起動と、対象を限定した Editor の操作（一時 Scene・一時 prefab での上の 2 つの確認）とコンパイル確認（`osm-unity-editor` Skill に従う）。Unity テストの判定実行と Content Directory の build は行わない（Phase C）。sandbox 外の実行は不要。
+  - 停止規則: §4 の差し戻す条件（§2.7 の外の書き方が要る、Scene 本体を書く、印のための `Refresh` を足す、閉包を作り直す、coordinator や public な型を変える）に当たったら実装を止めて Phase A を新しい revision で再開する。AC8 から AC8' への切り替えは差し戻さない。新しい事実は `phases-and-handoff.md` の「新しい事実の分類」で分ける。
+  - Phase B の出口: 実装を commit し、§6 に実装結果・HANDOFF との差・未実行を書き、implementation head 欄と票を発見 C へ向けて更新する（`phases-and-handoff.md` の「引継ぎ票」）。動作確認は `対象なし`（§5）。push と PR の状態ブロックの更新は `publish-and-history.md` に従う。
   - 引き渡さないもの: なし。
-  - Phase A の commit の例外: Phase A の commit は A2 入力版と A3 凍結版の 2 点と定めるが、owner の外部レビューの指示（2026-11-15）で、A3 統合版とその外部レビューの修正を公開 PR の commit として積んでいる（公開 PR の 1 巡ごとの修正 1 commit）。凍結版は別の commit として切る。
-  - 未決: A3 凍結の承認。
+  - 未決: なし。
 ## 1. 目的と対象外
 
 - 目的: 製品の build 経路で Content Directory を build する時、Scene に置いた prefab の instance（入れ子を含む）を編集した後に同じ `Library` で build し直しても、出力の Scene が、build した時点の手元の prefab の版を焼き込んだものになるようにする。目的 build と上書きの build の両方に効かせる。cache を捨てず、prefab が変わっていない Scene では差分 build の再利用を失わない。prefab が変わったかの検知は、prefab の file を読まない軽さに保つ。build が終わった後の source には、build が書いた物を何も残さない。Editor で開いて保存していない Scene を含む build は止めてよく、その編集を壊さない。
@@ -217,7 +219,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   - R1 目的レビュー: 入力は上の原文だけ（ツールを使わせず、repository を読ませていない）。問いは定めの 2 つ。
   - R2 アーキテクチャゲート: 入力は A2 入力版の HANDOFF（`46b8ad3b` の写し）、`architecture-gates.md`、`AGENTS.md`、base の source。枠として「§3・§4 の変更は実装済みと仮定し、現コードに無いことを欠陥の根拠にしない」を指示し、不変条件を破る順序と AC の読み違いも求めた。
   - R3 A0 だけからの代替構成: 入力は A0 の抜粋（§1 の目的・利用者・対象外・現況・UC、owner の決定、program §8 の S2-2b の行、事実の文書の該当 2 節。初稿の §2〜§5 を含まない）だけ。R1 とは別の担当で、目的レビューのやり直し用の未関与の担当は残っている。
-- A3 統合担当: 本 session（Anthropic、A1 と同じ主担当）。owner は A3 の進行を指示し、凍結は外部レビューの後とした（2026-11-15）。採否:
+- A3 統合担当: 本 session（Anthropic、A1 と同じ主担当）。owner は A3 の進行を指示し、凍結は外部レビューの後とした。凍結前の外部レビュー 3 巡の後、2026-11-15 に owner が凍結を承認した（A3 凍結版はこの節を含む commit）。採否:
 
   | 指摘 | 内容 | 採否 | 理由・反映先 |
   |---|---|---|---|
