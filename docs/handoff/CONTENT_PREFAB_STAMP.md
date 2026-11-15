@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `B`（Phase A revision 1 を 2026-11-15 に owner の承認で凍結した。Phase B は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - risk: `high`（全ての製品の Content Directory build が、build の間だけ利用者の Scene の `.meta` を書き換える。破壊的な生成器に当たる）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -19,14 +19,14 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、Phase B へ）:
-  - 凍結した Phase A: revision 1。A3 凍結版はこの票を含む commit で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
-  - 次の Phase・役割: Phase B（実装）。§3 の責務マップと §4 の順で、§2.7 の制約の中だけを実装し、設計判断を増やさない。§5 の未知の操作経路のうち Phase B が初回確認を持つ 2 つ（開いている変更の無い Scene の `.meta` を書いて戻した時の Editor の振る舞い（AC8）、`DisallowAutoRefresh` の区間で書いた `.meta` が製品の `Refresh` より前に import されないか（I1 (k)））を Editor の操作で確かめ、AC8 と AC8' のどちらを判定に使うかを §6 に書く。harness（§5 の第 1・第 2 process）も実装する。
-  - 読む範囲: 既定（§0〜§5）。
-  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head 欄は `未固定`（Phase A の出口）なので、Phase B の担当だけが引き継ぐ。PR が存在するので、状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation base / head が §0 の欄と一致することも確かめる。
-  - 必要な権限: Unity Editor の起動と、対象を限定した Editor の操作（一時 Scene・一時 prefab での上の 2 つの確認）とコンパイル確認（`osm-unity-editor` Skill に従う）。Unity テストの判定実行と Content Directory の build は行わない（Phase C）。sandbox 外の実行は不要。
-  - 停止規則: §4 の差し戻す条件（§2.7 の外の書き方が要る、Scene 本体を書く、印のための `Refresh` を足す、閉包を作り直す、coordinator や public な型を変える）に当たったら実装を止めて Phase A を新しい revision で再開する。AC8 から AC8' への切り替えは差し戻さない。新しい事実は `phases-and-handoff.md` の「新しい事実の分類」で分ける。
-  - Phase B の出口: 実装を commit し、§6 に実装結果・HANDOFF との差・未実行を書き、implementation head 欄と票を発見 C へ向けて更新する（`phases-and-handoff.md` の「引継ぎ票」）。動作確認は `対象なし`（§5）。push と PR の状態ブロックの更新は `publish-and-history.md` に従う。
+- 引継ぎ票（2026-11-15、Phase B から発見 C へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。implementation head はこの票を含む commit で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 次の Phase・役割: 発見 C（一次レビュー）。§6 の実装結果と HANDOFF との差（AC8 → AC8'、B6 の mode、戻しの判断の `AlreadyOriginal` 等）を、§2・§3 と差分で確かめる。動作確認は `対象なし`（§5）。
+  - 読む範囲: 既定（§0〜§8）。
+  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。欄の値は「この票を含む commit」なので、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があることを確かめる（implementation head は HEAD 自身）。PR の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致し、implementation head が同じ SHA であることも確かめる。発見 C の記録 commit では、implementation head 欄にこの SHA を実値で書く（句を引き継がない）。
+  - 必要な権限: Unity の test の実行（`pwsh tools/run-tests.ps1`。§5 の初期状態: Editor を閉じ、active build target が StandaloneWindows64 Player、作業ツリーが clean）。harness の第 1 process は実 build を伴い、B5p の前に `BuildPipeline.CleanBuildCache()` を呼ぶ（実行した PC の `Library` の build cache を全て捨てる）。sandbox 外の実行は既存の承認済み経路に従う。
+  - 停止規則: §4 の差し戻す条件（§2.7 の外の書き方が要る、Scene 本体を書く、印のための `Refresh` を足す、閉包を作り直す、coordinator や public な型を変える）に当たる指摘は Phase A を新しい revision で再開する。AC1 の初回確認（§5）が不成立なら、Scene ごとに `ImportAsset` で読ませる形への切り替えは A 再開（§2.7）。新しい事実は `phases-and-handoff.md` の「新しい事実の分類」で分ける。既知の Unity の終了 stall は `tools/Harness/README.md` の規則に従う。
+  - Evidence: Phase B result snapshot・evidence bundle・C' blind bundle は未生成。
   - 引き渡さないもの: なし。
   - 未決: なし。
 ## 1. 目的と対象外
@@ -282,7 +282,31 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（§3 の責務マップと §4 の順）:
+  - `ScenePrefabStampRules.cs`（新規、194 行）: 印を書く Scene の判定（`.unity`）、印の値（閉包の path の序数順に path と鍵を連ねた sha256。対象が無ければ null）、`.meta` を 1 バイト = 1 文字の text として扱う往復、`userData` の行の検出と分類（ちょうど 1 行、空の形は直後が行末か空白 1 つだけ、自分の印は接頭辞 `osm-prefab-stamp-`・末尾の空白の有無 `n`/`s`・64 桁の小文字 16 進）、印の書き込みと印の行の戻し、戻しの判断（§2.7 の (1)〜(4)）、残った印を今回も書く Scene の「元の text」。BCL だけ。
+  - `ScenePrefabStamp.cs`（新規、355 行）: 1 回の build の I/O。`Prepare`（書く前の検査。印の対象の `userData` の分類、読み取り専用、開いている Scene、記録と記録の無い残った印の列挙。止める理由を全て集めて例外）、`Apply`（残った印の戻し → 今回の印の書き込み。記録を保存してから `Library` の下の一時 file 経由の `File.Replace` で書く）、`Dispose`（書いた Scene ごとに戻して `ImportAsset(ForceUpdate)`、その Scene の記録を消す。1 つの失敗で残りを止めず最初の例外を投げ直す）。継ぎ目は probe（path から（印の対象か、鍵））と記録の置き場の 2 つ。記録は `Library/OneStarMaker/ScenePrefabStamp/<Scene の GUID>.json`（GUID・path・元と書いた後の sha256・元のバイトの Base64）。
+  - `UnityContentDirectoryAdapter.cs`（173 → 238 行）: `CleanupOrphans` の後に `Prepare`、`try` を 1 つ目の書き込みの前に始め、`DisallowAutoRefresh` → `Apply` → 生成 folder と marker → 製品の `Refresh` → `AllowAutoRefresh` の順。`finally` の片付けは段ごとに例外を受け止め（`AllowAutoRefresh` の戻し、印の戻し、marker、生成 folder、空の親 folder）、build の失敗があればそれを主にして片付けの失敗を添える。Unity の build は internal の継ぎ目（`Func<BuildContentDirectoryParameters, UnityContentBuildResult>`）で呼び、`BuildReport` の読み取りは既定の実装 `BuildWithUnity` の中に置いた。public な型・issue code は増やしていない。
+  - テスト: `ScenePrefabStampRulesTests`（§5 の単体テスト）、`ScenePrefabStampEditorTests`（AC5 (a)〜(g)、AC7 (a)〜(e)、AC8'。一時 folder の prefab 2 つと Scene 3 つ、うち `S2.meta` は CRLF。製品の coordinator と adapter を、build の継ぎ目と一時の記録の置き場だけ差し替えて通す）。
+  - harness: `Tests/Editor/Spikes/PrefabStamp/`（`PrefabStampHarness.cs`、`PrefabStampProcesses.cs`。Phase D で削除）。第 1 process は `PrefabStampBuildProcess.Build`、第 2 process は `PrefabStampVerdictProcess.Verdict`（どちらも `[Explicit]`）。record は `TestResults/pst/<実行 id>/`、出力は `TestResults/bs3-fixture/pst/`。fixture は `Assets/OsmPst`（marker で所有を示す）、名前は §5 のとおり（`Inner`・`Outer`・`Shared`、`SOuter`・`SShared1`・`SShared2`・`SPlain`、B5' は `B5p`）。第 1 process は build の直前と `coordinator.Build` の直後の各 Scene の file・`.meta` の sha256 と更新時刻・`userData`、`Assets/` と `ProjectSettings/` の全 file の一覧（`inventory-<build>-<before|after>.txt`）と差、生成 folder の有無、出力の一覧を record と `build-facts.json` に書き、`Library/BuildHistory/<build>` の 3 file を run の下に写す（Unity の保持の規則で消えうるため）。第 2 process は写した履歴（`Library` に残っていれば同じバイトかも記録）と出力から、各 Scene の `.cf`（`ContentLayout.json` の `LoadableSceneIds` → `SerializedFiles` の `ContentHash`）の float 列、`BuildPipeline::WriteSerializedFile` の event で書いた Scene、印の接頭辞の有無を求め、AC1〜AC6 を `ac` の行に書く。AC の不成立では test を失敗にせず、harness 自身の例外だけで失敗する。
+- Phase B の Editor での初回確認（§5 の未知の操作経路の 2 つ。2026-11-15、開いている Editor、一時の prefab と Scene `Assets/OsmStampProbe`。確認後に削除した。Editor は非フォーカス）:
+  - I1 (k): `DisallowAutoRefresh` の中で、開いている Scene の `.meta` の `userData` を印の形に書いた。約 1 分後の別の操作で `AssetImporter.userData` は空のままだった（自動 refresh で import されていない）。`DisallowAutoRefresh` のまま `AssetDatabase.Refresh()` を明示に呼ぶと `userData` は印の値になった（明示の `Refresh` は区間の中でも import する）。フォーカスを戻した時の自動 refresh は試していない。
+  - AC8: `Refresh` の直後、Scene は開かれたまま・未保存の変更なし・root の GameObject の EntityId も同じ（読み直していない）だった。ところが次の Editor の更新で、モーダルダイアログ「The open scene(s) have been modified externally」（Reload / Ignore）が出て main thread が止まった。元のバイトに戻して `ImportAsset` した後にも同じダイアログが出た（どちらも Ignore で閉じ、Scene は同じ instance・未保存の変更なしのまま）。`ImportAsset` は `ForceUpdate` なしでも戻した `userData`（空）を読んだ。
+  - 判定に使う AC: **AC8'**（AC8 は「dialog なし」が成り立たない。§2.2・§2.7 の U3 (b) への切り替えで、A3 で合意済み）。実装は、印を書く Scene と戻しの対象の Scene が Editor で開いていれば、変更の有無にかかわらず書く前に止める（message に Scene の path と「close it before building」）。印を書かず戻しの対象でもない Scene は、開いていても未保存でも止めない。`ScenePrefabStampEditorTests` の AC8 の test は AC8' の test（開いている変更の無い Scene で止まる（Single・Additive）、開いている残った印の Scene で戻さずに止まる、印を要らない開いている未保存の Scene では止まらない）にした。
+- HANDOFF との差（全て B 適応。§2.7 の契約と §3 の責務配置は変えていない）:
+  - AC8 → AC8'（上記。差し戻さない取り決めどおり）。
+  - B6 は製品の上書きのコンストラクタ（`BuildContentRequest(selection, baseIdentity, …)`）で build した。このコンストラクタは mode を `Full` に固定するので、§5 の「`Incremental` で build」ではなく `Full` になる。上書きの workspace は新しい contentSet で、AC2 が見るのは workspace でなく `Library` の build cache なので AC2 の問いは変わらない。B6 は AC3 の数え（`Incremental` の回だけ）に入らない。
+  - 戻しの判断に「今の `.meta` が元の sha256 と同じなら書かず Warning も出さない」（`AlreadyOriginal`）を足した。(1)〜(4) のどれにも当たらない状態（誰かが既に戻した、書き込みに失敗した）で、書く物が無い。書き込みに失敗した Scene の記録はその場で消す（残すと、元のままの `.meta` を次の build が「印でない値」と読んで Warning を出す）。
+  - 読めない記録（JSON として読めない、file 名と GUID が違う）は Warning を出して無視し、`Apply` で消す（読めない記録で build を止め続けない。記録が失われた印は `userData` の形から戻る）。
+  - `ScenePrefabStamp` は 355 行（§3 の予想 約 200）、adapter は +38%（予想 +21%）。どちらも 500 行・50% の警報の外。
+  - AC5 (e) の test は、HANDOFF の `FileShare.None`（書く前の検査の読み取りで止まり、何も書かない）に加えて `FileShare.Read`（1 つ目を書いた後、2 つ目の置き換えで止まる）も確かめる。
+  - EditMode test と harness は、active build target が StandaloneWindows64 Player でないと `Assert.Ignore`（既存の `BuildContentDirectoryIntegrationTests` と同じ）で走らない。判定 C は XML で `ScenePrefabStamp*` の test が skipped でないことを確かめる。
+- 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness の 2 つの process は実行していない（Phase C）。Editor のコンパイル確認は済み（最後の変更の後に recompile が `compilationFailed: false`、新しい file の nullable の warning なし）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。AC1（製品の `Refresh` にまとめた印を Unity の build が読むか）の初回確認は §5 のとおり Phase C の限定実行。EditMode の成功の test は、build の継ぎ目の時点で `AssetImporter.userData` が印の値であることも確かめる（製品の `Refresh` が印を import した証拠。Unity の build が読む証拠ではない）。
+- implementation head commit: この票を含む commit
+- Phase B 担当・ベンダー: 本 session（Anthropic）
+
+### 動作確認
+
+- 対象なし（§5）。
 
 ## 7. Phase C
 
