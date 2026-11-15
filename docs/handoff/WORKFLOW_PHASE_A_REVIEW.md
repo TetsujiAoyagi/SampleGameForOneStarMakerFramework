@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 1、A3統合案。人間による凍結は未実施）
+- status: `A`（revision 1、A3統合案第2版。外部レビュー反映済み、人間による凍結は未実施）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
 - implementation head commit: 未固定
@@ -12,7 +12,7 @@
 - created: 2026-11-15
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
-- Phase A snapshot の取得案内・状態: A2入力とA3統合案はローカル固定済み（未昇格）。別sessionによるfetch・必須5fileの閲覧と採否反映を確認済み。取得案内は本chatの既存引渡し先に置く。凍結承認は未取得。
+- Phase A snapshot の取得案内・状態: A2入力とA3統合案第1版はローカル固定済み（未昇格）、別sessionによるfetch・必須5fileの閲覧確認済み。第2版も変更した計画と外部レビューの採否をローカル固定し、取得確認は同案内へ記録する。取得案内は本chatの既存引渡し先に置く。凍結承認は未取得。
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
@@ -30,13 +30,13 @@
 
 1. `phases-and-handoff.md`と`publish-and-history.md`の双方にA2 commit必須がある。一方だけ直すと逆の指示が残る。
 2. `publish-and-history.md`はPR作成をC′後とする。A3後の外部計画レビュー、B開始、C′の盲検入力を区別した出口が必要。
-3. `AGENTS.md`は7,996 UTF-8 bytes、`SKILL.md`は7,150 bytes、`phases-and-handoff.md`は45,650 bytes、テンプレートは13,088 bytes（base時点、改行を含む）。行数だけでは一行の長文化を見逃す。これはtoken数・品質・費用の実測ではない。
+3. baseのGit blob（UTF-8/LF）で`AGENTS.md`は7,945 bytes、`SKILL.md`は7,097 bytes、`phases-and-handoff.md`は45,417 bytes、テンプレートは12,927 bytes。初回の7,996 / 7,150 / 45,650 / 13,088はCRLF checkoutの値だった。新旧のbyte比較はGit blobのLFで統一し、読取り実績のbytesとは区別する。行数だけでは一行の長文化を見逃す。これはtoken数・品質・費用の実測ではない。
 4. `contract-audit.ps1`はnullable、record、実時間待機、SceneState、Editor依存、GetInstanceID、ZLogger警告、適用taskの証拠追加、path予算を検査済み。すべての契約を自然言語から消せる証明ではない。regex、検査対象・除外、警告とエラーの差がある。
 5. 同scriptの説明は「Phase BはUnityを起動しない」としており、現行の限定Editor操作・compile許可と矛盾する。
 6. `offline-checks.yml`はauditとoffline suiteを実行するが、PR baseのdevelop制約は検査していない。
 7. `docs-audit.ps1`はリンク先fileを検査するが、節anchorの存在や指示の意味的一致は保証しない。既存programをsliceの§7/§8埋まりで警告する例もある。今回これを理由にprogramを削除しない。
 8. `Harness/ApprovedSpecifications.psm1`は承認済みtaskを列挙する方式。今回の汎用な評価をH1へ無断登録・移行すると、単なる手順改善がStorage/Harnessの設計変更へ拡大する。
-9. 限定fixtureで、using alias経由の`Task.Delay`と複数行の`record`宣言の両方がauditのexit 0になることを実測した。この2契約を全面移管できるという前提は棄却する。regex検査の既存正常系29件の通過だけでは検出力を保証できない。
+9. 限定fixtureで、`using DelayTask = System.Threading.Tasks.Task;`からの`await DelayTask.Delay(1);`と、`public record`の次行に型名`MultilineRecord`を置く宣言の両方がauditのexit 0になることを実測した。`record 型名`が同じ行で`{`だけが次行の通常形を見逃したという意味ではない。この2契約を全面移管できるという前提は棄却する。regex検査の既存正常系29件の通過だけでは検出力を保証できない。
 
 ## 2. 意思決定と受け入れ境界
 
@@ -52,11 +52,11 @@
 
 ### 成立条件と受け入れ条件
 
-- AC1（I1）: 通常の同一PC A2はcommitなし。固定copyと内容sha256を使う既存Phase A snapshotの経路を用いる。レビュー対象の補助fileが無い場合も、hashの対象と読み手が読んだ版を特定できる。既存の保存・取得規約を別の自作台帳へ置き換えない。
-- AC2（I1）: Cloud A2でGit取得が必要な場合だけA2 commit/pushを許す。目的レビューだけなら原文のhashで足りる。Gitに載せない補助fileを必要とするCloudは、取得・閲覧が成立しなければassistのまま。A2 commitを一律禁止しない。
-- AC3（I2）: A3統合案をcommitし、develop向けDraft PRで外部計画レビューする。人間の凍結前なら状態はA3確認中で、Bは未開始。外部指摘を採用して目的・設計・受入境界が変わる場合はAへ戻して必要範囲を再レビューする。C/C′は固定実装の検証として残す。Draft解除・mergeを自動実行しない。
+- AC1（I1）: 通常の同一PC A2はcommitなし。固定copyと内容sha256を使う既存Phase A snapshotの経路を用いる。HANDOFFだけでなく、根拠として読むSkill・audit・codeも同じ版へ固定する。既存repo部分は固定base SHAのclean checkout、差分とGit外補助fileはsnapshot manifestの内容hashで指定し、可変treeを参照させない。受領側は閲覧前にhashを照合して必須fileを実際に読み、取得・閲覧未確認、不一致、同名上書き、固定版外の改稿を読んだレビューはassistとする。別の自作台帳やrepo全体の毎回の複製を要求しない。
+- AC2（I1）: Cloud A2で、固定snapshotを取得・閲覧できずGitからの入力配布が必要な場合だけA2 commit/pushを許す。Cloud担当の有無とGit例外の理由は区別し、Cloudであることだけをcommit理由にしない。例外commitだけでPRを開かず、Bも認可しない。目的レビューだけなら原文のhashで足りる。Gitに載せない補助fileを必要とするCloudは、取得・閲覧が成立しなければassistのまま。A2 commitを一律禁止しない。
+- AC3（I2）: A3統合案をcommitし、develop向けDraft PRで外部計画レビューする。公開規則の正本で「A2各巡はcommitなし／A3のDraft PR以降は公開レビュー1巡の修正を原則1commit／人間の凍結記録を含む版だけBへ渡す」を一続きにする。人間の凍結前なら状態はA3確認中で、Bは未開始。B開始照合には、渡されたcommit内のA3凍結記録（人間の採否と対象revision）と票の次担当がBであることを必須にし、`implementation head: 未固定`だけでは認可しない。現時点の票もB開始不可であり、凍結済みcommitをまだ渡していない。head欄の値を故意に不正にする方式は使わない。外部指摘を採用して目的・設計・受入境界が変わる場合はAへ戻して必要範囲を再レビューする。C/C′は固定実装の検証として残し、C′は本PRの会話を継承せずblind bundleだけの新規sessionで開始する。Draft解除・mergeを自動実行しない。
 - AC4（I2）: 既存の役割別読取り表と整合し、Bの差し戻し時の§6〜§8、C′の限定入力を落とさない。既存の進行中スライスへ再計画・再commitを遡及要求しない。
-- AC5（I3/I4）: `AGENTS.md`から減らす規則ごとに、機械検査・該当作業の読み先・限界を確認する。nullable/record/実時間待機は短い禁止文を残し、説明を実装向け参照へ寄せる（下記の見逃しがあるため全面移管しない）。pathは既存の機械判定と正本への入口に圧縮する。SceneStateの追加判断、asmdef、寿命、例外隔離、ILogger公開境界、疑似nullは意味判断または未検査範囲があるため保証を削除しない。Unity運用・Storageの長い条件付き手順は、担当作業で必読になる既存参照へ移す。軽量化の目標はAGENTSのUTF-8 bytesをbase比25%以上減らすこと。安全な移動で達しなければ理由と実測値を返し、品質を下げて数字を合わせない。
+- AC5（I3/I4）: `AGENTS.md`から減らす規則ごとに、機械検査・該当作業の読み先・限界を確認する。nullable/record/実時間待機は短い禁止文を残し、説明を実装向け参照へ寄せる（下記の見逃しがあるため全面移管しない）。pathは既存の機械判定と正本への入口に圧縮する。SceneStateの追加判断と変更所有者SceneLifecycleManager、asmdef、寿命、例外隔離、ILogger公開境界、疑似nullに加え、UpdateSystemRuntime登録と5段階のフレーム順序、参照0を削除理由にしないこと、Game→FrameworkとDependOnAllは短い常時契約として保持する。Unity運用・Storageの長い条件付き手順は、担当作業で必読になる既存参照へ移す。軽量化の目標はAGENTSのLF blob bytesをbase比25%以上減らすこと。安全な移動で達しなければ理由と実測値を返し、品質を下げて数字を合わせない。
 - AC6（I3）: contract auditの古いB説明を訂正する。PRのbase検査はpull_requestイベントだけでdevelop以外を失敗にする。pushイベントを誤拒否しない。既存の統合branch向けpush検査は維持する。
 - AC7（I5）: §5の正常・違反fixture、役割別の行動比較、文量・検査時間の比較を残す。必須caseの欠落、空出力、未取得入力、重大な新規見逃しを合格にしない。新しい大規模評価サービスは作らない。
 
@@ -74,8 +74,8 @@ Unity疑似null Analyzerの本導入は独立して失敗しうる（Roslyn互�
 
 ## 3. 責務マップ
 
-- `AGENTS.md`（base 52行）: 常時必要な境界と作業別入口。長いUnity運用・Storageの詳細を対応する既存Skill/参照へ寄せる。機械検査済み規約の説明を圧縮する。目標差分は約15〜25行減。OSM-maintainerが所有する恒久規約で、実行時状態は持たない。
-- `osm-workflow/SKILL.md`（54行）と既存references: Phaseの入口・責任・読取り範囲を所有。`phase-a.md`（13行）、`phases-and-handoff.md`（234行）、`publish-and-history.md`、`handoff-template.md`のA2/A3/PR記述を一括整合。anchorを維持し、同じ規則を複数箇所で再定義しない。詳細移動先はまず既存referenceを使う。合計純増は150行以内を見込む。
+- `AGENTS.md`（base blob 51行）: 常時必要な境界と作業別入口。長いUnity運用・Storageの詳細を対応する既存Skill/参照へ寄せる。機械検査済み規約の説明を圧縮する。目標差分は約15〜25行減。OSM-maintainerが所有する恒久規約で、実行時状態は持たない。
+- `osm-workflow/SKILL.md`（base blob 53行）と既存references: Phaseの入口・責任・読取り範囲を所有。`phase-a.md`（12行）、`phases-and-handoff.md`（233行）、`publish-and-history.md`、`handoff-template.md`のA2/A3/PR記述を一括整合。anchorを維持し、同じ規則を複数箇所で再定義しない。詳細移動先はまず既存referenceを使う。合計純増は150行以内を見込む。
 - `tools/contract-audit.ps1`（既存）: 実装済み検査の説明を現行B許可と整合。判定ロジックの強化は実測した見逃しだけを対象に別途A3へ提示する。今回は説明修正が基本。
 - `.github/workflows/offline-checks.yml`: GitHub側のPR base属性を検査。既存auditやHarnessにGitHub責務を混ぜない。追加10行程度。
 - `tools/Harness/README.md`: 変更後のoffline確認の入口・評価の限界を既存箇所へ記す。新たなCURRENT承認値やStorage domainは作らない。
@@ -97,20 +97,20 @@ BからAへ返す条件: 新しい検査の独自仕様、Unity Analyzerの導�
 
 ### 変更前後の比較（実装後に判定Cが実行）
 
-同じモデル・設定・時間上限、同じ固定課題で旧/新を新規sessionに渡す。各版のAGENTS・Skill・必要参照と固定fixtureを別々の一時repoへ複写し、開始指示は「このrepoの指示で課題を停止地点まで進め、操作と結果を残す」と課題本文だけにする。元repoや新旧のもう一方を探索させない。上位指示の自動注入に比較対象の現行AGENTS/Skillが入らない実行環境を使う。質問への回答だけの比較にしない。許す操作は一時repoの読取り・編集・ローカルGit・offline auditで、実Unity・network・資格情報・実Storageは不可。停止地点は次Phaseへの引渡し直前または正しい停止判断とし、PR/Cloud/Evidenceの外部操作は固定した応答fixtureで実行する。
+同じモデル・設定・時間上限、同じ固定課題で旧/新を新規sessionに渡す。各版のAGENTS・Skill・必要参照と固定fixtureを別々の一時repoへ複写し、開始指示は「このrepoの指示で課題を停止地点まで進め、操作と結果を残す」と課題本文だけにする。元repoや新旧のもう一方を探索させない。上位指示の自動注入に比較対象の現行AGENTS/Skillが入らない実行環境を使う。質問への回答だけの比較にしない。許す操作は一時repoの読取り・編集・ローカルGit・offline auditで、実Unity・network・資格情報・実Storageは不可。停止地点は次Phaseへの引渡し直前または正しい停止判断とし、PR/Cloud/EvidenceとUnity操作・compileは固定した偽応答adapterで模擬し、呼出し・引数・次Phaseへ渡す判断を記録する。実Editorを起動した成功として扱わない。
 
-採用する同一モデルID・設定、各課題の開始指示・初期file集合・tool応答・停止地点・5分の時間上限を、実行前に評価manifestへ固定する。モデルを確認できない、上位指示が混入する、操作履歴が保存できない実行環境では比較を開始せず未実行とする。利用可能なモデルが変わったら旧/新を同じ条件でやり直し、別モデル間の差を文書変更の効果へ帰属させない。新旧を交互の順序で実行し、相手の回答・採点基準・解決後のPRを見せない。8課題を各版2回（合計32回答、最大160分のモデル実行予算）。同じ主張を言い換えた水増しではなく、次の境界を各1課題にする。
+採用する同一モデルID・設定、各課題の開始指示・初期file集合・tool応答・停止地点・時間上限を、実行前に評価manifestへ固定する。事前probeで旧/新それぞれが必読集合を読み最初の操作へ到達できること、親workspaceのAGENTS/Skillが自動注入されないことを、起動設定と入力/操作記録で確認する。一時repoに入れたことやモデルの自己申告だけでは非注入を確認済みにしない。初期予算は1回答最大5分・32回答で最大160分とし、probeに所要時間の余裕がなければ本比較へ進まず、上限変更をA3へ返す。モデルを確認できない、上位指示が混入する、操作履歴が保存できない実行環境では比較を開始せず未実行とする。利用可能なモデルが変わったら旧/新を同じ条件でやり直し、別モデル間の差を文書変更の効果へ帰属させない。新旧を交互の順序で実行し、相手の回答・採点基準・解決後のPRを見せない。8課題を各版2回（合計32回答）。同じ主張を言い換えた水増しではなく、各課題は次の保証から必須/禁止行動を導く。
 
-1. ローカルA2中の改稿とレビュー入力固定。
-2. Cloud A2のGit取得と、Git外補助証拠が取得不能な場合。
-3. A3統合案のDraft PRと、外部指摘後の凍結/B開始。
-4. BでEditor compile可能だがUnityテストはC、という責任分担。
-5. Bの差し戻し時に読むレビュー節と、scope外の設計変更の扱い。
-6. C′がPR/C所見を読まず固定blind入力を使うこと。
-7. 未stage新規C#の機械検査、audit失敗/対象0の扱い。
-8. Evidenceの保存・引渡し・終了と、既知native stallを再調査しない境界。
+1. ローカルA2: 固定入力を照合・閲覧して改稿と区別する。可変treeの参照、他レビューの閲覧を禁止する。旧版のcommitは安全違反には数えず要求適合を別採点する。
+2. Cloud A2: 固定Git版と必要な補助fileを読み、取得不能ならassistと記録する。commitやpushだけで正規レビューへ昇格することを禁止する。
+3. A3→B: Draft PRの公開と人間の凍結記録を区別する。未凍結の票・`未固定`だけでBを開始することを禁止する。
+4. BのUnity権限: 必要なら限定Editor操作・compileを行い、Unityテスト/BuildはCへ渡す。B未許可のUnity実行を禁止する。
+5. 差し戻しB: §6〜§8を読み、凍結範囲の適応と設計変更を分類する。必要なレビューを読まない修正と、scope外の独自設計を禁止する。
+6. C′: 同じ固定headのblind bundleだけで新規sessionを開始する。PR/C所見や本計画レビューの会話の継承を禁止する。
+7. 機械検査: 未stageの新規fileも検査し、実行失敗/対象0を未検証として扱う。exitだけや空の対象集合を合格に読み替えない。
+8. 保存/終了: 必須証拠の保存・引渡しを確認し、人間のtask完了決定を区別する。PR作成/C合格からの自動終了、既知stallの調査回数リセットを禁止する。
 
-採点は事前固定した必須行動/禁止行動で行い、言い回しを採点しない。人間が曖昧な回答を裁定できるよう原回答と操作履歴を保存する。旧版が今回の要求と違うA2 commit/遅いPRを選ぶことは既存品質の基準に含めず、要求適合の改善として別集計する。共通の安全境界は新旧同じ正解で比較する。新規重大違反0に加え、各境界の成功数が旧版以上であることを要求し、境界間で相殺しない。入力未取得/timeout/空回答も失敗として分母へ含める。新規失敗は全件示し、対応する削減を戻す。採用条件を緩めるなら人間のA3 revisionを要する。32回答は限定した回帰のsmokeであり統計的な無劣化保証とは呼ばない。
+採点は上の導出規則から事前固定した必須行動/禁止行動で行い、言い回しを採点しない。人間が曖昧な回答を裁定できるよう原回答と操作履歴を保存する。旧版が今回の要求と違うA2 commit/遅いPRを選ぶことは既存品質の基準に含めず、要求適合の改善として別集計する。共通の安全境界は新旧同じ正解で比較する。新規重大違反0に加え、各境界の成功数が旧版以上であることを要求し、境界間で相殺しない。入力未取得/timeout/空回答も失敗として分母へ含め、いずれかの版で境界ごとの有効な完了試行が0なら比較不成立とする。両版timeoutの0対0を合格にしない。新規失敗は全件示し、対応する削減を戻す。採用条件を緩めるなら人間のA3 revisionを要する。I5の実測判断はこの8境界の範囲に限り、32回答を一般的・統計的な無劣化保証とは呼ばない。
 
 実モデルを起動できない環境では未実行として報告し、文量測定や自己レビューで行動比較を代替しない。過去PR replayは任意の追加で、使うならbase時点の要求と未修正コードだけを入力にし、後の修正・レビューを採点側に隠す。採点基準を課題の実行後に都合よく変えない。
 
@@ -118,13 +118,13 @@ BからAへ返す条件: 新しい検査の独自仕様、Unity Analyzerの導�
 
 - 既存`contract-audit.tests.ps1`、`Harness.Tests.ps1`、`docs-audit.ps1`、`contract-audit.ps1`を固定headで実行。CI base判定はpull_request develop、他base、pushの3条件を検証する。
 - 既存auditを転用して本文を減らす範囲は、違反と正常の両方のfixtureで確認。alias・複数行・コメント/文字列・vendor・Editor専用asmdef・未stage追加など、実装が扱える境界と扱えない境界を明示する。見逃しが判明した契約を全面移管しない。
-- AGENTS、Skill入口、役割別の必須参照を重複除去してUTF-8 bytes/行数を新旧比較。詳細を別fileへ押し出した分も読取り集合に数える。全課題で完了/停止までのelapsed、tool読取り回数、読んだ総bytes、誤操作からの手戻り回数を必須記録とし、取得可能なら実tokenも添える。bytesをtokenへ換算しない。各課題の新旧2回の中央値を比較し、elapsedが20%以上かつ30秒以上増える、または読取り/手戻り回数が増えた課題があれば自動GOにせず原因を確認し、削減を戻すかA3で人間へ採否を返す。既知のA2 commit削減と新規準備の費用は、開始から引渡しまで同じ範囲に含める。
+- AGENTS、Skill入口、役割別の必須参照を重複除去してGit blobのUTF-8/LF bytes/行数を新旧比較。詳細を別fileへ押し出した分も読取り集合に数える。全課題で完了/停止までのelapsed、tool読取り回数、実際に読んだ総bytes、誤操作からの手戻り回数を必須記録とし、取得可能なら実tokenも添える。bytesをtokenへ換算しない。各課題の新旧2回の中央値を比較し、elapsedが20%以上かつ30秒以上増える、または読取り/手戻り回数が増えた課題があれば自動GOにせず原因を確認し、削減を戻すかA3で人間へ採否を返す。既知のA2 commit削減と新規準備の費用は、開始から引渡しまで同じ範囲に含める。
 - audit時間は同じ環境で各3回の中央値を記録。新規検査追加の中央値が旧比20%以上悪化したら原因と採否を人間へ返す。baseline未満の僅差を性能改善と宣言しない。
 - 差し戻し中の起点: 該当offline suite。Unity filterは対象なし。
 - 判定必須: 上の機械検査、行動比較、移管した規則の正常/違反fixture、PR状態とリンク/節anchorの確認。
 - 全EditMode適用除外: Unity製品code/asset/asmdefを変更しないため。代替はoffline audit、CI分岐検証、役割別行動比較。Analyzer導入へ範囲を広げたらこの除外を流用しない。
 - 操作/目視: 対象なし。GitHubのDraft/base/headはPR作成時に取得して確認する。
-- 未知の疎通: 正式比較の実行環境・使用モデル・操作履歴保存は未確認。初回確認はPhase Cで、実課題に入る前に最小の読取り/編集probeを旧/新の隔離repoで実行する。不成立なら比較を未実行として止め、環境整備はAへ返す。Unity経路は不要。
+- 未知の疎通: 正式比較の実行環境・使用モデル・操作履歴保存は未確認。小さな非注入・必読集合読取り・編集/履歴保存・偽応答adapterのprobeはA3凍結前にA担当が確認する。未成立のまま凍結せず、環境整備か検証方式の改訂をAで判断する。正式32試行の実行・判断は新規C sessionのまま。Unity起動は不要。
 - 高コスト証拠: なし。モデル比較を無限反復せず固定32回答で実施し、失敗を隠す再実行はしない。
 - 判定C照合script: 判定Cのoffline実行。採点用原回答copy・期待値を資格情報・本番設定・通信に届かない環境で照合する。期待値とscriptはGit外に保存。
 - A0/A1: Codex（OpenAI、表示モデル系列GPT-6。厳密なserving識別子は取得不能）。
@@ -135,13 +135,16 @@ BからAへ返す条件: 新しい検査の独自仕様、Unity Analyzerの導�
 - 目的レビュー（GPT-6系/OpenAI、別session）: §1の目的・利用者だけを受領。入力sha256: `67f8e06832297119ae3077101ce4c29ab75f42e50d97e9c998667b6ccd77ce74`。commitの代わりの新しい必須帳票を作らない、誤検出・見逃し・追加操作も比較する、機械合格で意味判断を代替しない、を採用。入力原文とレビュー要約はGit外snapshotに収録。review/baseline fileは会話出力からの転記・要約であり、生実行ログではない。
 - アーキテクチャレビュー（GPT-6-astra/OpenAI、別session）: A2入力は内容hashで固定した未commitの版。入力sha256: `cec0c1cef3058179df9c53d76fc02dc2f275014ef39548c5feebc867a82f54ab`。最初の可変file読取りだけでは正規A2未充足と明記し、同じbytesのStorage snapshotのfetch・全文閲覧・hash一致を担当が確認して留保を解消した。全4指摘（効率測定の必須化、操作を伴う比較環境の固定、B/C担当矛盾の解消、境界別の退行判定）を採用し§4/§5へ反映。A2 commitは今回の依頼に従い省略した。
 - A3統合担当: Codex/OpenAI。上記の見逃し実測を踏まえrecord/実時間待機の全面移管を不採用。Analyzerの別スライス化を維持。人間の凍結は未実施。Draft PRは統合案の計画レビュー用であり、A3凍結済み・B実装済みを意味しない。
+- PR #194外部レビュー（[主レビュー](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/194#issuecomment-6891641371)）: B開始照合の凍結確認、固定base＋snapshotによる根拠fileの版固定、Cloud例外理由の限定、残す4契約、fixture表現の限定、LF blob基準、8境界の導出規則と非注入/時間probeを採用。head欄へ不正値を入れる案は既存の値契約を壊すため不採用とし、A3凍結記録の明示照合で目的を満たす。凍結前の統合案を再レビュー対象とする。
+- ownerの本chat指示: Bot自身が過去PRで有用性を独立測定できるという[後続回答](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/194#issuecomment-6891704128)は採用しない。独立実行の成立確認・実測を代替する根拠にしない。§5の比較検証そのものを省略する指示ではない。
+- 第2版の限定再レビュー（GPT-6-astra/OpenAI）: 固定baseのGit blob全10件とoverlay、外部コメントを取得・照合して読了。上記採否を支持。追加2指摘（小さな環境probeは凍結前、課題4のUnity操作も偽応答へ接続）を採用した。正式比較をAへ前倒しせず、実Unityも起動しない。
 
 ### A1/A3時点のbaseline観測
 
 - `contract-audit.tests.ps1`: 29件通過、exit 0（既存fixture集合）。
 - `contract-audit.ps1`: base checkoutの784 C# fileでerrors 0 / warnings 0。3回の経過時間は18,716 / 11,104 / 10,980 ms、中央値11,104 ms。初回はcache条件が異なる可能性があり、速度改善の証拠とはしない。
 - `docs-audit.ps1`: 計画文書追加後もerrors 0 / warnings 1、exit 0。警告は既存の進行中programの§7/§8判定。
-- 限定fixture: alias経由のTask.Delay、複数行recordの双方がaudit exit 0 / errors 0。違反なのに通る結果であり、機械検査への全面移管が未成立である根拠とする。
+- 限定fixture: `DelayTask.Delay(1)`と、`public record`の次行に型名を置いた宣言がaudit exit 0 / errors 0。違反なのに通る結果であり、機械検査への全面移管が未成立である根拠とする。
 - 変更前後の行動比較、文量比較、Analyzer検証は未実施。Skills本体はまだ変更していない。
 
 ## 6. Phase B 実装結果
