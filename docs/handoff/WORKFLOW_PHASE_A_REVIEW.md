@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `A`（revision 2、凍結済み）
+- status: `B`（revision 2、凍結済み・実装完了）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: 旧案とレビュー記録はローカル固定済み（未昇格）、別sessionの取得確認済み。revision 2は本chatの案内で渡す。
 - Phase B result snapshot / evidence / C′ blind bundle: 未生成
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次はB。§0〜§5を読み本仕様を実装する。渡された本票を含むcommitを照合する。Unity製品code、実Unity、実Storage清掃、別taskは変更しない。Cは別sessionが担当し、Bは判定を代行しない。
+- 引継ぎ票: 次は発見 C。§0〜§8 と固定差分を読み、§5 の条項・読取経路・#193/#194 の時系列照合、offline 検査、PR base の3分岐、別sessionの限定smokeを実施する。移動表とsmoke準備記録は既存の引渡し先にある。成立しないsmokeは未実行とし、対応する移動を見送る。Unity製品code、実Unity、実Storage清掃、別taskは対象外。C′は所定のblind入力のみ。
 
 ## 1. 目的と対象外
 
@@ -75,7 +75,13 @@
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装: A2の固定baseとHANDOFF copy、Cloud例外、A3 Draft PR・人間の凍結確認、C′のblind session、関連参照を更新。AGENTSの条件付き3項目を既存正本の入口に移し、Phase Cのstall必読を追加。audit説明を現行のB権限に合わせ、CIでPR baseをdevelopに制限した。
+- 条項別の移動・必読経路・機械検査の有無はGit外の既存作業記録に記載。AGENTSの他の全行は元版と一致。UTF-8/LF bytesは7945から5778。
+- 軽い確認: `pwsh -NoProfile -File tools/docs-audit.ps1` はエラー0、既存のharvest警告1。`pwsh -NoProfile -File tools/contract-audit.ps1` はエラー0・警告0（検査8は通常taskのためnot-applicable）。`git diff --check` 合格。
+- smoke準備: fork履歴なしの新規sessionでfixtureの読取・receipt作成・再読取が可能と確認。CLI経路は環境のpolicyにより読取が拒否され未実行。設定緩和・迂回なし。実smokeと親指示非混入の成立確認はCで行う。3項目の移動はその結果まで暫定。
+- 未実行: §5の完全な条項照合・PR #193/#194時系列、contract-audit tests、Harness.Tests、CIのPR/develop・PR/他base・pushの3分岐、smoke、判定C/C′。実Unity・実Storage操作は対象外。
+- implementation head commit: この票を含む commit
+- Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI
 
 ## 7. Phase C
 

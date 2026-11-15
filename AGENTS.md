@@ -28,11 +28,11 @@ Unity の正しいバージョンは `unity/ProjectSettings/ProjectVersion.txt` 
 - **新規または編集する Unity側の `.cs` は先頭に `#nullable enable` を置く。** 既存ファイルからも外さない。未対応の既存ファイルは残っており、一括整備は別スライスとする。
 - **path は `tools/path-budget.json` の予算に従う。** Unity 同梱の Mono は長い path を開けないので、repo 相対 path の長さと checkout のルートの長さを予算で制限する。数値と vendor の例外はその file だけにあり、contract-audit の検査 9 と `run-tests.ps1` の起動前検査が判定する。置き場所は指定しない。詳細は `tools/Harness/README.md`。
 - **Unity の偽 null を忘れない。** 破棄されうる `UnityEngine.Object` に `?.` / `??` / `is null` / `ReferenceEquals` を使わず、`== null` / `!= null` で判定する。
-- **ローカルの Unity Editor は、人間が先に開いていなくても作業に必要なら起動・操作してよい。** Phase B の実装担当は、対象を限定した Editor 操作とコンパイル確認まで行える。UnityテストとBuildの実行・判定はPhase Cの責任とする。H1適用をA3で明示したArtifacts/Harness作業は、完了引渡し時に関連offlineテストをPhase Bで実行し、判定Cでは広いsuiteを確認する。B限定のUnityテストは、A3で実行経路と対象集合を固定したtaskにだけ許す。完了済みH2cの実例と固定記録の入口は `tools/Harness/README.md` を正とする。それ以外の作業は従来の責任分担を続ける。`unity test` / `unity run` はどの Phase でも使わず、Unityテストは標準の `pwsh tools/run-tests.ps1` を使う。`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残るため、起動前に対象projectと既存Editorを確認する。本番の Scene / Prefab / Addressables 等の変更は依頼された範囲に限り、広範な再生成・上書きは個別に影響を確認する。詳細は `osm-unity-editor` Skill に従う。Unity CLIは更新可能、Unity MCPは任意の補助であり作業前提にしない。
+- **Unity Editor の運用:** 必要なローカル Editor 操作と Phase B/C の権限は [osm-unity-editor](.agents/skills/osm-unity-editor/SKILL.md) を必読とする。
 - **テストで `Task.Delay` / `Thread.Sleep` を使わない。** 待機はシグナル等へのリアクティブな待機にするか、時間を注入して進める。
-- **既知のUnity native終了stallは調査を反復しない。** 次回この事象で再開するときは最初の1回だけ限定調査し、追加取得が必要でも最大1回とする。同じ症状が続けば既知リスクとして受け入れて調査を打ち切り、別session/taskでも回数をリセットしない。明示的な新指示なしに再調査しない。症状、終了確認、rawと受容判断の区別は `tools/Harness/README.md` の「Unity終了時の既知native stallと調査の停止規則」を正とする。
+- **既知のUnity native終了stall:** 調査の反復を避け、[Harness READMEの停止規則](tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) を必読とする。
 - **参照 0 を削除理由にしない。** 未使用 API は意図的な先行宣言やフェーズ外の場合があり、置き換え残骸と確認できたものだけが削除候補になる。
-- **Artifact Storageの通常操作は製品共通の事前承認に従う。** 対象作業では [Artifacts READMEの「エージェント操作の事前承認」](tools/Artifacts/README.md#エージェント操作の事前承認) を読み、保存・取得・清掃・一回のリセットの対象範囲と開始条件を正とする。通常レビューのEvidenceも対象であり、H1/CURRENT未移行を理由に旧保存方式へ戻さず、対応済み環境の保存・引渡しと完了確認は [レビュー証拠](.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従う。開始条件を満たした承認済み範囲の操作に、通信や既存鍵の利用だけを理由とする再確認を求めない。秘密の非露出、利用中の保護、対象外の非削除を維持する。文書の方針変更だけで未実装の清掃やリセットを開始せず、実行環境の承認・拒否は迂回しない。
+- **Artifact Storageの通常操作:** 対象作業では [事前承認](tools/Artifacts/README.md#エージェント操作の事前承認) と [レビュー証拠の保存・配布](.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) を必読とする。
 - **PR の base は `develop`。** `main` は既定ブランチとして使わない。
 - **`cursor-agent` CLI は Grok 系モデルでのみ使う。** 他系列（Claude / GPT / Gemini / Composer など）を `--model` に指定しない。既定モデルは変わりうるので、推論起動では必ず Grok 系を明示する。Grok が不適な用途では cursor-agent を使わず別の経路を取る。この契約を機械で強制する仕組みは、各自のエージェント設定（git 管理外）へ置く。
 

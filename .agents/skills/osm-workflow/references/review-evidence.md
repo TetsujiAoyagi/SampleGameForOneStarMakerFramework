@@ -87,7 +87,7 @@ C' へ渡す入力は判定 C の入力から生成するが、次を含めな�
 - Phase B result へ転載した発見 C の所見
 - 発見 C・判定 C の指摘に対する人間の裁定
 
-C' は凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ evidence bundle、下記の C' 用決定記録だけから独立に findings を出す。同じテストの再実行は必須にしない。監査完了後に人間または Phase D 担当が判定 C と C' を初めて突き合わせる。
+C' は PR の会話を継承しない新規 session とし、固定された blind 入力だけを読む。C' は凍結した Phase A snapshot、所見を含まない Phase B の実装結果、判定 C と同じ evidence bundle、下記の C' 用決定記録だけから独立に findings を出す。同じテストの再実行は必須にしない。監査完了後に人間または Phase D 担当が判定 C と C' を初めて突き合わせる。
 
 レビュー対象の implementation head または対象 diff が変わった場合は [判定後の head 変更](#判定後の-head-変更) に従う。
 
@@ -156,7 +156,7 @@ A1 で、判定に必要な証拠のうち不可逆・高コストのもの（�
 
 照合 script の実行は、どちらの方式でも、実行担当が代行する場合も、資格情報・本番設定・通信へ届かない環境に限る。成立しない環境では script を実行せず、未実行として記録して人間に返す。どちらの方式でも、原記録へ適用する前に、A3 で期待値を凍結した合成 fixture で一度通す。判断担当が実行できない場合の実行は [実行担当と判断担当](phases-and-handoff.md#実行担当と判断担当) に従う。
 
-**置き場所:** 判定 C が使う機械向けの期待値（key 一覧、baseline、合成 fixture とその期待出力等）と照合 script の本体は、どちらの方式でも Artifact Storage に置き、git に入れない。commit せず、push もしない。A3 時点に存在する機械向けの期待値・合成 fixture・script は、方式を問わず Phase A snapshot に収録して A3 で凍結し、これを正本にする。**A3 凍結 script** 方式では A2 入力版の時点から同じものを Phase A snapshot に入れ、A2 はそれも読む。A3 より後に生まれるもの（**判定 C の offline 実行** 方式の script）は判定 evidence bundle に置き、凍結済みの Phase A snapshot には追記しない。HANDOFF には方式と、人間が判断する導出の規則（どの入力から、どの規則で期待値を導いたか）だけを文章で書く。file の一覧と内容 hash は snapshot / bundle の manifest が持つ。repo のテストは、スライスで凍結した期待値 file に依存させない。期待値の照合は判定 C の実行であり、恒久的なテストが必要なら実装から導ける fixture を別に作る。この恒久 fixture は repo に置いてよく、この節の対象ではない。Phase A snapshot の使い方と Phase A の commit 点は [Phase A の commit と snapshot](phases-and-handoff.md#phase-a-の-commit-と-snapshot) に従う。
+**置き場所:** 判定 C が使う機械向けの期待値（key 一覧、baseline、合成 fixture とその期待出力等）と照合 script の本体は、どちらの方式でも Artifact Storage に置き、git に入れない。commit せず、push もしない。A3 時点に存在する機械向けの期待値・合成 fixture・script は、方式を問わず Phase A snapshot に収録して A3 で凍結し、これを正本にする。**A3 凍結 script** 方式では A2 入力版の時点から同じものを Phase A snapshot に入れ、A2 はそれも読む。通常 A2 の HANDOFF copy と base の固定に snapshot は必須でない。A3 より後に生まれるもの（**判定 C の offline 実行** 方式の script）は判定 evidence bundle に置き、凍結済みの Phase A snapshot には追記しない。HANDOFF には方式と、人間が判断する導出の規則（どの入力から、どの規則で期待値を導いたか）だけを文章で書く。file の一覧と内容 hash は snapshot / bundle の manifest が持つ。repo のテストは、スライスで凍結した期待値 file に依存させない。期待値の照合は判定 C の実行であり、恒久的なテストが必要なら実装から導ける fixture を別に作る。この恒久 fixture は repo に置いてよく、この節の対象ではない。Phase A snapshot の使い方と Phase A の固定と commit 点は [Phase A の commit と snapshot](phases-and-handoff.md#phase-a-の-commit-と-snapshot) に従う。
 
 ## findings ledger
 

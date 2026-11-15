@@ -17,7 +17,7 @@
 
 1. **A0 — 入力固定:** 目的、利用者、現況、要求、対象外、常時契約、既知の制約、未決事項を planning packet にする。
 2. **A1 — 初稿:** 主担当が進める最低条件、その詳細である受け入れ条件、責務マップ、配置、規模、テスト方針、停止規則を含む初稿を作る。
-3. **A2 — 独立レビュー:** 同じ入力版を複数モデルが独立に見る（目的レビューの入力は下記）。互いの指摘を渡さず、観点を分ける。少なくとも1件は [アーキテクチャゲート](architecture-gates.md) を担当し、1件は下記の目的レビューとする。入力版は内容の sha256 を正とし、commit hash を補助として記録する。
+3. **A2 — 独立レビュー:** 同じ入力版を複数モデルが独立に見る（目的レビューの入力は下記）。互いの指摘を渡さず、観点を分ける。少なくとも1件は [アーキテクチャゲート](architecture-gates.md) を担当し、1件は下記の目的レビューとする。入力版は固定 base と HANDOFF copy の sha256 で照合する。
 4. **A3 — 統合と凍結:** 主担当と人間が指摘を採用・不採用・保留に分類して理由を残し、実装へ渡す版を凍結する。
 
 A1 では UC（利用者が行う操作の単位）ごとに、利用者が選ぶもの・入れるものと、宣言や既定値から機械が決めるものを分けた表を書き、各行に誰がいつ決めるか（開発時の宣言・実行時の操作・自動導出・既定値）を併記して、利用者の入力の 1 つ 1 つを目的から正当化する。機械が決める値でも、その前に利用者が開発時に宣言するなら利用者の作業として数える。利用者の操作が無いスライスは `なし` と書く。目的から正当化できない入力は、機械が決める側へ移すか、目的の文言を改める。A1 で目的・利用者の欄を改めたら、元の文言、変更理由、A2 の前に得た人間の承認（承認者と承認の事実）を HANDOFF §1 に記録する。設計の都合で利用者の入力を増やすための変更は承認しない。承認された文言は、初回の目的レビューがそのまま見る。A1 を終える前の自己点検で、目的の文言と設計を突き合わせる（目的が「手入力無しに揃う」なら、設計に手入力が残っていないか）。
@@ -34,11 +34,13 @@ A2 の指摘は全件採用を既定にせず、現在の問い、最低条件�
 
 ### Phase A の commit と snapshot
 
-Phase A の commit は **A2 入力版** と **A3 凍結版** の 2 点だけにする。A2 入力版は 1 回だけ切る。A2 中の HANDOFF の改訂、レビュー記録と採否の分類、A3 の途中版は作業ツリーに置いたまま commit しない。A2 の指摘で入力版を切り直す必要が出ても新しい commit にせず、改訂後の版は次の段落の snapshot で渡す。凍結後に Phase A を新しい revision として再開する場合も、その revision の A2 入力版と A3 凍結版の 2 点に限る。この 2 点は [公開点](publish-and-history.md) の履歴整理の対象にしない。A3 凍結版の commit は引継ぎ票自身を含むので、その SHA は票に書かず tree の外で渡す（[引継ぎ票](#引継ぎ票)）。A2 入力版の commit hash は、その commit より後の票と A2 記録に書ける（A2 入力版の commit 自身の票には書かない）。A2 のレビュー入力は、A2 入力版 commit の HANDOFF と、同じ時点の Phase A snapshot に入れたもの（A3 凍結 script 方式の script と機械向け期待値等）の組である。snapshot に入れたものを読まないレビューは入力版を満たさない。切り直し後の版は commit を切らず、snapshot だけをレビュー入力にする。公開 PR レビューの「1 巡ごとの修正 1 commit」は Phase A に適用しない。
+同一PCの通常 A2 は commit を要しない。既存 code と規則は固定 base commit の clean detached checkout から読み、同時点の HANDOFF 固定 copy と SHA-256 を渡す。担当は読む前に checkout の HEAD・clean 状態と copy の hash を照合し、送信元の可変 tree を正本にしない。改訂版も同様に固定する。A2 記録に base SHA と HANDOFF hash を残す。目的レビューは原文だけを渡す別規則に従う。
 
-途中の版（A2 中の改訂版、A3 の途中版）を別 session・別モデルの外部レビューへ渡すときは、Artifact Storage の **Phase A snapshot**（HANDOFF §0 の「Phase A snapshot の取得案内・状態」の欄）を使い、取得案内と HANDOFF の A2 記録に、その版の内容 sha256 とともに「未 commit の版」と書く。未 commit の版に commit hash の補助記録は無い。Cloud・別 host へ渡す未 commit の版は、その読み手が snapshot を取得し閲覧できたことを確認するまで assist であり、A2 の同一入力版を満たしたことにしない（[Cloud の担当](#cloud-の担当)）。凍結後の §0 の Phase A snapshot 欄は、途中版ではなく C / C' が読む A3 凍結 snapshot を指す。判定 C が使う機械向けの期待値と照合 script の置き場所は [判定 C の照合 script](review-evidence.md#判定-c-の照合-script) に従い、git に入れない。Phase A の commit の push は [公開点](publish-and-history.md) に従う。
+Git 外の補助 file がレビューに必要な場合だけ、既存の Phase A snapshot と [取得経路](review-evidence.md#保存先とリモートへの配布) を使い、同時点の内容を固定して渡す。全 A2 に新しい manifest・stage / fetch・取得 receipt を要求しない。A3 凍結 script 方式では script と期待値も必要な入力であり、読めなければ正規レビューにしない。
 
-この節の入力版と snapshot の規則（HANDOFF と snapshot の組、snapshot の閲覧、切り直し後の版、Cloud・別 host の assist）は目的レビューに適用しない。目的レビューの入力は [Phase A の内部フロー](#phase-a-の内部フロー) に従う。
+Cloud A2 で Git 配布が必要な場合だけ、例外として A2 入力 commit と push を許す。Cloud という理由だけでは切らない。Git 外の必須証拠が取得・閲覧できなければ assist とし、例外 commit は PR 作成や B 開始の認可にならない。A3 統合案を commit して Draft PR を作り、外部計画レビューする。公開後の修正はレビュー1巡につき原則1 commit とする。人間の凍結判断、対象 revision と次担当 B を記録してから凍結版を commit し、その SHA を票の外で渡す。C / C' が使う凍結済み Phase A snapshot の取得案内・状態を §0 に記録する。判定 C の期待値と照合 script は [置き場所](review-evidence.md#判定-c-の照合-script) に従う。
+
+この節の固定 checkout と copy・補助 file の規則は目的レビューに適用しない。既に進行中の task の再計画は求めない。
 
 ## 検証経路の成立
 
@@ -154,7 +156,7 @@ A3 後に人間が下す裁定のうち、凍結条件の意味・合否を変�
 - 渡された SHA と自分の worktree の HEAD が一致し、作業ツリーが dirty でない。HEAD の tree の HANDOFF にその票がある。
 - implementation head 欄が SHA なら、それが HEAD の祖先であり（`git merge-base --is-ancestor <implementation head> HEAD`）、implementation head から HEAD までの差分が `docs/handoff/` の HANDOFF だけである（`git diff --stat <implementation head> HEAD`）。他の file が差分に出れば implementation head の固定が壊れている。
 - 欄の値全体が「この票を含む commit」なら、HEAD と親の差分（`git diff --stat HEAD^ HEAD`）に `docs/handoff/` 以外の file があるときだけ implementation head は HEAD 自身である。差分が HANDOFF だけなら、記録 commit が欄を句にしている（句の引き継ぎ、SHA から句への戻し）ので停止する。
-- 欄が `未固定` なら Phase A の出口であり、自分が Phase B の担当でなければ停止する。
+- 欄が `未固定` なら Phase A の出口である。B は渡された commit の HANDOFF で人間の凍結記録、対象 revision、票の次担当 B を照合し、いずれかが無ければ停止する。`未固定` だけでは B 開始の根拠にならない。
 - 欄の値が SHA、「この票を含む commit」、`未固定` のどれでもなければ停止する。
 - PR が存在する間（C' を除く。C' は PR を読まない）は、状態ブロックの `引き継ぐ commit` が渡された SHA および HEAD と一致し、implementation base / head が §0 の欄と一致する。`引き継ぐ commit` は票の中の値とは比べない。欄が句のときは、状態ブロックの implementation head は `引き継ぐ commit` と同じ SHA である（状態ブロックは tree の外なので SHA を書ける）。
 
@@ -177,7 +179,7 @@ PR の本文先頭に、HANDOFF §0 の最小の写しとして状態ブロッ�
 
 ### Cloud の担当
 
-Cloud は凍結入力を読む役（A2・C'）を既定とし、B の修正ループに入るのは例外とする。Cloud の担当が割り当てられた Phase 境界では、PR 作成、状態ブロックの更新、対象 SHA の [push](publish-and-history.md) を必須の手順とする。Cloud のエージェントは、リモートのブランチの HANDOFF と PR の状態ブロックから、現在の Phase、固定 head、次の担当を判断する。PR の有無にかかわらず、必要な固定 Evidence を取得・検証・閲覧できない Cloud の作業は **assist** とし、正規の発見 C・判定 C・C' と扱わない。PR 作成や push だけで正規の担当に昇格させない。別 host / Cloud から Evidence を取得する仕組みが成立していない間は、状態ブロックには証拠の取得はローカル担当と書く。
+Cloud は固定入力を読む役（A2・C'）を既定とし、B の修正ループに入るのは例外とする。A2 は [固定入力と例外配布](#phase-a-の-commit-と-snapshot) に従い、Cloud であるだけで PR を作らない。その他の Phase 境界では必要な対象 SHA を [push](publish-and-history.md) し、PR が存在すれば状態ブロックを更新する。PR が存在する場合 Cloud のエージェントは、リモートのブランチの HANDOFF と PR の状態ブロックから、現在の Phase、固定 head、次の担当を判断する。PR の有無にかかわらず、必要な固定 Evidence を取得・検証・閲覧できない Cloud の作業は **assist** とし、正規の発見 C・判定 C・C' と扱わない。PR 作成や push だけで正規の担当に昇格させない。別 host / Cloud から Evidence を取得する仕組みが成立していない間は、状態ブロックには証拠の取得はローカル担当と書く。
 
 ## HANDOFF の必須内容
 
