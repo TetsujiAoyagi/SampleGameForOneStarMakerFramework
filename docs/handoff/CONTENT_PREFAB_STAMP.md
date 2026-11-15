@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' 1 巡目を 2026-11-15 に完了した（PASS）。Phase D は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目を 2026-11-15 に完了した（差し戻しなし）。判定 C 2 回目を 2026-11-15 に完了した（GO）。C' 1 巡目を 2026-11-15 に完了した（PASS）。C' の後の外部レビュー（PR #193）を 2026-11-15 に記録した（実装の変更なし）。Phase D は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
 - implementation head commit: `2bc0c108`
@@ -20,7 +20,7 @@
 - evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）・発見 C 3 回目用（diff と機械検査）・判定 C 2 回目用（判定必須 1〜3）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある
 - 引継ぎ票（2026-11-15、C' から Phase D へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（C' の記録）で、その SHA は PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。引き継ぐ commit はこの票を含む commit（C' の後の外部レビューの記録）で、その SHA は PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
   - 次の Phase・役割: Phase D（owner の突合とマージ判断、保存・引渡し確認、harvest、HANDOFF 削除）。判定 C 2 回目（§7）と C' 1 巡目（§8）を初めて突き合わせる。
   - 読む範囲: 全節。
   - 必要な権限: マージは owner。Evidence の保存・引渡し確認と日次清掃 job の確認（review-evidence の Phase D）。
@@ -74,7 +74,7 @@
 **不変条件**（起きてはいけないこと）
 
 - **I1 build の後に、build が書いた物を source に残さない。** build の成否にかかわらず、build が書いた Scene の `.meta` は build の始めのバイトに戻り、Unity の `AssetDatabase` も戻した版を見る。Scene の file 本体と、`Assets/`・`ProjectSettings/` の他の file は、build の前後で同じバイトである。build の間に build 以外が `.meta` の印の行以外を変えていた時は、印の行だけを元の形に戻し、他の行は触らずに Warning で知らせる。異常終了で戻せなかった印は、記録が残っていれば次の build で戻り、その build の後に元のバイトになる（記録が失われた印は、その Scene を root に含む次の build で戻る）。印が残っていることを理由に次の build を止めない。
-  - 主張を崩しうる既存の経路: (a) 書いた後、`try` に入る前の処理（生成 folder の作成、marker の書き込み、製品の `Refresh`）が例外で止まり、戻しの処理に入らない（現在の adapter は `try` を 42 行の `Refresh` の後に始める）。(b) Unity の build 自体の異常終了・Editor の強制終了で `finally` が走らない。(c) 戻した `.meta` を `AssetDatabase` が import し直さず、次の操作（次の build の snapshot・利用者の Inspector）が印の版の `userData` を見る。(d) build の後、戻す前に Unity が asset を保存し直し（`SaveAssets` 等で importer を書き戻し）、元と違う版で `.meta` を上書きする。(e) 次の build の始めの「残りの戻し」が、利用者が後から変えた `.meta` を古いバイトで上書きする。(f) 書いている途中で 1 つの `.meta` の書き込みが失敗し（別の process が共有なしで開いている等）、それまでに書いた分が残る。(g) 書き込みと戻しが起こす Scene の再 import に、利用者の project の `AssetPostprocessor` が反応して別の source file を書く。(h) 異常終了の後に `Library` の記録が失われ（利用者が `Library` を消す）、次の build が印の付いた `.meta` を「元のバイト」として保存し、以後その版へ「戻し」続ける。(i) `finally` の片付けの 1 段（戻しの import、生成物の `DeleteAsset`）が例外を出し、残りの段が走らない。(j) 製品の `Refresh` が保留中の script の変更を compile し domain reload を起こすと、C# の `finally` が走らない（(b) と同じく次の build の始めの戻しで回復する）。(k) 開いている Editor で、`.meta` の書き込みが製品の `Refresh` より前に自動 refresh で import される（batch でしか測っていない）。(l) Scene を移動・改名した後に、記録の path が古いまま戻しが file を見つけられない。
+  - 主張を崩しうる既存の経路: (a) 書いた後、`try` に入る前の処理（生成 folder の作成、marker の書き込み、製品の `Refresh`）が例外で止まり、戻しの処理に入らない（現在の adapter は `try` を 42 行の `Refresh` の後に始める）。(b) Unity の build 自体の異常終了・Editor の強制終了で `finally` が走らない。(c) 戻した `.meta` を `AssetDatabase` が import し直さず、次の操作（次の build の snapshot・利用者の Inspector）が印の版の `userData` を見る。(d) build の後、戻す前に Unity が asset を保存し直し（`SaveAssets` 等で importer を書き戻し）、元と違う版で `.meta` を上書きする。(e) 次の build の始めの「残りの戻し」が、利用者が後から変えた `.meta` を古いバイトで上書きする。(f) 書いている途中で 1 つの `.meta` の書き込みが失敗し（別の process が共有なしで開いている等）、それまでに書いた分が残る。(g) 書き込みと戻しが起こす Scene の再 import に、利用者の project の `AssetPostprocessor` が反応して別の source file を書く。(h) 異常終了の後に `Library` の記録が失われ（利用者が `Library` を消す）、次の build が印の付いた `.meta` を「元のバイト」として保存し、以後その版へ「戻し」続ける。(i) `finally` の片付けの 1 段（戻しの import、生成物の `DeleteAsset`）が例外を出し、残りの段が走らない。(j) 製品の `Refresh` が保留中の script の変更を compile し domain reload を起こすと、C# の `finally` が走らない（(b) と同じく次の build の始めの戻しで回復する）。（2026-11-15 の追記: C' の後の事実確認で、この前提は誤りと分かった。開いている Editor の `Refresh` は compile を始めて戻り、直後の行と `finally` は走り、domain reload はスタックが抜けた後に起きる。§8「C' の後の外部レビュー」）(k) 開いている Editor で、`.meta` の書き込みが製品の `Refresh` より前に自動 refresh で import される（batch でしか測っていない）。(l) Scene を移動・改名した後に、記録の path が古いまま戻しが file を見つけられない。
   - 探索した境界: adapter と coordinator の build の手順、`PlayerBuildProjectMutation` の前例、S2-2b-0 の batch（戻しと戻し後の `Refresh` で `Assets` の下の全 file が元のバイト）、A2 のアーキテクチャゲートが挙げた (f)〜(i)、外部レビュー（PR #193）が挙げた (k)・(l)、主担当の点検で足した (j)。未確認: 開いている Editor（batch でない）での `.meta` の書き換えと戻しの観測、Unity の build が importer を保存し直すか、host の project の `AssetPostprocessor`（SampleGame 以外）。
 - **I2 保存していない編集を壊さない。** build が `.meta` を書く Scene（今回の印の対象と、残った印の戻しの対象）が Editor で開かれて未保存の変更を持つ時、build はどの file も書く前に止まり、未保存の変更はそのまま残る。その `.meta` が読み取り専用の時も、どの file も書く前に止まる。
   - 主張を崩しうる既存の経路: 既存の build は、開いている Scene の未保存の変更を無視して保存済みの file を build する（書かないので無害だった）。印を書くと Scene の asset が import し直され、Editor が開いている Scene を disk から読み直すと未保存の変更が消えうる。複数の Scene のうち一部を書いた後に別の Scene で止まると、書いた分が残る（I1 (f)）。前回の異常終了で残った印の戻しは `.meta` を書いて import するので、検査より前に行うと、印が残った Scene を開いて未保存の変更を持たせた状態で、戻しの import が未保存の変更を消してから止まる（外部レビュー F1）。
@@ -261,7 +261,7 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   | X | Grok 系が Phase A に関与し、C' の未関与ではなくなる | 採用（記録） | §5 の C' の予約を外し、C' は `独立性制約あり` で行うと書いた |
   | H1 | AC2 の「B6 の (`Outer` v1, `Inner` v2) はどの回も build していない」は誤りで、B2 と同じ組み合わせ | 採用 | AC2 を直し、B6 の `SOuter` の file が B2 と同じ sha256 であることを足した（正しい実装は B2 を再利用でき、印が効かない実装は B5 の版を出すので、F-1 の経路は捕まる） |
   | H2 | 記録の無い残りの戻しは今回の root の Scene しか見ないので、I1 の「次の build の始めに戻る」が言い過ぎ | 採用 | I1 の文を「記録が失われた印は、その Scene を root に含む次の build で戻る」に絞った。全 Scene の `.meta` を毎回走査する案は、build ごとの読みを増やすので採らない |
-  | H3 | 製品の `Refresh` が script の compile と domain reload を起こすと `finally` が走らない | 採用（経路の記録） | I1 (j)。回復は異常終了と同じ次の build の始めの戻しで足り、新しい AC は足さない（AC5 (c) が同じ回復を確かめる） |
+  | H3 | 製品の `Refresh` が script の compile と domain reload を起こすと `finally` が走らない | 採用（経路の記録） | I1 (j)。回復は異常終了と同じ次の build の始めの戻しで足り、新しい AC は足さない（AC5 (c) が同じ回復を確かめる）。2026-11-15 の事実確認で前提は誤り（§8「C' の後の外部レビュー」） |
 
 - 凍結前の外部レビュー 2 巡目（2026-11-15、PR #193 の owner のコメント。入力は `cc687196` の HANDOFF）と、指摘の周辺の点検（H）の採否:
 
@@ -462,6 +462,15 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
 - 残存リスク・監査できなかった範囲（担当）: `t1-step.json` の `failed` は Inconclusive 25 件によるもので、凍結した合否は XML で読む。既知の終了 stall が判定必須 1 で 1 回出て手動で止めた（Harness README の停止規則と矛盾しない）。`content-output.zip` は展開していない。
 - 確認範囲の限界（進行役の記録。所見ではない）: 担当の実行は約 2 分で、AC1〜AC6 は harness の AC 行と `build-facts.json` を主な根拠にしている（指示書は AC 行を信用せず record の値と凍結した文言で照合するよう求めた）。cursor-agent のコスト規律に従い撃ち直していない。受け入れるかは Phase D の owner の判断。
 - 担当・モデル・独立性: 会話履歴の無い新しい cursor-agent のプロセス（`gpt-5.3-codex`、OpenAI、`--mode=ask`、約 2 分）。Phase A（Anthropic・xAI）、B（Anthropic）、C（xAI）のどれにも関与していない系列で、強化条件を満たす（§5 の Phase A の記録「C' に使える系列は他に無い」は、DR-1 で cursor-agent の OpenAI 系が使えるようになったので当たらなくなった）。上の盲検性の制約がある。
+
+### C' の後の外部レビュー（2026-11-15、PR #193）
+
+- 対象: implementation head `2bc0c108`（記録は `673d2f9a`）。PR #193 の Cursor の bot（Grok）による実装レビュー 2 件。C' のやり直しではない。Unity の再実行は担当がしていない。
+- 結論（担当）: 前回までの指摘は実装と EditMode に入っており、印の書き込みと戻しの経路に GO を覆す欠陥は無い。
+- F1（中、担当の分類: マージ前に決めること）: 製品の `Refresh` が script の compile で domain reload を起こすと、`UnityContentDirectoryAdapter.cs` 81 行の `AllowAutoRefresh` も `finally` も走らず、native 側のカウンタが残って自動 refresh が Editor の再起動まで止まる、という指摘。I1 (j) の前提（`finally` が走らない）の上に立つ。
+- 事実確認（進行役が実行担当として、開いている Editor 6000.6.0f1 で実施）: adapter と同じ順に `DisallowAutoRefresh` → 一時的な Editor script の書き換え → `Refresh` → 直後の行 → `AllowAutoRefresh` → `finally` を eval で 1 回走らせ、一時 script の `[InitializeOnLoad]` で domain の読み込みの時刻を記録した。結果（UTC）: `before Refresh` 11:32:41.1748、`after Refresh; isCompiling=True` 11:32:41.3313、`after AllowAutoRefresh` と `finally` 11:32:41.3323、`domain loaded v2` 11:32:55.6854。`Refresh` は compile を始めて戻り、直後の行・`AllowAutoRefresh`・`finally` は走り、domain reload は C# のスタックが抜けた約 14 秒後に起きた。一時 script は消し、起動した Editor は正常に終了した。batch mode（`-executeMethod`）では試していない（判定必須の batch の経路は compile を含まない）。
+- F1 の扱い: 前提が成り立たないので起きない。実装は変えず、判定 C・C' はやり直さない。I1 (j) と §5.1 の H3 に前提の誤りを追記した（新しい AC は元から足していないので、凍結した合否は変わらない）。Phase D の harvest では I1 (j) の経路を書かない。
+- §8 の未決への意見（担当）: C' の時間の限界を受け入れることは、AC 行を信用せず record で照合し直した判定 C 2 回目の照合を捨てることではない。Phase D の owner の判断の材料とする。
 
 ## 9. Phase D
 
