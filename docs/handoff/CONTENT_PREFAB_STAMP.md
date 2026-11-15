@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2b）
-- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目は未着手）
+- status: `C`（Phase B を 2026-11-15 に完了した。発見 C を 2026-11-15 に完了した（差し戻しなし）。判定 C 1 回目は 2026-11-15 に NO-GO（B へ差し戻し、B 適応）。B の差し戻し 1 巡目を 2026-11-15 に完了した。発見 C 2 回目は 2026-11-15 に差し戻し（R2、B 適応）。B の差し戻し 2 巡目を 2026-11-15 に完了した。発見 C 3 回目は未着手）
 - branch: `claude/content-prefab-stamp`（PR の base は `develop`）
 - implementation base commit: `980a69ad`（`develop` の head、2026-11-15。S2-2b-0 の Phase D（PR #191）を含む）
-- implementation head commit: `5a97103a`
+- implementation head commit: この票を含む commit
 - risk: `high`（全ての製品の Content Directory build が、build の間だけ利用者の Scene の `.meta` を書き換える。破壊的な生成器に当たる）
 - owner: root（依頼者）
 - created: 2026-11-14
@@ -19,14 +19,14 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 発見 C 1 回目用・判定 C 1 回目用（判定必須 1 だけ）・発見 C 2 回目用（diff と機械検査、限定実行の生出力の 2 つ）はローカル固定済み（未昇格）。`evidence stage`、task `content-prefab-stamp`。取得案内は進行役の共有メモ（git 管理外）にある。次の GO 候補 head の判定 C 用は未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-15、発見 C 2 回目から Phase B（差し戻し 2 巡目）へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄（head は差し戻し 2 巡目の前の版）。引き継ぐ commit はこの票を含む commit（発見 C 2 回目の記録）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
-  - 次の Phase・役割: Phase B（差し戻し 2 巡目）。§7 の発見 C 2 回目の R2（harness が fixture の marker の `.meta` を import 前の inventory に入れ、B1 の inventory の差に出る。AC5。B 適応）を直す。修正後は実装と票を 1 つの commit で切り（implementation head 欄は「この票を含む commit」とだけ書き、説明文を混ぜない）、§6 に差し戻しの修正を足し、票を発見 C（3 回目）宛てに書き換える。
-  - 読む範囲: 既定（§0〜§5）と、差し戻しなので §6〜§8。
-  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head `5a97103a` が HEAD の祖先で、`git diff --stat 5a97103a HEAD` が本書だけである。
-  - 必要な権限: 対象を限定した Editor の操作とコンパイル確認（AGENTS.md の Phase B の範囲）。Unity の test・harness・build の実行と判定は Phase C の責任で、B は行わない。
-  - 停止規則: §4 の差し戻す条件に当たる修正が要るなら止めて A 再開を報告する。凍結した AC の文言を変えない。製品の source（`Scripts/`）は R2 の修正に要らない。新しい事実は「新しい事実の分類」で分ける。
-  - Evidence: 上の evidence bundle の欄のとおり。C' blind bundle は未生成。
+- 引継ぎ票（2026-11-15、Phase B（差し戻し 2 巡目）から発見 C（3 回目）へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版 `8ac5ce1c`）。implementation base / head は上の欄。implementation head と引き継ぐ commit はどちらもこの票を含む commit（差し戻し 2 巡目の修正と票を 1 つの commit で切った）で、その SHA は起動指示と PR #193 の状態ブロックの `引き継ぐ commit` で渡す。
+  - 次の Phase・役割: 発見 C（3 回目）。動作確認は対象なし（§5）。§6 の差し戻し 2 巡目の修正（R2）を、前の head `5a97103a` からの差分と base からの差分で確かめる。この head ではコンパイル確認と `contract-audit` が未実行（§6）なので、発見 C で行う。
+  - 読む範囲: 既定（§0〜§8）。
+  - 開始時の照合: 渡された SHA と HEAD が一致し、作業ツリーが dirty でなく、HEAD の HANDOFF にこの票がある。implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file（`PrefabStampHarness.cs`）がある。`git diff --stat 5a97103a HEAD` が本書と `PrefabStampHarness.cs` だけである。
+  - 必要な権限: §5 の発見 C の限定実行（harness の 2 つの process を各 1 回、起点 filter）を行うなら、sandbox 外の承認済み経路で Unity を起動する権限。
+  - 停止規則: 凍結した AC の文言を変えない。新しい事実は「新しい事実の分類」で分ける。発見 C は GO 判定をしない。
+  - Evidence: 上の evidence bundle の欄のとおり（発見 C 3 回目用は未生成）。C' blind bundle は未生成。
   - 引き渡さないもの: なし（C' には §7 を渡さない）。
   - 未決: なし。
 ## 1. 目的と対象外
@@ -313,6 +313,15 @@ AC の観測は全て §5 の Unity バッチと EditMode test・単体 test で
   - F3（AC10）: F1・F2 の 7 件の解消による。他の差分は無い。
 - 新しい事実の分類: batch の Editor で GameObject の追加が Scene を dirty にしないことは、test の手順の問題（B 適応）。製品は I2 の判定に `isDirty` を使うが、AC8' の下では開いている対象の Scene を全て止めるので、batch で `isDirty` が立たないことは製品の停止に影響しない。
 - 未実行: Unity の test（単体・EditMode・全 EditMode 回帰）と harness は実行していない（Phase C）。**Editor のコンパイル確認は未実行**（この session では `tools/unity-editor.cmd` と PowerShell の script の実行が承認されず、Editor に接続できなかった）。**`pwsh tools/contract-audit.ps1` も同じ理由で未実行**。発見 C で両方を実行すること。差分は test の 1 file で、使った API（`EditorSceneManager.MarkSceneDirty`、`SceneManager.MoveGameObjectToScene`、`Enumerable.Distinct`）は同じ file の既存の `using` の範囲。
+- implementation head commit: この票を含む commit
+- 担当・ベンダー: 本 session（Anthropic）
+
+### 差し戻し 2 巡目（2026-11-15、発見 C 2 回目の R2）
+
+- 修正（`PrefabStampHarness.cs` だけ。製品の source・EditMode test・凍結した AC は変えていない。発見 C の分類どおり B 適応で、§4 の差し戻す条件に当たらない）:
+  - R2（AC5）: `PstFixture.Create` が marker（`Assets/OsmPst/osm-pst.marker`）を `File.WriteAllText` で書いた直後に、`AssetDatabase.ImportAsset(…, ForceSynchronousImport)` で import するようにした。import の後に marker の `.meta` が無ければ例外で止める（harness 自身の失敗にし、B1 の inventory の差として黙って出さない）。これで B1 の build の前の inventory に marker の `.meta` が入り、製品の `Refresh` が足す file は無くなる。inventory の取り方・AC5 の計算（第 2 process）は変えていない。
+- 新しい事実の分類: なし（R2 は harness の fixture の作り方の不備で、印の契約と責務配置に関わらない）。
+- 未実行: Unity の test と harness は実行していない（Phase C）。**Editor のコンパイル確認は未実行**、**`pwsh tools/contract-audit.ps1` も未実行**（この session では Unity の process の確認・PowerShell の script の実行が承認されなかった）。発見 C で両方を実行すること。差分は harness の 1 file の 6 行で、使った API（`AssetDatabase.ImportAsset`、`ImportAssetOptions.ForceSynchronousImport`、`File.Exists`）は同じ file の既存の `using` の範囲。
 - implementation head commit: この票を含む commit
 - 担当・ベンダー: 本 session（Anthropic）
 

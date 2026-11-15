@@ -121,6 +121,12 @@ namespace OneStarMaker.Tests.Editor.Spikes.PrefabStamp
         {
             AssetDatabase.CreateFolder("Assets", Path.GetFileName(PstSpec.Folder));
             File.WriteAllText(Path.Combine(Disk(PstSpec.Folder), MarkerName), MarkerText);
+            // marker は File で書くので Unity はまだ import しておらず `.meta` が無い。ここで import しないと、
+            // 最初の build の製品の Refresh が marker の `.meta` を足し、build の前後の inventory の差（AC5）に出る。
+            var markerAsset = PstSpec.Folder + "/" + MarkerName;
+            AssetDatabase.ImportAsset(markerAsset, ImportAssetOptions.ForceSynchronousImport);
+            if (!File.Exists(Disk(markerAsset) + ".meta"))
+                throw new InvalidOperationException("The fixture marker was not imported: " + markerAsset);
             SavePrefab(PstSpec.Inner, WithChild(PstSpec.Inner));
             var outer = WithChild(PstSpec.Outer);
             Instance(PstSpec.Inner).transform.SetParent(outer.transform, false);
