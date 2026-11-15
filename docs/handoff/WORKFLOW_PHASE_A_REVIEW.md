@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（revision 2、判定 C 完了・C′待ち）
+- status: `C′`（revision 2、実装・判定 C・独立監査完了。merge前）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
 - implementation head commit: e41c56a9c9ad4b2a965e31384a90255bd9212ee2
@@ -13,9 +13,9 @@
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
-- Phase B result snapshot / evidence / C′ blind bundle: B結果はCが取得・閲覧確認済み。判定rawとC所見を別packageでローカル固定済み（未昇格）。案内は本chatのroot担当へ引渡し、受け手のfetch・閲覧確認は未完了。C′は所見を除いた固定rawを使う。
+- Phase B result snapshot / evidence / C′ blind bundle: B結果はCが取得・閲覧確認済み。判定raw・C所見は別packageでローカル固定済み（未昇格）。C′がblind rawと時系列一次事実の補足を別sessionでfetch・閲覧・内容照合し、rootもC所見を独立取得した。C′所見と最終記録の取得案内は本chatへ渡す。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次はC′（独立監査）。rootが所見を除いた固定rawの取得案内と本記録commitのSHAを渡す。C′は可変HANDOFF・PR会話・C所見を読まず、凍結revision 2・B結果・同一implementation headの完全diff・offline生結果・6件の限定smoke原入力/原回答/操作記録だけを監査する。取得・閲覧が成立しなければ未実施のまま停止する。実Unity、実Storage清掃、mergeは対象外。C担当はC′を起動しない。
+- 引継ぎ票: 次はDの人間によるPR確認・merge判断。§0と§5〜§9、固定diffと本chatの取得案内から成果物を確認する。実装headは上欄のまま。人間のmerge指示・task全体完了指示は未取得であり自動実行しない。worktreeとGit外原記録を保持する。採用後の観察は既存B/C記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -98,8 +98,13 @@
 
 ## 8. Phase C′
 
-未着手
+- 種別・判定: 初回・最終C′ PASS、現在の問いを阻害する欠陥0。独立監査完了後にCのGOと突合し、矛盾なし。
+- 担当・独立性: 新規fork-none session、requested gpt-6.1-sol/high。Bのgpt-6.1-terra、Cのgpt-6-astraと別model。PR会話、可変HANDOFF、C所見・採点・結論を事前に読まず、同じ固定base/headとblind rawを監査した。serving fingerprintは未取得、同じOpenAI系列という限界を残す。
+- 確認: 完全diff・A3/B・23移動条項/必読経路・CI source/生結果・offline原ログと対象集合・6smokeの原入力/原回答/成果物/操作記録を独自に閲覧。規則コピー120件とGit blob、および3pairの課題入力はbyte不一致0。新たなsource変更や重複試験は行っていない。
+- 取得確認: 188fileのblind入力と、同時点のAPI原取得からPR本文/C解釈を除いた時系列補足1fileを独立fetchし有限use/releaseまで完了。時系列の元packageへの収録不足は既存一次事実の補完で解消し、新しい観測/再試験やhead変更はない。rootはC′所見と取得確認を別途閲覧した。
+- 残存リスク: native startupの完全trace・実配信model指紋・実token未取得。操作記録はactorのjournalであり完全tool traceではない。fixtureのローカル文書作成に限るため、実Unity/実サービス、遵守率、一般的な品質無劣化・性能改善は未実証。停止時間を含むelapsedは比較不能。凍結した採用後観察を維持する。
 
 ## 9. Phase D
 
-未着手。taskはactive。mergeとtask全体完了は今回の指示に含まれない。
+- 実装と検証結果をPR #194へ反映し、人間の確認へ渡す。C/C′の突合は上記どおり。必要な原記録・両所見・取得確認・最終HANDOFFは既存Artifact Storageへ保存し、取得案内は本chatの既存引渡し先に保持する。
+- merge、harvest、HANDOFF削除、task全体終了、worktree削除は未実施。人間のmerge/完了指示を推測しない。taskはactive、現在のworktreeと原記録を保持する。
