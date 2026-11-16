@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C′`（revision 2、判定 C 完了。C′ は未実施）
+- status: `B`（revision 2、C′ 1 巡目の差し戻し。head 0ad27752 の判定 C と C′ は修正後の head へ流用しない）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
 - implementation head commit: 0ad27752beca24945f36bcf7a329ea0bde8194a5
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
 - Phase B result snapshot / evidence / C′ blind bundle: head 0ad27752 の判定 evidence と C′ blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、所見を含まない。旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は C′（1 巡目、全体を初見で監査）。B・C と別モデルの新規 session が、取得案内から取得した blind bundle だけを読む。この HANDOFF、PR、C の所見は渡さない。権限は bundle の読取りと所見 file の書込みだけで、実 Unity・実 Storage 操作・資格情報は不要。C′ の所見は §8 に記録し、C の結論との突合は Phase D で行う。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は B（C′ の差し戻し 1 巡目の修正）。§8 の C′-F1 を、既存 AC4 と責務マップの範囲の B 適応として 1 commit で修正する。移動先の本文を増やさず、担当の必読経路から該当の文へ届くようにする。範囲を超える判断が要るなら実装せず §6 に理由を書いて返す。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。修正後の次担当は発見 C（同じ C の session）、その後に判定 C と C′ の 2 巡目。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -127,7 +127,23 @@
 
 ## 8. Phase C′
 
-- 新head: 未実施。新しい固定diffと証拠を使う別sessionのblind監査を待つ。
+### C′ 1（head 0ad27752）
+
+- 担当方式: AI。
+- 種別と巡: 最終 C′（高コスト証拠の分類なし）、1 巡目、全体を初見で監査。
+- 受け取った決定記録の版: なし。
+- 使用した blind audit bundle: §0 の取得案内の 1 package（ローカル固定済み、取得確認済み）。別 process で fetch した写しを workspace にした。
+- 確認範囲・方法: bundle 内の file だけを読み、network と shell は使っていない。完全 diff（14 file）の全文、凍結した Phase A、所見を除いた B の実装結果、head と base の規則文書、offline・CI・smoke・公開時系列の生記録。テストの再実行なし。
+- 判定: 阻害する欠陥 1 件。B へ差し戻す。
+- 現在の問いを阻害する findings:
+  - C′-F1（AC4、I2）: 旧 AGENTS の「H1適用をA3で明示したArtifacts/Harness作業は…判定Cでは広いsuiteを確認する」の後半が、担当の必読経路から外れている。AGENTS の入口が指す `osm-unity-editor/SKILL.md` のテスト節と `phase-b.md` は B が offline を実行するところまでで、`phase-c.md` に「広い suite」は無い。文は `tools/Harness/README.md` の H1 の節の 1 行にだけあり、AGENTS・Skill・`phase-c.md` の必読リンクはその節を指さない。
+- 後続スライスへ移送する findings: 責務マップの file 名（`offline-checks.yml`）と実装（`pr-base.yml` への分離）のずれは、AC5 が file 名を固定していないので阻害しない。base を変えても Offline checks が再実行されないのは AC5 の要求外。Storage の smoke で新旧の回答に差がある（新版は受け手の fetch 成功で引渡し確認済みとし、旧版は案内の配置と受領を未完了とした）が、モデルと CLI が違うので規則の移動に帰属できない。
+- 残存リスク: smoke は場面あたり新旧各 1 回でモデルが揃っていない。親 repo の指示の非混入に起動時の完全な trace が無い。base が develop 以外の PR と統合先への push の実 run が無い。
+- 監査できなかった範囲と、証拠の不備の指摘: Git 外の条項対応表は bundle に無く、監査側が本文から再構成した。CI の本文実行の log は `develop` と `Develop` が同じ file 名になり上書きされていた（exit code の記録と実 run の step 結果は残っている）。offline の実行記録の `dirty` が null で、実行後の clean をその記録からは確定できない。次の判定 evidence で直す。
+- 独立性: B（gpt-6.1-terra、Claude Opus 5.5）、C（Claude Fable 5.2）と別モデル・別ベンダーの新規 session。PR の会話、可変 HANDOFF、C の所見・結論を読んでいない。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: cursor-agent の非対話 session、指定 `grok-4.7-high`（xAI）。
+- C の受け止め: C は判定 C でこの文を Harness README の行への到達として扱ったが、必読経路ではないという指摘は AC4 の文言どおりである。裁定で退けず、B の修正へ戻す。C′ の差し戻し 1 巡目。
 
 ## 9. Phase D
 
