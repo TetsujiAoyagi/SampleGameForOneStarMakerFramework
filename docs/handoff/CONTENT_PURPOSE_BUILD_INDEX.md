@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `A`（A3 統合案。A2 の 2 件を §5.1 で分類し、本文へ反映した。分類と §2.8 U8 の owner の裁定、Draft PR の外部計画レビューが未了で、未凍結）
+- status: `A`（A3 統合案。A2 の 2 件を §5.1 で分類し、本文へ反映した。owner が 2026-11-16 に分類と §2.8 U8 を推奨どおりと裁定した。Draft PR の外部計画レビューが未了で、未凍結）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `未固定`
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A（A3）。
-  - 次の作業: owner が §5.1 の分類と §2.8 U8 を裁定し、Draft PR の外部計画レビューの指摘を採否する。裁定と対象 revision・次担当 B を §0 の凍結記録に書いてから凍結版を commit する。
+  - 次の作業: Draft PR の外部計画レビューを受け、owner が指摘を採否する。裁定と対象 revision・次担当 B を §0 の凍結記録に書いてから凍結版を commit する。
   - 読む範囲: 既定（Phase A は全節）。
   - 引き継ぐ commit: A3 統合案の commit（SHA は起動指示で渡す）。base は上の `2c775ff0`。
   - 必要な権限: なし（文書のみ）。
@@ -213,7 +213,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - **U6 選択の関数の置き場と公開範囲。** 推奨: R1 を `Runtime/BuildContent/Distribution/` に public で置く（S4 の供給元が呼ぶ。Distribution は BuildSystem 本体の分類で、resolver の core を参照しない）。照合の関数は `ContentDirectoryIndex` と共有する internal にする。 決定: 推奨どおり。
 - **U7 実機の test の置き場。** 推奨: 既存の `SampleGame/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs` の隣に、SampleGame の型を使わない test を足す（登録と directory の索引は既存の friend 経由。A2 の指摘 8 で「public だけ」の文言を直した）（build と loopback の HTTP の道具がそこにある）。Framework の test の assembly へ移すのは、道具ごと動かす別の作業。 決定: 推奨どおり。
 
-- **U8 「索引なし」の bytes 上の形と、索引の前方互換（A2 で出た。U2・U5 の決定の一部を変える）。** `JsonUtility` は入れ子の欄を省けないので、U2 の「索引なしで publish」は `"index":{"version":0,"entries":[]}` を書く。初稿の AC3 は版 0 を形の失敗とし、AC5 は壊れた索引を install で拒むとしていたので、そのままでは旧 outcome からの publish が install できなかった。担当の推奨: (1)「索引なし」を「欄が無い、または `version` 0」と定義する。(2) install と再検証は索引の JSON の型だけを見て、版と kind の値は見ない（索引の版を上げても古い runtime が manifest を install できる。`version` を据え置いた U2 の理由と揃える）。(3) 読み口が知らない版（2 以上）は「未対応の索引」として「索引なし」と同じく飛ばす。U5 の「形の失敗で止める」は、知っている版（1）の索引にだけ当てる。決定: 未裁定（owner の裁定待ち）。
+- **U8 「索引なし」の bytes 上の形と、索引の前方互換（A2 で出た。U2・U5 の決定の一部を変える）。** `JsonUtility` は入れ子の欄を省けないので、U2 の「索引なしで publish」は `"index":{"version":0,"entries":[]}` を書く。初稿の AC3 は版 0 を形の失敗とし、AC5 は壊れた索引を install で拒むとしていたので、そのままでは旧 outcome からの publish が install できなかった。担当の推奨: (1)「索引なし」を「欄が無い、または `version` 0」と定義する。(2) install と再検証は索引の JSON の型だけを見て、版と kind の値は見ない（索引の版を上げても古い runtime が manifest を install できる。`version` を据え置いた U2 の理由と揃える）。(3) 読み口が知らない版（2 以上）は「未対応の索引」として「索引なし」と同じく飛ばす。U5 の「形の失敗で止める」は、知っている版（1）の索引にだけ当てる。決定: 推奨どおり（owner、2026-11-16）。owner の補足: 索引の無い旧 build との後方互換を残す理由は特に無いが、厳密に拒む必要も無い。そこで (1) の「索引なし」の扱いは推奨のまま残す。
 
 ## 3. 責務マップ
 
@@ -261,7 +261,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - A2（2026-11-16、同一 PC）。入力版は固定 base `2c775ff0` の clean detached checkout と HANDOFF copy（sha256 `ed2055c9d215b7a680c5f755232c97de41cabf5bb2afe124ce155a035b90749c`。§2.8 に U1〜U7 の決定を書いた版）。
   - アーキテクチャゲート: 担当 Claude Code の subagent（Anthropic、主担当と同じ系列。risk `normal` なので独立性の強化条件は対象外）。照合: HEAD・clean・hash は一致。結論は blocker 1、major 4、minor 5。
   - 目的レビュー: 担当 Claude Code の subagent（Anthropic、目的と利用者の原文だけを渡した別の担当）。入力の sha256 `ecdfac84e869fc19223bbdf2dc7672566a9027efe8a4b6f29f91440deac53c0b`。
-- A3 の分類（担当の案。owner の裁定待ち。目的・利用者の 2 欄は変えていないので目的レビューのやり直しは無い）:
+- A3 の分類（担当の案を owner が 2026-11-16 に承認。目的・利用者の 2 欄は変えていないので目的レビューのやり直しは無い）:
 
   | 出所 | 指摘 | 分類 | 反映 |
   |---|---|---|---|
@@ -283,7 +283,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
   | 目的 | 作らない: 複数が満たす時の優先順位・score・自動選択の方針 | 初稿と一致 | 選択の関数は呼び手が渡した順を当てるだけで、順や score を持たない（U4） |
 
 - A2 の再レビューの要否: 行わない。設計の変更はゲートの指摘をそのまま塞ぐもので、新しい境界・依存・公開面は「public の読み口を publisher が呼ぶ」と「`BuildContentResult` の任意引数」だけである。Draft PR の外部計画レビューで確かめる。
-- A3: 統合案。owner の裁定と外部計画レビューは未了。
+- A3: 統合案。A2 の分類と U8 は owner の裁定済み。外部計画レビューは未了。
 
 ## 6. Phase B 実装結果
 
