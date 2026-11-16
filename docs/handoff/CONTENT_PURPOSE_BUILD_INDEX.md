@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `A`（A3 統合案。A2 の 2 件を §5.1 で分類し、本文へ反映した。owner が 2026-11-16 に分類と §2.8 U8 を推奨どおりと裁定した。Draft PR の外部計画レビューが未了で、未凍結）
+- status: `A`（A3 統合案。A2 の 2 件を §5.1 で分類し、本文へ反映した。owner が 2026-11-16 に分類と §2.8 U8 を推奨どおりと裁定した。Draft PR の外部計画レビューの 1 巡目（3 件と小さい点 1 件）を owner が全て採用し、本文へ反映した。2 巡目の外部計画レビューの後に凍結する。未凍結）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `未固定`
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A（A3）。
-  - 次の作業: Draft PR の外部計画レビューを受け、owner が指摘を採否する。裁定と対象 revision・次担当 B を §0 の凍結記録に書いてから凍結版を commit する。
+  - 次の作業: Draft PR の外部計画レビューの 2 巡目を受け、owner が指摘を採否する。裁定と対象 revision・次担当 B を §0 の凍結記録に書いてから凍結版を commit する。
   - 読む範囲: 既定（Phase A は全節）。
   - 引き継ぐ commit: A3 統合案の commit（SHA は起動指示で渡す）。base は上の `2c775ff0`。
   - 必要な権限: なし（文書のみ）。
@@ -97,9 +97,10 @@
 - **I-2 検証していない索引を選択に使わない。** 選択は、期待 digest と一致した `transport.json` の bytes から読んだ索引だけを使う。索引の欄が無い manifest は「索引なし」で、「含まない」「含む」のどちらにも読まない。形の壊れた索引は候補の検証の失敗で、別の解釈に落とさない。
   - 経路: `JsonUtility` の既定値（欄が無いと空の配列になる）、digest を照合せずに bytes を読む呼び手、`ContentManifestValidation.Validate` を通らない読み口（`declaration` が検証されない前例）、kind の文字列の未知の値。
   - 塞ぎ方: 読み口は bytes と期待 digest の両方を受け、上限 4 MiB と sha256 を照合してから raw の形を検査する。`JsonUtility` は入れ子の class の欄を省けないので、publisher は索引を出さない時も `"index":{"version":0,"entries":[]}` を書く。そこで「索引なし」は「`index` の欄が無い、または `version` が 0」と定義する（§2.8 U8）。読み口が知らない版（2 以上）は「未対応の索引」として「索引なし」と同じく理由を残して飛ばす（§2.8 U8）。
+  - 判定の順（外部計画レビュー 1 巡目の指摘 2 で固定した）: (a) 上限 4 MiB を超える bytes と digest の不一致は検証の失敗。(b) `index` の欄が無ければ「索引なし」。(c) `index` があれば、版に関係なく install と同じ JSON の型の規則（`index` は object、`version` は整数、`entries` は object の配列、entry の各欄は文字列）で検査し、`version` の欄が無い・整数でない場合も含めて外れれば形の失敗（正規の publish は `JsonUtility` が `version` を必ず書くので、欄が欠けるのは正規でない bytes だけ）。(d) その後で版を見る。0 は「索引なし」（`entries` の中身は見ない）、2 以上は「未対応の索引」、1 は値（kind の値、重複、空白だけの logical key・表現）を検査し、外れれば形の失敗。
 - **I-3 選択は content を登録・走査しない。** 選択の入力は `transport.json` の bytes だけで、`content/` の file を開かず、Unity の Content Directory を登録しない。索引は publish の bytes の中にあり、Editor にだけある file ではない。
   - 経路: `BuildContentRoot` を読むために `ContentDirectorySession` を作る実装、`Library/BuildHistory` の `ContentLayout.json` や preflight（Editor の手元にだけある）を読む実装、installed cache の `content/` を歩く実装。
-- **I-4 選ぶ build を暗黙に決めない。** 複数の候補が含むときは、呼び手が渡した順で最初の 1 つを選ぶ。revision・contentSet の文字列の大小や候補の列挙順で決めない。含まない候補・索引の無い候補・未対応の版の索引の候補は、理由を残して飛ばす。検証に落ちた候補（digest の不一致、知っている版の索引の形の失敗）では選択を止める（§2.8 U5・U8）。候補が 1 つも含まなければ「見つからない」を返し、成功にしない。
+- **I-4 選ぶ build を暗黙に決めない。** 複数の候補が含むときは、呼び手が渡した順で最初の 1 つを選ぶ。revision・contentSet の文字列の大小や候補の列挙順で決めない。含まない候補・索引の無い候補・未対応の版の索引の候補は、理由を残して飛ばす。検証に落ちた候補（上限超過、digest の不一致、形の失敗）では選択を止める（§2.8 U5・U8）。候補は渡された順に 1 つずつ評価し、最初の「含む」か最初の検証の失敗のどちらか先に来た所で止まる。止まった後ろの候補は評価せず、理由は「未評価」とする（`ContentResolver` の「採用した時点で止まる」と揃える。外部計画レビュー 1 巡目の指摘 3）。候補が 1 つも含まなければ「見つからない」を返し、成功にしない。
   - 経路: 内部で sort する実装、`Dictionary` の列挙順、検証の失敗を「含まない」と同じに扱って黙って次の build を採る実装（program §3.1 の 10。§2.8 U5 で止めると決めた）。
 - **I-5 既存の manifest の消費者を壊さない。** 索引を持つ manifest は、今の install（`ContentInstaller`・`ContentManifestValidation`）、installed の再検証（`InstalledRevisionVerifier`）、SampleGame の検証 Play・From published directory・BS4 の Player build、Artifacts の `content collect` / `fetch` が受け付ける。索引の無い旧 manifest も今までどおり install できる。`version`・`rootSchemaVersion` は変えない（§2.8 U2）。
   - 経路: 必須欄の追加、`version` の変更（`Validate` が 1 以外を拒む）、manifest の大きさの上限（4 MiB。C# と Artifacts の両方）、Artifacts の JSON の深さ（32）。`ContentManifestValidation` は install だけでなく、登録のたびの `InstalledRevisionVerifier.Verify` / `VerifyInsideLease` でも走るので、索引の版や kind の値をここで拒むと、索引の版を上げた時に古い runtime が manifest 全体を install・再検証できなくなる。
@@ -107,22 +108,22 @@
 
 **成立条件（起きなければならないこと）**
 
-- **S-1** `Full` の目的 build を publish すると、`transport.json` に索引が入り、その entry の集合は同じ build の `BuildContentRoot` の entry の `(logical key, kind, 実効表現)` の集合と等しい。
+- **S-1** `Full` の目的 build を publish すると、`transport.json` に索引が入り、その entry の集合は同じ build の `BuildContentRoot` の entry の `(logical key, kind, 表現)` の集合と、生の値どうしで等しい（tag の無い root の空の表現は空のまま）。
 - **S-2** 目的 2 つ以上の `transport.json` の bytes と期待 digest を渡すと、要求した Scene を含む build が呼び手の順で選ばれ、候補ごとの理由が返る。要求が表現を指定し、その表現が無く `Full` があれば、directory と同じく含むと答える。
 - **S-3** 同じ公開 directory を Local と HTTP の供給元から install した `transport.json` は同じ bytes で、同じ索引と同じ選択の結果になる。
 
 ### 2.2 受け入れ条件
 
-fixture は SampleGame を使わない合成（program D10）。実機の build は既存の `BuildContentDirectoryIntegrationTests`（SampleGame の test の assembly にある。SampleGame の型は使わず、internal は既存の friend 経由。置き場は §3）と同じ build の手順で、目的 2 つを作る: 目的 A（Scene `Entry`、Scene `Shared`、Object `SharedPrefab`）、目的 B（Scene `Next`、Scene `Shared`、`Shared` は `Full` と `Whitebox` の 2 表現、`Whitebox` の表現だけを持つ Scene `WhiteboxOnly`）。
+fixture は SampleGame を使わない合成（program D10）。実機の build は既存の `BuildContentDirectoryIntegrationTests`（SampleGame の test の assembly にある。SampleGame の型は使わず、internal は既存の friend 経由。置き場は §3）と同じ build の手順で、目的 2 つを作る: 目的 A（Scene `Entry`、Scene `Shared`、Representation の tag の無い Object `SharedPrefab`）、目的 B（Scene `Next`、Scene `Shared`、`Shared` は `Full` と `Whitebox` の 2 表現、`Whitebox` の表現だけを持つ Scene `WhiteboxOnly`）。
 
 | ID | 検証する条件 | 内容 |
 |---|---|---|
-| AC1 | S-1・I-1 | 単体。publish が、coordinator が記録した entry から索引を書く。entry は `(logical key, kind, 実効表現)` の ordinal 順で、空の表現は `Full`。上書きでない既存の build の report と directory は索引の追加の欄以外変わらない（既存の `BuildContentReportTests`・`BuildContentFullModeTests` が変更なしで通る）。**失敗経路:** 記録の印（outcome の記録の版の整数）が無い outcome（旧 outcome と、coordinator を通さずに書いた test の outcome）からは、拒まずに `version` 0 の索引で publish し、その manifest は `ContentInstaller` で install でき、読み口が「索引なし」と答える（§2.8 U2・U8）。記録の印があって一覧が空の outcome を「索引なし」と取り違えない。同じ `(logical key, kind, 実効表現)` が 2 つある、または空白だけの表現がある記録からは publish を拒む（publisher が書いた bytes を読み口で読み直して検出する）。test は `OneStarMaker.Tests.Editor` の `Tests/Editor/Build` に置く（`OneStarMaker.Tests` は `OneStarMaker.Build.Content` を参照しない）。 |
+| AC1 | S-1・I-1 | 単体。publish が、coordinator が記録した entry から索引を書く。entry の表現は root の entry と同じ生の値（tag の無い root は空のまま）で、logical key、kind の文字列（`Object` < `Scene`）、生の表現の順に、それぞれ ordinal で並べる。上書きでない既存の build の report と directory は索引の追加の欄以外変わらない（既存の `BuildContentReportTests`・`BuildContentFullModeTests` が変更なしで通る）。**失敗経路:** 記録の印（outcome の直下に置く整数の欄。入れ子の object にしない。欄が無ければ `JsonUtility` の既定の 0 と読み、0 を「記録なし」とする）が 0 の outcome（旧 outcome と、coordinator を通さずに書いた test の outcome）からは、拒まずに `version` 0 の索引で publish し、その manifest は `ContentInstaller` で install でき、読み口が「索引なし」と答える（§2.8 U2・U8）。記録の印があって一覧が空の outcome を「索引なし」と取り違えない。同じ `(logical key, kind, 実効表現)` が 2 つある、または空白だけの表現がある記録からは publish を拒む（publisher が書いた bytes を読み口で読み直して検出する）。test は `OneStarMaker.Tests.Editor` の `Tests/Editor/Build` に置く（`OneStarMaker.Tests` は `OneStarMaker.Build.Content` を参照しない）。 |
 | AC2 | I-1 | 単体。照合の関数が、表の entry と要求に対し、完全一致、表現を指定しない要求、`Whitebox` の要求で `Whitebox` があれば `Whitebox`、無ければ `Full`、`Full` も無ければ含まない、表現を指定しない要求は `Full` だけに当たり `Whitebox` だけの entry には含まないと答える、生の空の表現の entry は `Full` として当たる、Object も同じ fallback、kind の違いは含まない、を返す。`ContentDirectoryIndex` の `TryResolveScene` / `TryResolveObject` がこの関数を使う（既存の `ContentDirectoryIndexTests` が変更なしで通る） |
-| AC3 | I-2 | 単体。読み口は bytes と期待 digest を受ける。**失敗経路:** digest が違えば読まない（検証の失敗）。索引の欄が無い manifest は「索引なし」で、`Shared` の要求に対し「含まない」とも「含む」とも答えない。版が 0 は「索引なし」、2 以上は「未対応の索引」（どちらも「含む」「含まない」と答えない）。版が負、entry の欄の欠け、版 1 での kind の未知の値、`(logical key, kind, 実効表現)` の重複、空白だけの logical key、空白だけの表現は形の失敗。上限 4 MiB を超える bytes は読まない。`ContentManifestValidation.ValidateRequiredFields` と `Validate` は、索引を持つ manifest と持たない manifest の両方を今までどおり通す |
-| AC4 | S-2・I-3・I-4 | 単体。`content/` の無い状態で、目的 A と B の `transport.json` の bytes だけを渡す。順 `[A, B]` で `Next` は B（A は「含まない」）、`Entry` は A、`Shared` は A。順 `[B, A]` で `Shared` は B。`WhiteboxOnly` を表現の指定なしで要求すると「見つからない」、`Whitebox` で要求すると B。`Missing` は「見つからない」で、両方の理由が「含まない」。未対応の版の索引を持つ候補を先頭に置くと「未対応の索引」の理由で飛ばす。旧 manifest（索引なし）を先頭に置くと、それを「索引なし」の理由で飛ばして次を選ぶ（§2.8 U5）。**失敗経路:** digest の違う候補や索引の形が壊れた候補が途中にあると、後ろに含む候補があっても選択はそこで止まり、成功にせず「検証の失敗」の理由を返す（§2.8 U5）。選択の公開面は要求を `BuildContentKind` と文字列で受け（`ContentResolution` の `ContentKind` は参照しない）、入力は bytes と期待 digest だけの型とする。file system・Unity の Content Directory・`ContentDirectorySession` を使わないことは、C が新しい file の `using` と呼び出しを検査して確かめる |
-| AC5 | I-5 | 単体と既存の test。索引を持つ manifest を `ContentInstaller` で install でき、`InstalledRevisionVerifier` が通す（既存の `ContentInstallerTests`・`ContentManifestValidationTests`・`ContentDeliveryFailureMatrixTests` が変更なしで通る）。SampleGame の `PublishedDirectoryReceiveTests` が通る。版が 2 以上の索引や未知の kind の値を持つ manifest も install でき、再検証を通る（前方互換、§2.8 U8）。**失敗経路:** `index` の JSON の型が壊れた manifest（`index` が object でない、`version` が整数でない、`entries` が配列でない、entry の欄が文字列でない）は、install の必須欄の検査で拒む |
-| AC6 | S-1・I-1 | 実機（Unity の build を伴う EditMode test）。目的 A と B を製品の coordinator で `Full` build して publish し、各 `transport.json` の索引の entry の集合が、その `content/` を登録した `BuildContentRoot` の entry の集合と等しい。登録した `ContentDirectoryIndex` と索引の照合が、全 entry、`Missing`、`Shared` の `Whitebox`（B では `Whitebox`、A では `Full` への fallback）、`WhiteboxOnly` の表現の指定なしと `Whitebox`、`Next` を `Object` として要求した時（kind の違い）で同じ答えになる。登録と directory の索引は internal（`ContentDirectorySession`・`ContentDirectoryIndex`）を既存の friend 経由で使う |
+| AC3 | I-2 | 単体。読み口は bytes と期待 digest を受ける。**失敗経路:** digest が違えば読まない（検証の失敗）。索引の欄が無い manifest は「索引なし」で、`Shared` の要求に対し「含まない」とも「含む」とも答えない。判定の順は I-2 のとおりで、各段の境界を 1 つずつ試す: 上限 4 MiB を超える bytes は検証の失敗。`index` の欄が無い、または版 0 は「索引なし」、版 2 以上は「未対応の索引」（どちらも「含む」「含まない」と答えない）。`index` が object で `version` の欄が無い、`version` が `"1"`・`1.0`・`true`、版 2 で `entries` の型が壊れている、版 0 で `entries` の型が壊れている、はどれも型の失敗（形の失敗）。版が負、版 1 での entry の欄の欠け・kind の未知の値・`(logical key, kind, 実効表現)` の重複・空白だけの logical key・空白だけの表現は形の失敗。`ContentManifestValidation.ValidateRequiredFields` と `Validate` は、索引を持つ manifest と持たない manifest の両方を今までどおり通す |
+| AC4 | S-2・I-3・I-4 | 単体。`content/` の無い状態で、目的 A と B の `transport.json` の bytes だけを渡す。順 `[A, B]` で `Next` は B（A は「含まない」）、`Entry` は A、`Shared` は A。順 `[B, A]` で `Shared` は B。`WhiteboxOnly` を表現の指定なしで要求すると「見つからない」、`Whitebox` で要求すると B。`Missing` は「見つからない」で、両方の理由が「含まない」。未対応の版の索引を持つ候補を先頭に置くと「未対応の索引」の理由で飛ばす。旧 manifest（索引なし）を先頭に置くと、それを「索引なし」の理由で飛ばして次を選ぶ（§2.8 U5）。**失敗経路:** digest の違う候補、索引の形が壊れた候補、4 MiB を超える候補が途中にあると、後ろに含む候補があっても選択はそこで止まり、成功にせず「検証の失敗」の理由を返す（§2.8 U5）。順 `[A, digest の違う B]` で `Shared` を要求すると A を選んで成功し、B は「未評価」（I-4）。選択の公開面は要求を `BuildContentKind` と文字列で受け（`ContentResolution` の `ContentKind` は参照しない）、入力は bytes と期待 digest だけの型とする。file system・Unity の Content Directory・`ContentDirectorySession` を使わないことは、C が新しい file の `using` と呼び出しを検査して確かめる |
+| AC5 | I-5 | 単体と既存の test。索引を持つ manifest を `ContentInstaller` で install でき、`InstalledRevisionVerifier` が通す（既存の `ContentInstallerTests`・`ContentManifestValidationTests`・`ContentDeliveryFailureMatrixTests` が変更なしで通る）。SampleGame の `PublishedDirectoryReceiveTests` が通る。版が 2 以上の索引や未知の kind の値を持つ manifest も、型の規則を保つ限り install でき、再検証を通る（前方互換は型の規則を保つ版に限る。§2.8 U8）。**失敗経路:** `index` の JSON の型が壊れた manifest（`index` が object でない、`version` が整数でない、`entries` が配列でない、entry の欄が文字列でない）は、install の必須欄の検査で拒む |
+| AC6 | S-1・I-1 | 実機（Unity の build を伴う EditMode test）。目的 A と B を製品の coordinator で `Full` build して publish し、各 `transport.json` の索引の entry の集合が、その `content/` を登録した `BuildContentRoot` の entry の集合と、生の値どうしで等しい（tag の無い `SharedPrefab` の空の表現を含む）。登録した `ContentDirectoryIndex` と索引の照合が、全 entry、`Missing`、`Shared` の `Whitebox`（B では `Whitebox`、A では `Full` への fallback）、`WhiteboxOnly` の表現の指定なしと `Whitebox`、`Next` を `Object` として要求した時（kind の違い）で同じ答えになる。登録と directory の索引は internal（`ContentDirectorySession`・`ContentDirectoryIndex`）を既存の friend 経由で使う |
 | AC7 | S-3・I-3 | 実機。AC6 で publish した B の directory を、`LocalContentArtifactSource` と既存の loopback の HTTP の供給元から別々の cache root に install し、2 つの installed `transport.json` の bytes と公開 directory の bytes が同じで、AC6 の要求の全てについて、公開 directory の bytes で選んだ結果と同じ選択の結果になる |
 | AC8 | 範囲 | 差分が §3 の file と、その `.meta` だけで、asmdef の `references`、`AssemblyInfo.cs` の friend、`tools/Artifacts`、`SceneState` に変更が無い。実機の test は既存の build を伴う test と同じ扱い（§5） |
 
@@ -154,7 +155,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 
 **形式（P1 の場合）**
 
-`index` は `{ "version": 1, "entries": [ { "logicalKey": "...", "kind": "Scene" | "Object", "representation": "..." } ] }`。entry は ordinal 順、表現は root の entry と同じ生の値（tag の無い root は空）で、実効値（空は `Full`）への読み替えは読み口が行う。stable key・Unity の locator・path は入れない（選択に要らず、Unity の内部を配布の protocol にしない既存の方針）。`version` の欄が無いか 0 なら「索引なし」、1 なら本書の形、2 以上は「未対応の索引」（§2.8 U8）。
+`index` は `{ "version": 1, "entries": [ { "logicalKey": "...", "kind": "Scene" | "Object", "representation": "..." } ] }`。entry は ordinal 順、表現は root の entry と同じ生の値（tag の無い root は空）で、実効値（空は `Full`）への読み替えは読み口が行う。stable key・Unity の locator・path は入れない（選択に要らず、Unity の内部を配布の protocol にしない既存の方針）。entry の並べ順は logical key、kind の文字列、生の表現の順にそれぞれ ordinal。`index` の欄が無いか `version` が 0 なら「索引なし」、1 なら本書の形、2 以上は「未対応の索引」。どの版でも型の規則（I-2 の (c)）は同じで、型の規則を変える版は古い runtime の install を止める（§2.8 U8）。
 
 **生成時点**
 
@@ -168,7 +169,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 
 | 案 | 内容 | 推奨 |
 |---|---|---|
-| R1 | 純粋な関数 `Select(要求, 順のある候補の列)` を Distribution に置く。最初に「含む」と答えた候補を選び、全候補の理由を返す。供給元（S4）が 1 要求に 1 候補を返すためにこれを呼ぶ | **推奨**。`ContentResolver` は供給元の順を、R1 は 1 つの供給元の中の目的 build の順を扱い、層が分かれる |
+| R1 | 純粋な関数 `Select(要求, 順のある候補の列)` を Distribution に置く。順に評価し、最初の「含む」か最初の検証の失敗で止まり、評価した候補の理由と、評価しなかった候補の「未評価」を返す。供給元（S4）が 1 要求に 1 候補を返すためにこれを呼ぶ | **推奨**。`ContentResolver` は供給元の順を、R1 は 1 つの供給元の中の目的 build の順を扱い、層が分かれる |
 | R2 | 目的 build ごとに provider を作り、`ContentResolver` の順で選ぶ | 供給元の順と目的の順が 1 列に混ざり、provider の数が build の数だけ増える。provider の製品実装は S3・S4 なので、本書では test の provider でしか示せない |
 | R3 | 含む候補がちょうど 1 つの時だけ選び、2 つ以上は曖昧として拒む | 共通の Scene（`Title` など）は全目的に入るので、ほぼ常に曖昧になる |
 
@@ -213,7 +214,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - **U6 選択の関数の置き場と公開範囲。** 推奨: R1 を `Runtime/BuildContent/Distribution/` に public で置く（S4 の供給元が呼ぶ。Distribution は BuildSystem 本体の分類で、resolver の core を参照しない）。照合の関数は `ContentDirectoryIndex` と共有する internal にする。 決定: 推奨どおり。
 - **U7 実機の test の置き場。** 推奨: 既存の `SampleGame/Tests/Editor/Build/BuildContentDirectoryIntegrationTests.cs` の隣に、SampleGame の型を使わない test を足す（登録と directory の索引は既存の friend 経由。A2 の指摘 8 で「public だけ」の文言を直した）（build と loopback の HTTP の道具がそこにある）。Framework の test の assembly へ移すのは、道具ごと動かす別の作業。 決定: 推奨どおり。
 
-- **U8 「索引なし」の bytes 上の形と、索引の前方互換（A2 で出た。U2・U5 の決定の一部を変える）。** `JsonUtility` は入れ子の欄を省けないので、U2 の「索引なしで publish」は `"index":{"version":0,"entries":[]}` を書く。初稿の AC3 は版 0 を形の失敗とし、AC5 は壊れた索引を install で拒むとしていたので、そのままでは旧 outcome からの publish が install できなかった。担当の推奨: (1)「索引なし」を「欄が無い、または `version` 0」と定義する。(2) install と再検証は索引の JSON の型だけを見て、版と kind の値は見ない（索引の版を上げても古い runtime が manifest を install できる。`version` を据え置いた U2 の理由と揃える）。(3) 読み口が知らない版（2 以上）は「未対応の索引」として「索引なし」と同じく飛ばす。U5 の「形の失敗で止める」は、知っている版（1）の索引にだけ当てる。決定: 推奨どおり（owner、2026-11-16）。owner の補足: 索引の無い旧 build との後方互換を残す理由は特に無いが、厳密に拒む必要も無い。そこで (1) の「索引なし」の扱いは推奨のまま残す。
+- **U8 「索引なし」の bytes 上の形と、索引の前方互換（A2 で出た。U2・U5 の決定の一部を変える）。** `JsonUtility` は入れ子の欄を省けないので、U2 の「索引なしで publish」は `"index":{"version":0,"entries":[]}` を書く。初稿の AC3 は版 0 を形の失敗とし、AC5 は壊れた索引を install で拒むとしていたので、そのままでは旧 outcome からの publish が install できなかった。担当の推奨: (1)「索引なし」を「欄が無い、または `version` 0」と定義する。(2) install と再検証は索引の JSON の型だけを見て、版と kind の値は見ない（索引の版を上げても古い runtime が manifest を install できる。`version` を据え置いた U2 の理由と揃える）。(3) 読み口が知らない版（2 以上）は「未対応の索引」として「索引なし」と同じく飛ばす。U5 の「形の失敗で止める」は、知っている版（1）の索引にだけ当てる。決定: 推奨どおり（owner、2026-11-16）。owner の補足: 索引の無い旧 build との後方互換を残す理由は特に無いが、厳密に拒む必要も無い。そこで (1) の「索引なし」の扱いは推奨のまま残す。外部計画レビュー 1 巡目（指摘 2）を受けた補い（owner 採用、2026-11-16）: 判定の順を I-2 の (a)〜(d) に固定し、`index` の中の型の失敗は版に関係なく形の失敗とする。(2) の前方互換は、型の規則を保つ版に限る。
 
 ## 3. 責務マップ
 
@@ -253,7 +254,7 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - 判定 C の照合 script の方式: なし（XML のテスト名と件数で読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
 - A0/A1 主担当: AI（Claude Code）。
-- C' 用に予約した担当: cursor-agent の Grok 系（A2 は使っていない）。
+- C' 用に予約した担当: cursor-agent の Grok 系。ただし Draft PR の外部計画レビュー（cursor[bot]）も Grok 系だったので、Phase A に関与した系列になる。Google 系と Codex は使えないので、C' は Grok 系のまま独立性制約ありとして行う（risk `normal` なので強化条件は対象外）。
 - 独立性の強化条件を満たせない場合の理由: risk が `normal` なら強化条件は対象外。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -283,7 +284,16 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
   | 目的 | 作らない: 複数が満たす時の優先順位・score・自動選択の方針 | 初稿と一致 | 選択の関数は呼び手が渡した順を当てるだけで、順や score を持たない（U4） |
 
 - A2 の再レビューの要否: 行わない。設計の変更はゲートの指摘をそのまま塞ぐもので、新しい境界・依存・公開面は「public の読み口を publisher が呼ぶ」と「`BuildContentResult` の任意引数」だけである。Draft PR の外部計画レビューで確かめる。
-- A3: 統合案。A2 の分類と U8 は owner の裁定済み。外部計画レビューは未了。
+- 外部計画レビュー 1 巡目（2026-11-16、Draft PR の cursor[bot]、Grok 系。対象 commit `7a708e31`）。owner が 4 件とも採用した。A2 の観点の再レビューは行わない（受け入れ条件の観測を 1 つに固定する文の補いで、境界・依存・公開面は変えない。2 巡目の外部計画レビューで確かめる）:
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | 1 索引に書く表現が生の値と実効値の両方に読め、並べる key の kind の比べ方も無い。AC6 の fixture は tag の無い root を踏まない | 採用 | 生の値に統一（S-1・AC1・形式）。並べ順を固定。目的 A の `SharedPrefab` を tag 無しにした |
+  | 2 U8 の境界（`version` の欠け・整数でない値、版 2・版 0 で `entries` の型の破損）で、飛ばすと止めるの両方が読める | 採用 | I-2 に判定の順 (a)〜(d)、AC3 に境界の試験、AC5 と U8 に前方互換の範囲 |
+  | 3 `[含む, digest 不一致]` の結果が 3 通りに読める。4 MiB 超を検証の失敗に数えるかが無い | 採用 | I-4・R1 に「最初の含むか最初の検証の失敗で止まり、後ろは未評価」、AC4 に例と 4 MiB 超 |
+  | 小さい点: 記録の印を入れ子にすると版 0 と同じ区別できない問題が起きる | 採用 | AC1 に「outcome の直下の整数、欄が無ければ 0」 |
+
+- A3: 統合案。A2 の分類、U8、外部計画レビュー 1 巡目は owner の裁定済み。2 巡目の外部計画レビューは未了。
 
 ## 6. Phase B 実装結果
 
