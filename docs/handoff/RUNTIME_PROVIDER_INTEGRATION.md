@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 1 巡目の採否を §5.1 に記録した。owner は §2.8 の U3〜U8 を決定済み。2 巡目の外部計画レビューと凍結の前。未凍結）
+- status: `A`（A3 凍結済み。次は Phase B）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
-- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: `未凍結`
+- A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
 - created: 2026-11-17
@@ -21,11 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: A3（外部計画レビューの 2 巡目、凍結）。凍結の後に Phase B。
-  - 次の作業: Draft PR で外部計画レビューの 2 巡目を受け、指摘は 1 巡につき 1 commit で反映する。owner の凍結判断を上の凍結記録に書いて凍結版を commit する（owner は 2026-11-17 に「まだ凍結しない」と指示した）。
-  - 引き継ぐ commit: 統合案の commit（SHA は PR 状態ブロックで渡す）。凍結版はまだ無い。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結の前に Phase B を始めない。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: §4 の順で §3 の file を実装し、§5 の起点 filter と offline の test、AC5 の実機の test を通し、出口で §5 の検証経路の動作確認（AC7）を 1 回行って、§6 に結果を書く。
+  - 読む範囲: 既定（Phase B は §0〜§5）。§1 の現況と §3 の行数は base `36d069e8` の事実。
+  - 引き継ぐ commit: A3 凍結版の commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `未固定`。
+  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
+  - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」のどれかに当たったら実装を止めて Phase A へ戻す。§2.6 の NO-GO に当たったら、何がどの段で得られなかったかを記録して owner へ返す。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -216,6 +218,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - repo 相対 path は `tools/path-budget.json` の予算に収める。
 - `Runtime/ContentResolution/Core/` は Unity と `BuildContent` を参照しない（`tools/ContentResolutionOfflineTests` が source を直接 compile する）。
 - loader は AssetManagement の public だけを使い、同じ assembly の internal を呼ばない。
+- loader の照合は、`LoadSceneAsync` と `LoadAssetAsync` のそれぞれの中で、解決の `await` が終わった後、content 入口の呼び出しの直前に同期で行う。照合を、`await` される別の async method（今の `ResolveForLoadAsync`）の中に置かない（method の戻りが `await` の境界になり、I-1 の「照合と呼び出しの間に `await` を置かない」が code から読めなくなる）。
 - `LoadContentSceneAsync`・`LoadContentAssetAsync` が directory を掴む位置（最初の `await` より前）を動かさず、load gate の後に登録中の directory を読み直す code を足さない（I-1・I-3）。
 - `ContentRequest` の constructor の既存の引数の位置と既定値を変えない（fallback は末尾の任意引数）。
 - 封じ（`SealAddressables`）、protected config の照合、起動の fail-closed、`CompleteContentDirectoryPlayStop` の順序を変えない。
@@ -249,7 +252,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 | `Runtime/ContentResolution/Core/ContentRequest.cs` | 要求の値 | 任意の fallback の表現 | 値 | なし | public の constructor の末尾の任意引数と property | AC3 | 62 → 80 |
 | `Runtime/ContentResolution/Core/ContentResolver.cs` | 探索 | 候補の表現の照合に fallback を足す | static な処理 | なし | 変えない | AC3 | 318 → 328 |
 | `Runtime/ContentResolution/Core/ContentLoadRejection.cs` | loader の拒否の理由 | `SourceBindingUnavailable`・`SourceBindingMismatch` を足す | enum | なし | public の enum の値の追加 | AC1 | 17 → 25 |
-| `Runtime/ContentResolution/ContentRequestLoader.cs` | 採用した候補を content 入口へ渡す | load の前の照合、record の `SourceBindingVerified` | 呼び手が持つ | `IAssetManagement`（public だけ）と上の interface | 変えない（挙動は U4） | AC1 | 98 → 120 |
+| `Runtime/ContentResolution/ContentRequestLoader.cs` | 採用した候補を content 入口へ渡す | load の前の照合（2 つの load method の中で、解決の `await` の後、content 入口の呼び出しの直前に同期で行う。§2.7）、record の `SourceBindingVerified` | 呼び手が持つ | `IAssetManagement`（public だけ）と上の interface | 変えない（挙動は U4） | AC1 | 98 → 120 |
 | `Runtime/SceneSystem/SceneDirector.cs` | SceneDirector の構成と公開面 | internal の constructor の任意引数（loader、fallback の表現。loader と「content directory を使わない」の組は拒む）、Scene ごとの組（`ScenePair`）に record、record の読み口 | 既存。record は組と同じ寿命 | `ContentResolution`（新しい辺。`Directory/` は知らない） | public の method 1 つ（record の読み口。Scene の id を受け、record が無ければ null を返し、例外にしない） | AC6 | 280 → 310 |
 | `Runtime/SceneSystem/SceneDirector.Loading.cs` | Scene の load | loader があればそれで読み、record を組に入れる（要求の fallback は、起動時の表現が空でも fallback と同じでもない時だけ付ける） | 同上 | 同上 | 変えない | AC6 | 685 → 705 |
 | `Runtime/Bootstrap/AbstractApplicationInitializer.cs` | 起動の順序 | directory の登録の後に route の関数を呼び、loader を SceneDirector へ渡し、protected の accessor で host に見せ、1 行出す | 既存（App） | 上の route | protected の accessor 1 つ | AC7・AC8 | 1149 → 1170 |
@@ -305,7 +308,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   - 不変条件の反証と AC の読み違い: 照合は一致。結論は blocker 0、major 5、minor 5。I-2・I-3 は破れず、I-1 は SceneDirector が持つ record の寿命で、I-4 は配線の失敗の扱いで穴があった。
   - 目的レビュー: §1 の目的と利用者の本文だけを渡した別の担当（道具を使わない）。入力の sha256 `16938d48718147632950adf55500ce3434c4e4615950a4a02e3ade21ae45b36f`。
   - A0 だけからの代替構成（risk `high` の追加分）: 初稿を読まない別の担当。入力は A0 の packet（sha256 `e20c6b719e577926d84a2b977eb1170b7dc73790fafb7ea7418018733b4067c3`。目的、利用者、問い、現況、対象外、要求、制約、未決事項）と固定 base。
-- A3 の分類（A2 の指摘。担当の案で、保留だった代替構成 2 は owner が U3 で決めた。表全体の owner の承認は凍結判断と一緒に記録する。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
+- A3 の分類（A2 の指摘。担当の案を、owner が 2026-11-17 の凍結判断で承認した。保留だった代替構成 2 は owner が U3 で決めた。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
 
   | 出所 | 指摘 | 分類 | 反映 |
   |---|---|---|---|
@@ -342,10 +345,18 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   | record の public の読み口は Scene の id を受け、無い時は null を返し、例外にしない | 採用 | AC6、§3 |
   | fallback は `ContentRequest` の末尾に足し、既存の位置引数をずらさない | 採用 | AC3、§2.7、§3 |
   | U3〜U8 は担当の推奨と同じ結論 | owner が決定 | §2.8 |
-  | このレビューの指摘を C' の入力に入れない | 保留（workflow の規則で決める） | C' は PR の会話を継承せず、凍結した Phase A snapshot を読む。この表は A2 の表と同じく snapshot に入る。扱いを変えるなら凍結の時に owner が決める |
+  | このレビューの指摘を C' の入力に入れない | 保留（workflow の規則で決める） | C' は PR の会話を継承せず、凍結した Phase A snapshot を読む。この表は A2 の表と同じく snapshot に入る。凍結の時に owner から扱いを変える指示は無く、workflow の既定のままとした |
 
 - 外部計画レビュー 1 巡目の反映に伴う A2 の再レビューの要否: 行わない。反映は、条件の対象を狭める文言（I-2、S-2）、既存の挙動の明記（I-3、§2.7）、読み口の戻り値の明記、AC6 の 1 文の修正で、設計と責務の配置は変えていない。
-- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。外部計画レビューの 2 巡目と凍結は未了。
+- 外部計画レビュー 2 巡目（2026-11-17、対象は 1 巡目を反映した commit `4c25182f`）。cursor の PR レビュー。指摘は 0 件。結論は「1 巡目の反映は意図どおりで、新しい矛盾や判定できない文は無い。AC6 の残った個体は test と構造レビューの分担で判定できる。凍結を妨げる点は無い」。反映は無い。
+- 外部計画レビュー 3 件目（2026-11-17、対象は同じ commit `4c25182f`）。owner のアカウントの計画レビュー。blocker は 0 件で、結論は「凍結に進んでよい」。Phase B・C の確認事項が 1 件あった。
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | 今の loader は `await ResolveForLoadAsync(...)` の結果を受けてから content 入口を呼ぶ。照合を `ResolveForLoadAsync` の末尾に足すと、照合と入口の呼び出しの間に `await` の境界が残る。2 つの load method で、解決の `await` の後に照合し、その直後に入口を呼ぶ配置にする。AC1 の「`FindAsync` の中の directory の差し替え」は照合の前の競合の検証で、この配置の確認の代わりにならない。新しい test と Phase A の差し戻しは求めない | 採用（実装制約の明記） | §2.7、§3 の loader の行。担当は base の `ContentRequestLoader.cs` で今の形を確かめた。確認は C の構造レビューで行い、test は足さない |
+
+- 2 巡目以降の反映に伴う A2 の再レビューの要否: 行わない。足したのは I-1 の既存の条件（照合と呼び出しの間に `await` を置かない）を code の配置として書いた実装制約 1 つで、条件の意味と責務の配置は変えていない。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。採否は owner が 2026-11-17 に承認し、同日に凍結した（§0 の凍結記録）。
 
 ## 6. Phase B 実装結果
 
