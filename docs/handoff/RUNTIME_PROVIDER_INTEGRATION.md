@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C`（発見 C を完了。阻害する指摘なし。次は判定 C）
+- status: `B`（判定 C の 1 回目で全 EditMode 回帰が失敗し、B へ差し戻し。§7「判定 C（1 回目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `adc069e19e1056a743c7a64fea9798d14a49c2a7`
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（判定 C）。GO 候補 head は上の implementation head（発見 C で差し戻しが無く、変わっていない）。
-  - 次の作業: GO 候補 head で §5 の判定必須テスト（起点 filter、offline、AC5、最終の全 EditMode 回帰）を実行し、AC7 の観測を §5 の検証経路で取る（§6 の動作確認は B の session の観測なので判定の入力にしない）。判定 evidence bundle を作り、§7 に判定 C の結果を書く。発見 C の結果は §7 の「発見 C」。
-  - 読む範囲: 既定（Phase C は §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄。
-  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。発見 C は evidence bundle を作っていない（§7）。
-  - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。`run-tests.ps1` は sandbox 外で起動する。Artifact Storage への stage（判定 evidence bundle）。
-  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。build を伴う test は他の Unity を止めて走らせる（§5）。
-  - 引き渡さないもの: 発見 C の所見を C' の入力に入れない（§7 の「発見 C」は C' の blind bundle に含めない）。
+  - 次の Phase・役割: Phase B（判定 C からの差し戻し。1 巡目）。
+  - 次の作業: §7「判定 C（1 回目）」の J1 を直す（`SceneDirector` の internal constructor の引数の数を reflection で探す既存の VFX の Play 系 test 3 class が落ちる。直し方と AC9 の範囲の制約は J1 の行の下）。修正の確認は起点 filter と J1 の 3 class を `-Filter` で選んで行う（Unity の test は Phase C の担当。B は Editor のコンパイル確認まで）。修正を commit し、implementation head 欄を新しい head にして、§6 に修正の記録を足し、票を次の担当（発見 C。差し戻しの修正の確認）へ更新する。
+  - 読む範囲: 既定（Phase B の差し戻しは §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（差し戻し前の head。B が直したら新しい head に書き換える）。
+  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。判定 C の 1 回目は evidence bundle を作っていない（差し戻しが決まったため。§7）。
+  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。
+  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。AC9 の範囲（§3 の file と test の folder）の外を変える必要が出たら、変える前に owner の例外承認を得る。
+  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。B の §6 にも所見を転載しない（修正の事実だけを書く）。
 
 ## 1. 目的と対象外
 
@@ -435,6 +435,31 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 未確認事項: `AssetResidentCache` の key の全経路（I-1 の経路 (7)。§2.1 の A1 の未確認のまま。この diff は cache を触っていない）。
 - 差し戻し: なし（巡の数は 0）。
 - 発見 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
+
+### 判定 C（1 回目。B へ差し戻し）
+
+- 種別: 判定 C。2026-11-17。結論: **判定 C 未完了。判定必須テストの全 EditMode 回帰が失敗したので B へ差し戻す**（§2.6 の NO-GO の (i)・(ii) には当たらない通常の差し戻し）。GO 判定はしていない。C' は起動しない。
+- 対象: implementation base `36d069e8` → head `adc069e1`。HEAD は引き継いだ commit `5130f37c`（head からの差は本書だけ。実装の source は `adc069e1` と同じ）。
+- 開始時の照合: 渡された SHA と HEAD は一致、作業ツリーは clean、implementation head は HEAD の祖先で、差分は本書だけ。PR 状態ブロックの引き継ぐ commit・implementation base / head も一致。凍結の後に PR の新しいコメントは無い。
+- 構造レビュー: 発見 C の構造適合（§7「発見 C」）を固定 diff で読み直し、I-1 の照合の位置（`await ResolveAdoptedAsync` の後、同期の `BindBeforeLoad` の直後に content 入口）、供給元の照合の条件、route の 3 通りの結果、SceneDirector の record の置き場（`ScenePair`）と読み口、起動の配線の条件が §3・§2.7 のとおりであることを確かめた。下の阻害する指摘以外に新しい指摘は無い。
+- **現在の問いを阻害する指摘:**
+
+  | # | severity | category | 指摘 | 違反する条件 | 一次証拠 | bucket |
+  |---|---|---|---|---|---|---|
+  | J1 | blocker | obvious | `SceneDirector` の internal constructor に任意引数を 2 つ足して引数が 7 個から 9 個になり、既存の VFX の Play 系 test 3 class が reflection で「引数 7 個の internal constructor」を `Single` で探して `InvalidOperationException : Sequence contains no matching element` で失敗する。11 件（`LocalVfxEventPlayTests` 4、`SeasonMajorEventPlayTests` 4、`VfxScenePlayTests` 3） | §2.6 の GO（判定必須テストが通る）と §5 の最終の全 EditMode 回帰（failed 0）。AC8 の「既存の SceneDirector の test は変更なしで通る」 | 下の全 EditMode 回帰の XML。探す箇所は `SampleGame/Tests/Rendering/Vfx/LocalVfxEventPlayTests.Scenes.cs` 221 行、`SeasonMajorEventPlayTests.Scenes.cs` 170 行、`VfxScenePlayTests.cs` 387 行（`GetConstructors(Instance).Single(c => c.GetParameters().Length == 7)`） | 現在の問いを阻害する欠陥 |
+
+  修正先の分類（[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類)）: B 適応の見込み。直し方は B が決める。判定 C が気づいた範囲の制約だけ書く: 3 つの test の file は §3 の test の folder の外なので、test を直すと AC9 の範囲を超える（owner の例外承認が要る）。§3 の `SceneDirector.cs` の中で済ませる形（例: 既存の 7 引数の internal constructor の署名を残し、loader を受ける constructor を別にする）なら AC9 と AC8 の「変更なし」の範囲に収まる。どちらでも、修正後の head で全 EditMode 回帰をやり直す。
+- 後続スライスの入力・記録だけの指摘: なし（発見 C の 2 件はそのまま）。
+- 実行した機械検査と test（head は全て `5130f37c`。実装の source は `adc069e1` と同じ）:
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（program の文書の既存の harvest 案内）。
+  - AC8 の 4 つの `grep`: いずれも該当なし。
+  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` は 64 passed / 0 failed、exit 0。
+  - Unity: `pwsh tools/run-tests.ps1`（空 filter、全 EditMode。sandbox 外、Editor 6000.6.0f1、`-nographics`）。XML の root result `Failed(Child)`、total 2020（passed 1983、failed 12、inconclusive 25、skipped 0）。Unity は自然に終了（exit 2、約 12 分）、compile error 0、`step.json` は `status=failed`。起点 filter の class と AC5 は全て Passed: `OneStarMaker.Tests.ContentResolution` 13/13、`SceneVariantForwardingTests` 6/6、`SceneDirectorContentLoaderTests` 13/13、`ContentDirectorySessionTests` 21/21、`RegisteredDirectoryProviderTests` 23/23、`RegisteredDirectoryRouteIntegrationTests` 1/1。failed 12 の内訳は J1 の 11 件と、下の 1 件。inconclusive 25 は §5 の既知の VFX の 25 件。
+  - failed の残り 1 件（原因は未確認。J1 とは別）: `OneStarMaker.Tests.Editor.Build.ScenePrefabStampEditorTests.StampWithoutRecord_IsRestoredLineOnly_WithWarning`。`BuildContentCoordinator.Build` の staging の `Directory.Move`（`TestResults\bs3-fixture\stamp-…\staging\…`）が `IOException: Access … is denied`。この経路はこのスライスの diff に無い（`BuildContentCoordinator` も stamp の test も変えていない）。同じ class の他の test は通っている。一時的な file の lock の可能性があるが、確かめていない。差し戻しが決まったので再実行していない。次の判定 C の全 EditMode 回帰で通ることを見る。
+- 差し戻しが決まったので実行していないもの（規則どおり。次の GO 候補 head の判定 C が行う）: AC7 の観測、判定 evidence bundle の作成と stage。全 EditMode 回帰の生の XML・log・`step.json` は同じ PC の `TestResults/`（run の GUID の directory）に残してある（判定の入力ではない。修正後の head でやり直す）。
+- 未確認事項: 上の stamp の test の失敗の原因。`AssetResidentCache` の key の全経路（発見 C と同じ）。
+- 差し戻しの巡: 1 巡目（B と発見 C の間の上限 4 巡に数える）。
+- 判定 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
 
 ## 8. Phase C'
 
