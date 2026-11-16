@@ -53,6 +53,7 @@ svg{width:100%;height:auto;display:block}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.85rem;color:var(--muted);margin:0 0 .6em;padding:0;list-style:none}
 .legend li{color:var(--muted);display:flex;align-items:center;gap:6px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:2px}
+.update{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:6px;padding:12px 16px;margin:0 0 1.4em;font-size:.95rem}
 .note{font-size:.9rem;color:var(--muted)}
 footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
 a{color:var(--accent)}
@@ -61,6 +62,7 @@ a{color:var(--accent)}
 <body>
 <main>
 <h1>Scene の印を source に残さず、prefab の編集を差分 build に効かせる</h1>
+<div class="update"><strong>追記（2026-11-17）: 元の不具合は Unity 6000.6.9f1 で直っていました</strong>（<a href="../content-overlay-build/">前の記事</a>の追記を参照）。6000.6.9f1 以降なら、この記事の印の方式は要らない見込みです。入れ子の prefab では 6000.6.9f1 でまだ確かめていません。以下は 6000.6.0f1 での記録です。</div>
 <p class="lede"><a href="../content-overlay-build/">前の記事</a>で、prefab を編集して同じ project で Content Directory を build し直すと、Scene に古い prefab が残ると分かりました。回避は、Scene に「焼き込む prefab のハッシュ」の印を持たせることでした。今回は、その印を source に一切残さない形と、prefab の file を読まない検知の鍵を測り、Scene 300 個の規模で build への上乗せを測った記録です。</p>
 
 <div class="scope">範囲: repository の外の package を持たない空の project、Unity 6000.6.0f1、1 つの Unity process の batch で Content Directory の build 36 回（2026-11-14）。規模の fixture は合成で、Scene 300（1 つ約 1 MB、prefab の instance 420 個）、prefab 3,000（3 分の 1 は入れ子）、material 10、texture は無し。開いている Editor での build、Player の build、実データでは測っていません。</div>

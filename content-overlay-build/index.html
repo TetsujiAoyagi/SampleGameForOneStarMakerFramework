@@ -44,6 +44,7 @@ th{color:var(--muted);font-weight:600}
 figure{margin:1.4em 0}
 figcaption{font-size:.85rem;color:var(--muted);margin-top:.4em}
 svg{width:100%;height:auto;display:block}
+.update{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:6px;padding:12px 16px;margin:0 0 1.4em;font-size:.95rem}
 .note{font-size:.9rem;color:var(--muted)}
 footer{margin-top:3em;font-size:.85rem;color:var(--muted)}
 a{color:var(--accent)}
@@ -52,6 +53,7 @@ a{color:var(--accent)}
 <body>
 <main>
 <h1>prefab を編集して build し直すと、Scene に古い prefab が残る</h1>
+<div class="update"><strong>追記（2026-11-17）: Unity 6000.6.9f1 で直っていました。</strong>この記事の最小の再現の project を 6000.6.9f1 で開き、<code>CleanBuildCache()</code> を挟まずに「build → prefab の子の位置を変えて保存 → build」を Editor で行うと、出力に新しい位置が入りました。確かめたのは入れ子でない prefab 1 つの場合だけで、入れ子の prefab と Player の build は 6000.6.9f1 では測っていません。以下は 6000.6.0f1 での記録です。</div>
 <p class="lede">Unity 6000.6 の Content Directory の build は差分 build です。Scene に置いた prefab を編集して同じ project で build し直すと、Scene の出力は古い prefab のまま再利用されます。build は成功し、Warning も出ません。原因を切り分け、最小の再現を作り、cache を捨てずに済む回避を実測した記録です。</p>
 
 <div class="scope">範囲: 1 台の PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（非圧縮）、build は同じ <code>Library</code>。prefab は variant でなく、override が無く、unpack していない instance。Player の build、別の PC、実データでは測っていません。</div>
