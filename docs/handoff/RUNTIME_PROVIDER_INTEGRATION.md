@@ -8,7 +8,7 @@
 - status: `B`（実装と動作確認を完了。次は発見 C）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `adc069e19e1056a743c7a64fea9798d14a49c2a7`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -24,7 +24,7 @@
   - 次の Phase・役割: Phase C（発見 C）。
   - 次の作業: implementation head の差分を §3 の責務マップと §2 の条件で構造レビューし、§5 の起点 filter・offline の test・AC5 の実機の test を走らせ、§7 に発見 C の結果を書く。§6 の「HANDOFF との差」と、§2.6 の A3 後の例外承認（`ContentLoadRecord.cs` の注釈）を見る。
   - 読む範囲: 既定（Phase C は §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head も同じ commit（上の欄）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄。
   - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
   - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
   - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。build を伴う test は他の Unity を止めて走らせる（§5）。
@@ -234,7 +234,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - **U4 一致を確かめられない時は読まない。** 決定: loader に「確かめずに読む」option を持たせない。照合を答えない供給元の候補と、照合が偽の候補は、load の前に拒む（S0-a の loader の test のうち、確かめずに成功していたものは、照合を答える供給元に替える）。成功した record の `SourceBindingVerified` は常に true になるが、欄は残す（後続の経路が別の値を持ちうる）。A2 の代替構成は「拒まずに false の record を返す」案だったが、load の前に分かる食い違いを読ませる理由が無いので採らない。
 - **U5 既定で配線する。** 決定: W1（§2.4）。経路 Built・検証 Play・Delivery の Play は全て検証済みの revision から登録するので、SceneDirector の Scene の読み込みが resolver を通るようになる。Player は配線しない。
 - **U6 Player の build を判定必須にしない。** 決定: しない。Player の構成では配線の関数を呼ばず、SceneDirector に渡る loader は null で、分岐は今の code と同じ（AC6・AC8）。program の S3 の gate「Player の非退行」は、Player の経路を変える S3 の後続（S3-2 か S3-3）の A1 で実機の要否を決める。
-- **U7 外部計画レビューと C' の独立性。** 決定: Draft PR の外部計画レビューは cursor の PR レビューで行う（1 巡目は実施済み。§5.1）。A2 は Anthropic 系の 4 件。使える系列は Anthropic 系と Grok 系だけ（Codex と Google 系は使えない）なので、C' は Grok 系で行い「独立性制約あり」と記録する。
+- **U7 外部計画レビューと C' の独立性。** 決定: Draft PR の外部計画レビューは cursor の PR レビューで行う（1 巡目は実施済み。§5.1）。A2 は Anthropic 系の 4 件。使える系列は Anthropic 系と Grok 系だけ（Codex と Google 系は使えない）なので、C' は Grok 系で行い「独立性制約あり」と記録する。**2026-11-17 の改訂（A3 後、owner）:** Codex CLI が再び使えるので、C' は Codex（OpenAI 系。Phase A〜C に未関与）で行う。起動前の最小の疎通確認で動かなければ Grok 系に戻し「独立性制約あり」と記録する。
 - **U8 `SceneDirector` の取消。** 決定: 本書では変えない（`PerformUnitySceneLoad` は今も `CancellationToken.None` で読み、遷移の commit の後は取り消さない設計である）。S3-3 の A1 が load の経路を触る時に要否を決める。
 
 ## 3. 責務マップ
@@ -298,8 +298,8 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 判定 C の照合 script の方式: なし（test の XML と、AC7 の観測 file を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の 4 つの `grep`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: cursor-agent の Grok 系（§2.8 U7。外部計画レビューを cursor の PR レビューで行ったので「独立性制約あり」）。
-- 独立性の強化条件を満たせない場合の理由: 使える系列が Anthropic 系と Grok 系の 2 つで、Phase A〜C に関与しない第 3 の系列が無い（§2.8 U7）。
+- C' 用に予約した担当・モデル・ベンダー: Codex CLI（OpenAI 系。§2.8 U7 の 2026-11-17 の改訂）。動かない時だけ cursor-agent の Grok 系（外部計画レビューに関与したので「独立性制約あり」）。
+- 独立性の強化条件を満たせない場合の理由: 発見 C・判定 C は B と同じ Anthropic 系で行う（owner が独立性制約を受け入れる）。C' は Codex で強化条件を満たす。Codex が動かず Grok 系に戻した時だけ、C' も「独立性制約あり」。
 
 ### 5.1 A2 の独立レビューと A3 の採否
 
@@ -360,7 +360,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 6. Phase B 実装結果
 
-- 実装（implementation head はこの票を含む commit。実装の本体は `ed573d12` で、その後の差は `ContentLoadRecord.cs` の注釈だけ。§3 の仮の名前は次に決めた。責務と置き場は §3 のまま）:
+- 実装（implementation head は `adc069e1`。実装の本体は `ed573d12` で、その後の差は `ContentLoadRecord.cs` の注釈だけ。§3 の仮の名前は次に決めた。責務と置き場は §3 のまま）:
   - core: `ContentRequest` の末尾に任意引数 `fallbackRepresentation`（property `FallbackRepresentation`。空が「fallback しない」）。表現の指定が無い要求・要求の表現と同じ値・空と空白だけの値は constructor が拒む。`ContentResolver.CheckRequestInvariants` は候補の表現が要求の表現か、明示した fallback と一致する時だけ採る。`ContentLoadRejection` に `SourceBindingUnavailable = 2`・`SourceBindingMismatch = 3`。
   - 照合: `ContentResolution/IContentSourceBinding.cs`（internal、`bool IsLoadedBy(ContentCandidate, IAssetManagement)`）。`ContentRequestLoader` の 2 つの load method は、解決の `await`（`ResolveAdoptedAsync`。照合は置かない）の後、同期の `BindBeforeLoad` で採用した候補の供給元に照合を尋ね、その直後に content 入口を呼ぶ。照合を答えない供給元は `SourceBindingUnavailable`、偽は `SourceBindingMismatch`。成功の record の `SourceBindingVerified` は true。
   - AssetManagement: `AssetManagement.ContentDirectory.cs` に internal の `IsInstalledContentDirectory(IContentDirectoryBackend)`（参照の同一だけを答える）。public と `IContentDirectoryBackend` は変えていない。
