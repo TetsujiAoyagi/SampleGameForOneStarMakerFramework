@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C`（判定 C の 1 回目の差し戻し J1 を B が直し、発見 C が修正を確かめた。次は判定 C の 2 回目。§7「発見 C（差し戻しの修正の確認、1 巡目）」）
+- status: `C'`（判定 C の 2 回目が完了した。次は C' の 1 巡目。§7「判定 C（2 回目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `699ae83ada175635bafabebf45baa27e9ffa1f6a`
@@ -18,17 +18,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§6、§8 の S3 と各スライスからの移送、§9）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。§2.1 の分類で、供給元と配線は連携部分に置く）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（同じ起動 code を触る。2026-11-17 時点で A0 だけで、Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（B の test の結果と動作確認の観測は §6 に要約した。判定の入力にはしない）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 判定 C 2 回目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）にある
+- C' blind bundle の取得案内・状態: 1 巡目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（2 回目）。
-  - 次の作業: §5 の判定必須テスト一式を implementation head で行う: 機械検査、offline の test、最終の全 EditMode 回帰（空 filter。前の判定 C で失敗した `ScenePrefabStampEditorTests.StampWithoutRecord_IsRestoredLineOnly_WithWarning` が通ることも見る）、B 以外の実行担当による AC7 の観測（§6「動作確認」の手順と `ConfirmDialog`）、判定 evidence bundle の作成。構造レビューは §7 の 2 つの発見 C を固定 diff で読み直す。
-  - 読む範囲: 既定（Phase C は §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `699ae83a`（この票を含む commit との差は本書だけ）。
-  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。evidence bundle は未生成（判定 C が作る）。
-  - 必要な権限: Unity の test（`pwsh tools/run-tests.ps1`、sandbox 外）と、AC7 の Editor の Play（`tools/unity-editor.cmd`）。test は Editor を閉じてから走らせる。
-  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
-  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。
+  - 次の作業: C' blind bundle だけを入力に、implementation head を監査し、§8 に結果を記録する（記録は進行役が C' の出力から書いてよい）。
+  - 読む範囲: C' は本書を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `699ae83a`（この票を含む commit との差は本書だけ。ローカルの軽量 tag `evidence/runtime-provider-integration/1` が同じ commit を指す）。
+  - 入力の snapshot・bundle: C' blind bundle（上の取得案内。凍結した Phase A の本書、A3 後の例外承認の 1 行、所見を含まない Phase B の結果、本書を除く完全 diff、head の source、機械検査、全 EditMode の生結果、AC7 の生の観測）。
+  - 必要な権限: blind bundle の fetch（非仮想化の pwsh、sandbox 外）。Unity の再実行は必須にしない。
+  - 停止規則: §2.6。C' の担当は §5 の予約（Codex。動かなければ Grok 系で「独立性制約あり」）。
+  - 引き渡さないもの: 発見 C と判定 C の結論と所見（§7）、判定用 bundle の取得案内を C' に渡さない。
 
 ## 1. 目的と対象外
 
@@ -491,6 +491,38 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 未確認事項: 前の判定 C と同じ（stamp の test の失敗の原因、`AssetResidentCache` の key の全経路）。
 - 差し戻し: なし。差し戻しの巡は 1 巡目で収束（B と発見 C の間の上限 4 巡のうち 1 巡を使った）。
 - 発見 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
+
+### 判定 C（2 回目）
+
+- 種別: 判定 C。2026-11-17。結論: **GO**（§2.6。AC1〜AC9 が成り立ち、§5 の判定必須テストが通った。NO-GO の (i)・(ii) には当たらない）。高コスト証拠は無い（§5）ので、次の C' が最終 C' になる。
+- 対象: implementation base `36d069e8` → head `699ae83a`。HEAD は引き継いだ commit `8bc06b37`（head からの差は本書だけ）。ローカルの軽量 tag `evidence/runtime-provider-integration/1` を head に置いた（push しない）。
+- 開始時の照合: 渡された SHA と HEAD は一致、作業ツリーは clean、implementation head は HEAD の祖先で、差分は本書だけ。PR 状態ブロックの引き継ぐ commit・implementation base / head も一致。凍結の後に PR の新しいコメントは無い。
+- 使用した evidence bundle: 判定 C 2 回目用（§0 の取得案内）。30 file（完全 diff・stat・name-status、`contract-audit`・`docs-audit`・offline の出力、全 EditMode の XML・Unity の log・`step.json`・executor-note、AC7 の観測の記録と `eval` の source、manifest）。別の pwsh process で fetch し、`passed`、XML（total 2020、failed 0、root `Passed`）と AC7 の記録を読めた。C' blind bundle は同じ commit と同じ生結果から別に作り（36 file。発見 C・判定 C の所見と本書の §7 を含まない）、別 process の fetch で `passed` を確かめた。
+- 構造レビュー: 2 つの発見 C の構造適合を固定 diff で読み直した。I-1 の照合の位置（`await ResolveAdoptedAsync` の後、同期の `BindBeforeLoad` の直後に content 入口）、供給元の照合の条件（実物の `AssetManagement`・登録中・受付中・provider id・経路・identity の 4 欄）、route の 3 通りの結果、SceneDirector の record の置き場（`ScenePair`）と読み口、7 引数と 9 引数の internal constructor、起動の配線の条件（`_contentDirectorySession != null && !UseRequiredPlayerFileConfiguration`）と、route の例外が起動の catch（stage を付けた Error、後始末、`ReleaseAll`）へ出ることが §3・§2.7 のとおりである。変更 file は 29 で、asmdef・`AssemblyInfo.cs`・`SceneState`・`tools/Artifacts` は無い（AC9）。新しい指摘は無い。
+- AC ごとの判定:
+  - AC1〜AC4・AC6: 下の全 EditMode 回帰で、対応する class が全て Passed（`OneStarMaker.Tests.ContentResolution` 13、`RegisteredDirectoryProviderTests` 23、`SceneDirectorContentLoaderTests` 13）。AC3 は offline 64 件 PASS（AC3 の 6 件を含む）。
+  - AC5: `RegisteredDirectoryRouteIntegrationTests` 1/1 Passed（同じ回帰の中）。
+  - AC7: B 以外の実行担当（この判定 C の session）が §6「動作確認」と同じ手順で観測した（次の項）。合否の読み方（§5）のどれにも当たらない。
+  - AC8: 4 つの `grep` は該当なし。public の追加は §3 のとおりで、`IAssetManagement`・`IContentDirectoryBackend` は変わらない。Player の構成では配線しない（code の検査）。既存の test は回帰で全て通った。
+  - AC9: 上の構造レビュー。
+- AC7 の観測（2026-11-17、Editor 6000.6.0f1 をこの session が CLI の `open` で起動、`tools/unity-editor.cmd eval`、Reload Domain 無効。`eval` の前に Editor を前面にした。手順と生の応答は bundle の AC7 の file）:
+  - 準備: 元の値（経路 `Source`、RunPurpose `spring-full`、Variant profile の選択 guid `fc9baeaf…`）を記録し、経路 `Built`・選択なし・空の新規 Scene 1 つにした。Build はしていない（installed cache に検証を通る `spring-full` があった）。Play の前に Error / Exception / Assert の collector を置いた。
+  - Play 1: 入口の record は `state=EnteredPlay`、`mode=directory`、revision `20261110T094616124Z-83f339b0…`、errors 0。(1) 配線の行は `wired=true provider=registered-content-directory contentSet=spring-full revision=20261110T094616124Z-83f339b0fbb8461eb7a3ea4283a31b72 target=StandaloneWindows64-Player manifestSha256=b82eadcb…`。入口が置いた installed revision の path はその revision の directory、`content:manifestSha256` は行と同じ値。(2) `Title` の record は identity が (1) の 4 欄と同じ、表現 `Full`、`SourceBindingVerified=True`。(3) `ConfirmDialog` は AddScene の前は SceneDirector と Unity のどちらにも無い。AddScene の完了後は Stable で、record は (1) と同じ 4 欄、表現 `Full`、`SourceBindingVerified=True`（親の `HpGauge` も一緒に載り、同じ値の record を持つ）。UnloadScene の完了後は SceneDirector と Unity のどちらにも無く、record は null。(4) accessor の loader で SceneResourceMap の key を `Full`・`AssetOwner.Manual` で要求し、record は (1) と同じ 4 欄、表現 `Full`、`SourceBindingVerified=True`、owner `Manual`、値は非 null、`Release` は例外なし。
+  - Play 2: 入口の record、配線の行、`Title` の record は Play 1 と同じ値。
+  - (5) 観測窓（Play 1 の開始から Play 2 の停止まで）の Error / Exception / Assert は 0 件。`eval` の timeout は 0 件。
+  - 後始末: 経路を `Source`、選択を元の guid に戻し、collector を外し、Editor を `EditorApplication.Exit(0)` で閉じた（process と `UnityLockfile` が消え、作業ツリーは clean）。
+- 後続スライスの入力・記録だけの指摘: 新しいものは無い（発見 C の 2 件はそのまま）。
+- 実行した機械検査と test（head は全て `8bc06b37`。実装の source は `699ae83a` と同じ）:
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（program の文書の既存の harvest 案内）。
+  - AC8 の 4 つの `grep`: いずれも該当なし。
+  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` は 64 passed / 0 failed、exit 0。
+  - Unity: `pwsh tools/run-tests.ps1`（空 filter、全 EditMode。sandbox 外、Editor 6000.6.0f1、`-nographics`）。XML の root result `Passed`、total 2020（passed 1995、failed 0、inconclusive 25、skipped 0）。compile error 0。inconclusive 25 は全て VFX Graph の `No graphics device (GraphicsDeviceType.Null)`（§5 の既知の 25 件）。起点 filter の class と AC5 は全て Passed（`ContentRequestLoaderTests` 13、`ContentDirectorySessionTests` 21、`RegisteredDirectoryProviderTests` 23、`RegisteredDirectoryRouteIntegrationTests` 1、`SceneDirectorContentLoaderTests` 13、`SceneVariantForwardingTests` 6）。前の判定 C の J1 の 11 件（`LocalVfxEventPlayTests` 4、`SeasonMajorEventPlayTests` 4、`VfxScenePlayTests` 3）は Passed。前の判定 C で失敗した `ScenePrefabStampEditorTests.StampWithoutRecord_IsRestoredLineOnly_WithWarning` は Passed（class の 25 件全て Passed）。
+  - Unity の終了: XML の完成（08:39）の後、Unity は終わらなかった（thread 1 本で user の CPU 時間が 1 秒に約 1 秒増える。Harness README の既知の native stall と同じ症状）。約 6 分待ってから、その PID だけを `Win32_Process.Terminate` で止めた（executor-note に時刻・PID・CPU の数値）。強制終了なので自然終了の証拠ではない。`step.json` は inconclusive により `status=failed`（exit 1）で、process の `exitCode=0` は Terminate が作った値である。合否は §5 のとおり XML の failed 0 と root result `Passed` で読んだ。停止規則に従い原因は調べていない。
+  - 起動の前の process の一覧に、B の 3 回目の run の Unity（PID 8996、06:03 起動の batch）が残っていた。前の 2 つの発見 C は「既に終わっていた」と記録したが、今回 `Win32_Process` で見ると thread 1 本で CPU 時間が増え続けており、終了で止まったまま生きている（`Get-Process -Id` では開けない）。project の lock は持っておらず、上の run と AC7 は通常どおり動いた。この session が起動した process ではないので止めていない（owner へ報告する）。
+- 判定必須のうち未実行: なし。
+- 未確認事項: `AssetResidentCache` の key の全経路（I-1 の経路 (7)。A1 からの未確認のまま。この diff は cache を触っていない）。前の判定 C の stamp の test の失敗の原因（今回は通った。再現していない）。
+- 差し戻し: なし。
+- 判定 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
 
 ## 8. Phase C'
 
