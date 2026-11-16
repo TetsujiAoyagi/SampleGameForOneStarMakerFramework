@@ -3,6 +3,7 @@
 - **push は配布であり保存ではない。** リモートにしか居ない読者が居る時だけ push する。同一 PC の担当同士の引継ぎは、ローカルの commit SHA と、必要なら `evidence stage` の取得案内で行う。
 - **公開点**は (a) PR 作成、(b) レビュー依頼（`@cursoragent` のコメントを含む）と、レビュー 1 巡ごとの修正 1 commit、(c) マージ前の最終（harvest と HANDOFF 削除）とする。公開点以外で push してよい例外は、Cloud・別 host の担当が割り当てられた Phase 境界、Git 配布が必要な Cloud・別 host の A2、人間の明示指示に限る。(b) は公開 PR のレビューに適用する。通常 A2 は公開点ではなく、A2 の例外 commit / push は [Phase A の commit と snapshot](phases-and-handoff.md#phase-a-の-commit-と-snapshot) に従う。
 - 順序は「A3 統合案の Draft PR で外部計画レビュー → 人間の凍結 → B ↔ 発見 C → 未公開の試行錯誤 commit の整理 → GO 候補 implementation head の固定 → 判定 C → C' → 既存 PR へ実装を push」とする。それ以前の push は上記の公開点・例外と、リモート読者が居る条件を満たす場合だけ行う。履歴の整理は判定 C の前に済ませる。整理で head が変わったら [判定後の head 変更](review-evidence.md#判定後の-head-変更) に従う。
+- 既存 PR へ実装を push する担当は、同じ手順で PR 本文の変更内容の要約（何を変えたか）を push した head に合わせ、状態ブロックも更新してからレビューを依頼する。Phase A の計画の要約のままにしない。C / C' の結果の要約は書かず、Phase D で書く（[PR 状態ブロック](phases-and-handoff.md#pr-状態ブロック)）。
 - 判定 evidence を取った head は、push しないローカルの軽量 tag `evidence/<taskId>/<n>` で到達可能に保ち、対象 SHA を引継ぎ票に書く。tag は旧 head の到達可能性だけを担い、整理後の別 head に旧判定を移す根拠にならない。判定 evidence を取っていない中間 head は整理してよい。
 - 証拠の保存先と配布は [レビュー証拠](review-evidence.md#保存先とリモートへの配布) に従う。証拠の配布方法と、試行錯誤の実装コミットをPR履歴へ積まないことは別の条件として扱う。差し戻し中の中間コミットは判定用headの固定には使えても、そのまま全て公開する理由にはならない。
 - PR公開後の修正は、レビュー1ラウンドにつき原則1つの修正コミットにまとめる。独立してレビューすべき変更を分ける場合は、その理由をPRに示す。Git配布が認められない証拠を未pushの中間コミットへ誤って入れた場合は公開前に履歴から除く。公開済みの違反は履歴の書き換えでなかったことにしない。
