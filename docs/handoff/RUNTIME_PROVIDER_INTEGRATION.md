@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `A`（A3 凍結済み。次は Phase B）
+- status: `B`（実装と動作確認を完了。次は発見 C）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: `ed573d12a3a156f956f9a7f9384a91f9472470c1`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -17,17 +17,17 @@
 - harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「要求時の Content 解決」（供給元、record と実ロード元の一致、表現の fallback、まだ保証しないこと）、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6（directory の Play での配線）、program §8・§10、`unity/Assets/README.md`（`ContentResolution` の説明。directory の Play で既定で配線される層になる）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§6、§8 の S3 と各スライスからの移送、§9）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。§2.1 の分類で、供給元と配線は連携部分に置く）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（同じ起動 code を触る。2026-11-17 時点で A0 だけで、Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（B の test の結果と動作確認の観測は §6 に要約した。判定の入力にはしない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順で §3 の file を実装し、§5 の起点 filter と offline の test、AC5 の実機の test を通し、出口で §5 の検証経路の動作確認（AC7）を 1 回行って、§6 に結果を書く。
-  - 読む範囲: 既定（Phase B は §0〜§5）。§1 の現況と §3 の行数は base `36d069e8` の事実。
-  - 引き継ぐ commit: A3 凍結版の commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `未固定`。
+  - 次の Phase・役割: Phase C（発見 C）。
+  - 次の作業: implementation head の差分を §3 の責務マップと §2 の条件で構造レビューし、§5 の起点 filter・offline の test・AC5 の実機の test を走らせ、§7 に発見 C の結果を書く。§6 の「HANDOFF との差」と「未対応」（`ContentLoadRecord.cs` の古い注釈）を見る。
+  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄。
   - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
   - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」のどれかに当たったら実装を止めて Phase A へ戻す。§2.6 の NO-GO に当たったら、何がどの段で得られなかったかを記録して owner へ返す。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
+  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。build を伴う test は他の Unity を止めて走らせる（§5）。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -360,7 +360,45 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（implementation head `ed573d12`。§3 の仮の名前は次に決めた。責務と置き場は §3 のまま）:
+  - core: `ContentRequest` の末尾に任意引数 `fallbackRepresentation`（property `FallbackRepresentation`。空が「fallback しない」）。表現の指定が無い要求・要求の表現と同じ値・空と空白だけの値は constructor が拒む。`ContentResolver.CheckRequestInvariants` は候補の表現が要求の表現か、明示した fallback と一致する時だけ採る。`ContentLoadRejection` に `SourceBindingUnavailable = 2`・`SourceBindingMismatch = 3`。
+  - 照合: `ContentResolution/IContentSourceBinding.cs`（internal、`bool IsLoadedBy(ContentCandidate, IAssetManagement)`）。`ContentRequestLoader` の 2 つの load method は、解決の `await`（`ResolveAdoptedAsync`。照合は置かない）の後、同期の `BindBeforeLoad` で採用した候補の供給元に照合を尋ね、その直後に content 入口を呼ぶ。照合を答えない供給元は `SourceBindingUnavailable`、偽は `SourceBindingMismatch`。成功の record の `SourceBindingVerified` は true。
+  - AssetManagement: `AssetManagement.ContentDirectory.cs` に internal の `IsInstalledContentDirectory(IContentDirectoryBackend)`（参照の同一だけを答える）。public と `IContentDirectoryBackend` は変えていない。
+  - 検証の値と session: `VerifiedInstalledRevision` に `UnityVersion`・`RootSchemaVersion`（`VerifyInsideLease` が読んだ manifest の値）。`ContentDirectorySession` に internal の `VerifiedRevision`（登録の予約の中で検証し直した値。検証済みでない登録は null）・`IsAccepting`・`TryFindEntry`（索引を引くだけ）。
+  - 供給元と route（`ContentResolution/Directory/`、namespace は `OneStarMaker.Runtime.ContentResolution`）: `RegisteredDirectoryProvider`（id `registered-content-directory`。候補の表現は索引の entry の実効の表現、identity は検証済みの 4 欄、事実は manifest の Unity の版と root schema の版、manifest の参照は空。照合は「実物の `AssetManagement`・その session が登録中・受付中・provider id・由来・経路・identity の 4 欄」が全て一致する時だけ真）。`RegisteredDirectoryRoute.TryCreate(session, AssetManagement, out route, out reason)`（検証済みでない登録は false と理由。その session を登録していない `AssetManagement`・受付を止めた session は `InvalidOperationException`。`FallbackRepresentation` は索引の `Full`）。
+  - SceneDirector: internal constructor の末尾に `ContentRequestLoader? contentLoader = null, string contentFallbackRepresentation = ""`（loader と `useContentDirectory: false` の組は `ArgumentException`）。`ScenePair.ContentRecord`。public の `GetContentLoadRecord(string)`（null・無い id・unload の後は null）。`PerformUnitySceneLoad` の content directory の分岐で loader があれば `LoadThroughContentLoaderAsync` で読み、load を始めた組に record を入れる（起動時の表現が空でも fallback と同じでもない時だけ fallback を付ける）。
+  - 起動: `AbstractApplicationInitializer` は directory の登録の後、`_contentDirectorySession != null && !UseRequiredPlayerFileConfiguration` の時だけ stage `wire-content-resolution` で `WireContentResolution` を呼ぶ。1 行は `[AppInit] Content resolution: wired=true provider=… contentSet=… revision=… target=… manifestSha256=…`（作らない時は `wired=false reason=…`）。protected の accessor `ContentLoader`。`ReleaseAll` で null に戻す。
+  - test: AC1 は `OneStarMaker.Tests.ContentResolution.ContentRequestLoaderTests`（既存の成功の test の供給元を照合を答える fake に替え、`SourceBindingVerified` の期待を true にした。失敗経路 4 件を追加）。AC2・AC4 は `OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests`（製品の installer で temp の cache に install・検証・登録。native の directory だけ fake）。AC3 は `tools/ContentResolutionOfflineTests/FallbackTests.cs`（6 件）。AC5 は `SampleGame/Tests/Editor/Build/RegisteredDirectoryRouteIntegrationTests.cs`（class `OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests`。既存の build を伴う test と同じ assembly・namespace）。AC6 は `OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests`。
+  - 行数（`wc -l`）: `ContentRequestLoader.cs` 135、`IContentSourceBinding.cs` 36、`RegisteredDirectoryProvider.cs` 130、`RegisteredDirectoryRoute.cs` 102、`ContentRequest.cs` 97、`ContentResolver.cs` 325、`ContentLoadRejection.cs` 26、`SceneDirector.cs` 321、`SceneDirector.Loading.cs` 721、`AbstractApplicationInitializer.cs` 1197、`ContentDirectorySession.cs` 498、`InstalledRevisionVerifier.cs` 139、`AssetManagement.ContentDirectory.cs` 172。
+- HANDOFF との差（全て B 適応。契約・責務の配置・公開面は §3 のまま）:
+  - 供給元が見込み（120）より 10 行、route が見込み（70）より 32 行多い。注釈（route の 3 通りの結果、基準と事実の出所）による。
+  - `ContentDirectorySession.cs` は見込み 492 に対して一度 510 行になったので、`TryFindEntry` を式にし注釈を縮めて 498 行にした（保持と公開だけ）。
+  - `SceneDirector.Loading.cs` は見込み 705 に対して 721 行（loader の分岐を `LoadThroughContentLoaderAsync` に分けたため。責務は増えない）。
+- 未対応（AC9 の範囲外のため直していない）: `Runtime/ContentResolution/Core/ContentLoadRecord.cs` の型と `SourceBindingVerified` の注釈が「現在の loader では常に false」と書いたままで、実装と食い違う。§3 に無い file なので B では変えていない。直すかどうかは発見 C と owner が決める。
+- 実行した検査と test（B の session が取った結果。判定の入力にはしない）:
+  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` 64 件 PASS（既存 58 件は変更なし、AC3 の 6 件を追加）、exit 0。
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0（warning 1 件は program の文書の既存の harvest 案内）。AC8 の 4 つの `grep`: いずれも該当なし。
+  - Editor のコンパイル: エラーなし。触った file からの warning なし。
+  - Unity（`pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution|OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests|OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests|OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests'`）: 1 回目（AC5 を含まない filter）は 75/76。失敗は AC6 の test の fixture（runner の untitled の Scene があると Additive の新規 Scene を作れない）で、Single で作る形に直した。2 回目は 76/77。走行中に `ContentDirectorySession.cs` を編集して括弧を 1 つ残し、AC5 の build がその compile error で失敗した。3 回目（修正後。implementation head と同じ source）は XML の root result `Passed`、77 件 Passed（failed 0、skipped 0、AC5 の 1 件を含む）。この回は XML の完成後に Unity が終了で約 45 分止まった（Harness README の既知の終了 stall と同じ症状。調査はしていない）ので、owner の指示で強制終了し、`step.json` は無い。
+- 未実行: 最終の全 EditMode 回帰と、判定 C の判定必須テスト一式。
+- Phase B 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
+
+### 動作確認
+
+- 対象 head: `ed573d12a3a156f956f9a7f9384a91f9472470c1`（implementation head）。
+- 条件ごとの実行担当・環境・実行したコマンド: AC7 の 1 条件。実行担当は B の session（同一 PC、`unity/` の Editor 6000.6.0f1、`tools/unity-editor.cmd eval`、Enter Play Mode は Reload Domain 無効）。
+  - 準備: Play の入口の経路を `Source` → `Built`、Variant profile の選択（guid `fc9baeaf9941481598b8cf0c344b6a29`）を外した。RunPurpose は `spring-full` のまま。開いている Scene は untitled の空の 1 つ。installed cache には入口が選べる `spring-full` の revision があり、Build はしていない。観測の後に経路と profile を元に戻した。
+  - 観測窓の Error / Exception: Console は Play ごとに clear されるため、`Application.logMessageReceivedThreaded` に Error・Exception・Assert を貯める collector を AppDomain に置いて数えた（Reload Domain 無効なので Play をまたいで残る）。collector を置く前に試した Play 2 回は観測窓に数えず、collector を置いてから Play A・Play B を行った。
+  - 操作: `EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play")` → `PlayEntryRecord.Load()` の `record.state` を読む → 観測 → `EditorApplication.ExitPlaymode()` → `isPlaying` と `isPlayingOrWillChangePlaymode` が false になってから 2 回目。
+  - 観測の取り方: `SampleGame.DependOnAll.AppInitializer.s_instance`（private static）から、`AbstractApplicationInitializer` の protected の `SceneDirector`・`ContentLoader`・`AssetManagement` と private の `_sceneResourceMap` を reflection で取る。(1) は `UnityEditor.LogEntries` から `[AppInit] Content resolution` で始まる行を読み、入口が置いた値は process 環境変数 `SAMPLEGAME_CONTENT__INSTALLEDREVISIONPATH`・`SAMPLEGAME_CONTENT__MANIFESTSHA256` を読む。(2) は `director.GetContentLoadRecord("Title")`。(3) は `director.AddScene("ConfirmDialog", null, CancellationToken.None)` と `director.UnloadScene("ConfirmDialog")` を `UniTaskExtensions.AsTask` で `AppDomain.SetData` に置き、後の `eval` で完了・`IsSceneLoaded`・`SceneManager.GetSceneByName(...).isLoaded`・`GetContentLoadRecord` を読む。(4) は `ContentLoader.LoadAssetAsync<SceneResourceMap>(new ContentRequest(DirectoryBootstrapKeys.SceneResourceMap, ContentKind.Object, "Full"), AssetOwner.Manual)` を同じ形で待ち、`AssetManagement.Release(handle)`。
+  - (3) の Scene は `ConfirmDialog`（map にあり payload を持ち、親は `HpGauge`。どちらも起動の後は載っていない）に固定する。判定 C は同じ名前を使う。
+- 生の観測（合否は書かない）:
+  - Play A: 入口の record は `state=EnteredPlay mode=directory revision=20261110T094616124Z-83f339b0fbb8461eb7a3ea4283a31b72 errors=0 exceptions=0 variantProfileActive=False`。(1) 配線の行は `wired=true provider=registered-content-directory contentSet=spring-full revision=20261110T094616124Z-83f339b0fbb8461eb7a3ea4283a31b72 target=StandaloneWindows64-Player manifestSha256=b82eadcbeb6a40dba9c7134aa4c72f58d5d93b2187a6239c096ed1a6e688664c`。入口が置いた installed revision の path は `…\installed\spring-full\20261110T094616124Z-83f339b0fbb8461eb7a3ea4283a31b72`、`content:manifestSha256` は行と同じ値。(2) `Title` の record は identity が上の 4 欄と同じ、表現 `Full`、`SourceBindingVerified=True`、owner `Scene(Title)`。(3) AddScene の前は `ConfirmDialog`・`HpGauge` とも SceneDirector の管理外で Unity にも無い。AddScene の完了後は Stable で、record は identity が同じ 4 欄、表現 `Full`、`SourceBindingVerified=True`。UnloadScene の完了後は SceneDirector の管理外・Unity にも無く、record は null。(4) record は identity が同じ 4 欄、表現 `Full`、`SourceBindingVerified=True`、owner `Manual`、値は非 null、`Release` は例外なし（(4) は (3) より先に行った。eval の書き損じで (3) の AddScene が起動されなかったため、同じ Play の中で (3) をやり直した）。
+  - Play B: 入口の record、(1) 配線の行、(2) `Title` の record は、いずれも Play A と同じ値。
+  - (5) collector の Error / Exception / Assert は 0 件（Play A の開始から Play B の停止まで）。Warning として DebugStudio の server に繋がらない `[DebugSocket] Failed to connect` が出る。
+  - 観測窓の外の参考: collector を置く前の Play で `AddScene("Result")` を試すと、`Result` は Stable の後に自分で InGame を抜けて `Title` へ戻る（`ResultScene.OnStabledImpl` の `SceneFlow.EnterOutGame`）ため、完了の後に record を読めなかった。ゲームの挙動で、(3) には使わない。その Play で eval の 5 秒 timeout の Error が 1 行出た（AC7 の除外の対象）。
+- 検証経路の期待と違う観測と、B への差し戻し: なし。§5 の「未確認」の 2 点は、経路 Built の Play で配線の行が `wired=true` で出たこと（`UseRequiredPlayerFileConfiguration` は偽）と、`Title` に record が付いたこと（snapshot の取り込みから再利用されていない）で観測した。
+- `未実施` の条件と理由・担当: なし。
 
 ## 7. Phase C
 
