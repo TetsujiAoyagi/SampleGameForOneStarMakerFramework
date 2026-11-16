@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（revision 2、C′ 1 巡目の差し戻し C′-F1 を B が修正。発見 C の再レビュー待ち。head 0ad27752 の判定 C と C′ は修正後の head へ流用しない）
+- status: `C′`（revision 2、head cbb0b6ad の判定 C 完了。C′ の 2 巡目は未実施）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: この票を含む commit
+- implementation head commit: cbb0b6ad28093161252ac2e6c469a05958ff4e6f
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
-- Phase B result snapshot / evidence / C′ blind bundle: head 0ad27752 の判定 evidence と C′ blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、所見を含まない。旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
+- Phase B result snapshot / evidence / C′ blind bundle: head cbb0b6ad の判定 evidence と C′ 2 巡目の blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、C の所見を含まない。head 0ad27752 の package と旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は発見 C（同じ C の session。C′ 差し戻し 1 巡目の修正後 head の再レビュー）、その後に判定 C と C′ の 2 巡目。§6 の「C′ 差し戻し 1 巡目の修正」に C′-F1 の採否と変更を記録した。照合は、判定 C の必読経路（`phase-c.md`）から Harness README の H1 の節と広い suite の文へ届くこと、README は見出しの追加だけで本文が変わっていないこと。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は C′ の 2 巡目（1 巡目の指摘の解消と、修正差分とその影響経路を中心に監査）。B・C と別モデルの新規 session が、取得案内から取得した blind bundle だけを読む。bundle には C′ 自身の 1 巡目の所見を入れ、決定記録は無い（指摘は採用して修正した）。この HANDOFF、PR、C の所見は渡さない。権限は bundle の読取りと所見 file の書込みだけで、実 Unity・実 Storage 操作・資格情報は不要。C′ の所見は §8 に記録する。owner は 2026-11-16 の本 chat で、C と C′ が問題なく終わったら Phase D の完了、PR の merge、後片付けまで続けるよう指示した。阻害する指摘が出た場合は merge せず差し戻しへ戻る。
 
 ## 1. 目的と対象外
 
@@ -127,6 +127,22 @@
 - smoke の限界: 新版側の実行は cursor-agent の `grok-4.7-low` で、旧版側の gpt-6-astra / low とモデルも CLI も違う（旧版側と同じモデルを起動できる経路がこの session に無い）。§5 の「モデル・設定を揃える」を満たしていない。新版側に欠陥が出なかったので旧版側との原因の切り分けは不要だったが、新旧の比較としては使えない。B/C の Unity 権限の場面は `phase-b.md` だけで完結し、`osm-unity-editor/SKILL.md` は読まれなかった。親 repo の指示の非混入は、fixture が repo の外にあることと、祖先・user-level に AGENTS.md と cursor の rules が無いことの確認による。起動時の完全な trace は無い。CLI の制約で依頼文を file に置いて 1 行の起動文で読ませた。実 Unity・実 Storage の動作の証明ではない。
 - 判定必須のうち未実行: なし。
 - 未確認事項: 一般的な無劣化・遵守率・性能改善は実証していない。採用後の 2〜3 スライスの既存 B/C 記録での観察を維持する。実 token は smoke の session の usage だけを raw に保存した。
+
+### 発見 C 3 と判定 C（head cbb0b6ad）
+
+- 種別・判定: 発見 C 3 は差し戻しなし。判定 C は GO。AC1〜AC6 と I1・I2 に対する現在の問いを阻害する欠陥は無い。head 0ad27752 の判定 C の GO は、C′-F1 の差し戻しでこの head へ流用していない。
+- 担当・モデル: 上と同じ C の session、Claude Fable 5.2（Anthropic）。
+- 使用した evidence bundle: §0 の取得案内の 1 package（ローカル固定済み、取得確認済み）。
+- 引継ぎの照合: 渡された SHA と HEAD の一致、clean、`HEAD^..HEAD` に `docs/handoff/` 以外の file があることを確認した。
+- 構造適合: 0ad27752 からの変更は `phase-c.md` の 1 文と `tools/Harness/README.md` の見出し 1 行で、どちらも §3 の責務マップ内。base からの変更は HANDOFF 以外 15 file。
+- 修正の確認: C′-F1 は解消。判定 C の必読である `phase-c.md` の判定 C の項から、Harness README の節「H1 の現行入力と固定 suite」へのリンクがあり、その節に「`judgment` は判定Cの広いsuite」の文がある。README の本文は変わっていない。新しい anchor は docs-audit の検査対象外で、見出しの文字列と slug の規則の照合による。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし。
+- 実行したコマンド（head cbb0b6ad、実行前と各コマンドの後に HEAD と clean を記録、全て exit 0）: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（784 file、検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` registered / selected / executed が各 38、failed 0、`git diff --check` 合格。
+- CI の 3 分岐: `pr-base.yml` の run 本文の実行は `develop` で exit 0、`main`・`Develop`・空で exit 1（log は場面ごとに別 file）。この head の実 run は Offline checks 1 回と PR base 2 回（push と PR 本文の編集）で、全て success。base を develop 以外にした PR と、統合先への push の実 run は無い。
+- 限定 smoke: 新版側 3 場面を head cbb0b6ad の規則でもう一度、各 1 回、別 session で実行した（規則の写しは head の Git blob、依頼文と入力は旧版側と byte 一致）。3 件とも必要な文書を完成し、不要な停止や重大な誤りは無かった。判断は 0ad27752 の時と同じである。Storage の場面は 2 回とも、入力に `changes.patch` があることから「未 commit の snapshot なので判定 C・C′ の入力にしない」と読んだ。入力からは確定できない推測だが、引渡しの判断は変えていない。限界は上の head 0ad27752 の記録と同じ（モデルと CLI が旧版側と違う、起動時の完全な trace が無い）。
+- 判定必須のうち未実行: なし。
+- 未確認事項: 上の head 0ad27752 の記録と同じ。
 
 ## 8. Phase C′
 
