@@ -8,7 +8,7 @@
 - status: `B`（実装と動作確認を完了。次は発見 C）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `ed573d12a3a156f956f9a7f9384a91f9472470c1`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -22,9 +22,9 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase C（発見 C）。
-  - 次の作業: implementation head の差分を §3 の責務マップと §2 の条件で構造レビューし、§5 の起点 filter・offline の test・AC5 の実機の test を走らせ、§7 に発見 C の結果を書く。§6 の「HANDOFF との差」と「未対応」（`ContentLoadRecord.cs` の古い注釈）を見る。
+  - 次の作業: implementation head の差分を §3 の責務マップと §2 の条件で構造レビューし、§5 の起点 filter・offline の test・AC5 の実機の test を走らせ、§7 に発見 C の結果を書く。§6 の「HANDOFF との差」と、§2.6 の A3 後の例外承認（`ContentLoadRecord.cs` の注釈）を見る。
   - 読む範囲: 既定（Phase C は §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head も同じ commit（上の欄）。
   - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
   - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
   - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。build を伴う test は他の Unity を止めて走らせる（§5）。
@@ -202,7 +202,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   - それ以外の不成立は通常の差し戻しで B へ戻す。
   - スパイクではないので CONDITIONAL ACCEPT は定義しない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
-- A3 後の例外承認: なし
+- A3 後の例外承認: 2026-11-17、owner（root）が Phase B の出口の後に「`ContentLoadRecord.cs` の注釈も直して」と指示した。AC9 の範囲に `Runtime/ContentResolution/Core/ContentLoadRecord.cs` の注釈（型の remarks と `SourceBindingVerified` の summary）だけを足す。code の意味は変えない
 - 決定記録: なし
 
 ### 2.7 本文へ転記した実装制約
@@ -360,7 +360,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 6. Phase B 実装結果
 
-- 実装（implementation head `ed573d12`。§3 の仮の名前は次に決めた。責務と置き場は §3 のまま）:
+- 実装（implementation head はこの票を含む commit。実装の本体は `ed573d12` で、その後の差は `ContentLoadRecord.cs` の注釈だけ。§3 の仮の名前は次に決めた。責務と置き場は §3 のまま）:
   - core: `ContentRequest` の末尾に任意引数 `fallbackRepresentation`（property `FallbackRepresentation`。空が「fallback しない」）。表現の指定が無い要求・要求の表現と同じ値・空と空白だけの値は constructor が拒む。`ContentResolver.CheckRequestInvariants` は候補の表現が要求の表現か、明示した fallback と一致する時だけ採る。`ContentLoadRejection` に `SourceBindingUnavailable = 2`・`SourceBindingMismatch = 3`。
   - 照合: `ContentResolution/IContentSourceBinding.cs`（internal、`bool IsLoadedBy(ContentCandidate, IAssetManagement)`）。`ContentRequestLoader` の 2 つの load method は、解決の `await`（`ResolveAdoptedAsync`。照合は置かない）の後、同期の `BindBeforeLoad` で採用した候補の供給元に照合を尋ね、その直後に content 入口を呼ぶ。照合を答えない供給元は `SourceBindingUnavailable`、偽は `SourceBindingMismatch`。成功の record の `SourceBindingVerified` は true。
   - AssetManagement: `AssetManagement.ContentDirectory.cs` に internal の `IsInstalledContentDirectory(IContentDirectoryBackend)`（参照の同一だけを答える）。public と `IContentDirectoryBackend` は変えていない。
@@ -374,18 +374,18 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   - 供給元が見込み（120）より 10 行、route が見込み（70）より 32 行多い。注釈（route の 3 通りの結果、基準と事実の出所）による。
   - `ContentDirectorySession.cs` は見込み 492 に対して一度 510 行になったので、`TryFindEntry` を式にし注釈を縮めて 498 行にした（保持と公開だけ）。
   - `SceneDirector.Loading.cs` は見込み 705 に対して 721 行（loader の分岐を `LoadThroughContentLoaderAsync` に分けたため。責務は増えない）。
-- 未対応（AC9 の範囲外のため直していない）: `Runtime/ContentResolution/Core/ContentLoadRecord.cs` の型と `SourceBindingVerified` の注釈が「現在の loader では常に false」と書いたままで、実装と食い違う。§3 に無い file なので B では変えていない。直すかどうかは発見 C と owner が決める。
+- `ContentLoadRecord.cs` の注釈: 「現在の loader では常に false」と書いていた型の remarks と `SourceBindingVerified` の summary を、今の挙動（loader が成功として返す記録は常に true、欄は後続の経路のために残す、記録は新しく読んだか再利用かを言わない）に直した。§3 に無い file なので、§2.6 の A3 後の例外承認（owner の指示）で行った。同じ古い記述は harvest 先の `unity/Assets/Docs/Architecture/13-resource-system.md` の「まだ保証しないこと」にもあり、Phase D の harvest で直す。
 - 実行した検査と test（B の session が取った結果。判定の入力にはしない）:
-  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` 64 件 PASS（既存 58 件は変更なし、AC3 の 6 件を追加）、exit 0。
+  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` 64 件 PASS（既存 58 件は変更なし、AC3 の 6 件を追加）、exit 0。注釈の修正の後にもう一度走らせて 64 件 PASS。
   - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0（warning 1 件は program の文書の既存の harvest 案内）。AC8 の 4 つの `grep`: いずれも該当なし。
   - Editor のコンパイル: エラーなし。触った file からの warning なし。
-  - Unity（`pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution|OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests|OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests|OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests'`）: 1 回目（AC5 を含まない filter）は 75/76。失敗は AC6 の test の fixture（runner の untitled の Scene があると Additive の新規 Scene を作れない）で、Single で作る形に直した。2 回目は 76/77。走行中に `ContentDirectorySession.cs` を編集して括弧を 1 つ残し、AC5 の build がその compile error で失敗した。3 回目（修正後。implementation head と同じ source）は XML の root result `Passed`、77 件 Passed（failed 0、skipped 0、AC5 の 1 件を含む）。この回は XML の完成後に Unity が終了で約 45 分止まった（Harness README の既知の終了 stall と同じ症状。調査はしていない）ので、owner の指示で強制終了し、`step.json` は無い。
+  - Unity（`pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution|OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests|OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests|OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests'`）: 1 回目（AC5 を含まない filter）は 75/76。失敗は AC6 の test の fixture（runner の untitled の Scene があると Additive の新規 Scene を作れない）で、Single で作る形に直した。2 回目は 76/77。走行中に `ContentDirectorySession.cs` を編集して括弧を 1 つ残し、AC5 の build がその compile error で失敗した。3 回目（修正後。`ed573d12` と同じ source。implementation head との差は注釈だけで、Unity では走らせ直していない）は XML の root result `Passed`、77 件 Passed（failed 0、skipped 0、AC5 の 1 件を含む）。この回は XML の完成後に Unity が終了で約 45 分止まった（Harness README の既知の終了 stall と同じ症状。調査はしていない）ので、owner の指示で強制終了し、`step.json` は無い。
 - 未実行: 最終の全 EditMode 回帰と、判定 C の判定必須テスト一式。
 - Phase B 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
 
 ### 動作確認
 
-- 対象 head: `ed573d12a3a156f956f9a7f9384a91f9472470c1`（implementation head）。
+- 対象 head: `ed573d12a3a156f956f9a7f9384a91f9472470c1`（実装の本体。implementation head との差は `ContentLoadRecord.cs` の注釈だけ）。
 - 条件ごとの実行担当・環境・実行したコマンド: AC7 の 1 条件。実行担当は B の session（同一 PC、`unity/` の Editor 6000.6.0f1、`tools/unity-editor.cmd eval`、Enter Play Mode は Reload Domain 無効）。
   - 準備: Play の入口の経路を `Source` → `Built`、Variant profile の選択（guid `fc9baeaf9941481598b8cf0c344b6a29`）を外した。RunPurpose は `spring-full` のまま。開いている Scene は untitled の空の 1 つ。installed cache には入口が選べる `spring-full` の revision があり、Build はしていない。観測の後に経路と profile を元に戻した。
   - 観測窓の Error / Exception: Console は Play ごとに clear されるため、`Application.logMessageReceivedThreaded` に Error・Exception・Assert を貯める collector を AppDomain に置いて数えた（Reload Domain 無効なので Play をまたいで残る）。collector を置く前に試した Play 2 回は観測窓に数えず、collector を置いてから Play A・Play B を行った。
