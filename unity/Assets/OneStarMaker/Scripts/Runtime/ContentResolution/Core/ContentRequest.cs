@@ -21,12 +21,20 @@ namespace OneStarMaker.Runtime.ContentResolution
         /// （部分的な制約を pin と読ませると、欄の欠けた候補が「一致」してしまうため）。
         /// </param>
         /// <param name="correlationId">任意。呼び出し側が要求を追跡するための opaque な値。</param>
+        /// <param name="fallbackRepresentation">
+        /// 任意。要求した表現の候補が無い時に採ってよい、もう 1 つの表現。null は「fallback しない」。
+        /// 要求した表現を黙って変えないため、fallback は呼び手がここで明示した時だけ起きる。
+        /// 表現を指定しない要求（<paramref name="representation"/> が空）、要求の表現と同じ値、空・空白だけの値は拒む
+        /// （どれも「fallback しない」と区別できない書き方なので、意図の無い fallback を作らせない）。
+        /// 既存の呼び手の位置引数をずらさないため、末尾の任意引数にしている。
+        /// </param>
         public ContentRequest(
             string logicalKey,
             ContentKind kind,
             string representation,
             ContentIdentity? expectedIdentity = null,
-            string? correlationId = null)
+            string? correlationId = null,
+            string? fallbackRepresentation = null)
         {
             if (string.IsNullOrWhiteSpace(logicalKey))
             {
@@ -40,11 +48,35 @@ namespace OneStarMaker.Runtime.ContentResolution
 
             ContentIdentity.ValidateOptionalPin(expectedIdentity, nameof(expectedIdentity));
 
+            if (representation == null)
+            {
+                throw new ArgumentNullException(nameof(representation));
+            }
+
+            if (fallbackRepresentation != null)
+            {
+                if (string.IsNullOrWhiteSpace(fallbackRepresentation))
+                {
+                    throw new ArgumentException("Pass null instead of an empty fallback representation.", nameof(fallbackRepresentation));
+                }
+
+                if (representation.Length == 0)
+                {
+                    throw new ArgumentException("A fallback representation needs a requested representation.", nameof(fallbackRepresentation));
+                }
+
+                if (string.Equals(fallbackRepresentation, representation, StringComparison.Ordinal))
+                {
+                    throw new ArgumentException("The fallback representation must differ from the requested one.", nameof(fallbackRepresentation));
+                }
+            }
+
             LogicalKey = logicalKey;
             Kind = kind;
-            Representation = representation ?? throw new ArgumentNullException(nameof(representation));
+            Representation = representation;
             ExpectedIdentity = expectedIdentity;
             CorrelationId = correlationId ?? string.Empty;
+            FallbackRepresentation = fallbackRepresentation ?? string.Empty;
         }
 
         public string LogicalKey { get; }
@@ -58,5 +90,8 @@ namespace OneStarMaker.Runtime.ContentResolution
         public ContentIdentity? ExpectedIdentity { get; }
 
         public string CorrelationId { get; }
+
+        /// <summary>明示した fallback の表現。空なら「fallback しない」。</summary>
+        public string FallbackRepresentation { get; }
     }
 }

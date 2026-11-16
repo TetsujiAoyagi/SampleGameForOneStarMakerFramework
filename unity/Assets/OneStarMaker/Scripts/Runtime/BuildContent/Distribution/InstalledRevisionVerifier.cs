@@ -9,7 +9,8 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
 {
     internal sealed class VerifiedInstalledRevision
     {
-        internal VerifiedInstalledRevision(string root, string content, string identity, string set, string target, string digest)
+        internal VerifiedInstalledRevision(string root, string content, string identity, string set, string target, string digest,
+            string unityVersion, int rootSchemaVersion)
         {
             RevisionRoot = root;
             ContentPath = content;
@@ -17,6 +18,8 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             ContentSet = set;
             Target = target;
             ManifestSha256 = digest;
+            UnityVersion = unityVersion;
+            RootSchemaVersion = rootSchemaVersion;
         }
         internal string RevisionRoot { get; }
         internal string ContentPath { get; }
@@ -24,6 +27,14 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         internal string ContentSet { get; }
         internal string Target { get; }
         internal string ManifestSha256 { get; }
+
+        /// <summary>
+        /// 検証で読んだ manifest の Unity の版と root schema の版（manifest の値そのもの）。要求時解決の候補の互換の事実に使う。
+        /// 検証は今の runtime の定数と一致しない manifest を拒むので今は定数と同じ値になるが、事実を定数から作ると
+        /// 互換の判定が常に通る形になるため、manifest から運ぶ。
+        /// </summary>
+        internal string UnityVersion { get; }
+        internal int RootSchemaVersion { get; }
     }
 
     internal static class InstalledRevisionVerifier
@@ -43,9 +54,9 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             string expectedSet, string expectedRevision, string expectedTarget)
             => NormalizeFailures(() =>
             {
-                ReadVerifiedManifest(root, expectedDigest, expectedSet, expectedRevision, expectedTarget);
+                var manifest = ReadVerifiedManifest(root, expectedDigest, expectedSet, expectedRevision, expectedTarget);
                 return new VerifiedInstalledRevision(root, Path.Combine(root, "content"), expectedRevision,
-                    expectedSet, expectedTarget, expectedDigest);
+                    expectedSet, expectedTarget, expectedDigest, manifest.UnityVersion, manifest.RootSchemaVersion);
             });
 
         internal static ValidatedContentManifest ReadValidatedManifestInsideLease(VerifiedInstalledRevision value)

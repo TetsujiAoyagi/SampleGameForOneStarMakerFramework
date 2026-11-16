@@ -18,6 +18,7 @@ using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.Config;
+using OneStarMaker.Runtime.ContentResolution;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem;
@@ -87,6 +88,12 @@ namespace OneStarMaker.Runtime
         private IAssetManagement? _assetManagement;
         private ContentDirectoryConfiguration? _contentDirectoryConfiguration;
         private ContentDirectorySession? _contentDirectorySession;
+
+        /// <summary>
+        /// 要求時解決の loader。Editor の directory の Play で、登録が検証済みの時だけ起動が作る（Player と検証済みでない登録では null）。
+        /// SceneDirector の Scene の読み込みと、host の code の直接の要求が共有する。
+        /// </summary>
+        private ContentRequestLoader? _contentLoader;
         private PlayerBakedContentConfiguration? _bakedPlayerContent;
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
@@ -110,6 +117,13 @@ namespace OneStarMaker.Runtime
         /// UICommon / SceneResourceMap のロードや SceneDirector への注入に使用する。
         /// </summary>
         protected IAssetManagement? AssetManagement => _assetManagement;
+
+        /// <summary>
+        /// 登録した Content Directory を供給元にする要求時解決の loader。SceneDirector を作る前に決まり、
+        /// Editor の directory の Play で登録が検証済みの時だけ非 null。Player、Addressables の Play、検証済みでない登録では null。
+        /// 返る記録は、実際に読んだ directory の identity と表現を指す。解放は <see cref="AssetManagement"/> の既存の API で行う。
+        /// </summary>
+        protected ContentRequestLoader? ContentLoader => _contentLoader;
 
         /// <summary>
         /// Game が VFX を起動・登録する窓口。BeforeSceneLoad 完了後は非 null で、VFX backend を構成していない・非対応の
@@ -376,6 +390,14 @@ namespace OneStarMaker.Runtime
                 if (UseRequiredPlayerFileConfiguration && _contentDirectorySession != null)
                     progress.PlayerContentStages.Add(PlayerContentStage.ContentDirectoryRegistered);
 
+                // Player の構成では配線せず、今の起動経路のままにする。
+                var contentFallbackRepresentation = string.Empty;
+                if (_contentDirectorySession != null && !UseRequiredPlayerFileConfiguration)
+                {
+                    progress.Stage = "wire-content-resolution";
+                    contentFallbackRepresentation = WireContentResolution(_contentDirectorySession);
+                }
+
                 progress.Stage = "create-scene-director";
                 _sceneDirector = new SceneDirector(
                     sceneFactory,
@@ -384,7 +406,9 @@ namespace OneStarMaker.Runtime
                     CreateLoadingDisplay(),
                     _assetManagement,
                     sceneVariant,
-                    useContentDirectory);
+                    useContentDirectory,
+                    _contentLoader,
+                    contentFallbackRepresentation);
                 _services?.UpdateSystemHost?.BindSceneDirector(_sceneDirector);
                 // 最初の Scene の登録・ロードより前に接続する（VfxSystem は途中接続の状態同期を約束しない）。
                 _services?.Vfx?.BindSceneLifecycle(_sceneDirector.OnSceneEvent, _sceneDirector);
@@ -677,6 +701,29 @@ namespace OneStarMaker.Runtime
         }
 
         /// <summary>
+        /// 登録した directory を要求時解決の供給元にする loader を作り、<see cref="_contentLoader"/> に入れて 1 行出す。
+        /// 組み立ての判断は route が持ち、ここは呼び出しと log だけを置く。戻り値は SceneDirector が要求に明示する fallback の表現
+        /// （配線しない時は空）。検証済みでない登録は配線せず、理由を 1 行出して今までどおり直接の経路で動く。
+        /// 検証済みの登録で route が投げた例外は握らない（起動の失敗にする。黙って直接の経路で Play を続けない）。
+        /// </summary>
+        private string WireContentResolution(ContentDirectorySession session)
+        {
+            if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
+                throw new InvalidOperationException("The configured asset manager cannot serve content resolution.");
+            if (!RegisteredDirectoryRoute.TryCreate(session, assetManagement, out var route, out var notCreatedReason))
+            {
+                Debug.Log($"[AppInit] Content resolution: wired=false reason={notCreatedReason}");
+                return string.Empty;
+            }
+
+            _contentLoader = route!.Loader;
+            var identity = route.Provider.Identity;
+            Debug.Log($"[AppInit] Content resolution: wired=true provider={route.Provider.Id} contentSet={identity.ContentSet} " +
+                      $"revision={identity.Revision} target={identity.Target} manifestSha256={identity.Digest}");
+            return route.FallbackRepresentation;
+        }
+
+        /// <summary>
         /// root の宣言（runtime 既定値と表現の主値）と起動設定・実効表現を比べ、違いを Warning 1 行で出す。
         /// Framework は key を解釈しない。宣言の無い root は何も出さない。目的違いの directory を Play したことを
         /// Scene の欠落ではなく起動時の 1 行で分かるようにする。
@@ -841,6 +888,7 @@ namespace OneStarMaker.Runtime
             }
             _assetManagement = null;
             _contentDirectorySession = null;
+            _contentLoader = null;
 
             _sceneResourceMap = null;
 

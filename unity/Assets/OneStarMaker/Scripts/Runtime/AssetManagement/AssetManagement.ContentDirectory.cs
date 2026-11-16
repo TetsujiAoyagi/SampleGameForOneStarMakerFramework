@@ -24,6 +24,14 @@ namespace OneStarMaker.Runtime.AssetManagement
             _contentDirectory.ConfigureCacheEviction(EvictContentDirectoryCache);
         }
 
+        /// <summary>
+        /// <paramref name="directory"/> が今登録している directory そのもの（参照の同一）か。受付中かは見ない（directory 側が答える）。
+        /// 要求時解決の供給元が「自分の候補はこの AssetManagement が今読む directory の物か」を答えるために使う。
+        /// identity を public に出さず、登録を知る側（供給元）が自分の登録を渡して尋ねる形にしている。
+        /// </summary>
+        internal bool IsInstalledContentDirectory(IContentDirectoryBackend directory)
+            => _contentDirectory != null && ReferenceEquals(_contentDirectory, directory);
+
         internal async UniTask CloseContentDirectoryAsync()
         {
             var directory = RequireContentDirectory();
