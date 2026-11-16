@@ -3,19 +3,19 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C`（revision 2、発見 C の差し戻し F2 と公開レビュー 6902992449 の修正を B が完了。発見 C の再レビュー待ち。判定 C・C′ は未実施）
+- status: `C′`（revision 2、判定 C 完了。C′ は未実施）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: この票を含む commit
+- implementation head commit: 0ad27752beca24945f36bcf7a329ea0bde8194a5
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
 - expires: 2026-11-30 または置換revision
 - harvest to: `AGENTS.md`、`.agents/skills/osm-workflow/`、`tools/Harness/README.md`
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
-- Phase B result snapshot / evidence / C′ blind bundle: 旧headのraw・所見・最終記録はローカル固定・取得確認済みで保持する。新headはB出口後に固定diffと新検証を別途保存・配布する。旧bundleを新headの合格証拠としない。Cloud/別hostの取得成立は主張しない。
+- Phase B result snapshot / evidence / C′ blind bundle: head 0ad27752 の判定 evidence と C′ blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、所見を含まない。旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は発見 C（差し戻し 1 巡目の修正後 head の再レビュー。差し戻しを出した C の session が続ける）。§6 の「差し戻し修正」に F2 と公開レビュー 6902992449 の各指摘の採否と、責務マップに対する CI file の判断を記録した。照合は F2 の解消、CI の分割（`edited` の副作用の解消と PR/develop・PR/他 base・push の 3 分岐）、段落分けで内容が変わっていないこと。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。C′ は起動しない。旧 head の所見は Git 履歴と既存 Storage に保持し、新 head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は C′（1 巡目、全体を初見で監査）。B・C と別モデルの新規 session が、取得案内から取得した blind bundle だけを読む。この HANDOFF、PR、C の所見は渡さない。権限は bundle の読取りと所見 file の書込みだけで、実 Unity・実 Storage 操作・資格情報は不要。C′ の所見は §8 に記録し、C の結論との突合は Phase D で行う。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -106,6 +106,24 @@
 - 実行（発見用。判定必須としては未実行扱いで、修正後の head でやり直す）: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` 38 executed / 0 failed、`git diff --check` 合格。全て exit 0、実行前後で HEAD と clean を確認。workflow から抽出した base 検査の本文は `develop` で exit 0、`main`・`Develop`・空で exit 1。
 - 判定必須のうち未実行: 判定 C の全部。#193 / #194 の公開時系列の机上確認、新版側の smoke（9c203c39 で移動先の本文と AGENTS の入口の文言が変わったので、旧 head の新版 3 回はこの head の観測ではない。旧版側は base のままで入力も同じ）。
 - 未確認事項: push event での skip は workflow の `if` の読取りだけで、実 run は merge 前には無い。
+
+### 発見 C 2 と判定 C（head 0ad27752）
+
+- 種別・判定: 発見 C 2 は差し戻しなし。判定 C は GO。AC1〜AC6 と I1・I2 に対する現在の問いを阻害する欠陥は無い。C′ は未実施で、merge の許可ではない。
+- 担当・モデル: 上と同じ C の session、Claude Fable 5.2（Anthropic）。B の gpt-6.1-terra（OpenAI）、差し戻し修正の Claude Opus 5.5（Anthropic）と別モデル。修正担当は C が起こした別 session で、C と同じベンダーである。
+- 使用した evidence bundle: §0 の取得案内の 1 package（ローカル固定済み、取得確認済み）。
+- 引継ぎの照合: 渡された SHA と HEAD と PR 状態ブロックの一致、clean、`HEAD^..HEAD` に `docs/handoff/` 以外の file があることを確認した。
+- 構造適合: base からの変更は HANDOFF 以外 14 file。13 file は §3 の責務マップ内。`.github/workflows/pr-base.yml` は §3 に無い新規 file だが、§3 の「PR base 属性の検査」と同じ責務を CI の file 2 つに分けたもので、依存・所有者・runtime への影響を増やさない。B 適応として受け入れた。AGENTS.md は base から 3 行だけの変更で、UTF-8/LF 5,823 bytes のまま。
+- 修正の確認: F2 は解消。`osm-unity-editor/SKILL.md` の「Editor 操作でやってはいけない」に、範囲外の変更の禁止と、範囲内の広範な再生成・上書きの個別の影響確認の両方がある。これで旧 AGENTS の 23 文（Unity 12、stall 5、Storage 6）が全て移動先と必読経路に到達する。段落分けは文言を変えていない。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし。観察として残すこと: PR の base を変えても Offline checks（contract-audit 検査 1 の基点を含む）は再実行されず、次の push で更新される。これは base の版と同じ挙動で、AC5 の要求外。
+- 実行したコマンド（head 0ad27752、実行前後で HEAD と clean を確認、全て exit 0）: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（784 file、検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` registered / selected / executed が各 38、failed 0、`git diff --check` 合格。Unity 回帰は §5 の適用除外。
+- CI の 3 分岐: `pr-base.yml` の run 本文を head の blob から抜き出して実行し、`develop` で exit 0、`main`・`Develop`・空で exit 1。実 run は、push で Offline checks と PR base が各 1 回、PR 本文の編集で PR base だけが 1 回で、全て success。push event は `pr-base.yml` の trigger に無く、`offline-checks.yml` の push 検査は base と同じ定義のまま。base を develop 以外にした PR の実 run と、統合先への push の実 run は無い。
+- 公開時系列の机上確認: #193 は A2 入力 commit → A3 統合案の Draft PR → 公開後の修正 3 巡（各 1 commit）→ 凍結 → B、#194 は統合案の Draft PR → 公開後の修正 2 巡 → revision 2 の凍結 → B → 公開後の修正 2 巡、と新しい規則で一意に区別できた。#193 の A2 入力 commit は、新しい規則では Cloud・別 host の例外に当たる時だけ切る commit になる。
+- 限定 smoke: 新版側 3 場面（stall、Storage、B/C の Unity 権限）を head 0ad27752 の規則で各 1 回、別 session で実行した。旧版側は base の規則と入力が変わっていないので、旧 head の時に取った base 側 3 回を対にした。この head に対する試行は旧 3 + 新 3 の計 6。依頼文と入力は旧版側と byte 一致で、規則の写しは head の Git blob と一致する。3 件とも必要な文書を完成し、不要な停止や重大な誤りは無かった。stall は強制終了を成功証拠にせず調査を再開しない、Storage は確認済みの取得を再利用して再承認を求めない、B はテスト未実行を C へ引き渡す、という判断だった。
+- smoke の限界: 新版側の実行は cursor-agent の `grok-4.7-low` で、旧版側の gpt-6-astra / low とモデルも CLI も違う（旧版側と同じモデルを起動できる経路がこの session に無い）。§5 の「モデル・設定を揃える」を満たしていない。新版側に欠陥が出なかったので旧版側との原因の切り分けは不要だったが、新旧の比較としては使えない。B/C の Unity 権限の場面は `phase-b.md` だけで完結し、`osm-unity-editor/SKILL.md` は読まれなかった。親 repo の指示の非混入は、fixture が repo の外にあることと、祖先・user-level に AGENTS.md と cursor の rules が無いことの確認による。起動時の完全な trace は無い。CLI の制約で依頼文を file に置いて 1 行の起動文で読ませた。実 Unity・実 Storage の動作の証明ではない。
+- 判定必須のうち未実行: なし。
+- 未確認事項: 一般的な無劣化・遵守率・性能改善は実証していない。採用後の 2〜3 スライスの既存 B/C 記録での観察を維持する。実 token は smoke の session の usage だけを raw に保存した。
 
 ## 8. Phase C′
 
