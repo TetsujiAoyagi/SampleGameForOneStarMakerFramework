@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using UnityEngine;
 
 namespace OneStarMaker.Editor.Build.Content
@@ -99,10 +100,16 @@ namespace OneStarMaker.Editor.Build.Content
                 Directory.CreateDirectory(Path.GetDirectoryName(final)!);
                 Directory.Move(staging, final);
                 published = true;
+                // publish の索引は、adapter が root に entry を書いたのと同じ関数で projection の root から作る。
+                // 記録するのは成功した build だけで、失敗の result は記録なし（null）のまま。
+                var indexEntries = projection.Roots.Select(BuildContentRootKeys.Describe)
+                    .Select(x => new ContentTransportIndexEntry
+                        { logicalKey = x.LogicalKey, kind = x.Kind.ToString(), representation = x.Representation })
+                    .ToArray();
                 var success = new BuildContentResult(identity, preflight, outcome, final,
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
-                    Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode);
+                    Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode, indexEntries);
                 BuildContentReport.WriteOutcome(outcome, success, isOverlay);
                 return success;
             }

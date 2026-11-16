@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using OneStarMaker.Build.Selection;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using UnityEngine;
 
 namespace OneStarMaker.Editor.Build.Content
@@ -100,11 +101,18 @@ namespace OneStarMaker.Editor.Build.Content
         {
         }
 
+        /// <param name="indexEntries">
+        /// directory の root に書いた entry の (logical key, kind, 表現)。outcome に記録され、publisher が manifest の索引に写す。
+        /// null は「記録なし」（失敗した build、coordinator を通さずに作った result）で、publish は版 0 の索引（索引なし）を書く。
+        /// 空の配列は「記録あり・entry 0 件」で、記録なしとは別に扱う。
+        /// </param>
         public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
             string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues, BuildPurposeDeclaration? declaration,
-            BuildContentMode mode)
+            BuildContentMode mode, IReadOnlyList<ContentTransportIndexEntry>? indexEntries = null)
         { Mode = mode; Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;
-          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; Declaration = declaration; }
+          ManifestPointer = manifestPointer; MetadataPath = metadataPath; Summary = summary; Issues = issues; Declaration = declaration;
+          // 呼び手の DTO を後から書き換えても、記録する値を変えない。
+          IndexEntries = indexEntries?.Select(Copy).ToArray(); }
         public string Identity { get; }
         public string PreflightPath { get; }
         public string OutcomePath { get; }
@@ -117,7 +125,12 @@ namespace OneStarMaker.Editor.Build.Content
         public BuildPurposeDeclaration? Declaration { get; }
         // request の mode。outcome の buildMode に書かれ、publisher は file の側を正として読む。
         public BuildContentMode Mode { get; }
+        /// <summary>publish の索引に写す entry の記録。null は記録なし（constructor の indexEntries を参照）。</summary>
+        public IReadOnlyList<ContentTransportIndexEntry>? IndexEntries { get; }
         public bool IsSuccess => ContentPath != null && Issues.Length == 0;
+
+        internal static ContentTransportIndexEntry Copy(ContentTransportIndexEntry x)
+            => new ContentTransportIndexEntry { logicalKey = x.logicalKey, kind = x.kind, representation = x.representation };
     }
 
     // JsonUtility 用の保存形。Unity の内部 BuildReport 型を外部 protocol にしない。
@@ -149,6 +162,11 @@ namespace OneStarMaker.Editor.Build.Content
         public ContentReportOverlayRoot[] overlayRoots = Array.Empty<ContentReportOverlayRoot>();
         public ContentReportOverlayUnmatched[] overlayUnmatched = Array.Empty<ContentReportOverlayUnmatched>();
         public string[] overlaySharedAssets = Array.Empty<string>();
+        // publish の索引の記録（後方互換の追加項目。outcome だけに書き、preflight では 0 と空）。indexRecord は記録の印で、
+        // 1 なら indexEntries が記録の全体（0 件もありうる）、0 なら記録なし。入れ子の object にしないのは、JsonUtility が
+        // 入れ子の欄を省けず、欄の無い旧 outcome と「記録あり・0 件」を区別できなくなるため（欄が無ければ 0 と読まれる）。
+        public int indexRecord;
+        public ContentTransportIndexEntry[] indexEntries = Array.Empty<ContentTransportIndexEntry>();
     }
 
     // 上書きを重ねる base の識別（登録契約 C6 の材料）。宣言の無い base では declarationName が空。
@@ -245,7 +263,9 @@ namespace OneStarMaker.Editor.Build.Content
                 manifestPointer = result.ManifestPointer ?? "", metadataPath = result.MetadataPath ?? "",
                 issues = result.Issues.Select(x => x.Code + "|" + x.Key + "|" + x.Detail).ToArray(),
                 buildMode = result.Mode.ToString(),
-                overlay = overlay
+                overlay = overlay,
+                indexRecord = result.IndexEntries == null ? 0 : 1,
+                indexEntries = result.IndexEntries?.Select(BuildContentResult.Copy).ToArray() ?? Array.Empty<ContentTransportIndexEntry>()
             });
         }
 

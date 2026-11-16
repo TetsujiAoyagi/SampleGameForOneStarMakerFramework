@@ -146,6 +146,31 @@ caller が明示的に昇格し、install 成功だけでは昇格しない。
 rename する。tombstone は再登録できず、物理削除失敗時は次回 cleanup の対象になる。失敗時も lease を
 解放する。破損 receipt や pin は削除候補として黙って無視せず、削除を停止する構造化失敗として扱う。
 
+#### 目的 build の索引と選択
+
+publish は manifest に、その目的 build が含む root の一覧を任意の欄 `index` として書く（生成は
+[18 章](18-asset-description.md) §4「配信用 transport の公開境界」）。`ContentPurposeIndex`
+（`Runtime/BuildContent/Distribution/`）は、manifest の bytes と、呼び手が別に得た期待 digest だけを入力にする。
+content の file を開かず、Content Directory を登録しない。
+
+- **読みの順:** (a) 上限 4 MiB と digest の照合、(b) `index` の欄の有無、(c) 版に関係しない JSON の型の規則
+  （`index` は object、`version` は 32 bit の整数、`entries` は object の配列、entry の欄は文字列）、(d) 版。
+  欄が無いか版 0 は「索引なし」、版 2 以上は「未対応の索引」で、どちらも「含む」とも「含まない」とも答えない。
+  上限の超過、digest の不一致、型の失敗、負の版、版 1 の値の失敗（欄の欠け、未知の kind、重複、空白だけの値）は
+  検証の失敗である。
+- **照合:** 登録した directory の解決（`ContentDirectoryIndex`）と同じ 1 つの規則（`ContentEntryTable`）を使う。
+  空の表現は `Full` と読み、要求した表現が無ければ `Full` へ fallback する。表現を指定しない要求は `Full` だけに当たる。
+  kind が違えば当たらない。
+- **選択（`Select`）:** 呼び手が渡した順に候補を評価し、最初の「含む」か最初の検証の失敗で止まる。
+  「含まない」「索引なし」「未対応の索引」の候補は理由を残して飛ばし、止まった後ろの候補は「未評価」とする。
+  順は呼び手（host の policy）が決め、revision や contentSet の文字列の大小では決めない。
+  どの候補も含まなければ「見つからない」で、成功ではない。
+- **install との分担:** install と installed の再検証（`ContentManifestValidation.ValidateRequiredFields`）は、
+  `index` があれば (c) の型だけを検査し、版と値は見ない。型の規則を保つ限り、新しい版の索引を持つ manifest も
+  古い runtime が install できる。
+- **選択が保証しないこと:** 読み口は `index` の欄だけを検査し、manifest の他の必須欄、互換性、`content/` の実在は
+  見ない。選んだ build は、install と登録の検証を省かずに通す。
+
 ---
 
 ## 3. 設計思想
