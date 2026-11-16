@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `B`（判定 C の 1 回目で全 EditMode 回帰が失敗し、B へ差し戻し。§7「判定 C（1 回目）」）
+- status: `C`（判定 C の 1 回目の差し戻し J1 を B が直した。次は発見 C。§6「差し戻しの修正（1 巡目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `adc069e19e1056a743c7a64fea9798d14a49c2a7`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（判定 C からの差し戻し。1 巡目）。
-  - 次の作業: §7「判定 C（1 回目）」の J1 を直す（`SceneDirector` の internal constructor の引数の数を reflection で探す既存の VFX の Play 系 test 3 class が落ちる。直し方と AC9 の範囲の制約は J1 の行の下）。修正の確認は起点 filter と J1 の 3 class を `-Filter` で選んで行う（Unity の test は Phase C の担当。B は Editor のコンパイル確認まで）。修正を commit し、implementation head 欄を新しい head にして、§6 に修正の記録を足し、票を次の担当（発見 C。差し戻しの修正の確認）へ更新する。
-  - 読む範囲: 既定（Phase B の差し戻しは §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（差し戻し前の head。B が直したら新しい head に書き換える）。
-  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。判定 C の 1 回目は evidence bundle を作っていない（差し戻しが決まったため。§7）。
-  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。
-  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。AC9 の範囲（§3 の file と test の folder）の外を変える必要が出たら、変える前に owner の例外承認を得る。
-  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。B の §6 にも所見を転載しない（修正の事実だけを書く）。
+  - 次の Phase・役割: 発見 C（判定 C の 1 回目の差し戻しの修正の確認。差し戻しの 1 巡目）。
+  - 次の作業: §6「差し戻しの修正（1 巡目）」の修正が J1 を直し、§3・§2.7 と AC8・AC9 を崩していないことを、固定 diff（implementation base → この head）で確かめる。修正の確認の test は起点 filter（§6 の Unity の行の `-Filter`）に J1 の 3 class（`LocalVfxEventPlayTests`、`SeasonMajorEventPlayTests`、`VfxScenePlayTests`）を足して `-Filter` で選んで行う。通れば票を判定 C（全 EditMode 回帰、AC7 の観測、判定 evidence bundle）へ更新する。
+  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（この票を含む commit。`SceneDirector.cs` を変える commit なので、その commit 自身が head）。
+  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。evidence bundle は未生成（判定 C が作る）。
+  - 必要な権限: Unity の test（`pwsh tools/run-tests.ps1`、sandbox 外）。Editor が開いていれば閉じてから走らせる（B の session が開いた Editor は B の出口で閉じる）。
+  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
+  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。
 
 ## 1. 目的と対象外
 
@@ -382,6 +382,14 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   - Unity（`pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution|OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests|OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests|OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests'`）: 1 回目（AC5 を含まない filter）は 75/76。失敗は AC6 の test の fixture（runner の untitled の Scene があると Additive の新規 Scene を作れない）で、Single で作る形に直した。2 回目は 76/77。走行中に `ContentDirectorySession.cs` を編集して括弧を 1 つ残し、AC5 の build がその compile error で失敗した。3 回目（修正後。`ed573d12` と同じ source。implementation head との差は注釈だけで、Unity では走らせ直していない）は XML の root result `Passed`、77 件 Passed（failed 0、skipped 0、AC5 の 1 件を含む）。この回は XML の完成後に Unity が終了で約 45 分止まった（Harness README の既知の終了 stall と同じ症状。調査はしていない）ので、owner の指示で強制終了し、`step.json` は無い。
 - 未実行: 最終の全 EditMode 回帰と、判定 C の判定必須テスト一式。
 - Phase B 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
+
+### 差し戻しの修正（1 巡目）
+
+- 対象: §7「判定 C（1 回目）」の J1。分類は B 適応（§3 の `SceneDirector.cs` の中の不具合修正で、契約・責務の配置・公開面を変えない）。
+- 変更: `SceneDirector.cs` だけ。internal の constructor を 2 つに分けた。差し戻し前の 7 引数の署名（`useContentDirectory` まで）を元の形で残して下へ委ね、loader と fallback の表現は別の internal の 9 引数の constructor（任意引数ではなく必須）で受ける。loader と `useContentDirectory: false` の組を拒む検査と欄の初期化は 9 引数の側に 1 か所だけ置く。public の constructor は変えていない。起動（`AbstractApplicationInitializer`）と AC6 の test は 9 引数を全て渡しているので、呼び出し側は変えていない。7 引数の署名を変えない理由（既存の test が引数の数で reflection してこの constructor を探す）を注釈に書いた。§3 の test の folder の外の file は変えていない（AC9）。
+- 行数（`wc -l`）: `SceneDirector.cs` 321 → 336。
+- 実行した検査（B の session が取った結果。判定の入力にはしない）: `pwsh tools/contract-audit.ps1` は errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は errors 0（warning 1 件は program の文書の既存の harvest 案内）。Editor のコンパイル（6000.6.0f1、`tools/unity-editor.cmd`）: `compilationFailed=false`、console の error 0、触った file からの warning なし。`eval` で `SceneDirector` の constructor が public の 6 引数、internal の 7 引数と 9 引数の 3 つで、7 引数の internal は 1 つだけであることを見た。
+- 未実行: Unity の test（起点 filter と J1 の 3 class、最終の全 EditMode 回帰）。Phase C が行う。
 
 ### 動作確認
 

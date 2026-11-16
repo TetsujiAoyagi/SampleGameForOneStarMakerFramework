@@ -141,7 +141,22 @@ namespace OneStarMaker.Runtime.SceneSystem
         {
         }
 
-        // 公開 constructor の署名を維持し、起動配線だけが mode と要求時解決の loader を固定する。
+        // 公開 constructor の署名を維持し、起動配線だけが mode を固定する。
+        // この 7 引数の署名は変えない: 既存の test（VFX の Play 系）が引数の数で reflection してこの constructor を探し、
+        // アプリの SceneDirector の欄を写した複製を作る。loader は下の constructor で受ける。
+        internal SceneDirector(
+            ISceneFactory sceneFactory,
+            UICommon uiCommon,
+            SceneResourceMap sceneResourceMap,
+            ILoadingDisplay loadingDisplay,
+            IAssetManagement assetManagement,
+            string sceneVariant,
+            bool useContentDirectory)
+            : this(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay, assetManagement, sceneVariant, useContentDirectory, null, "")
+        {
+        }
+
+        // 起動配線が要求時解決の loader を固定する。
         // loader は content directory から読む時だけ意味を持つので、loader と useContentDirectory: false の組は拒む
         // （黙って Addressables の経路で読み、記録の無い Scene を作らないため）。
         internal SceneDirector(
@@ -152,8 +167,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             IAssetManagement assetManagement,
             string sceneVariant,
             bool useContentDirectory,
-            ContentRequestLoader? contentLoader = null,
-            string contentFallbackRepresentation = "")
+            ContentRequestLoader? contentLoader,
+            string contentFallbackRepresentation)
         {
             if (contentLoader != null && !useContentDirectory)
                 throw new ArgumentException("A content request loader needs the content directory mode.", nameof(contentLoader));
