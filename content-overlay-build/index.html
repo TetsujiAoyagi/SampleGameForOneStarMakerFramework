@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>prefab の差分 build</title>
-<meta name="description" content="Unity 6000.6 の Content Directory の差分 build で、Scene に置いた prefab を編集して build し直すと古い prefab が残る不具合の原因、最小の再現、cache を捨てずに済む回避を実測した記録。">
+<title>prefab の差分 build（6000.6.9f1 で修正済み）</title>
+<meta name="description" content="Unity 6000.6.0f1 の Content Directory の差分 build で、Scene に置いた prefab を編集して build し直すと古い prefab が残る不具合（6000.6.9f1 で修正済み）の原因、最小の再現、cache を捨てずに済む回避を実測した記録。">
 <style>
 :root{
   --bg:#fbfaf7; --fg:#1d1c1a; --muted:#5f5b54; --line:#dcd7cd; --card:#ffffff;
@@ -52,9 +52,9 @@ a{color:var(--accent)}
 </head>
 <body>
 <main>
-<h1>prefab を編集して build し直すと、Scene に古い prefab が残る</h1>
+<h1>prefab を編集して build し直すと、Scene に古い prefab が残る（6000.6.9f1 で修正済み）</h1>
 <div class="update"><strong>追記（2026-11-17）: Unity 6000.6.9f1 で直っていました。</strong>この記事の最小の再現の project を 6000.6.9f1 で開き、<code>CleanBuildCache()</code> を挟まずに「build → prefab の子の位置を変えて保存 → build」を Editor で行うと、出力に新しい位置が入りました。確かめたのは入れ子でない prefab 1 つの場合だけで、入れ子の prefab と Player の build は 6000.6.9f1 では測っていません。以下は 6000.6.0f1 での記録です。</div>
-<p class="lede">Unity 6000.6 の Content Directory の build は差分 build です。Scene に置いた prefab を編集して同じ project で build し直すと、Scene の出力は古い prefab のまま再利用されます。build は成功し、Warning も出ません。原因を切り分け、最小の再現を作り、cache を捨てずに済む回避を実測した記録です。</p>
+<p class="lede">Unity 6000.6 の Content Directory の build は差分 build です。6000.6.0f1 では、Scene に置いた prefab を編集して同じ project で build し直すと、Scene の出力は古い prefab のまま再利用されました。build は成功し、Warning も出ませんでした。原因を切り分け、最小の再現を作り、cache を捨てずに済む回避を実測した記録です。</p>
 
 <div class="scope">範囲: 1 台の PC、Unity 6000.6.0f1、StandaloneWindows64、loose file（非圧縮）、build は同じ <code>Library</code>。prefab は variant でなく、override が無く、unpack していない instance。Player の build、別の PC、実データでは測っていません。</div>
 
@@ -123,7 +123,8 @@ a{color:var(--accent)}
 <ul>
 <li>上書きの build の計画は、この不具合のため不成立とした。逆引きの規則、登録の契約、重複の報告など、他の部分は実測で成り立った。</li>
 <li>回避は印の方式に決め、製品の build 経路に入れるのは次のスライスにする。入れ子の prefab、複数の Scene、build が途中で落ちた時に Scene を戻すこと、読み取り専用の file への手当てを、そこで決めて測る。</li>
-<li>Unity へ報告するための最小の再現 project を用意した。</li>
+<li>Unity へ報告するための最小の再現 project を用意した。報告の前に、6000.6.9f1 で直っていると分かった（冒頭の追記）。</li>
+<li>追記（2026-11-17）: 6000.6.9f1 で直ったので、上の 2 つの判断（上書きの build の不成立と、印の方式の採用）は 6000.6.9f1 を前提に見直しが要る。</li>
 <li>続き: <a href="../scene-stamp/">Scene の印を source に残さず、prefab の編集を差分 build に効かせる</a>（印の形、検知の鍵、規模での上乗せ）。</li>
 </ul>
 
