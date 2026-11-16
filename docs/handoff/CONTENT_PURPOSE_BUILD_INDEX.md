@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `C`（発見 C 完了、阻害する指摘なし。次は判定 C）
+- status: `C`（判定 C 完了、GO。次は C'）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `400ff2cc9b6b1898f51acfc2ab68341a2b7ba152`
@@ -18,17 +18,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3「当面の方針」、§6、§8 の S2・S2-3、§10 U6）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。§2.1 の分類で、索引の生成は BuildSystem 本体、読みと選択は Distribution に置く）。Phase B は `Runtime/BuildContent/` を触る（§3）ので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（program §0 の停止規則。あちらは 2026-11-16 時点で A0 だけ）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: 判定 C 1 回目用はローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）にある
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C。発見 C（§7）は阻害する指摘なしで、implementation head が GO 候補 head。
-  - 次の作業: GO 候補 head で §5 の判定必須テスト（起点 filter、AC6・AC7 の `OneStarMaker.Tests.Editor.Build.PurposeBuildIndexIntegrationTests`、最終の全 EditMode 回帰）を実行し、XML のテスト名と件数で必要な集合を確かめ、判定 C と C' の bundle を同じ commit から作り、§7 に判定を記録する。空 filter の全 EditMode は起点 filter と AC6・AC7 の class を含むので、XML で収録を確かめられれば 1 プロセスにまとめてよい。
-  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 次の Phase・役割: C'（1 巡目、独立監査）。判定 C（§7）は GO。
+  - 次の作業: C' blind bundle だけを入力に、implementation head を監査し、§8 に結果を記録する（記録は進行役が C' の出力から書いてよい）。
+  - 読む範囲: C' は本書を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR 状態ブロックは下の owner の指示により更新しない）。implementation base は上の `2c775ff0`、implementation head は上の欄。
-  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
-  - 必要な権限: Unity（sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`。AC6・AC7 は Content Directory の build を伴うので、他の Unity を止めて走らせる。§5）。
-  - 停止規則: §2.6 と §4 の差し戻し条件。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
-  - 引き渡さないもの: なし。
+  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目）。
+  - 必要な権限: C' の bundle の fetch（非仮想化の pwsh、Release build 済みの worktree）。Unity の再実行は必須でない。
+  - 停止規則: §2.6。C' の阻害指摘は B へ差し戻す（C' の差し戻しは別に数えて上限 3 巡）。
+  - 引き渡さないもの: 発見 C・判定 C の結論と所見（§7）、判定用 bundle の取得案内を C' に渡さない。
   - owner の指示（2026-11-16、Phase C の進行）: 発見 C・判定 C・差し戻しの B の修正は、B と同じ系列のモデルが新しい session で担う。owner は独立性制約ありを受け入れ済みで、独立性のためにモデルを上げない。各担当は §7 に独立性制約ありと記録する。C' は §5 の予約どおり cursor-agent の Grok 系。
   - owner の指示（同上）: C' の完了まで push せず、PR 本文（状態ブロック）も更新しない。PR 状態ブロックの `引き継ぐ commit` は Phase B の出口の値のまま古くなるので、開始時の照合には使わず、起動指示の SHA と §0 の implementation head 欄で照合する。各 Phase の出口で PR 状態ブロックを更新する手順は、この期間は行わない。
 
@@ -343,6 +343,27 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - テスト結果: §6 の B の実行（起点 filter 177 件 Passed、AC6・AC7 は 1 回目で Passed）を読んだだけで、判定の入力にしない。
 - 判定必須のうち未実行: 全て（起点 filter、AC6・AC7、最終の全 EditMode 回帰）。判定 C が GO 候補 head で実行する。
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: なし。
+- 担当・モデル: Claude Code（Anthropic。B と同じ系列で、新しい session）。独立性制約あり（owner が 2026-11-16 に受け入れ済み。§0）。
+
+### 判定 C（1 回目）
+
+- 種別: 判定。対象は implementation base `2c775ff0` → head `400ff2cc`（発見 C と同じ固定 commit の完全 diff。21 file、+1,871 −33）。
+- 開始時の照合: 起動指示の `bcaa1913` と HEAD が一致し clean。implementation head `400ff2cc` は HEAD の祖先で、その先の差分は本書だけ。PR #195 の timeline に Phase A 以降の新着は無い（最後は 2026-11-16 04:18 の owner のアカウントのレビューで、対象は `80d29178`）。状態ブロックは owner の指示（§0）で照合に使わない。
+- 使用した evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`、14 file（base・head、完全 diff・stat・name-status、凍結した Phase A の本書と implementation head の本書、全 EditMode の XML・step・Unity の log・runner の標準出力、executor-note、`contract-audit`・`docs-audit` の出力）。取得案内は進行役の共有メモ（git 管理外）にある。別の pwsh process で fetch し、`passed`・XML（total 1979、failed 0、root `Passed`）と head を読めた。
+- C' blind bundle: 同じ commit と同じ生結果から作り、ローカル固定済み（未昇格）。task `content-purpose-build-index`、16 file（上の判定用 bundle の内容に、目次の README と implementation head の source の写し（`git archive` の zip。本書を除く）を加えたもの。発見 C・判定 C の所見は含まない）。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた。別 process の fetch で `passed` を確かめた。
+- 構造適合: 発見 C（§7 1 回目）の照合から実装は変わっていない（head 同じ）。判定のために再確認したもの: AC8 の範囲（name-status は §3 の file と `.meta`、本書、Phase A の commit の program の 1 行だけ。asmdef・`AssemblyInfo.cs`・`tools/Artifacts`・`Runtime/ContentResolution/`・`SceneState` の差分は 0）、AC4 の C の検査（`ContentPurposeIndex.cs` の `using` は `System`・`System.Collections.Generic`・`System.Text` だけで、`File`・`Directory`・`Path`・`ContentDirectorySession`・`ContentLoadManager`・`UnityEngine` の呼び出しは無い）。
+- 現在の問いを阻害する findings: なし。
+- 阻害しない findings: 発見 C の minor（`SharedPrefab` の条件付きの確認）のまま。判定で新しいものは無い。
+- 後続スライスへ移送する findings: なし。
+- 実行したテストコマンド: `pwsh -NoProfile -File tools/run-tests.ps1`（空 filter、`-WithGraphics` なし、sandbox 外。Unity 6000.6.0f1、開始前に他の Unity は無かった）。§0 の票のとおり、起点 filter と AC6・AC7 の class を含むので 1 プロセスにまとめた。tree は HEAD `bcaa1913` で、`unity/`・`tools/` は implementation head と同じ。
+- テスト結果（XML で読む。§5）: root `Passed`、total 1979、passed 1954、failed 0、inconclusive 25、skipped 0。Inconclusive の 25 件は全て `SampleGame.Tests.Rendering.Vfx`（`-nographics` の既知）。`step.json` は `failed`・exit 1 で、`failure` は「Inconclusive のテストがあります」の 1 件だけ（compile error は無い）。必要な集合の収録（XML の full name の前方一致）:
+  - 起点 filter: `OneStarMaker.Tests.BuildContent` 132、`BuildContentFullModeTests` 25、`BuildContentReportTests` 3、`ContentPurposeIndexPublishTests`（AC1）6、`SampleGame.Tests.Editor.Build.PublishedDirectoryReceiveTests` 11。計 177 件で全て Passed（B の 2 回目と同じ件数）。うち AC2・AC3 の `ContentPurposeIndexTests` 40、AC4 の `ContentPurposeSelectionTests` 7、AC5 の `ContentPurposeIndexInstallTests` 9、AC2 の既存 `ContentDirectoryIndexTests` 5。
+  - AC6・AC7: `OneStarMaker.Tests.Editor.Build.PurposeBuildIndexIntegrationTests.PublishedIndexMatchesTheRegisteredDirectory_AndLocalAndHttpInstallsSelectTheSame` 1 件 Passed（63 秒。target が StandaloneWindows64 でない時の `Assert.Ignore` には落ちていない）。隣の既存 `BuildContentDirectoryIntegrationTests` 1 件も Passed。
+- Unity の終了: XML の完成（13:19:28Z）の後に Unity（PID 3972）が終わらず、thread 1 本で UserModeTime が 474 s → 733 s と増え続けた（`tools/Harness/README.md` の既知の native 終了 stall と同じ形）。約 5 分待ってから、その PID だけを `Win32_Process.Terminate` で止めた（13:24:22Z）。step の `process.exitCode` 0 はこの Terminate が作った値で、自然終了ではない。時刻と CPU の数値は bundle の executor-note にある。判定は §5 のとおり XML で読むので、合否に影響しない。停止規則に従い原因の調査はしていない。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（checks 1〜9、検査 8 は対象外）。`pwsh tools/docs-audit.ps1` は errors 0、warning 1（program HANDOFF の harvest の頃合い。本作業と無関係）。
+- 判定: **GO**（§2.6）。AC1〜AC5 は単体の class が全件 Passed、AC6・AC7 は実機の test が Passed、AC8 は差分の範囲で成り立ち、判定必須テスト（起点 filter、AC6・AC7、最終の全 EditMode 回帰）が XML の failed 0・root `Passed` で通った。操作・実行時・目視の条件と高コスト証拠は無い（§5）。
+- 判定必須のうち未実行: なし。
 - 未確認事項: なし。
 - 担当・モデル: Claude Code（Anthropic。B と同じ系列で、新しい session）。独立性制約あり（owner が 2026-11-16 に受け入れ済み。§0）。
 
