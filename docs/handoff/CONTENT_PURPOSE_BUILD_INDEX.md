@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `C`（判定 C 完了、GO。次は C'）
+- status: `C'`（C' 1 巡目完了、阻害指摘 1 件。owner の裁定待ち）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `400ff2cc9b6b1898f51acfc2ab68341a2b7ba152`
@@ -19,16 +19,16 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 判定 C 1 回目用はローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）にある
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた。C' に使ったのは進行役が差し替えた版（§8）で、判定 C が作った版は使っていない
 - 引継ぎ票:
-  - 次の Phase・役割: C'（1 巡目、独立監査）。判定 C（§7）は GO。
-  - 次の作業: C' blind bundle だけを入力に、implementation head を監査し、§8 に結果を記録する（記録は進行役が C' の出力から書いてよい）。
-  - 読む範囲: C' は本書を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
+  - 次の Phase・役割: owner の裁定（C' 1 巡目の阻害指摘 1 件、§8）。裁定の後に次の Phase を決める。
+  - 次の作業: §8 の指摘 CP-1 を owner が裁定する。B の修正では字面上解消できない（下の §8）ので、裁定の結論と理由を決定記録として §8 に書く。2 巡目の C' を行う場合は、その決定記録だけを C' 用決定記録として渡す。
+  - 読む範囲: 進行役・owner は §0、§7、§8。C' は本書を読まない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR 状態ブロックは下の owner の指示により更新しない）。implementation base は上の `2c775ff0`、implementation head は上の欄。
-  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目）。
-  - 必要な権限: C' の bundle の fetch（非仮想化の pwsh、Release build 済みの worktree）。Unity の再実行は必須でない。
-  - 停止規則: §2.6。C' の阻害指摘は B へ差し戻す（C' の差し戻しは別に数えて上限 3 巡）。
-  - 引き渡さないもの: 発見 C・判定 C の結論と所見（§7）、判定用 bundle の取得案内を C' に渡さない。
+  - 入力の snapshot・bundle: C' blind bundle（上の欄、差し替え後の版）。
+  - 必要な権限: なし（裁定）。
+  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡（今は 0 巡）。
+  - 引き渡さないもの: 発見 C・判定 C の結論と所見（§7）を C' に渡さない。
   - owner の指示（2026-11-16、Phase C の進行）: 発見 C・判定 C・差し戻しの B の修正は、B と同じ系列のモデルが新しい session で担う。owner は独立性制約ありを受け入れ済みで、独立性のためにモデルを上げない。各担当は §7 に独立性制約ありと記録する。C' は §5 の予約どおり cursor-agent の Grok 系。
   - owner の指示（同上）: C' の完了まで push せず、PR 本文（状態ブロック）も更新しない。PR 状態ブロックの `引き継ぐ commit` は Phase B の出口の値のまま古くなるので、開始時の照合には使わず、起動指示の SHA と §0 の implementation head 欄で照合する。各 Phase の出口で PR 状態ブロックを更新する手順は、この期間は行わない。
 
@@ -369,7 +369,19 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 
 ## 8. Phase C'
 
-未着手
+### C' 1 巡目
+
+- 担当・モデル: cursor-agent（`grok-4.7-high`、`--mode=ask`、新しい session、2026-11-16、約 12 分）。進行役（Claude Code）が起動し、出力から本節を書いた。独立性制約あり（Phase A の外部計画レビューの cursor[bot] が同じ Grok 系。B・C は Anthropic で系列は違う。risk `normal` なので強化条件は対象外。owner は受け入れ済み。§0）。
+- 入力: C' blind bundle（16 file）と、その `head-source.zip` を展開した implementation head の source の写しだけを workspace に置いた。指示書は「phase-c-prime.md に従って監査し、結論を先に、全文を最終メッセージに」の英語の 1 枚で、探索先の例示・疑念候補は書いていない。C' 用決定記録は無い（1 巡目）。
+- bundle の差し替え: 判定 C が作った C' 用の版は、`implementation.diff`・stat・name-status に本書（Phase B 完了時点の版）を含んでいた。owner の指示（本書を diff と source から除き、Phase B 完了時点の版を使う）に合わせ、進行役が 3 file を本書を除いた diff（`git diff --binary --no-color --no-renames 2c775ff0 400ff2cc -- . ':(exclude)docs/handoff/CONTENT_PURPOSE_BUILD_INDEX.md'`、20 file）に、README の 1 行をその旨に差し替えて stage し直した。他の 13 file（XML・log・step・executor-note・凍結した Phase A の本書・Phase B 完了時点の本書・source の写し等）は判定 C の版と同じ bytes。別 process の fetch で `passed`・16 file を確かめた。取得案内は進行役の共有メモ（git 管理外）で、旧版を使わない旨も書いた。
+- 出力の扱い: stream-json が二重符号化されていた（PowerShell の redirect）ので `cp932` で戻して読んだ。一部の文字が欠けたが、所見の文意と根拠の位置は読める。
+- 結論: 阻害する指摘 1 件。後続スライスの入力 0 件。
+- 現在の問いを阻害する findings:
+  - CP-1（AC8）: base `2c775ff0`..head `400ff2cc` の diff に、§3 の file でない `docs/handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md` の 1 行（292 行、S2-3 の行が「A1 未着手」から本書への link と「A3 凍結、2026-11-16。次は Phase B」に変わる）が入っている。C' は AC8「差分が §3 の file と、その `.meta` だけ」に反するとした。また、その行は head の時点でも「次は Phase B」で、head の状態と一致しないとした。
+    - 進行役が確かめた事実（判断ではない）: この 1 行は Phase A の commit（`392bf4fe`、`c16df025`）の変更で、Phase B の commit `400ff2cc` は program を変えていない。発見 C・判定 C は同じ行を「Phase A の commit の変更」と記録して AC8 を満たすと読んだ（§7）。implementation base が Phase A の前の `origin/develop` なので、Phase A の文書の変更が base..head に入る。本書そのもの（§3 の file ではない）も同じく base..head に入るが、C' の diff からは除いた。B の修正で program の行を戻すと Phase A の記録を消すことになり、行を最新の状態に直しても program は diff に残るので、B の修正では AC8 の字面は満たせない。
+- 残存リスク（C' の記録、阻害しない）: AC6 の実機の登録は `ContentDirectorySession` を経由しない（凍結文の比較対象 `ContentDirectoryIndex` に当たるので AC6 の文面は満たす）。`SharedPrefab` の空の表現の断言は条件付きで、XML からは実行されたかが分からない。publisher の読み直しは `State` だけを見る（entry の一致は publish test と AC6 が見る）。`BuildContentResult.IndexEntries` は public の getter（凍結した公開面は constructor の任意引数。最低条件の違反ではない）。
+- 監査できなかった範囲（C' の記録）: test の再実行、Player、実 R2、供給元の一覧、`ContentResolver` への接続、実データの大きさ（§2.3 の対象外）。操作・目視は §5 で対象なし。
+- 判定: 未確定（CP-1 の owner の裁定待ち）。
 
 ## 9. Phase D
 
