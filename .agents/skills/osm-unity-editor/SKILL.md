@@ -20,6 +20,8 @@ description: >-
 
 `com.unity.pipeline` は `unity/Packages/manifest.json` に宣言済み。`packages-lock.json` はローカルで Editor を開いたときに UPM が書く。手で lock を捏造しない。バージョンが Editor 側でずれたら lock を正とする。
 
+`unity/Library/` と `unity/Temp/UnityLockfile` はブランチを捨てても残るため、起動前に対象projectと既存Editorを確認する。
+
 ## 標準入口と権限
 
 - ローカルのEditor操作はリポジトリルートから `tools/unity-editor.cmd status` / `tools/unity-editor.cmd command ...` を使う。ラッパーはPATH上のUnity CLIを優先し、無ければ `%LOCALAPPDATA%\Unity\bin\unity.exe` を解決し、通常はこのリポジトリの `unity/` を接続先に固定する。CD0 E7の使い捨てhostだけは `--cd0-player-host` を先頭へ付け、固定path `artifacts/cd0/player-host/unity/` へ接続してよい。任意project path指定には一般化しない。
@@ -48,7 +50,7 @@ description: >-
 - 単独の `git mv` をシーン移送の正本にする（GUID は `move_asset` が運ぶ）
 - Safe Mode（コンパイルエラーで Pipeline が載らない）を YAML 編集で迂回する。C# を直して Editor を立て直す
 - Cloud セッションで `unity` バイナリを入れて接続確認したことにする
-- 依頼範囲外の本番 Scene / Prefab / Addressables asset を広く再生成・上書きする。Test/Build用assetや出力は作業範囲と生成先を確認して扱う
+- 本番の Scene / Prefab / Addressables 等を依頼された範囲の外で変更する。範囲内でも広範な再生成・上書きは、個別に影響を確認してから行う。Test/Build用assetや出力は作業範囲と生成先を確認して扱う
 
 ## テスト
 

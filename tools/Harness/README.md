@@ -61,6 +61,8 @@ reload fixture が Enter Play Mode 設定を変更する際は、変更前の値
 
 非観測実行でも reload fixture は Play Mode に入るが、Enter Play Mode 設定を変更しないため、実際の domain reload を保証しない。reload の証明には、上記の単独 filter と `-ObserveUnity` を使い、同じ invocation の reload 境界と復帰を確認する。
 
+## H1 の現行入力と固定 suite
+
 H1はA3で適用を明示したArtifacts/Harness作業だけを扱う。同じWindowsユーザー・同じマシンの別worktreeから、task IDでGit外の現行入力を選ぶ。Unity変更、live Route Proof、別マシン配布、証拠削除はこの版の対象外。
 
 ```powershell

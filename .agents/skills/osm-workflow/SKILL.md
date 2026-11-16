@@ -27,7 +27,7 @@ description: >-
 
 | 作業 | 読む文書 | Phase と HANDOFF の読む節 | HANDOFF の読む節 |
 |---|---|---|---|
-| Phase A（計画と設計レビュー） | [phase-a.md](references/phase-a.md) | 全文 | 全節 |
+| Phase A（計画と設計レビュー） | [phase-a.md](references/phase-a.md)、公開する場合は [publish-and-history.md](references/publish-and-history.md) | 全文 | 全節 |
 | Phase B（実装） | [phase-b.md](references/phase-b.md) | Phase の責任、新しい事実の分類、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 | §0〜§5。差し戻しでは §6〜§8 も |
 | 動作確認（Phase B の後） | [operation-check.md](references/operation-check.md) | Phase の責任、検証経路の成立、動作確認（Phase B の後）、引継ぎ票、実行担当と判断担当、HANDOFF の必須内容 | §0、§5、§6 |
 | Phase C（発見 C・判定 C） | [phase-c.md](references/phase-c.md) | 「Phase A の内部フロー」「PR 状態ブロック」「Cloud の担当」以外の全節 | §0〜§8 |
