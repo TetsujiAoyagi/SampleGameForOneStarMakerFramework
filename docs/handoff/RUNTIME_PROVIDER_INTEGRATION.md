@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `B`（実装と動作確認を完了。次は発見 C）
+- status: `C`（発見 C を完了。阻害する指摘なし。次は判定 C）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `adc069e19e1056a743c7a64fea9798d14a49c2a7`
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C）。
-  - 次の作業: implementation head の差分を §3 の責務マップと §2 の条件で構造レビューし、§5 の起点 filter・offline の test・AC5 の実機の test を走らせ、§7 に発見 C の結果を書く。§6 の「HANDOFF との差」と、§2.6 の A3 後の例外承認（`ContentLoadRecord.cs` の注釈）を見る。
+  - 次の Phase・役割: Phase C（判定 C）。GO 候補 head は上の implementation head（発見 C で差し戻しが無く、変わっていない）。
+  - 次の作業: GO 候補 head で §5 の判定必須テスト（起点 filter、offline、AC5、最終の全 EditMode 回帰）を実行し、AC7 の観測を §5 の検証経路で取る（§6 の動作確認は B の session の観測なので判定の入力にしない）。判定 evidence bundle を作り、§7 に判定 C の結果を書く。発見 C の結果は §7 の「発見 C」。
   - 読む範囲: 既定（Phase C は §0〜§8）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄。
-  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
-  - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
+  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。発見 C は evidence bundle を作っていない（§7）。
+  - 必要な権限: Unity（EditMode の test、Content Directory の build を伴う test、`tools/unity-editor.cmd eval` での Play の操作。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。`run-tests.ps1` は sandbox 外で起動する。Artifact Storage への stage（判定 evidence bundle）。
   - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。build を伴う test は他の Unity を止めて走らせる（§5）。
-  - 引き渡さないもの: なし。
+  - 引き渡さないもの: 発見 C の所見を C' の入力に入れない（§7 の「発見 C」は C' の blind bundle に含めない）。
 
 ## 1. 目的と対象外
 
@@ -402,7 +402,39 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 7. Phase C
 
-未着手
+### 発見 C
+
+- 種別: 発見 C（GO 判定はしない。C' は起動しない）。2026-11-17。
+- 対象: implementation base `36d069e8` → head `adc069e1` の commit 固定の diff（引き継いだ commit は `2d5dc27d`。head から引き継いだ commit までの差は本書だけ）。evidence bundle: 未生成（発見 C は固定 commit の diff と、同じ PC の test の XML を直接読んだ。判定 evidence bundle は判定 C が作る）。
+- 開始時の照合: HEAD と渡された SHA は一致、作業ツリーは clean、implementation head は HEAD の祖先で、差分は `docs/handoff/` の本書だけ。PR 状態ブロックの引き継ぐ commit・implementation base / head も一致。凍結の後に PR の新しいコメントは無い。
+- 構造適合（§3 の責務マップとの照合）:
+  - 変更 file は §3 の file、test、`ContentLoadRecord.cs`（§2.6 の例外承認。注釈だけで、code の意味は変わっていない）、本書と program の文書だけ。asmdef・`AssemblyInfo.cs`・`SceneState`・`tools/Artifacts` は変わっていない（AC9）。
+  - public の面: `AssetManagement` に足したのは internal の `IsInstalledContentDirectory` 1 つだけ。`IAssetManagement`・`IContentDirectoryBackend` は変わっていない。public の追加は §3 にある `ContentRequest.FallbackRepresentation`（末尾の任意引数）、`ContentLoadRejection` の 2 値、`SceneDirector.GetContentLoadRecord`、protected の `ContentLoader` だけ（I-3、AC8）。
+  - 依存の向き: AC8 の 4 つの `grep` はいずれも該当なし。`Directory/` は `BuildContent`・`AssetManagement` の internal と `Core` を参照し、逆向きの辺は無い。`Core/` と loader は `BuildContent` を知らない。
+  - I-1: `ContentRequestLoader` の 2 つの load method は、`await ResolveAdoptedAsync` の後、同期の `BindBeforeLoad` で照合し、その直後に content 入口を呼ぶ。照合と呼び出しの間に `await` は無い（§2.7）。供給元の照合は、実物の `AssetManagement` が今の session を登録中で、session が受付中で、provider id・由来・経路・identity の 4 欄（ordinal）が全て一致する時だけ真。content 入口が directory を掴む位置は変わっていない（`AssetManagement` の diff はメソッドの追加だけ）。SceneDirector の record は `ScenePair` が持ち、load を始めた時点の組に入る（後始末で組が外されると record も消える。経路 (8)）。
+  - I-2: 供給元は索引の entry の実効の表現を申告し、採否の判定は `ContentResolver.CheckRequestInvariants` だけにある。loader は候補の表現で content 入口を呼ぶ。SceneDirector は、起動時の表現が空でも fallback と同じでもない時だけ fallback を付ける。
+  - I-4: 配線の条件は `_contentDirectorySession != null && !UseRequiredPlayerFileConfiguration` の 1 つ。検証済みでない登録は理由を 1 行出して直接の経路のまま。route の例外は握らない（起動の catch へ出る）。loader の拒否は SceneDirector で直接の経路に読み直さない。供給元と route は session の token を取らない。
+  - 行数: §6 の B 適応の説明で足りる。`SceneDirector.Loading.cs` の 721 行は既存の partial の分け方のままで、足した責務は loader の 1 分岐だけ。`ContentDirectorySession.cs` は 498 行で、足したのは保持と公開だけ（判断は供給元に置いた）。
+  - 常時契約: 編集した `.cs` は全て `#nullable enable`。`record`・`Task.Delay`・`Thread.Sleep` は無い。破棄されうる `UnityEngine.Object` への `?.`・`??` は増えていない（AC5 の test は `prop.Handle.Value != null`）。
+- AC と test の対応（読んで確かめた。合否は判定 C が決める）: AC1 は `ContentRequestLoaderTests` の失敗経路 4 件（照合の偽、照合を答えない供給元、照合の引数、`FindAsync` の中の directory の差し替え）。AC2・AC4 は `RegisteredDirectoryProviderTests`（表現の 7 通り、`NotFound` の 3 通り、close の後、別の AM・wrapper、identity を 1 欄変えた 4 通り、検証済みでない登録、close を妨げないこと、基準の出所、事実・set を変えた候補、route の例外）。AC3 は offline の `FallbackTests` の 6 件。AC5 は `RegisteredDirectoryRouteIntegrationTests`。AC6 は `SceneDirectorContentLoaderTests`（AC6 の各文に対応する test がある）。
+- 現在の問いを阻害する指摘: なし。
+- 後続スライスの入力・記録だけの指摘（どの凍結済み条件・常時契約にも違反しない。現スライスでは直さない）:
+
+  | # | severity | category | 指摘 | 根拠 | bucket |
+  |---|---|---|---|---|---|
+  | 1 | minor | semantic | `RegisteredDirectoryProviderTests` は manifest の Unity の版を `"6000.6.0f1"` と直書きしている。検証は `ContentManifestValidation.SupportedUnityVersion` と一致しない manifest を拒むので、Editor の版が変わるとこの fixture の install と検証が通らなくなる。AC2 の「事実は manifest の値から作る」は、値が定数と同じでも構造レビューで確かめられる（供給元は `verified.UnityVersion` を読む） | test の 34 行、`InstalledRevisionVerifier.VerifyInsideLease` | 後続の入力（Editor を更新する PR で fixture の値の出所を決める） |
+  | 2 | minor | semantic | AC6 の「unload と release の呼び出しは loader なしの時と同じ」を、test は port の load と unload の回数と、もう一度読めること（台帳に残っていない）で見ている。release の回数は直接数えていない | `SceneDirectorContentLoaderTests` の 79〜95 行 | 記録だけ（再読み込みが成功するので release の欠けは観測できる。AC6 の文言の読み方の範囲） |
+
+- 実行した機械検査と test（head は全て `2d5dc27d`。実装の source は `adc069e1` と同じ）:
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（program の文書の既存の harvest 案内）。
+  - AC8 の 4 つの `grep`: いずれも該当なし。
+  - offline: `dotnet run --project tools/ContentResolutionOfflineTests` は 64 passed / 0 failed、exit 0。
+  - Unity: `pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution|OneStarMaker.Tests.SceneSystem.SceneVariantForwardingTests|OneStarMaker.Tests.SceneSystem.SceneDirectorContentLoaderTests|OneStarMaker.Tests.Editor.Build.ContentDirectorySessionTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryProviderTests|OneStarMaker.Tests.Editor.Build.RegisteredDirectoryRouteIntegrationTests'`（sandbox 外、Editor 6000.6.0f1、EditMode、`-nographics`）。XML の root result `Passed`、total 77（passed 77、failed 0、skipped 0、inconclusive 0）。内訳は `ContentRequestLoaderTests` 13、`OneStarMaker.Tests.Editor.Build` 45（AC5 の `InstalledDirectory_ServesScenesAndObjects_WithMatchingRecords_AndClosesAfterRelease` は Passed、34 秒）、`SceneDirectorContentLoaderTests` 13、`SceneVariantForwardingTests` 6。Unity は自然に終了し、`step.json` は `status=passed`、exit 0。
+  - 起動の前に、B の 3 回目の run の Unity（XML の完成後に終了で止まった process）が process の一覧に残っていた。owner の許可（2026-11-17、進行役経由）で止めようとしたところ、実体は既に終わっていた（`HasExited` が true。一覧に残っていたのは handle が残った entry）。lock は無く、上の run は通常どおり起動した。
+- 判定必須のうち未実行: 最終の全 EditMode 回帰（空 filter）、AC7 の観測（B 以外の実行担当による）、判定 evidence bundle の作成。いずれも判定 C が行う。
+- 未確認事項: `AssetResidentCache` の key の全経路（I-1 の経路 (7)。§2.1 の A1 の未確認のまま。この diff は cache を触っていない）。
+- 差し戻し: なし（巡の数は 0）。
+- 発見 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
 
 ## 8. Phase C'
 
