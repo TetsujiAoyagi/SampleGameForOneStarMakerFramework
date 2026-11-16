@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `C'`（C' 1 巡目完了、阻害指摘 1 件。owner の裁定待ち）
+- status: `C'`（C' 1 巡目の CP-1 を owner が裁定（DR-1）。次は C' 2 巡目）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `400ff2cc9b6b1898f51acfc2ab68341a2b7ba152`
@@ -21,8 +21,8 @@
 - evidence bundle の取得案内・状態: 判定 C 1 回目用はローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）にある
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた。C' に使ったのは進行役が差し替えた版（§8）で、判定 C が作った版は使っていない
 - 引継ぎ票:
-  - 次の Phase・役割: owner の裁定（C' 1 巡目の阻害指摘 1 件、§8）。裁定の後に次の Phase を決める。
-  - 次の作業: §8 の指摘 CP-1 を owner が裁定する。B の修正では字面上解消できない（下の §8）ので、裁定の結論と理由を決定記録として §8 に書く。2 巡目の C' を行う場合は、その決定記録だけを C' 用決定記録として渡す。
+  - 次の Phase・役割: C'（2 巡目）。
+  - 次の作業: C' 1 巡目の指摘 CP-1 の解消を、§8 の決定記録 DR-1 を C' 用決定記録として渡して監査する。implementation head は 1 巡目と同じなので、修正差分は無い。
   - 読む範囲: 進行役・owner は §0、§7、§8。C' は本書を読まない。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR 状態ブロックは下の owner の指示により更新しない）。implementation base は上の `2c775ff0`、implementation head は上の欄。
   - 入力の snapshot・bundle: C' blind bundle（上の欄、差し替え後の版）。
@@ -382,6 +382,12 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 - 残存リスク（C' の記録、阻害しない）: AC6 の実機の登録は `ContentDirectorySession` を経由しない（凍結文の比較対象 `ContentDirectoryIndex` に当たるので AC6 の文面は満たす）。`SharedPrefab` の空の表現の断言は条件付きで、XML からは実行されたかが分からない。publisher の読み直しは `State` だけを見る（entry の一致は publish test と AC6 が見る）。`BuildContentResult.IndexEntries` は public の getter（凍結した公開面は constructor の任意引数。最低条件の違反ではない）。
 - 監査できなかった範囲（C' の記録）: test の再実行、Player、実 R2、供給元の一覧、`ContentResolver` への接続、実データの大きさ（§2.3 の対象外）。操作・目視は §5 で対象なし。
 - 判定: 未確定（CP-1 の owner の裁定待ち）。
+
+### C' 用決定記録
+
+- DR-1（版 1、2026-11-16、owner、C' 2 巡目から適用）: CP-1 は不採用（阻害しない）。
+  - 結論: AC8 の「差分」は、本スライスの実装の変更（Phase B が変える file）を指す。Phase A の commit が変えた HANDOFF の文書（本書と、program の S2-3 の行の link・状態）は AC8 の範囲の外として読む。program の S2-3 の行が「次は Phase B」のままである点は、Phase D の harvest で program を更新する時に直す。
+  - 理由: implementation base を Phase A の前の `origin/develop` に置いたので、Phase A の計画の記録も base..head に入る。AC8 が守る対象（asmdef の `references`、friend、`tools/Artifacts`、`SceneState`、§3 の外の source）に変更は無い。program の行を戻すと Phase A の記録が消え、最新に直しても program は差分に残るので、実装の修正では解消できない。この読みはどの受け入れ条件の合否も変えない（AC8 が範囲として挙げた変更の有無は同じ）。
 
 ## 9. Phase D
 
