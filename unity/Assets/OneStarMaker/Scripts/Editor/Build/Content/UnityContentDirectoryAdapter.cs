@@ -22,6 +22,28 @@ namespace OneStarMaker.Editor.Build.Content
         public string Summary { get; }
     }
 
+    // projection の root 1 件が directory の BuildContentRoot に書かれる entry の (logical key, kind, 表現)。
+    // adapter が entry を作る時と、coordinator が publish の索引のために outcome へ記録する時の両方がこれを使う。
+    // 2 つの計算に分けると、索引が「含む」と答えた要求をその directory で解決できない、という食い違いが起きうる。
+    // 表現は projection の生の値（Representation の tag の無い root は空のまま）で、Full への読み替えはしない。
+    internal readonly struct BuildContentRootKey
+    {
+        internal BuildContentRootKey(string logicalKey, BuildContentKind kind, string representation)
+        { LogicalKey = logicalKey; Kind = kind; Representation = representation; }
+        internal string LogicalKey { get; }
+        internal BuildContentKind Kind { get; }
+        internal string Representation { get; }
+    }
+
+    internal static class BuildContentRootKeys
+    {
+        // kind は root の path の拡張子で決まる（Scene は Unity の loadable scene ID、それ以外は Object ID で entry を作る）。
+        internal static BuildContentRootKey Describe(ProjectedContent root)
+            => new(root.Candidate.LogicalKey,
+                root.Path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase) ? BuildContentKind.Scene : BuildContentKind.Object,
+                root.Representation);
+    }
+
     // Unity Editor API に依存する唯一の BS2b build adapter。
     // 一時的な BuildContentRoot asset を作って Content Directory に含め、build 後は生成元だけを消す。
     // Scene に焼き込む prefab の版の印（ScenePrefabStamp）も、build の間だけここで書いて戻す。
@@ -87,12 +109,13 @@ namespace OneStarMaker.Editor.Build.Content
                     // 依存閉包全体は再探索せず、選択 root の同一性だけを Editor 上で最終確認する。
                     if (AssetDatabase.AssetPathToGUID(item.Path) != item.Candidate.PhysicalKey)
                         throw new InvalidOperationException("Root GUID/path changed after materialization: " + item.Path);
-                    if (item.Path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                    var key = BuildContentRootKeys.Describe(item);
+                    if (key.Kind == BuildContentKind.Scene)
                     {
                         // Scene は Unity の loadable scene ID を保存し、path/GUID 自体を Runtime の load ID にしない。
                         var sceneId = LoadableSceneIdEditorUtility.CreateLoadableSceneId(item.Path);
-                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
-                            item.Representation, sceneId));
+                        entries.Add(new BuildContentEntry(key.LogicalKey, item.Candidate.StableKey,
+                            key.Representation, sceneId));
                     }
                     else
                     {
@@ -105,8 +128,8 @@ namespace OneStarMaker.Editor.Build.Content
                             || string.IsNullOrWhiteSpace(fileGuid) || localFileId == 0)
                             throw new InvalidOperationException("Root asset has no stable file/object locator: " + item.Path);
                         var objectId = LoadableObjectIdEditorUtility.CreateLoadableObjectId(asset);
-                        entries.Add(new BuildContentEntry(item.Candidate.LogicalKey, item.Candidate.StableKey,
-                            item.Representation, new Loadable<UnityEngine.Object>(objectId), fileGuid, localFileId,
+                        entries.Add(new BuildContentEntry(key.LogicalKey, item.Candidate.StableKey,
+                            key.Representation, new Loadable<UnityEngine.Object>(objectId), fileGuid, localFileId,
                             ClassifyCategory(asset)));
                     }
                 }

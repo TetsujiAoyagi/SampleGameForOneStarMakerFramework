@@ -92,6 +92,23 @@ namespace OneStarMaker.Editor.Build.Content
                     runtimeDefaults = result.Declaration.RuntimeDefaults
                         .Select(pair => new ContentManifestDeclarationValue { key = pair.Key, value = pair.Value }).ToArray(),
                 };
+                // 索引は coordinator が outcome に記録した entry から作る（preflight の requirements や plan からは作らない。
+                // それらは root と別の集合になりうる）。記録の無い outcome（旧 outcome、coordinator を通さない result）は拒まずに
+                // 版 0（索引なし）で publish する。表現は生の値のまま書き、並べ順は logical key、kind の名前、表現の ordinal。
+                var index = outcome.indexRecord switch
+                {
+                    0 => new ContentTransportIndex(),
+                    1 => new ContentTransportIndex
+                    {
+                        version = 1,
+                        entries = outcome.indexEntries.Select(BuildContentResult.Copy)
+                            .OrderBy(x => x.logicalKey, StringComparer.Ordinal)
+                            .ThenBy(x => x.kind, StringComparer.Ordinal)
+                            .ThenBy(x => x.representation, StringComparer.Ordinal)
+                            .ToArray(),
+                    },
+                    _ => throw new InvalidOperationException("Outcome index record is unknown: " + outcome.indexRecord),
+                };
                 var manifest = new ContentTransportManifest
                 {
                     version = 1,
@@ -105,9 +122,17 @@ namespace OneStarMaker.Editor.Build.Content
                     files = files,
                     sourceFiles = sources,
                     declaration = declaration,
+                    index = index,
                 };
-                File.WriteAllText(Path.Combine(staging, "transport.json"),
-                    JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
+                var manifestPath = Path.Combine(staging, "transport.json");
+                File.WriteAllText(manifestPath, JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
+                // 書いた bytes を選択の読み口で読み直し、重複・空白だけの値などの形の失敗があれば公開しない（staging は finally が消す）。
+                // 値の規則を publisher に 2 つ目として書かず、読み手が受け付けない索引を配布しないための検査。
+                var written = File.ReadAllBytes(manifestPath);
+                var reread = ContentPurposeIndex.Read(written, Sha256(written));
+                var expected = index.version == 0 ? ContentPurposeIndexState.NoIndex : ContentPurposeIndexState.Indexed;
+                if (reread.State != expected)
+                    throw new InvalidOperationException("Published index is invalid: " + reread.Detail);
                 Directory.Move(staging, final);
                 return final;
             }
@@ -132,12 +157,20 @@ namespace OneStarMaker.Editor.Build.Content
             return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
         }
 
+        private static string Sha256(byte[] bytes)
+        {
+            using var hash = System.Security.Cryptography.SHA256.Create();
+            return string.Concat(hash.ComputeHash(bytes).Select(x => x.ToString("x2")));
+        }
+
         [Serializable]
         private sealed class Outcome
         {
             public string identity = "";
             public string buildMode = "";
             public bool overlay;
+            public int indexRecord;
+            public ContentTransportIndexEntry[] indexEntries = Array.Empty<ContentTransportIndexEntry>();
         }
 
         [Serializable]

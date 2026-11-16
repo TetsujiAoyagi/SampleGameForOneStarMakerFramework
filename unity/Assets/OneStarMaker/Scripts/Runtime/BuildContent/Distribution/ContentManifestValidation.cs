@@ -31,6 +31,66 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                 if (!(root[key] is string)) Fail(ContentDeliveryFailureCode.InvalidManifest, "Manifest field must be a string: " + key);
             ValidateEntries(root["files"], true);
             ValidateEntries(root["sourceFiles"], false);
+            // 索引は任意の欄。あれば型だけを見る。版と値（kind の名前、重複）はここで拒まない: 拒むと、索引の版を上げた
+            // manifest を古い runtime が install も、登録のたびの再検証もできなくなる。意味の検査は ContentPurposeIndex が行う。
+            if (root.TryGetValue("index", out var index)) ReadIndexShape(index);
+        }
+
+        // 目的 build の索引の raw の形。entry の欄は、無ければ null（型の規則は「あれば文字列」）。
+        internal sealed class RawIndex
+        {
+            internal RawIndex(int version, IReadOnlyList<RawIndexEntry> entries) { Version = version; Entries = entries; }
+            internal int Version { get; }
+            internal IReadOnlyList<RawIndexEntry> Entries { get; }
+        }
+
+        internal readonly struct RawIndexEntry
+        {
+            internal RawIndexEntry(string? logicalKey, string? kind, string? representation)
+            { LogicalKey = logicalKey; Kind = kind; Representation = representation; }
+            internal string? LogicalKey { get; }
+            internal string? Kind { get; }
+            internal string? Representation { get; }
+        }
+
+        // manifest の JSON から索引の欄だけを型の規則で読む。欄が無ければ null。型の規則に外れれば InvalidManifest。
+        // install・再検証（ValidateRequiredFields）と選択の読み口（ContentPurposeIndex）が同じ規則を使うための入口。
+        internal static RawIndex? ReadIndex(string json)
+        {
+            var root = new JsonShapeReader(json).ReadObject();
+            return root.TryGetValue("index", out var index) ? ReadIndexShape(index) : null;
+        }
+
+        // 型の規則は版に関係なく同じ: index は object、version は 32 bit 符号付き整数（DTO の int）、entries は object の配列、
+        // entry の logicalKey・kind・representation はあれば文字列。version は raw の数値の字面で判定し、JsonUtility の int への
+        // 変換（範囲外の値の扱い）に頼らない。型の規則を変える版は古い runtime の install を止めるので、規則は版ごとに変えない。
+        private static RawIndex ReadIndexShape(object? value)
+        {
+            if (!(value is Dictionary<string, object?> index))
+                throw new ContentDeliveryException(ContentDeliveryFailureCode.InvalidManifest, "Manifest index must be an object.");
+            RequireFields(index, "version", "entries");
+            if (!(index["version"] is JsonNumber number) || !int.TryParse(number.Text,
+                    System.Globalization.NumberStyles.AllowLeadingSign,
+                    System.Globalization.CultureInfo.InvariantCulture, out var version))
+                throw new ContentDeliveryException(ContentDeliveryFailureCode.InvalidManifest, "Manifest index version must be a 32-bit integer.");
+            if (!(index["entries"] is List<object?> entries))
+                throw new ContentDeliveryException(ContentDeliveryFailureCode.InvalidManifest, "Manifest index entries must be an array.");
+            var result = new List<RawIndexEntry>(entries.Count);
+            foreach (var entry in entries)
+            {
+                if (!(entry is Dictionary<string, object?> fields))
+                    throw new ContentDeliveryException(ContentDeliveryFailureCode.InvalidManifest, "Manifest index entry must be an object.");
+                result.Add(new RawIndexEntry(OptionalString(fields, "logicalKey"), OptionalString(fields, "kind"),
+                    OptionalString(fields, "representation")));
+            }
+            return new RawIndex(version, result);
+        }
+
+        private static string? OptionalString(Dictionary<string, object?> fields, string name)
+        {
+            if (!fields.TryGetValue(name, out var value)) return null;
+            if (value is string text) return text;
+            throw new ContentDeliveryException(ContentDeliveryFailureCode.InvalidManifest, "Manifest index entry field must be a string: " + name);
         }
 
         private static void ValidateEntries(object? value, bool payload)

@@ -20,6 +20,30 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         public ContentSourceFile[] sourceFiles = Array.Empty<ContentSourceFile>();
         // 任意。directory を作った宣言の写し。無い manifest（旧 build）は name が空のまま読まれ、validation は見ない。
         public ContentManifestDeclaration declaration = new();
+        // 任意。目的 build が含む entry の索引で、manifest の digest に覆われる。JsonUtility は入れ子の欄を省けないので、
+        // 索引を持たない publish も version 0 の空の索引を書く。欄が無い manifest（索引の追加より前の build）と version 0 は
+        // どちらも「索引なし」。install と再検証は JSON の型だけを見て、版と値の意味は ContentPurposeIndex だけが見る
+        // （索引の版を上げても、古い runtime が manifest 全体を install・再検証できるようにするため）。
+        public ContentTransportIndex index = new();
+    }
+
+    [Serializable]
+    public sealed class ContentTransportIndex
+    {
+        // 0 は索引なし、1 は ContentTransportIndexEntry の形。2 以上は読み手が「未対応の索引」として飛ばす。
+        public int version;
+        public ContentTransportIndexEntry[] entries = Array.Empty<ContentTransportIndexEntry>();
+    }
+
+    // directory の BuildContentRoot の entry と同じ生の値。表現は Representation の tag の無い root では空のままで、
+    // 空を Full と読み替えるのは読み手（ContentEntryMatch）だけ。stable key と Unity の locator は配布の protocol にしないので持たない。
+    [Serializable]
+    public sealed class ContentTransportIndexEntry
+    {
+        public string logicalKey = "";
+        // BuildContentKind の名前（"Scene" / "Object"）。
+        public string kind = "";
+        public string representation = "";
     }
 
     [Serializable]

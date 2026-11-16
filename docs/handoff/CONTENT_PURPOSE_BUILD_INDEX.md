@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `A`（A3 凍結済み。次は Phase B）
+- status: `B`（Phase B 完了。次は発見 C）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-16、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 2 件と外部計画レビュー 3 件（2 巡の cursor[bot] と owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降の指摘は文言の補いだけで新しい blocker・major が無いことを確かめたうえで、owner が会話で「対応するものはして凍結」と指示した
 - risk: `normal`（program の行の値。public な manifest の DTO と新しい public 型を足すが、owner が `normal` のままと決めた。§2.8 U3）
 - owner: root（依頼者）
@@ -21,13 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順で §3 の file を実装し、§5 の起点 filter と AC6・AC7 の実機の test を通して、§6 に結果を書く。
-  - 読む範囲: 既定（Phase B は §0〜§5）。§1 の現況は base `2c775ff0` の事実。
-  - 引き継ぐ commit: A3 凍結版の commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `2c775ff0`、implementation head は `未固定`。
+  - 次の Phase・役割: 発見 C（一次レビュー）。動作確認は対象なし（§5 の「操作・実行時・目視条件の検証経路: 対象なし」）。
+  - 次の作業: implementation head の差分を §2〜§5 と照合し、§6 の実装結果と未実行事項を確かめ、§7 に記録する。
+  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `2c775ff0`、implementation head は上の欄。
   - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。
-  - 必要な権限: Unity（EditMode の test と Content Directory の build を伴う test の実行。`tools/Harness/README.md` と osm-unity-editor の規則に従う）。
-  - 停止規則: asmdef の `references` と `InternalsVisibleTo` を足さない。足す必要が出たら、`version` を上げないと既存の消費者が止まるとき、G1 が成り立たないときと同じく Phase A へ戻す（§4）。`tools/Artifacts` と `Runtime/ContentResolution/` を変えない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
+  - 必要な権限: Unity（判定必須テストの実行。AC6・AC7 は Content Directory の build を伴うので、他の Unity を止めて走らせる。§5）。
+  - 停止規則: §2.6 と §4 の差し戻し条件。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -306,7 +306,23 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 
 ## 6. Phase B 実装結果
 
-未着手
+- 担当: Claude Code（2026-11-16、同一 PC）。開始時の照合: 渡された `c16df025` と HEAD が一致し clean、§0 の凍結記録・revision 1・次担当 B、PR 状態ブロックと一致。
+- 実装（§4 の順）:
+  1. 照合の規則を `ContentDirectoryIndex.cs` の internal `ContentEntryMatch`（実効表現 = 空なら `Full`、key の組み立て）と `ContentEntryTable<T>`（`TryAdd` は同じ `(logical key, 実効表現, kind)` で false、`TryResolve` は要求した表現 → 無ければ `Full`。表現の指定なしは `Full`）に出し、`ContentDirectoryIndex` を載せ替えた。照合の関数は `ContentDirectoryIndex.cs` に置いた（§3 で B が決めてよい点）。
+  2. DTO: `ContentTransportManifest.index`（`ContentTransportIndex { version, entries }`、`ContentTransportIndexEntry { logicalKey, kind, representation }`）。検査: `ContentManifestValidation` に索引の型の規則を 1 つ（`ReadIndex` / `ReadIndexShape`）置き、`ValidateRequiredFields`（install・再検証）と読み口が共有する。`version` は raw の字面を `int.TryParse` で 32 bit の範囲まで見る（install も同じ規則）。entry の 3 欄は「あれば文字列」。読み口と選択: 新規 `Distribution/ContentPurposeIndex.cs`（名前は仮のまま採用）。public は `ContentPurposeCandidate`（bytes の複製と期待 digest）、`ContentPurposeRequest`（`BuildContentKind`・logical key・任意の表現）、`ContentPurposeIndex.Read` / `Contains` / `Select`、状態・失敗・判定の enum、`ContentPurposeSelection`。判定の順は I-2 の (a)〜(d)、選択は I-4 のとおり（最初の「含む」か最初の検証の失敗で止まり、後ろは `NotEvaluated`）。
+  3. Editor: `UnityContentDirectoryAdapter.cs` に internal `BuildContentRootKeys.Describe(ProjectedContent)`（kind は path の `.unity`、表現は生の値）を置き、adapter の entry 作成と coordinator の記録の両方が使う。coordinator は成功時だけ `BuildContentResult` の任意引数 `indexEntries` に渡し、`WriteOutcome` が outcome の直下に `indexRecord`（整数、1 = 記録あり）と `indexEntries` を書く。publisher は記録 0 なら `{"version":0,"entries":[]}`、1 なら logical key・kind・生の表現の ordinal 順で版 1 を書き、書いた bytes を `ContentPurposeIndex.Read` で読み直して期待の状態でなければ公開せずに拒む。記録の値が 0・1 以外の outcome は拒む（outcome は coordinator だけが書く）。
+  4. test: AC2・AC3 は `Tests/BuildContent/Distribution/ContentPurposeIndexTests.cs`、AC4 は同 `ContentPurposeSelectionTests.cs`、AC5 は同 `ContentPurposeIndexInstallTests.cs`、AC1 は `Tests/Editor/Build/ContentPurposeIndexPublishTests.cs`（§5 の「AC1 の新しい test の class」は `OneStarMaker.Tests.Editor.Build.ContentPurposeIndexPublishTests`）、AC6・AC7 は `SampleGame/Tests/Editor/Build/PurposeBuildIndexIntegrationTests.cs`（class の full name は `OneStarMaker.Tests.Editor.Build.PurposeBuildIndexIntegrationTests`。隣の既存の統合 test と同じ namespace）。
+- AC6 の実装の選び方（B 適応）: 登録は既存の統合 test と同じく PlayMode（`SAMPLEGAME_CONTENT__RUNTIMEMODE=addressables`）に入ってから、internal の `UnityContentDirectoryBackend` で公開 directory の `content/` を登録し、`GetRoots` の root を `ContentDirectoryIndex.TryCreate` で索引にする（`ContentDirectorySession` は経由しない。session は内部の索引を公開しないため）。登録前に fixture の source を消す。
+- 行数（base → 現在）: `ContentTransportManifest.cs` 150 → 174、`ContentManifestValidation.cs` 293 → 353、`ContentPurposeIndex.cs` 0 → 282、`ContentDirectoryIndex.cs` 130 → 159、`BuildContentCoordinator.cs` 208 → 215、`UnityContentDirectoryAdapter.cs` 238 → 261、`BuildContentReport.cs` 259 → 279、`ContentTransportPublisher.cs` 153 → 186。500 行と 50% 増に届く file は無い。
+- §3 との差: `BuildContentResult` に public の読み取り property `IndexEntries` を足した（任意引数の値を outcome へ運ぶため）。preflight にも `ContentReportFile` の新しい欄が `0` と空で書かれる（同じ保存形を共有するため。AC1 の「索引の追加の欄以外変わらない」の範囲）。asmdef の `references`・friend・`tools/Artifacts`・`Runtime/ContentResolution/`・`SceneState` は変えていない。
+- 新しい事実の分類: なし（上の AC6 の登録経路は B 適応、HANDOFF の範囲内）。
+- 検証（Unity 6000.6.0f1、`pwsh tools/run-tests.ps1`。Unity テストの B での実行は、Skill の既定（H2 未適用の B は実行しない）と票が食い違ったので owner に確かめ、owner が 2026-11-16 に「B で走らせる」と回答した）:
+  - Editor のコンパイル: 成功（`compilationFailed=false`。console の error 26 件は Burst の compiler server の起動失敗で、本変更と無関係）。
+  - 1 回目: 起点 filter（§5）+ AC6・AC7 の test。178 件中 177 Passed、1 Failed（`ContentPurposeIndexTests.InstallValidation_AcceptsManifestsWithAndWithoutIndex`。test の要求の contentSet・revision が fixture と違う test 側の誤り）。AC6・AC7 の `PurposeBuildIndexIntegrationTests` は Passed（192 秒）。
+  - test を直して 2 回目: 起点 filter（§5、AC6・AC7 を除く）。step `passed`・exit 0、XML `Passed` total 177・failed 0・skipped 0・inconclusive 0。AC6・AC7 は 2 回目で再実行していない（実装は 1 回目から変えていない）。
+  - `pwsh tools/contract-audit.ps1`: errors 0・warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（既存の program HANDOFF の harvest の頃合い。本作業と無関係）。
+- 未実行: 最終の全 EditMode 回帰（判定必須。判定 C が行う）。
+- Editor が開いた時に `Assets/MobileDependencyResolver` の `.pdb.meta` 5 件を消したが、本作業と無関係なので戻し、commit に含めていない。
 
 ## 7. Phase C
 
