@@ -3,10 +3,10 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `B`（revision 2、C′ 1 巡目の差し戻し。head 0ad27752 の判定 C と C′ は修正後の head へ流用しない）
+- status: `C`（revision 2、C′ 1 巡目の差し戻し C′-F1 を B が修正。発見 C の再レビュー待ち。head 0ad27752 の判定 C と C′ は修正後の head へ流用しない）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
-- implementation head commit: 0ad27752beca24945f36bcf7a329ea0bde8194a5
+- implementation head commit: この票を含む commit
 - risk: normal
 - owner: OSM-maintainer
 - created: 2026-11-15
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
 - Phase B result snapshot / evidence / C′ blind bundle: head 0ad27752 の判定 evidence と C′ blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、所見を含まない。旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は B（C′ の差し戻し 1 巡目の修正）。§8 の C′-F1 を、既存 AC4 と責務マップの範囲の B 適応として 1 commit で修正する。移動先の本文を増やさず、担当の必読経路から該当の文へ届くようにする。範囲を超える判断が要るなら実装せず §6 に理由を書いて返す。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。修正後の次担当は発見 C（同じ C の session）、その後に判定 C と C′ の 2 巡目。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
+- 引継ぎ票: 次は発見 C（同じ C の session。C′ 差し戻し 1 巡目の修正後 head の再レビュー）、その後に判定 C と C′ の 2 巡目。§6 の「C′ 差し戻し 1 巡目の修正」に C′-F1 の採否と変更を記録した。照合は、判定 C の必読経路（`phase-c.md`）から Harness README の H1 の節と広い suite の文へ届くこと、README は見出しの追加だけで本文が変わっていないこと。読む範囲は §0〜§10。実 Unity・実 Storage 操作・資格情報は不要。旧 head の所見は Git 履歴と既存 Storage に保持し、この head の合格根拠にしない。人間の merge 指示・task 全体完了指示は未取得であり自動実行しない。worktree と Git 外原記録を保持する。採用後の観察は既存 B/C 記録で行い、新帳票・評価サービスは作らない。
 
 ## 1. 目的と対象外
 
@@ -87,8 +87,11 @@
   - 指摘 4 採用: `phases-and-handoff.md` の「Phase A の commit と snapshot」第 3 段落を「A3 統合案を commit して…」の前で 2 段落に分けた。文言は変えていない。
   - 指摘 3 は C の検証範囲への提案で、B の変更対象ではない。
   - B 確認: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（検査 8 は not-applicable）、`pwsh -NoProfile -File tools/contract-audit.tests.ps1` 29 passed、`pwsh -NoProfile -File tools/Harness/tests/Harness.Tests.ps1 -ResultPath <result>` 38 executed / 0 failed、`git diff --check`（新 file を含む）合格。`pr-base.yml` の run 本文を抜き出して bash で実行し、`develop` で exit 0、`main`・`Develop`・空で exit 1。YAML parser と actionlint はこの環境に無く、workflow の構文と GitHub 上の trigger（本文編集で Offline checks が起動しないこと、base 変更で PR base が起動すること）は未確認で、push 後の実 run で確かめる。§3 の責務マップ本文は凍結内容なので書き換えていない。
+- C′ 差し戻し 1 巡目の修正（63dd75df から、§8 の C′-F1 を 1 commit で修正。既存 AC4 と責務マップの範囲の B 適応）:
+  - C′-F1 採用: 旧 AGENTS の「H1 適用の Artifacts/Harness 作業は判定 C で広い suite を確認する」へ、判定 C の必読経路から届くようにした。`phase-c.md` の判定 C の項に、H1 適用作業では Harness README の H1 の節を読んでから広い suite（`judgment` の run）を確認する 1 文とリンクを足した。リンク先を作るため、`tools/Harness/README.md` で「Unity 内観測（EditMode）」の下に置かれていた H1 の段落群（H1 の対象から `-HarnessTask` の契約検査まで）の前に見出し「H1 の現行入力と固定 suite」を入れた。README の本文は変えていない。Skill のテスト節と `phase-b.md` は B の範囲の記述なので変えていない。
+  - B 確認: `pwsh -NoProfile -File tools/docs-audit.ps1` errors 0 / warnings 2（既存の harvest 案内）、`pwsh -NoProfile -File tools/contract-audit.ps1` errors 0 / warnings 0（検査 8 は not-applicable）、`git diff --check` 合格。docs-audit は file の存在だけを見て anchor を検査しないので、新しい anchor は見出しの文字列と GitHub の slug 規則（既存の stall 節の anchor と同じ形）で目視照合した。§8 の証拠の不備（CI log の上書き、offline 記録の `dirty` null）は次の判定 evidence の作り方の指摘で、B の変更対象ではない。
 - implementation head commit: この票を含む commit
-- Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI（初回と §10）。差し戻し修正の担当、Claude Opus 5.5、Anthropic（c9bb52e5 からの 1 commit）
+- Phase B 担当・モデル・ベンダー: 実装担当、gpt-6.1-terra、OpenAI（初回と §10）。差し戻し修正の担当、Claude Opus 5.5、Anthropic（c9bb52e5 からの 1 commit と、63dd75df からの C′ 差し戻し 1 巡目の 1 commit）
 
 ## 7. Phase C
 
