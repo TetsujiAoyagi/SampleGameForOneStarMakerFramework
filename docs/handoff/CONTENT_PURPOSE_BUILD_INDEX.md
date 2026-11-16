@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-3。S2 を S2-2 と S2-3 に分けた判断は削除済みの `CONTENT_OVERLAY_BUILD.md` の §2.5・§2.8 U2（`git show 25aa59e^:docs/handoff/CONTENT_OVERLAY_BUILD.md`）にある）
-- status: `C'`（C' 完了、2 巡目で阻害指摘なし。次は Phase D の前の owner の判断（push・PR 状態ブロックの更新・Phase D））
+- status: `D`（Phase D。保存・引渡しの確認と harvest を終えた。次の commit で本書を削除し、merge の後に task の終了記録と後始末を行う）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
 - implementation head commit: `400ff2cc9b6b1898f51acfc2ab68341a2b7ba152`
@@ -18,19 +18,18 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3「当面の方針」、§6、§8 の S2・S2-3、§10 U6）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。§2.1 の分類で、索引の生成は BuildSystem 本体、読みと選択は Distribution に置く）。Phase B は `Runtime/BuildContent/` を触る（§3）ので、`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（program §0 の停止規則。あちらは 2026-11-16 時点で A0 だけ）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 判定 C 1 回目用はローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）にある
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。`evidence stage`、task `content-purpose-build-index`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた。C' に使ったのは進行役が差し替えた版（§8）で、判定 C が作った版は使っていない
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、取得確認済み。`evidence stage`、task `content-purpose-build-index`。取得案内は主 checkout の手元の層（git 管理外）にある。証拠の取得はローカル担当
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）、取得確認済み。`evidence stage`、task `content-purpose-build-index`。取得案内は主 checkout の手元の層（git 管理外）に、判定用とは別の file で置いた。C' に使ったのは進行役が差し替えた版（§8）で、判定 C が作った版は使っていない
+- 最終記録（C' の 2 巡分の報告と生 event、指示書、DR-1、削除前の本書）の取得案内・状態: ローカル固定済み（未昇格）、取得確認済み。`evidence stage`、同じ task。所見を含むので blind 入力に使わない。取得案内は同じ手元の層にある
 - 引継ぎ票:
-  - 次の Phase・役割: Phase D（保存・引渡しの確認、C/C' の突合、harvest、マージの判断）。その前に、owner の指示で止めていた push と PR 状態ブロックの更新を owner が決める。
-  - 次の作業: §7 と §8 を突き合わせ、DR-1 のとおり Phase D の harvest で program の S2-3 の行を更新する。evidence bundle と C' blind bundle は local（未昇格）のまま。
-  - 読む範囲: 進行役・owner は §0、§7、§8。C' は本書を読まない。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示で渡す。PR 状態ブロックは下の owner の指示により更新しない）。implementation base は上の `2c775ff0`、implementation head は上の欄。
-  - 入力の snapshot・bundle: C' blind bundle（上の欄、差し替え後の版）。
-  - 必要な権限: なし（裁定）。
-  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡（今は 0 巡）。
-  - 引き渡さないもの: 発見 C・判定 C の結論と所見（§7）を C' に渡さない。
-  - owner の指示（2026-11-16、Phase C の進行）: 発見 C・判定 C・差し戻しの B の修正は、B と同じ系列のモデルが新しい session で担う。owner は独立性制約ありを受け入れ済みで、独立性のためにモデルを上げない。各担当は §7 に独立性制約ありと記録する。C' は §5 の予約どおり cursor-agent の Grok 系。
-  - owner の指示（同上）: C' の完了まで push せず、PR 本文（状態ブロック）も更新しない。PR 状態ブロックの `引き継ぐ commit` は Phase B の出口の値のまま古くなるので、開始時の照合には使わず、起動指示の SHA と §0 の implementation head 欄で照合する。各 Phase の出口で PR 状態ブロックを更新する手順は、この期間は行わない。
+  - 次の Phase・役割: なし（Phase D の担当が、merge の後に task の終了記録と後始末まで行う）。
+  - 次の作業: 本書の削除、PR 状態ブロックと本文の更新、merge、task の終了記録、ブランチと worktree の後始末。
+  - 読む範囲: §0、§9。
+  - 引き継ぐ commit: この票を含む commit。implementation base は上の `2c775ff0`、implementation head は上の欄（Phase D で code は変えていない）。
+  - 入力の snapshot・bundle: 上の 3 欄。
+  - 必要な権限: push、PR の更新、merge（owner が 2026-11-17 に会話で指示）。
+  - 停止規則: 最終 head の CI が通らなければ merge しない。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -401,4 +400,12 @@ program が「S2」へ送った入力のうち、本書が引き取るのは §1
 
 ## 9. Phase D
 
-未着手
+- 担当: Claude Code（Anthropic。本 slice の A・B・C・C' に関与していない session、2026-11-17、同一 PC）。開始時の照合: worktree の HEAD と PR の head は `e04834b5` で一致し clean。§0 の implementation head `400ff2cc` はその祖先で、その先の差分は本書だけ。PR #195 の timeline の新着は下の外部レビュー 3 件だけで、その後の commit は無い。
+- C / C' の突合: 矛盾なし。判定 C は GO（§7）、C' は 2 巡目で阻害する指摘なし（§8）。C' 1 巡目の CP-1 は DR-1 で不採用とし、DR-1 のとおり program の S2-3 の行をこの harvest で直した。発見 C の minor と C' の残存リスクは program §8 の「S2-3 から移送した入力」へ送った。
+- C' の後の外部レビュー（2026-11-16、owner の判断で実施。判定 C・C' の追加の巡ではない）: cursor[bot]（Grok 系）の要約と外部コードレビュー（対象 `400ff2cc`）、owner のアカウントの独立コードレビュー（PR の head `e04834b5`）。3 件とも阻害する欠陥なし。独立コードレビューの非阻害の境界確認 1 件（読み口は `index` の欄だけを検査するので、`Selected` は install できることを保証しない）は、13 章の「選択が保証しないこと」と program の S3 / S4 の入力に書いた。code は変えておらず、implementation head は `400ff2cc` のまま。
+- マージ判断: owner が 2026-11-17 に会話で、レビューに blocker が無いことを受けて Phase D・マージ・後片付けまで進めるよう指示した。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 判定用 bundle（14 file）と C' blind bundle（16 file、差し替え後の版）は、保存済みの同一 bundle を使った。Phase D の session が別 process で両方を fetch し、`passed`、XML（total 1979、failed 0、root `Passed`）、head `400ff2cc` を読んだ。未保存だった最終記録（C' の 2 巡分の報告と session の生 event、C' への指示書 2 通、DR-1 の写し、削除前の本書）は、この節を書いた本書と一緒に `evidence stage` で固定し、別 process の fetch で内容の一致を確かめた。blind bundle には所見を足していない。日次清掃 job の `evidence schedule status` は `passed` を返した。
+- 取得案内の引渡し確認: 進行役の session の一時領域にあった判定用と C' 用の案内 2 通を、主 checkout の手元の層（git 管理外）へ写して hash を照合した。最終記録の案内も同じ場所に置いた。3 通とも locality は local（未昇格）で、証拠の取得はローカル担当。
+- harvest: [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) §4「配信用 transport の公開境界」（索引の欄、生成の出所、並べ順、publisher の読み直し）、[13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「目的 build の索引と選択」（読みの順、照合、選択、install との分担、選択が保証しないこと）、[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §5.3（結論）・§8（S2-3 の行、移送した入力、範囲の受け入れ条件の書き方）・§10 U6（結果）。
+- 削除確認: 本書は次の commit で削除する。本書への link は program の S2-3 の行だけにあり、harvest で外した。
+- 通常の task 終了・後始末の状態と未完了事項: task `content-purpose-build-index` の終了記録と、ブランチ・worktree の後始末は merge の後に行い、結果は PR 本文に書く（本書の時点では未実施）。

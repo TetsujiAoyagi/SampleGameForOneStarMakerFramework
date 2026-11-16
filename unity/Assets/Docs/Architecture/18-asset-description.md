@@ -279,6 +279,17 @@ BuildReport の内容を配信層で独自に再検証するものではない�
 完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包を
 path/hash で案内する metadata であり、転送先 path、Unity load identity、Runtime 起動条件には使わない。
 
+publish は manifest に、その目的 build が含む root の一覧を任意の欄 `index`
+（`ContentTransportIndex { version, entries }`）として書く。entry は build が root に書いた entry と同じ
+`(logicalKey, kind, representation)` で、projection の root から 1 つの関数（`BuildContentRootKeys.Describe`）で出し、
+adapter の root の作成と coordinator の outcome の記録の両方がそれを使う。表現は root と同じ生の値で書き
+（Representation の tag の無い root は空のまま）、logical key、kind の文字列、表現の順にそれぞれ ordinal で並べる。
+coordinator が一覧を記録した outcome（`indexRecord` が 1）からは版 1 を、記録の無い outcome（0）からは版 0 の
+空の索引を書く。publisher は書いた bytes を `ContentPurposeIndex.Read` で読み直し、期待の状態でなければ
+（同じ `(logical key, kind, 実効表現)` の重複、空白だけの値など）公開先を作らずに拒む。索引を足しても manifest の
+`version` と `rootSchemaVersion` は変わらない。索引の読みと選択の規則は
+[13 章](13-resource-system.md)「目的 build の索引と選択」にある。
+
 consumer は manifest の contentSet/revision、固定 target `StandaloneWindows64-Player`、互換 schema と
 受信 bytes の digest を照合する。配信層は logical key、Variant、Unity Object の依存解決を再実装せず、
 install 後の `content` directory を既存の `ContentDirectorySession` へ渡す。manifest の revision は
