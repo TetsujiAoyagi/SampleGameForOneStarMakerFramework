@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `A`（A3 の統合案。A2 の 4 件と担当の採否案を §5.1 に記録した。owner の採否、外部計画レビュー、凍結の前。未凍結）
+- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 1 巡目の採否を §5.1 に記録した。owner は §2.8 の U3〜U8 を決定済み。2 巡目の外部計画レビューと凍結の前。未凍結）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
@@ -21,8 +21,8 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: A3（owner の採否、外部計画レビュー、凍結）。凍結の後に Phase B。
-  - 次の作業: owner が §2.8 の U3〜U8 と §5.1 の採否案を決める。Draft PR で外部計画レビューを行い、指摘は 1 巡につき 1 commit で反映する。owner の凍結判断を上の凍結記録に書いて凍結版を commit する。
+  - 次の Phase・役割: A3（外部計画レビューの 2 巡目、凍結）。凍結の後に Phase B。
+  - 次の作業: Draft PR で外部計画レビューの 2 巡目を受け、指摘は 1 巡につき 1 commit で反映する。owner の凍結判断を上の凍結記録に書いて凍結版を commit する（owner は 2026-11-17 に「まだ凍結しない」と指示した）。
   - 引き継ぐ commit: 統合案の commit（SHA は PR 状態ブロックで渡す）。凍結版はまだ無い。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
@@ -95,12 +95,12 @@
 
 - **I-1 record は実際に読んだ directory と食い違わない。** loader が成功として返す record の候補の identity（contentSet・revision・target・manifest の digest）は、その handle の中身を読んだ directory の identity と 4 欄とも一致する。一致を確かめられない時は、native の load を始めない。SceneDirector が返す record は、今 current にあるその Scene を loader が読んだ時の record だけである。
   - 主張を崩しうる経路: (1) 供給元の申告だけを信じる実装。(2) 検証済みでない登録（digest が無い）。(3) 実物の `AssetManagement` でない `IAssetManagement`（fake、wrapper、別実装）。(4) 解決と load の間の directory の入れ替え（`CloseContentDirectoryAsync` の後の再登録。起動の失敗の後始末と Player の smoke が close を呼ぶ）。(5) 別の session から作った供給元を policy に入れる誤った配線。(6) 既に載っている同じ identity の Scene の再利用（`LoadContentSceneAsync` は台帳の handle を返す）。(7) resident cache から取り出す asset（cache の key は directory の path・identity・target を含む）。(8) SceneDirector に残る古い record（loader が成功した後に `ExecuteLoaded` が投げる、取消になる、などで Scene が後始末され、次に同じ名前の Scene が `SceneManager` から再利用される）。
-  - 塞ぎ方: 照合は供給元（連携部分）が答える。供給元は自分の session を知っていて、「渡された `IAssetManagement` が実物の `AssetManagement` で、今登録している directory がこの session で、session が受付中で、候補の identity が session の検証済みの値と 4 欄とも一致する」時だけ真を返す（`AssetManagement` には internal の問い合わせを 1 つ足す。public の面は増やさない）。loader は採用した候補の供給元にこれを尋ね、真の時だけ content 入口を呼び、照合と呼び出しの間に `await` を置かない（content 入口は呼ばれた時点の directory を掴むので、入れ替えは照合で落ちるか、掴んだ directory の受付停止で失敗する）。照合を答えられない供給元の候補は読まない。(6) は、台帳にある directory 由来の Scene は今の session が読んだものだけである（close が全て unload する）ことに依る。(8) は、record を SceneDirector の Scene ごとの組（`ScenePair`）に持たせ、loader で読んだ分岐でだけ入れることで塞ぐ（組が消えれば record も消える）。
+  - 塞ぎ方: 照合は供給元（連携部分）が答える。供給元は自分の session を知っていて、「渡された `IAssetManagement` が実物の `AssetManagement` で、今登録している directory がこの session で、session が受付中で、候補の identity が session の検証済みの値と 4 欄とも一致する」時だけ真を返す（`AssetManagement` には internal の問い合わせを 1 つ足す。public の面は増やさない）。loader は採用した候補の供給元にこれを尋ね、真の時だけ content 入口を呼び、照合と呼び出しの間に `await` を置かない（content 入口は、最初の `await` より前に、呼ばれた時点の directory を掴み、その後は掴んだ directory だけを使う。だから入れ替えは照合で落ちるか、掴んだ directory の受付停止で失敗する。この掴む位置は I-3 で固定する）。照合を答えられない供給元の候補は読まない。(6) は、台帳にある directory 由来の Scene は今の session が読んだものだけである（close が全て unload する）ことに依る。(8) は、record を SceneDirector の Scene ごとの組（`ScenePair`）に持たせ、loader で読んだ分岐でだけ入れることで塞ぐ（組が消えれば record も消える）。
   - 探索した境界: `ContentRequestLoader`、`AssetManagement.ContentDirectory.cs`、`ContentDirectorySession` の登録・close・Play 停止、`AbstractApplicationInitializer` の install と close の呼び出し、`SceneDirector` の load・unload・失敗の後始末（`_currentScenes` から組を外す箇所）。未確認: `AssetResidentCache` の中の key の作り方は `CachePrefix` の定義を読んだだけで、cache の全経路は読んでいない。Play 停止で unregister が失敗した session が受付中のまま残るか。
-- **I-2 要求した表現を黙って変えない。** 要求が表現を指定した時、別の表現の中身を返すのは、要求が fallback の表現を明示した時だけである。record の表現は、実際に読んだ表現である。
+- **I-2 要求した表現を黙って変えない。** loader に渡した要求が表現を指定した時、loader が別の表現の中身を返すのは、要求が fallback の表現を明示した時だけである。loader が返す record の表現は、実際に読んだ表現である。resolver を使わずに content 入口を直接呼んだ時の、索引での `Full` への読み替えは、この条件の対象にしない（今のまま残す。I-3）。
   - 経路: (1) directory の `Full` への読み替え（content 入口に要求の表現をそのまま渡すと、directory が黙って `Full` を読む）。(2) 空の表現の entry（`Full` と読む）。(3) 供給元が要求の表現をそのまま申告する実装。(4) 同じ Scene を、直接の経路が別の表現の名前で既に載せている時の再利用（今も `EntryAmbiguous` で拒む）。
   - 塞ぎ方: 供給元は directory の索引が返した entry の実効の表現を、そのまま申告する（採るかどうかを供給元で判定しない）。resolver だけが、候補の表現が要求の表現か、要求が明示した fallback と一致する時に採る。loader は候補の表現（実効の値）で content 入口を呼ぶ。directory が fallback する先は `Full` だけなので、要求が別の表現を fallback に書いても、その表現の候補は出ない。
-- **I-3 resolver を使わない利用を変えない。** `IAssetManagement` の member、既存の content 入口の挙動、`SceneDirector` の public な constructor、Player の起動経路、Addressables の経路は変わらない。`Runtime/AssetManagement/` は `ContentResolution` の型を参照しない。
+- **I-3 resolver を使わない利用を変えない。** `IAssetManagement` の member、既存の content 入口の挙動、`SceneDirector` の public な constructor、Player の起動経路、Addressables の経路は変わらない。`Runtime/AssetManagement/` は `ContentResolution` の型を参照しない。content 入口の挙動には次の 2 つを含む: 索引での `Full` への読み替えと、`LoadContentSceneAsync`・`LoadContentAssetAsync` が最初の `await` より前に directory を掴み、load gate の後に登録中の directory を読み直さないこと（I-1 の塞ぎ方がこれに依る）。
   - 経路: (1) `IAssetManagement` への member の追加。(2) `AssetManagement` に public の型や member を足す。(3) loader を渡さない SceneDirector の分岐。(4) Player で配線が走る。(5) `IContentDirectoryBackend`（internal の port）を変えて既存の fake を壊す（変えない）。
 - **I-4 既存の所有・解放・fail-closed を弱めない。** resolver 経由で得た Scene と asset は、既存の台帳に同じ owner で入り、既存の API で解放でき、解放の後の close を妨げない。供給元が候補を出せない時、照合が合わない時に、Addressables・source・別の directory へ逃げない。封じ、protected config、起動の fail-closed は変えない。
   - 経路: (1) loader の失敗の後に SceneDirector が直接の経路で読み直す実装。(2) 供給元が session の token を保持して close を妨げる。(3) record を保持するために Scene の解放を遅らせる。(4) 配線の失敗を握って、黙って直接の経路で起動する。
@@ -109,7 +109,7 @@
 **成立条件（起きなければならないこと）**
 
 - **S-1** 検証済みの installed revision から登録した directory について、loader で Scene と Object を要求すると、載った物の handle と、供給元・identity・実効の表現・「一致を確かめた」を持つ record が返り、既存の API で解放して directory を close できる。
-- **S-2** loader を渡した SceneDirector で Scene を追加すると、その Scene の record を SceneDirector から読める。unload すると読めなくなり、解放は今までと同じ順で行われる。
+- **S-2** loader を渡した SceneDirector が、loader の分岐で Scene を読んで追加すると、その Scene の record を SceneDirector から読める。unload すると読めなくなり、解放は今までと同じ順で行われる。既に `SceneManager` にある Scene を再利用した時と、payload の無い論理 node は loader を通らず、record は無い（AC6）。
 - **S-3** Play ボタンの入口の経路 Built の Play で、利用者の新しい入力なしに、SceneDirector が directory から読んだ Scene に record が付く。
 - **S-4** 表現が `Full` だけの Scene を、別の表現と `Full` への fallback を明示して要求すると `Full` が載り、record の表現は `Full` になる。fallback を明示しなければ載らない。
 
@@ -121,10 +121,10 @@ fixture は SampleGame を使わない合成（program D10）。実機の build 
 |---|---|---|
 | AC1 | I-1 | 単体（実物の `AssetManagement`、fake の directory の port、照合を答える fake の供給元）。loader は、採用した候補の供給元が照合に真を返した時だけ content 入口を呼び、record の `SourceBindingVerified` は true になる。**失敗経路:** 照合が偽の時は `SourceBindingMismatch` で拒み、port の load は 0 回。照合を答えない供給元（interface を実装しない）の候補は `SourceBindingUnavailable` で拒み、load は 0 回。供給元の `FindAsync` の中で directory を close して別の port を登録すると、前の候補の record で成功しない。loader が成功を返して `SourceBindingVerified` が false の record は無い |
 | AC2 | I-1・I-2・S-1 | 単体（fake の native directory と、temp の cache に実際に install した revision）。検証済みで登録した session から作った供給元は、ある entry に `Available` を返し、候補の identity は install した manifest の contentSet・revision・target と、install の要求に渡した digest（`ContentDeliveryFiles.Sha256` の形式）に ordinal で等しく、受け入れ根拠は `VerifiedDigest`、経路は `ContentDirectory`、事実は install した manifest の Unity の版と root schema の版である（定数からは作らない）。候補の表現は索引が返した entry の実効の表現: 要求と同じ表現があればその表現、指定なしは `Full`、要求の表現が無く `Full` があれば `Full`、空の表現の entry は `Full`。照合: 実物の `AssetManagement` にこの session を登録している間は真。**失敗経路:** 無い key と kind の違いは `NotFound`。close した session は `Unavailable` で、照合は偽。別の `AssetManagement`、この session を登録していない `AssetManagement`、`AssetManagement` を包んだ別の `IAssetManagement`、identity を 1 欄変えた候補（4 通り）は照合が偽。検証済みでない登録（`VerifiedInstalledRevision` を持たない session）からは供給元を作れない（作る関数が「作らない」と理由を返す）。供給元は session の token を取らず、供給元が生きていても close は完了する |
-| AC3 | I-2 | 単体（`tools/ContentResolutionOfflineTests` と EditMode）。`ContentRequest` は任意の fallback の表現を持てる。resolver は、候補の表現が要求の表現と一致する時と、要求が fallback を明示していてそれと一致する時だけ採る。**失敗経路:** fallback を明示しない要求に `Full` の候補を返すと、今までどおり `RepresentationMismatch`。表現の指定が無いのに fallback だけがある要求、fallback が表現と同じ要求、空白だけの fallback は constructor が拒む。既存の offline の test は変更なしで通る |
+| AC3 | I-2 | 単体（`tools/ContentResolutionOfflineTests` と EditMode）。`ContentRequest` は任意の fallback の表現を持てる（constructor の末尾の任意引数として足し、既存の引数の位置と既定値を変えない）。resolver は、候補の表現が要求の表現と一致する時と、要求が fallback を明示していてそれと一致する時だけ採る。**失敗経路:** fallback を明示しない要求に `Full` の候補を返すと、今までどおり `RepresentationMismatch`。表現の指定が無いのに fallback だけがある要求、fallback が表現と同じ要求、空白だけの fallback は constructor が拒む。既存の offline の test は変更なしで通る |
 | AC4 | S-1・I-4 | 単体。route が作る互換の基準は、contentSet と target が session の検証済みの値、engine と schema が `ContentManifestValidation` の定数で、revision は固定しない（null）。AC2 の供給元の候補は `ContentCompatibilityRule` で `Compatible` になる。**失敗経路:** 事実の engine の版を 1 文字変えた候補、schema の版を変えた候補、contentSet の違う候補は `RuleRejected` で採られない。検証済みの session から route を作る途中の失敗は例外で返り、「作らない」（検証済みでない登録）と区別できる |
 | AC5 | S-1・S-4・I-1・I-4 | 実機（Content Directory の build を伴う EditMode の `[UnityTest]`。Play mode に入って読む）。合成の目的を build・publish・install・検証して登録し、起動の配線と同じ関数で loader を作る。`Entry` を `Whitebox` で要求すると `Whitebox` が載る。`Next` を `Whitebox`・fallback `Full` で要求すると載り、record の表現は `Full`。`Prop` を表現の指定なしで `AssetOwner.Manual` で要求すると載り、record の表現は `Full`。3 つとも record の identity は install した manifest の値と digest に等しく、`SourceBindingVerified` は true。`UnloadSceneAsync` → `ReleaseScene` と `Release` の後、`CloseContentDirectoryAsync` が `ResourcesInUse` を出さずに完了する。**失敗経路:** `Next` を `Whitebox`・fallback なしで要求すると `ContentResolutionException`（`NoCompatibleCandidate`、probe は `RepresentationMismatch`）で、`SceneManager.sceneCount` は変わらない。無い key は `NoCandidate`（probe は `NotFound`）。別の digest の expected identity を付けた要求は採られず、何も載らない |
-| AC6 | S-2・I-1・I-3・I-4 | 単体（`PerformUnitySceneLoad` を差し替えない SceneDirector、実物の `AssetManagement`、fake の port、照合を答える fake の供給元）。loader を渡すと、`AddScene` の後にその Scene の record を読め、unload の後は読めない。unload と release の呼び出しは loader なしの時と同じ。要求の組み立て: 起動時の表現が `Whitebox` で fallback が `Full` の時、`Full` だけの Scene は載って record の表現は `Full`。起動時の表現が `Full`（fallback と同じ）か空の時は fallback を付けずに要求し、constructor の拒否で失敗しない。loader を渡さない SceneDirector は、今までどおり `LoadContentSceneAsync(scene, variant)` を呼び、record は無い（既存の `SceneVariantForwardingTests` が変更なしで通る）。同じ名前の Scene が既に `SceneManager` にある時と、payload の無い論理 node では loader を呼ばず、record は無い。**失敗経路:** loader が拒んだ時（照合の偽、`NotFound`）、`AddScene` は失敗し、content 入口は直接呼ばれず（port の load は 0 回）、SceneDirector は既存の load の失敗と同じ後始末をして、別の Scene の `AddScene` が続けて成功する。loader が成功した後に Scene の `ExecuteLoaded` が投げた時と、取消で後始末された時は、その Scene の record は読めない。loader を渡して content directory を使わない指定にした constructor は拒む |
+| AC6 | S-2・I-1・I-3・I-4 | 単体（`PerformUnitySceneLoad` を差し替えない SceneDirector、実物の `AssetManagement`、fake の port、照合を答える fake の供給元）。record の読み口は Scene の id を受け、record が無い時は null を返し、例外にしない（下の「読めない」「record は無い」は全て null を指す。追加していない id も null）。loader を渡すと、`AddScene` の後にその Scene の record を読め、unload の後は読めない。unload と release の呼び出しは loader なしの時と同じ。要求の組み立て: 起動時の表現が `Whitebox` で fallback が `Full` の時、`Full` だけの Scene は載って record の表現は `Full`。起動時の表現が `Full`（fallback と同じ）か空の時は fallback を付けずに要求し、constructor の拒否で失敗しない。loader を渡さない SceneDirector は、今までどおり `LoadContentSceneAsync(scene, variant)` を呼び、record は無い（既存の `SceneVariantForwardingTests` が変更なしで通る）。同じ名前の Scene が既に `SceneManager` にある時と、payload の無い論理 node では loader を呼ばず、record は無い。**失敗経路:** loader が拒んだ時（照合の偽、`NotFound`）、`AddScene` は失敗し、content 入口は直接呼ばれず（port の load は 0 回）、SceneDirector は既存の load の失敗と同じ後始末をして、別の Scene の `AddScene` が続けて成功する。loader が成功した後に Scene の `ExecuteLoaded` が投げた時と、取消で後始末された時は、後始末が組を外した後、その Scene の record は読めない（test はこの形で見る）。既存の回収が外せずに log を出して残した個体は、組と一緒に record が残ってよく、その record はその個体を loader が読んだ時の物である（record を組の外に持たないことを構造レビューで見る。この場合の test は求めない）。loader を渡して content directory を使わない指定にした constructor は拒む |
 | AC7 | S-2・S-3・I-4 | 実 Editor の Play（§5 の検証経路）。経路 Built の Play を 2 回行う。1 回目: 起動の log に配線の 1 行（有効、供給元の id、identity の 4 欄）が出て、その revision と digest は入口がその Play に置いた installed revision と `content:manifestSha256` に等しい。初回の Scene `Title` の record を SceneDirector から読め、identity の 4 欄は log の行と同じで `SourceBindingVerified` は true。Play 中に `AddScene` した Scene も同じで、unload した後は record を読めない。initializer の accessor の loader で、bootstrap の SceneResourceMap の logical key を表現 `Full`・`AssetOwner.Manual` で要求すると record が返り、`Release` できる。2 回目: 配線の 1 行と `Title` の record を同じように読める。観測窓（1 回目の Play の開始から 2 回目の停止まで）の Error / Exception は 0 件（`eval` の timeout の行を除く） |
 | AC8 | I-3・I-4 | 既存の test と検査。`IAssetManagement` と `AssetManagement` の public の member、`IContentDirectoryBackend` は増えない。次の参照が無い（`grep` と C の構造レビュー）: `Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` と `ContentRequestLoader.cs` → `BuildContent`、`Runtime/BuildContent/` → `ContentResolution`、`Runtime/SceneSystem/` → `ContentResolution/Directory/` の型。Player の構成（`UseRequiredPlayerFileConfiguration` が真）では配線の関数を呼ばず、SceneDirector に loader を渡さない（code の検査）。検証済みでない登録の Play は、配線しない理由を log に 1 行出し、今までどおり直接の経路で動く（単体は route の関数の戻り値で見る）。検証済みの登録で route の関数が投げた例外を、起動の code が握らない（code の検査）。既存の `OneStarMaker.Tests.ContentResolution`・`ContentDirectorySessionTests`・SceneDirector の test・offline の test は、AC1 で意味を改める loader の test（照合を答える供給元に替える）以外の変更なしで通る |
 | AC9 | 範囲 | Phase B の commit が変える file は、§3 の file とその `.meta`、§3 の test の folder の file、`docs/handoff/` の文書だけで、asmdef の `references`、`AssemblyInfo.cs` の friend、`SceneState`、`tools/Artifacts` に変更が無い |
@@ -216,21 +216,23 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - repo 相対 path は `tools/path-budget.json` の予算に収める。
 - `Runtime/ContentResolution/Core/` は Unity と `BuildContent` を参照しない（`tools/ContentResolutionOfflineTests` が source を直接 compile する）。
 - loader は AssetManagement の public だけを使い、同じ assembly の internal を呼ばない。
+- `LoadContentSceneAsync`・`LoadContentAssetAsync` が directory を掴む位置（最初の `await` より前）を動かさず、load gate の後に登録中の directory を読み直す code を足さない（I-1・I-3）。
+- `ContentRequest` の constructor の既存の引数の位置と既定値を変えない（fallback は末尾の任意引数）。
 - 封じ（`SealAddressables`）、protected config の照合、起動の fail-closed、`CompleteContentDirectoryPlayStop` の順序を変えない。
 - 機械向けの記録を git に入れない。
 
 ### 2.8 owner の判断を求める点（未決事項）
 
-担当の推奨を付ける。U1・U2 は 2026-11-17 に決定済み。U3 以降は A3 で owner が決める（A2 は推奨の形で見る）。
+全て決定済み。U1・U2 は 2026-11-17 の A2 の前に、U3〜U8 は同日の外部計画レビュー 1 巡目の後に、owner が担当の推奨どおりに決めた（A2 と外部計画レビュー 1 巡目は推奨の形で見た）。
 
 - **U1 目的と利用者の文言。** 決定: 承認（owner、2026-11-17。経緯は §1）。
 - **U2 S3 の分割。** 決定: S3-1（本書）・S3-2（上書きの登録）・S3-3（snapshot の候補）に分け、要求の時点の install は S4 へ送る（owner、2026-11-17。§2.5）。
-- **U3 表現の fallback を要求の明示にする（core の改訂）。** 推奨: R2（§2.4）。`ContentRequest` に任意の fallback の表現を足し、resolver はそれと一致する候補も採る。S0-a で凍結した core の契約の追加になる。core を変えたくないなら R4（呼び手が 2 回要求する）に固定し、AC3 を外して AC5・AC6 を 2 回の要求の形に改める。
-- **U4 一致を確かめられない時は読まない。** 推奨: loader に「確かめずに読む」option を持たせない。照合を答えない供給元の候補と、照合が偽の候補は、load の前に拒む（S0-a の loader の test のうち、確かめずに成功していたものは、照合を答える供給元に替える）。成功した record の `SourceBindingVerified` は常に true になるが、欄は残す（後続の経路が別の値を持ちうる）。A2 の代替構成は「拒まずに false の record を返す」案だったが、load の前に分かる食い違いを読ませる理由が無いので採らない。
-- **U5 既定で配線する。** 推奨: W1（§2.4）。経路 Built・検証 Play・Delivery の Play は全て検証済みの revision から登録するので、SceneDirector の Scene の読み込みが resolver を通るようになる。Player は配線しない。
-- **U6 Player の build を判定必須にしない。** 推奨: しない。Player の構成では配線の関数を呼ばず、SceneDirector に渡る loader は null で、分岐は今の code と同じ（AC6・AC8）。program の S3 の gate「Player の非退行」は、Player の経路を変える S3 の後続（S3-2 か S3-3）の A1 で実機の要否を決める。
-- **U7 外部計画レビューと C' の独立性。** 推奨: Draft PR の外部計画レビューは従来どおり cursor[bot]（Grok 系）で行う。A2 は Anthropic 系の 3 件。使える系列は Anthropic 系と Grok 系だけ（Codex と Google 系は使えない）なので、C' は Grok 系で行い「独立性制約あり」と記録する。Grok 系を C' のために残すなら、外部計画レビューを owner のアカウントのレビューだけにする。
-- **U8 `SceneDirector` の取消。** 推奨: 本書では変えない（`PerformUnitySceneLoad` は今も `CancellationToken.None` で読み、遷移の commit の後は取り消さない設計である）。S3-3 の A1 が load の経路を触る時に要否を決める。
+- **U3 表現の fallback を要求の明示にする（core の改訂）。** 決定: R2（§2.4）。`ContentRequest` に任意の fallback の表現を足し、resolver はそれと一致する候補も採る。S0-a で凍結した core の契約の追加になる。R4（呼び手が 2 回要求する）は採らない。
+- **U4 一致を確かめられない時は読まない。** 決定: loader に「確かめずに読む」option を持たせない。照合を答えない供給元の候補と、照合が偽の候補は、load の前に拒む（S0-a の loader の test のうち、確かめずに成功していたものは、照合を答える供給元に替える）。成功した record の `SourceBindingVerified` は常に true になるが、欄は残す（後続の経路が別の値を持ちうる）。A2 の代替構成は「拒まずに false の record を返す」案だったが、load の前に分かる食い違いを読ませる理由が無いので採らない。
+- **U5 既定で配線する。** 決定: W1（§2.4）。経路 Built・検証 Play・Delivery の Play は全て検証済みの revision から登録するので、SceneDirector の Scene の読み込みが resolver を通るようになる。Player は配線しない。
+- **U6 Player の build を判定必須にしない。** 決定: しない。Player の構成では配線の関数を呼ばず、SceneDirector に渡る loader は null で、分岐は今の code と同じ（AC6・AC8）。program の S3 の gate「Player の非退行」は、Player の経路を変える S3 の後続（S3-2 か S3-3）の A1 で実機の要否を決める。
+- **U7 外部計画レビューと C' の独立性。** 決定: Draft PR の外部計画レビューは cursor の PR レビューで行う（1 巡目は実施済み。§5.1）。A2 は Anthropic 系の 4 件。使える系列は Anthropic 系と Grok 系だけ（Codex と Google 系は使えない）なので、C' は Grok 系で行い「独立性制約あり」と記録する。
+- **U8 `SceneDirector` の取消。** 決定: 本書では変えない（`PerformUnitySceneLoad` は今も `CancellationToken.None` で読み、遷移の commit の後は取り消さない設計である）。S3-3 の A1 が load の経路を触る時に要否を決める。
 
 ## 3. 責務マップ
 
@@ -244,11 +246,11 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 | `Runtime/ContentResolution/IContentSourceBinding.cs`（新規） | 「この候補は、渡された `IAssetManagement` が今読む directory の物か」を答える interface | I-1 の照合を loader から供給元へ尋ねる口 | — | `ContentResolution/Core`、`IAssetManagement` | internal の interface（member 1 つ） | AC1 | 0 → 20 |
 | `Runtime/ContentResolution/Directory/RegisteredDirectoryProvider.cs`（新規） | 登録した 1 つの directory を供給元として答える（entry の有無、実効の表現、identity、事実）。上の照合も答える | 新しい責務 | session と同じ寿命。token は取らない | `BuildContent`（session・索引）、`AssetManagement`（internal の問い合わせ）、`ContentResolution/Core` | internal | AC2 | 0 → 120 |
 | `Runtime/ContentResolution/Directory/RegisteredDirectoryRoute.cs`（新規） | session と `AssetManagement` から、供給元・互換の基準・policy・loader を組み立てる。検証済みでない登録には「作らない」と理由を返し、それ以外の失敗は例外にする | 起動と test が同じ組み立てを使う（AC5） | static | 上の供給元、`Distribution` の定数、`ContentResolution` | internal（起動と friend の test が呼ぶ） | AC2・AC4・AC8 | 0 → 70 |
-| `Runtime/ContentResolution/Core/ContentRequest.cs` | 要求の値 | 任意の fallback の表現 | 値 | なし | public の constructor の任意引数と property | AC3 | 62 → 80 |
+| `Runtime/ContentResolution/Core/ContentRequest.cs` | 要求の値 | 任意の fallback の表現 | 値 | なし | public の constructor の末尾の任意引数と property | AC3 | 62 → 80 |
 | `Runtime/ContentResolution/Core/ContentResolver.cs` | 探索 | 候補の表現の照合に fallback を足す | static な処理 | なし | 変えない | AC3 | 318 → 328 |
 | `Runtime/ContentResolution/Core/ContentLoadRejection.cs` | loader の拒否の理由 | `SourceBindingUnavailable`・`SourceBindingMismatch` を足す | enum | なし | public の enum の値の追加 | AC1 | 17 → 25 |
 | `Runtime/ContentResolution/ContentRequestLoader.cs` | 採用した候補を content 入口へ渡す | load の前の照合、record の `SourceBindingVerified` | 呼び手が持つ | `IAssetManagement`（public だけ）と上の interface | 変えない（挙動は U4） | AC1 | 98 → 120 |
-| `Runtime/SceneSystem/SceneDirector.cs` | SceneDirector の構成と公開面 | internal の constructor の任意引数（loader、fallback の表現。loader と「content directory を使わない」の組は拒む）、Scene ごとの組（`ScenePair`）に record、record の読み口 | 既存。record は組と同じ寿命 | `ContentResolution`（新しい辺。`Directory/` は知らない） | public の method 1 つ（record の読み口） | AC6 | 280 → 310 |
+| `Runtime/SceneSystem/SceneDirector.cs` | SceneDirector の構成と公開面 | internal の constructor の任意引数（loader、fallback の表現。loader と「content directory を使わない」の組は拒む）、Scene ごとの組（`ScenePair`）に record、record の読み口 | 既存。record は組と同じ寿命 | `ContentResolution`（新しい辺。`Directory/` は知らない） | public の method 1 つ（record の読み口。Scene の id を受け、record が無ければ null を返し、例外にしない） | AC6 | 280 → 310 |
 | `Runtime/SceneSystem/SceneDirector.Loading.cs` | Scene の load | loader があればそれで読み、record を組に入れる（要求の fallback は、起動時の表現が空でも fallback と同じでもない時だけ付ける） | 同上 | 同上 | 変えない | AC6 | 685 → 705 |
 | `Runtime/Bootstrap/AbstractApplicationInitializer.cs` | 起動の順序 | directory の登録の後に route の関数を呼び、loader を SceneDirector へ渡し、protected の accessor で host に見せ、1 行出す | 既存（App） | 上の route | protected の accessor 1 つ | AC7・AC8 | 1149 → 1170 |
 | test（単体は `OneStarMaker/Tests/ContentResolution/`・`OneStarMaker/Tests/Scene/`・`OneStarMaker/Tests/Editor/Build/`、offline は `tools/ContentResolutionOfflineTests/`、実機は `SampleGame/Tests/Editor/Build/`） | — | — | — | — | — | AC1〜AC6 | 新規と追記 |
@@ -293,7 +295,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 判定 C の照合 script の方式: なし（test の XML と、AC7 の観測 file を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の 4 つの `grep`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: cursor-agent の Grok 系（§2.8 U7。外部計画レビューを cursor[bot] で行えば「独立性制約あり」）。
+- C' 用に予約した担当・モデル・ベンダー: cursor-agent の Grok 系（§2.8 U7。外部計画レビューを cursor の PR レビューで行ったので「独立性制約あり」）。
 - 独立性の強化条件を満たせない場合の理由: 使える系列が Anthropic 系と Grok 系の 2 つで、Phase A〜C に関与しない第 3 の系列が無い（§2.8 U7）。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -303,7 +305,7 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   - 不変条件の反証と AC の読み違い: 照合は一致。結論は blocker 0、major 5、minor 5。I-2・I-3 は破れず、I-1 は SceneDirector が持つ record の寿命で、I-4 は配線の失敗の扱いで穴があった。
   - 目的レビュー: §1 の目的と利用者の本文だけを渡した別の担当（道具を使わない）。入力の sha256 `16938d48718147632950adf55500ce3434c4e4615950a4a02e3ade21ae45b36f`。
   - A0 だけからの代替構成（risk `high` の追加分）: 初稿を読まない別の担当。入力は A0 の packet（sha256 `e20c6b719e577926d84a2b977eb1170b7dc73790fafb7ea7418018733b4067c3`。目的、利用者、問い、現況、対象外、要求、制約、未決事項）と固定 base。
-- A3 の分類（担当の案。owner の承認待ち。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
+- A3 の分類（A2 の指摘。担当の案で、保留だった代替構成 2 は owner が U3 で決めた。表全体の owner の承認は凍結判断と一緒に記録する。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
 
   | 出所 | 指摘 | 分類 | 反映 |
   |---|---|---|---|
@@ -322,14 +324,28 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
   | 目的レビュー | 保証すべきこと 9 件（記録と実ロード元の一致、2 経路で同じ結果、所有と解放、既存の入口、検証済みだけ、互換をロードの前、新しい入力なし、後続が供給元を足せる形、失敗時の挙動は文言から決まらない） | 初稿にある | 一致・2 経路・所有・入口・検証済み・互換は I-1〜I-4 と S-1〜S-3。「供給元を足せる形」は既存の `ResolutionPolicy`（順のある供給元の列）で足り、hook は作らない。失敗時の挙動は I-4 で fail-closed に決めた |
   | 目的レビュー | 作らないべきもの 8 件（複数 directory、後続の供給元、host 向けの新しい設定・引数、専用のロード経路と解放 API、SceneDirector に依存した記録、未検証の revision、汎用の層、記録の UI） | 初稿と一致 | fallback の引数は利用者 (b) の任意の入力で、利用者 (a) には無い（UC-1・UC-2）。他は対象外と §4 に同じ |
   | 代替構成 1 | 照合が合わない時は拒まずに false の record を返す | 不採用 | load の前に分かる食い違いを読ませる理由が無い（§2.8 U4） |
-  | 代替構成 2 | fallback は core を変えず、呼び手が 2 回要求する | 保留（owner が U3 で決める） | §2.4 R4。担当の推奨は R2 |
+  | 代替構成 2 | fallback は core を変えず、呼び手が 2 回要求する | 不採用（owner が U3 で R2 に決めた。2026-11-17） | §2.4 R4、§2.8 U3 |
   | 代替構成 1・4 | `VerifiedInstalledRevision` に manifest の事実を載せる。互換の基準の revision は固定しない | 採用 | §3、AC4 |
   | 代替構成 3 | record は `ScenePair` が持つ。record を `SceneEvent` に載せない | 採用 | §3（初稿も event には載せていない） |
   | 代替構成 4 | initializer に public の accessor | 不採用 | 読むのは initializer を継承する host なので protected で足りる |
   | 代替構成の検証 | 実 Editor の確認を SampleGame を使わない合成の app で行う。Player の起動の非退行 | 不採用・保留 | 合成の initializer を持つ app が無く、作ると本書の範囲を超える（汎用の合否は AC1〜AC6、実機は AC5）。Player は U6 |
 
 - A2 の再レビューの要否: 行わない。照合の形の変更（B1 → B5）は、ゲートの指摘 1・2・6 と代替構成の構成に沿って公開面を減らすもので、新しい辺は「連携部分 → `AssetManagement` の internal の問い合わせ 1 つ」だけである。この辺と I-1 の塞ぎ方は、Draft PR の外部計画レビューで見てもらう。
-- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner の採否と凍結は未了。
+- 外部計画レビュー 1 巡目（2026-11-17、Draft PR #197、対象は統合案の commit `f28e7cd1`）。cursor の PR レビュー（PR のコメントの mention で起動。U7 の前提どおり Grok 系として扱う。系列は担当が確かめていない）。結論は blocker 0 で、「U3〜U8 は推奨どおり、上の採否の表はそのままで凍結してよい。凍結前に文言を合わせる」。担当は、指摘の根拠のうち content 入口が directory を掴む位置と、失敗の回収が外せなかった個体を残すことを、base の code で確かめた。owner は 2026-11-17 に下の採否と U3〜U8 を推奨どおりとし、凍結はまだしないと指示した。
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | I-1 の成功経路に、record が別の directory を指したまま成功する順序は残っていない。これは content 入口が最初の `await` の前に directory を掴み、gate の後に読み直さないことに依る。B はこの位置を動かさない | 採用 | I-1 の塞ぎ方、I-3、§2.7 |
+  | AC6 の「`ExecuteLoaded` が投げた後は record を読めない」は、回収が外せずに残した個体では保証できない。残った record が実際に読んだ directory と一致する、と書く | 採用 | AC6 |
+  | I-2 は loader が返す record の話である。直接の content 入口の `Full` への読み替えは残る | 採用 | I-2、I-3 |
+  | S-2 は loader の分岐で読んだ Scene の話である。既に `SceneManager` にある Scene に record は無い | 採用 | S-2 |
+  | record の public の読み口は Scene の id を受け、無い時は null を返し、例外にしない | 採用 | AC6、§3 |
+  | fallback は `ContentRequest` の末尾に足し、既存の位置引数をずらさない | 採用 | AC3、§2.7、§3 |
+  | U3〜U8 は担当の推奨と同じ結論 | owner が決定 | §2.8 |
+  | このレビューの指摘を C' の入力に入れない | 保留（workflow の規則で決める） | C' は PR の会話を継承せず、凍結した Phase A snapshot を読む。この表は A2 の表と同じく snapshot に入る。扱いを変えるなら凍結の時に owner が決める |
+
+- 外部計画レビュー 1 巡目の反映に伴う A2 の再レビューの要否: 行わない。反映は、条件の対象を狭める文言（I-2、S-2）、既存の挙動の明記（I-3、§2.7）、読み口の戻り値の明記、AC6 の 1 文の修正で、設計と責務の配置は変えていない。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。外部計画レビューの 2 巡目と凍結は未了。
 
 ## 6. Phase B 実装結果
 
