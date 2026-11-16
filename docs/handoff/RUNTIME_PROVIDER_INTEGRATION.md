@@ -8,7 +8,7 @@
 - status: `C`（判定 C の 1 回目の差し戻し J1 を B が直し、発見 C が修正を確かめた。次は判定 C の 2 回目。§7「発見 C（差し戻しの修正の確認、1 巡目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `699ae83a`（判定 C の差し戻し J1 の修正。`SceneDirector.cs` を変えた commit）
+- implementation head commit: `699ae83ada175635bafabebf45baa27e9ffa1f6a`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
