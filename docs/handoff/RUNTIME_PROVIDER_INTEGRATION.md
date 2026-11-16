@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C`（判定 C の 1 回目の差し戻し J1 を B が直した。次は発見 C。§6「差し戻しの修正（1 巡目）」）
+- status: `C`（判定 C の 1 回目の差し戻し J1 を B が直し、発見 C が修正を確かめた。次は判定 C の 2 回目。§7「発見 C（差し戻しの修正の確認、1 巡目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `699ae83a`（判定 C の差し戻し J1 の修正。`SceneDirector.cs` を変えた commit）
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（判定 C の 1 回目の差し戻しの修正の確認。差し戻しの 1 巡目）。
-  - 次の作業: §6「差し戻しの修正（1 巡目）」の修正が J1 を直し、§3・§2.7 と AC8・AC9 を崩していないことを、固定 diff（implementation base → この head）で確かめる。修正の確認の test は起点 filter（§6 の Unity の行の `-Filter`）に J1 の 3 class（`LocalVfxEventPlayTests`、`SeasonMajorEventPlayTests`、`VfxScenePlayTests`）を足して `-Filter` で選んで行う。通れば票を判定 C（全 EditMode 回帰、AC7 の観測、判定 evidence bundle）へ更新する。
+  - 次の Phase・役割: 判定 C（2 回目）。
+  - 次の作業: §5 の判定必須テスト一式を implementation head で行う: 機械検査、offline の test、最終の全 EditMode 回帰（空 filter。前の判定 C で失敗した `ScenePrefabStampEditorTests.StampWithoutRecord_IsRestoredLineOnly_WithWarning` が通ることも見る）、B 以外の実行担当による AC7 の観測（§6「動作確認」の手順と `ConfirmDialog`）、判定 evidence bundle の作成。構造レビューは §7 の 2 つの発見 C を固定 diff で読み直す。
   - 読む範囲: 既定（Phase C は §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（この票を含む commit。`SceneDirector.cs` を変える commit なので、その commit 自身が head）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `699ae83a`（この票を含む commit との差は本書だけ）。
   - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。evidence bundle は未生成（判定 C が作る）。
-  - 必要な権限: Unity の test（`pwsh tools/run-tests.ps1`、sandbox 外）。Editor が開いていれば閉じてから走らせる（B の session が開いた Editor は B の出口で閉じる）。
+  - 必要な権限: Unity の test（`pwsh tools/run-tests.ps1`、sandbox 外）と、AC7 の Editor の Play（`tools/unity-editor.cmd`）。test は Editor を閉じてから走らせる。
   - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
   - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。
 
@@ -468,6 +468,29 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 未確認事項: 上の stamp の test の失敗の原因。`AssetResidentCache` の key の全経路（発見 C と同じ）。
 - 差し戻しの巡: 1 巡目（B と発見 C の間の上限 4 巡に数える）。
 - 判定 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
+
+### 発見 C（差し戻しの修正の確認、1 巡目）
+
+- 種別: 発見 C（GO 判定はしない。C' は起動しない）。2026-11-17。
+- 対象: implementation base `36d069e8` → head `699ae83a` の commit 固定の diff。HEAD は引き継いだ commit `699ae83a`（implementation head と同じ）。前の head `adc069e1` からの実装の差は `SceneDirector.cs` だけ。evidence bundle: 未生成（判定 C が作る）。
+- 開始時の照合: HEAD と渡された SHA は一致、作業ツリーは clean。変更 file の一覧は前の発見 C と同じ 29 file（`SceneDirector.cs` の中身だけが変わった）。
+- 修正の確認（J1）:
+  - 7 引数の internal constructor は base `36d069e8` と同じ署名（`useContentDirectory` まで、7 個とも必須）で戻り、loader なし・fallback 空で 9 引数の側へ委ねる。internal の 7 引数は 1 つだけなので、VFX の 3 class の `Single(c => c.GetParameters().Length == 7)` は一意に見つかる。public の 6 引数は 7 引数へ委ねる（base と同じ）。
+  - 9 引数の側は loader と fallback が必須になっただけで、loader と `useContentDirectory: false` の組の拒否と欄の初期化は 1 か所。呼び出し側（起動の `AbstractApplicationInitializer` 402 行、AC6 の test の 199・283・293 行）は 9 引数を全て渡し、AC6 の 87・148 行の 7 引数の呼び出しは前と同じ意味（loader なし）。
+  - VFX の 3 class が作る複製は、前と同じく loader を受けない（直接の経路で読む）。これは base の挙動のままで、AC8 の「既存の SceneDirector の test は変更なしで通る」の範囲。
+- §3・§2.7・AC8・AC9 を崩していないこと: 変わった file は §3 の `SceneDirector.cs` だけで、test の folder の外の file・asmdef・`AssemblyInfo.cs`・`SceneState`・`tools/Artifacts` は変わっていない（AC9）。public の面は変わらない。`#nullable enable` は残っている。前の発見 C の構造適合（I-1〜I-4）の読みに影響する変更は無い。
+- 現在の問いを阻害する指摘: なし。
+- 後続スライスの入力・記録だけの指摘: 新しいものは無い（前の発見 C の 2 件はそのまま）。
+- 実行した機械検査と test（head は全て `699ae83a`）:
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0。`pwsh tools/docs-audit.ps1`: errors 0、warning 1（program の文書の既存の harvest 案内）。
+  - AC8 の 4 つの `grep`: いずれも該当なし。
+  - offline: 走らせていない（offline の test が compile する `Core/` は修正で変わっていない）。
+  - Unity: `pwsh tools/run-tests.ps1 -Filter '<§6 の起点 filter>|LocalVfxEventPlayTests|SeasonMajorEventPlayTests|VfxScenePlayTests'`（sandbox 外、Editor 6000.6.0f1、EditMode、`-nographics`）。XML の root result `Passed`、total 93（passed 88、failed 0、inconclusive 5、skipped 0）。起点 filter の class は前の発見 C と同じく全て Passed（`ContentRequestLoaderTests` 13、`ContentDirectorySessionTests` 21、`RegisteredDirectoryProviderTests` 23、`RegisteredDirectoryRouteIntegrationTests` 1、`SceneDirectorContentLoaderTests` 13、`SceneVariantForwardingTests` 6）。J1 の 11 件は全て Passed（`LocalVfxEventPlayTests` 4、`SeasonMajorEventPlayTests` 4、`VfxScenePlayTests` 3）。inconclusive 5 は同じ 3 class の VFX Graph の test で、理由は `No graphics device (GraphicsDeviceType.Null)`（§5 の既知の VFX の 25 件に含まれるもの）。Unity は自然に終了（exit 2、約 2 分）、compile error 0。`step.json` は inconclusive と Unity の exit 2 で `status=failed`（run-tests の既定の扱い。合否は XML で見た）。
+  - 起動の前の process の一覧に、B の 3 回目の run の Unity の entry が残っていたが、`Get-Process` では既に無く（前の発見 C と同じ handle の残り）、lock も無かった。
+- 判定必須のうち未実行: 最終の全 EditMode 回帰（空 filter。前の判定 C で失敗した `ScenePrefabStampEditorTests.StampWithoutRecord_IsRestoredLineOnly_WithWarning` が通るかも見る）、AC7 の観測、判定 evidence bundle の作成。いずれも判定 C が行う。
+- 未確認事項: 前の判定 C と同じ（stamp の test の失敗の原因、`AssetResidentCache` の key の全経路）。
+- 差し戻し: なし。差し戻しの巡は 1 巡目で収束（B と発見 C の間の上限 4 巡のうち 1 巡を使った）。
+- 発見 C 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。B と同じ系列で、§5 のとおり owner が受け入れた独立性制約あり。
 
 ## 8. Phase C'
 
