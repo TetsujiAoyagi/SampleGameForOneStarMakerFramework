@@ -201,7 +201,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 Assert.DoesNotThrow(() => ContentManifestValidation.ValidateRequiredFields(json));
                 var manifest = JsonUtility.FromJson<ContentTransportManifest>(json);
                 Assert.DoesNotThrow(() => ContentManifestValidation.Validate(manifest, new string('a', 64),
-                    new ContentInstallRequest(new string('a', 64), "purpose-a", "revision-a", "StandaloneWindows64-Player", "6000.6.0f1", 2, 100)));
+                    new ContentInstallRequest(new string('a', 64), "purpose-a", "revision-a", "StandaloneWindows64-Player", "6000.6.9f1", 2, 100)));
             }
         }
 
@@ -240,7 +240,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             contentSet = contentSet,
             revision = revision,
             target = "StandaloneWindows64-Player",
-            unityVersion = "6000.6.0f1",
+            unityVersion = "6000.6.9f1",
             rootSchemaVersion = 2,
             playerConfigSchemaVersion = 1,
             files = new[] { new ContentTransportFile { path = "content.bin", size = 1, sha256 = new string('b', 64) } },

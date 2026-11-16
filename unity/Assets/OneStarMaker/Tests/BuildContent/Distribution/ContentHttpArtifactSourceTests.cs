@@ -16,7 +16,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
     public sealed class ContentHttpArtifactSourceTests
     {
         private const string Target = "StandaloneWindows64-Player";
-        private const string UnityVersion = "6000.6.0f1";
+        private const string UnityVersion = "6000.6.9f1";
 
         [Test]
         public async Task ResponseBodyStalls_CallerCancellationStopsInstall()

@@ -116,7 +116,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         }
 
         private static ContentInstallRequest Request(string set = "set")
-            => new(new string('a', 64), set, "revision", "StandaloneWindows64-Player", "6000.6.0f1", 2, 100);
+            => new(new string('a', 64), set, "revision", "StandaloneWindows64-Player", "6000.6.9f1", 2, 100);
 
         private static ContentTransportManifest Valid() => new()
         {
@@ -125,7 +125,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             contentSet = "set",
             revision = "revision",
             target = "StandaloneWindows64-Player",
-            unityVersion = "6000.6.0f1",
+            unityVersion = "6000.6.9f1",
             rootSchemaVersion = 2,
             playerConfigSchemaVersion = 1,
             files = new[] { new ContentTransportFile { path = "content.bin", size = 1, sha256 = new string('b', 64) } },

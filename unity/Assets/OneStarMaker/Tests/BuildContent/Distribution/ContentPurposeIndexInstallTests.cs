@@ -93,7 +93,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 { "transport.json", manifestBytes },
                 { "content/payload.bin", Payload },
             });
-            var request = new ContentInstallRequest(digest, "set", "rev", "StandaloneWindows64-Player", "6000.6.0f1", 2, 1024 * 1024);
+            var request = new ContentInstallRequest(digest, "set", "rev", "StandaloneWindows64-Player", "6000.6.9f1", 2, 1024 * 1024);
             var result = await new ContentInstaller(new ContentCacheStore(root)).InstallAsync(request, source, CancellationToken.None);
             return (result, digest);
         }

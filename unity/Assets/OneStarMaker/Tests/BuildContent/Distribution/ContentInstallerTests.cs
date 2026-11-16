@@ -14,7 +14,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
     {
         [Test]
         public async Task Install_HashMismatch_DoesNotPublishRevision()
-        { var root = Path.Combine(Path.GetTempPath(), "osm-dist", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root); try { var bytes = Encoding.UTF8.GetBytes("actual"); var manifest = new ContentTransportManifest { version = 1, product = "OneStarMaker", contentSet = "set", revision = "rev", target = "StandaloneWindows64-Player", unityVersion = "6000.6.0f1", rootSchemaVersion = 2, playerConfigSchemaVersion = 1, files = new[] { new ContentTransportFile { path = "payload.bin", size = bytes.Length, sha256 = new string('0', 64) } } }; var manifestBytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(manifest)); var digest = ContentDeliveryFiles.Sha256(manifestBytes); using var source = new MemorySource(new Dictionary<string, byte[]> { { "transport.json", manifestBytes }, { "content/payload.bin", bytes } }); var request = new ContentInstallRequest(digest, "set", "rev", "StandaloneWindows64-Player", "6000.6.0f1", 2, 1024); Exception? failure = null; try { await new ContentInstaller(new ContentCacheStore(root)).InstallAsync(request, source, CancellationToken.None); } catch (Exception exception) { failure = exception; } Assert.That(failure, Is.TypeOf<ContentDeliveryException>()); var ex = (ContentDeliveryException)failure!; Assert.That(ex.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch)); Assert.That(Directory.Exists(Path.Combine(root, "installed", "set", "rev")), Is.False); } finally { Directory.Delete(root, true); } }
+        { var root = Path.Combine(Path.GetTempPath(), "osm-dist", Guid.NewGuid().ToString("N")); Directory.CreateDirectory(root); try { var bytes = Encoding.UTF8.GetBytes("actual"); var manifest = new ContentTransportManifest { version = 1, product = "OneStarMaker", contentSet = "set", revision = "rev", target = "StandaloneWindows64-Player", unityVersion = "6000.6.9f1", rootSchemaVersion = 2, playerConfigSchemaVersion = 1, files = new[] { new ContentTransportFile { path = "payload.bin", size = bytes.Length, sha256 = new string('0', 64) } } }; var manifestBytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(manifest)); var digest = ContentDeliveryFiles.Sha256(manifestBytes); using var source = new MemorySource(new Dictionary<string, byte[]> { { "transport.json", manifestBytes }, { "content/payload.bin", bytes } }); var request = new ContentInstallRequest(digest, "set", "rev", "StandaloneWindows64-Player", "6000.6.9f1", 2, 1024); Exception? failure = null; try { await new ContentInstaller(new ContentCacheStore(root)).InstallAsync(request, source, CancellationToken.None); } catch (Exception exception) { failure = exception; } Assert.That(failure, Is.TypeOf<ContentDeliveryException>()); var ex = (ContentDeliveryException)failure!; Assert.That(ex.Code, Is.EqualTo(ContentDeliveryFailureCode.IntegrityMismatch)); Assert.That(Directory.Exists(Path.Combine(root, "installed", "set", "rev")), Is.False); } finally { Directory.Delete(root, true); } }
         [Test]
         public async Task Install_ExistingRevisionDifferentDigest_LeavesFinalUnchanged()
         {
@@ -63,7 +63,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                     { "content/payload.bin", Encoding.UTF8.GetBytes("evil") },
                 });
                 var request = new ContentInstallRequest(first.ManifestSha256, "set", "rev",
-                    "StandaloneWindows64-Player", "6000.6.0f1", 2, 1024 * 1024);
+                    "StandaloneWindows64-Player", "6000.6.9f1", 2, 1024 * 1024);
                 var second = await new ContentInstaller(new ContentCacheStore(root))
                     .InstallAsync(request, mutated, CancellationToken.None);
 
@@ -87,7 +87,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 { "content/payload.bin", payload },
             });
             var request = new ContentInstallRequest(digest, "set", revision,
-                "StandaloneWindows64-Player", "6000.6.0f1", 2, 1024 * 1024);
+                "StandaloneWindows64-Player", "6000.6.9f1", 2, 1024 * 1024);
             return await new ContentInstaller(new ContentCacheStore(root))
                 .InstallAsync(request, source, CancellationToken.None);
         }
@@ -104,7 +104,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 { "content/payload.bin", payload },
             });
             var request = new ContentInstallRequest(digest, "set", revision,
-                "StandaloneWindows64-Player", "6000.6.0f1", 2, 1024 * 1024);
+                "StandaloneWindows64-Player", "6000.6.9f1", 2, 1024 * 1024);
             try
             {
                 await new ContentInstaller(new ContentCacheStore(root))
@@ -127,7 +127,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 contentSet = "set",
                 revision = revision,
                 target = "StandaloneWindows64-Player",
-                unityVersion = "6000.6.0f1",
+                unityVersion = "6000.6.9f1",
                 rootSchemaVersion = 2,
                 playerConfigSchemaVersion = 1,
                 files = new[]

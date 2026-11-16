@@ -48,7 +48,7 @@ Unity のゲーム開発で問題になりそうなことを、事前に Policy 
 
 ## 試す
 
-Unity **6000.6.0f1** で `unity/` を開きます（正確な版は `unity/ProjectSettings/ProjectVersion.txt`）。
+Unity **6000.6.9f1** で `unity/` を開きます（正確な版は `unity/ProjectSettings/ProjectVersion.txt`）。
 
 1. **まず飛ぶ。** `Assets/SampleGame/OutGame/Title/Title.unity` を開いておきます（Editor は開いている Scene を初期登録に使うので、空の Scene から始めると Title は載りません）。Addressables の Play Mode Script は `Use Asset Database` にします（`Window > Asset Management > Addressables > Groups` の `Play Mode Script`）。`Tools/OSM/Play As/spring-full` を選ぶと source から Play に入ります。Title の「スタート」で InGame に入り、Spring の `(0,4)` セルの `(125, 28, 1125)` に spawn して、周囲のセルが距離で load されます。飛行 rig で移動すると、離れたセルが unload され、近づいたセルが load されます。Play Mode Script や Variant profile が条件と違うときは、Play As が理由を出して入る前に止まります（`A Variant profile is active` なら `Project Settings > OneStarMaker > Variant`（表示名 `Variant Checkout`）で `Active Profile` を `(None)` にする）。
 2. **必要な分だけ build する。** `Tools/OSM/Content/Build spring-full` で Spring の Full 表現だけを Content Directory として build します。`spring-whitebox` にすると、Whitebox 変種を持つ床の Scene だけが Whitebox になり、置き物の Scene は Full のまま入ります。
@@ -60,7 +60,7 @@ Unity **6000.6.0f1** で `unity/` を開きます（正確な版は `unity/Proje
 テストは Unity を batchmode で起動して回します。対象 project を開いている Editor は先に閉じます。既定では `D:\UnityEditor\<版>\Editor\Unity.exe` を探すので、Unity Hub の標準の場所に入れている場合は `-UnityExe` で指定します。
 
 ```powershell
-pwsh tools/run-tests.ps1 -UnityExe "C:\Program Files\Unity\Hub\Editor\6000.6.0f1\Editor\Unity.exe"
+pwsh tools/run-tests.ps1 -UnityExe "C:\Program Files\Unity\Hub\Editor\6000.6.9f1\Editor\Unity.exe"
 ```
 
 ## まだできないこと
@@ -139,7 +139,7 @@ GitHub の既定も `develop` だが、作業環境の既定値に依存せず `
 
 | 項目 | バージョン |
 |---|---|
-| Unity | **6.6 (6000.6.0f1)** |
+| Unity | **6.6 (6000.6.9f1)** |
 | .NET SDK | 8.0+（DebugStudio 用） |
 
 ## 使用ライブラリ
