@@ -8,7 +8,7 @@
 - status: `B`（Phase B 完了。次は発見 C）
 - branch: `claude/content-purpose-build-index`（PR の base は `develop`）
 - implementation base commit: `2c775ff0`（`origin/develop` の head、2026-11-16。§1 の現況はこの base。起動指示が挙げた `d945927` の後に PR #194 がワークフロー文書だけを変えて進んでいたので、新しい方を採った）
-- implementation head commit: この票を含む commit
+- implementation head commit: `400ff2cc9b6b1898f51acfc2ab68341a2b7ba152`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-16、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 2 件と外部計画レビュー 3 件（2 巡の cursor[bot] と owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降の指摘は文言の補いだけで新しい blocker・major が無いことを確かめたうえで、owner が会話で「対応するものはして凍結」と指示した
 - risk: `normal`（program の行の値。public な manifest の DTO と新しい public 型を足すが、owner が `normal` のままと決めた。§2.8 U3）
 - owner: root（依頼者）
@@ -29,6 +29,8 @@
   - 必要な権限: Unity（判定必須テストの実行。AC6・AC7 は Content Directory の build を伴うので、他の Unity を止めて走らせる。§5）。
   - 停止規則: §2.6 と §4 の差し戻し条件。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
   - 引き渡さないもの: なし。
+  - owner の指示（2026-11-16、Phase C の進行）: 発見 C・判定 C・差し戻しの B の修正は、B と同じ系列のモデルが新しい session で担う。owner は独立性制約ありを受け入れ済みで、独立性のためにモデルを上げない。各担当は §7 に独立性制約ありと記録する。C' は §5 の予約どおり cursor-agent の Grok 系。
+  - owner の指示（同上）: C' の完了まで push せず、PR 本文（状態ブロック）も更新しない。PR 状態ブロックの `引き継ぐ commit` は Phase B の出口の値のまま古くなるので、開始時の照合には使わず、起動指示の SHA と §0 の implementation head 欄で照合する。各 Phase の出口で PR 状態ブロックを更新する手順は、この期間は行わない。
 
 ## 1. 目的と対象外
 
