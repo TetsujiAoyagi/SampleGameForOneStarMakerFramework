@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: `slice`
-- status: `C′`（revision 2、head cbb0b6ad の判定 C 完了。C′ の 2 巡目は未実施）
+- status: `D`（revision 2、head cbb0b6ad の判定 C は GO、C′ の 2 巡目は阻害する欠陥なし。Phase D を実施中）
 - branch: `codex/workflow-phase-a`
 - implementation base commit: abfb29afd4bf01114b85613acb4c8f992aabf52d
 - implementation head commit: cbb0b6ad28093161252ac2e6c469a05958ff4e6f
@@ -15,7 +15,7 @@
 - Phase A snapshot の取得案内・状態: revision 2をローカル固定済み（未昇格）。本chatの独立案内からCがfetch・閲覧し、凍結commitの内容と一致を確認済み。
 - Phase B result snapshot / evidence / C′ blind bundle: head cbb0b6ad の判定 evidence と C′ 2 巡目の blind bundle は同じ 1 package で、ローカル固定済み（未昇格）。別 process の fetch で hash 照合と全 file の一致を確認済み。取得案内は手元の層の既存の置き場（この task の取得案内と同じ場所と、主 checkout の同じ場所）にあり、C の所見を含まない。head 0ad27752 の package と旧 head の raw・所見・最終記録は保持するが、この head の合格証拠にしない。Cloud/別hostの取得成立は主張しない。
 - A3凍結記録: 2026-11-15、本chatでownerが「私もそう思う」に続けて「いい妥協点」案を確認し、「とりあえず君を信用してこのセッションを立ててる」「変更やってくれ」と実装を指示。直前の妥協案をrevision 2として採用する。32試行ゲートと評価基盤の新設は廃止し、下記の限定変更・照合・最大6試行のsmokeへ置き換える。追加の凍結承認は求めない。
-- 引継ぎ票: 次は C′ の 2 巡目（1 巡目の指摘の解消と、修正差分とその影響経路を中心に監査）。B・C と別モデルの新規 session が、取得案内から取得した blind bundle だけを読む。bundle には C′ 自身の 1 巡目の所見を入れ、決定記録は無い（指摘は採用して修正した）。この HANDOFF、PR、C の所見は渡さない。権限は bundle の読取りと所見 file の書込みだけで、実 Unity・実 Storage 操作・資格情報は不要。C′ の所見は §8 に記録する。owner は 2026-11-16 の本 chat で、C と C′ が問題なく終わったら Phase D の完了、PR の merge、後片付けまで続けるよう指示した。阻害する指摘が出た場合は merge せず差し戻しへ戻る。
+- 引継ぎ票: 次は Phase D。owner は 2026-11-16 の本 chat で、C と C′ が問題なく終わったら Phase D の完了、PR の merge、後片付けまで続けるよう指示した。C の session がそのまま Phase D を行う。この commit の後に、最終の所見と削除前の HANDOFF を既存 Storage に固定して取得を確認し、HANDOFF を削除して merge する。task の終了と後片付けの結果は PR 本文に残す。
 
 ## 1. 目的と対象外
 
@@ -164,9 +164,31 @@
 - 担当・モデル: cursor-agent の非対話 session、指定 `grok-4.7-high`（xAI）。
 - C の受け止め: C は判定 C でこの文を Harness README の行への到達として扱ったが、必読経路ではないという指摘は AC4 の文言どおりである。裁定で退けず、B の修正へ戻す。C′ の差し戻し 1 巡目。
 
+### C′ 2（head cbb0b6ad）
+
+- 担当方式: AI。
+- 種別と巡: 最終 C′、2 巡目。1 巡目の指摘の解消と、修正差分とその影響経路を中心に監査。
+- 受け取った決定記録の版: なし（1 巡目の指摘は採用して修正した）。入力に C′ 自身の 1 巡目の所見を入れた。
+- 使用した blind audit bundle: §0 の取得案内の 1 package（ローカル固定済み、取得確認済み）。別 process で fetch した写しを workspace にした。
+- 確認範囲・方法: bundle 内の file だけを読み、network と shell は使っていない。完全 diff（15 file）と修正差分の全文、凍結した Phase A、所見を除いた B の実装結果、head と base の規則文書、offline・CI・smoke・公開時系列の生記録。テストの再実行なし。
+- 判定: 阻害する欠陥なし。
+- 現在の問いを阻害する findings: なし。C′-F1 は解消。判定 C の必読である `phase-c.md` の判定 C の項から Harness README の H1 の節へリンクがあり、その節に広い suite の文がある。README の本文は見出し以外変わっていない。1 巡目が挙げた証拠の不備 2 件も直っている。
+- 後続スライスへ移送する findings: 1 巡目の 3 件のまま（責務マップの file 名と `pr-base.yml` のずれ、base 変更で Offline checks が再実行されないこと、Storage の smoke の新旧差を規則の移動に帰属できないこと）。
+- 残存リスク: smoke は場面あたり新旧各 1 回でモデルが揃っていない。広い suite を選ぶ場面は凍結した 3 場面に無く、経路は本文で確認した。親 repo の指示の非混入に起動時の完全な trace が無い。base が develop 以外の PR と統合先への push の実 run が無い。run の記録からは pull_request の action（synchronize か edited か）を区別できず、`edited` で Offline checks が走らないことは workflow の定義と run の本数（PR base 2、Offline checks 1）から読んでいる。新しい anchor は docs-audit の検査対象外。
+- 監査できなかった範囲: Git 外の条項対応表、PR のコメント本文、C のモデル（blind 入力に無い）。
+- 独立性: B（gpt-6.1-terra、Claude Opus 5.5）、C（Claude Fable 5.2）と別モデル・別ベンダーの新規 session。PR の会話、可変 HANDOFF、C の所見・結論を読んでいない。1 巡目と同じモデルの別 session である。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: cursor-agent の非対話 session、指定 `grok-4.7-high`（xAI）。
+
 ## 9. Phase D
 
-- merge、harvest、HANDOFF削除、task全体終了、worktree削除は未実施。taskはactive、現在のworktreeと原記録を保持する。
+- C / C′ の突合: head cbb0b6ad について、判定 C は GO、C′ の 2 巡目は阻害する欠陥なしで、矛盾は無い。C′ の 1 巡目が見つけた C′-F1 は、C が head 0ad27752 の判定で到達として扱っていた文だった。差し戻して修正し、両方がやり直した。C′ が後続へ送った 3 件は、C も阻害しないと判断している。
+- マージ判断: owner が 2026-11-16 の本 chat で、C と C′ の完了後に Phase D の完了、PR の merge、後片付けまで進めるよう指示した。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 凍結した Phase A の snapshot は確認済み。head cbb0b6ad の判定 evidence と blind bundle はローカル固定済みで、別 process の fetch で全 file の一致を確認済み。日次清掃 job の `evidence schedule status` は `passed`。C′ の 2 巡分の所見と session の記録、発見 C の生記録、削除前のこの HANDOFF は、この commit の後に 1 package として固定し、取得を確認してから HANDOFF を削除する。
+- 取得案内の引渡し確認: 取得案内は主 checkout の手元の層（この task の既存の置き場）に置く。worktree 側の写しは worktree と一緒に消える。
+- harvest: 移した文の必読経路の照合で分かったことと、採用後の観察の約束を `workflow-rationale.md` に足した。規則そのものはこの PR の変更で既に正本にある。後続候補（§10 の 5 群と、C′ が後続へ送った 3 件）は PR 本文に残す。
+- 削除確認: この commit の次の commit で HANDOFF を削除する。
+- 通常の task 終了・後始末: merge の後に `workflow-task.ps1 end -Reason completed` を owner の指示の Decision で記録し、merge 済みブランチと worktree を片付ける。結果は PR 本文に残す。
 
 ## 10. 公開レビュー修正（2026-11-16）
 
