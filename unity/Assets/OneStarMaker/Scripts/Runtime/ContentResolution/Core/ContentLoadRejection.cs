@@ -13,5 +13,14 @@ namespace OneStarMaker.Runtime.ContentResolution
 
         /// <summary>loader が実装していないロード経路の候補だった。</summary>
         LoadPathUnsupported = 1,
+
+        /// <summary>
+        /// 候補を返した供給元が、候補と実際に読む directory の一致を答えられない（照合の口を持たない）。
+        /// 確かめられない候補は読まない（読んだ物と記録が食い違っても気づけないため）。
+        /// </summary>
+        SourceBindingUnavailable = 2,
+
+        /// <summary>供給元が、候補は今の AssetManagement が読む directory の物ではないと答えた。</summary>
+        SourceBindingMismatch = 3,
     }
 }
