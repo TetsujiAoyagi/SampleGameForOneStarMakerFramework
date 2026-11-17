@@ -657,4 +657,9 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 9. Phase D
 
-未着手
+- §7 と §8 の突き合わせ: 判定 C は 3 回目で GO（implementation head `d244aeb1`）。C' は 3 巡目で blocker なし（CP1・CP2 とも解消）。食い違いは無い。後続へ送る指摘は F1（Build 系の test の `Directory.Move` の間欠的な Access denied）。
+- GO 候補 head の整理: しない（公開済みの履歴を書き換えない）。2026-11-17 に owner の指示で origin へ push した。
+- push 後の外部レビュー: cursor の PR レビュー（`@cursoragent code-review`、head `c4cdba43`）は所見なし。owner が手動で依頼した外部レビューは blocker なし（owner が会話で報告）。
+- Evidence の保存・引渡し: 判定 C 3 回目用の bundle と C' 3 巡目用の blind bundle を `evidence promote` で昇格した（どちらも status `passed`、remote `ready`）。取得案内（git 管理外）の locality を `promoted` にした。`evidence schedule status` は `passed`。
+- harvest: §0 の harvest to の文書へ反映し、本書を削除する。
+- マージ判断: owner。
