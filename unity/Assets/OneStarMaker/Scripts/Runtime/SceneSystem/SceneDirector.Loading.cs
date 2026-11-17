@@ -10,6 +10,7 @@ using OneStarMaker.Foundation.Telemetry;
 using OneStarMaker.Runtime;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.ContentResolution;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -648,6 +649,11 @@ namespace OneStarMaker.Runtime.SceneSystem
 
                 // sceneIdentity は呼び出し側（メソッド引数）を正とし、variant には混ぜない。
                 var options = new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority);
+                if (_contentLoader != null)
+                {
+                    return await LoadThroughContentLoaderAsync(sceneIdentify, options);
+                }
+
                 var sceneHandle = _useContentDirectory
                     ? await _assetManagement.LoadContentSceneAsync(sceneIdentify, _sceneVariant, options, CancellationToken.None)
                     : await _assetManagement.LoadSceneAsync(sceneIdentify, sceneAssetDescription, _sceneVariant, options, CancellationToken.None);
@@ -655,6 +661,36 @@ namespace OneStarMaker.Runtime.SceneSystem
             }
 
             return (false, unityScene.GetRootGameObjects());
+        }
+
+        /// <summary>
+        /// 要求時解決の loader で Scene を読み、記録をその Scene の組に入れる。loader が拒んだ時（照合の偽、候補なし）は
+        /// 例外をそのまま出し、content 入口を直接呼んで読み直さない（別の経路へ逃げない）。後始末は既存の load の失敗と同じ。
+        /// </summary>
+        private async UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)> LoadThroughContentLoaderAsync(
+            string sceneIdentify, SceneLoadOptions options)
+        {
+            // 記録はこの load を始めた組に入れる。await の間に組が外されても（取消・失敗の後始末）、外された組に入るだけで
+            // 今の組には付かない。
+            _currentScenes.TryGetValue(sceneIdentify, out var pair);
+
+            // 起動時の表現は全 Scene に同じ値で、その表現を持たない Scene がある。directory が代わりに返す表現（Full）を
+            // fallback に明示する。起動時の表現が空（指定なし）か fallback と同じ時は付けない（要求の constructor が拒む組になる）。
+            var fallback = _sceneVariant.Length != 0
+                           && _contentFallbackRepresentation.Length != 0
+                           && !string.Equals(_sceneVariant, _contentFallbackRepresentation, StringComparison.Ordinal)
+                ? _contentFallbackRepresentation
+                : null;
+            var request = new ContentRequest(sceneIdentify, ContentKind.Scene, _sceneVariant, fallbackRepresentation: fallback);
+
+            // 取消は今までと同じく Unity の Scene の load に渡さない（遷移の commit の後は取り消さない設計）。
+            var outcome = await _contentLoader!.LoadSceneAsync(request, options, CancellationToken.None);
+            if (pair != null)
+            {
+                pair.ContentRecord = outcome.Record;
+            }
+
+            return (true, outcome.Handle.GetRootGameObjects());
         }
 
         /// <summary>

@@ -14,7 +14,8 @@ namespace OneStarMaker.Runtime.ContentResolution
     /// </summary>
     /// <remarks>
     /// 判定の順序（各 probe）:
-    /// 1. 要求の不変: 候補の provider id / 由来が probe した provider と一致し、logical key・kind・表現が要求と一致し、
+    /// 1. 要求の不変: 候補の provider id / 由来が probe した provider と一致し、logical key・kind・表現（要求の表現か、
+    ///    要求が明示した fallback の表現）が要求と一致し、
     ///    pin があれば identity が pin と全欄一致すること。
     /// 2. 受け入れ根拠: 由来ごとの固定表（ContentDirectory → VerifiedDigest、EditorSnapshot → OpenSceneSnapshot、
     ///    Addressables → 定めない＝採用しない）に合うこと。identity 付きの Rejected の後は VerifiedDigest だけ。
@@ -172,11 +173,17 @@ namespace OneStarMaker.Runtime.ContentResolution
             }
 
             // 空の表現の候補は、要求が表現を指定していなくても採らない（content 入口が既存 index の fallback で表現を変えるため）。
+            // 要求した表現と違う候補を採るのは、要求が fallback の表現を明示し、候補がそれと一致する時だけ。
+            // 表現を採るかの判定はここだけに置き、供給元は実効の表現を申告するだけにする（判定を 2 か所に分けない）。
             if (candidate.Representation.Length == 0
                 || (request.Representation.Length != 0
-                    && !string.Equals(candidate.Representation, request.Representation, StringComparison.Ordinal)))
+                    && !string.Equals(candidate.Representation, request.Representation, StringComparison.Ordinal)
+                    && (request.FallbackRepresentation.Length == 0
+                        || !string.Equals(candidate.Representation, request.FallbackRepresentation, StringComparison.Ordinal))))
             {
-                reason = $"Candidate representation '{candidate.Representation}' does not match the requested '{request.Representation}'.";
+                reason = request.FallbackRepresentation.Length == 0
+                    ? $"Candidate representation '{candidate.Representation}' does not match the requested '{request.Representation}'."
+                    : $"Candidate representation '{candidate.Representation}' matches neither the requested '{request.Representation}' nor the fallback '{request.FallbackRepresentation}'.";
                 return ProbeOutcome.RepresentationMismatch;
             }
 

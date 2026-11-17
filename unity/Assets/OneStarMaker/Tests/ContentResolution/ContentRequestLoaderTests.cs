@@ -1,15 +1,19 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
+using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.AssetManagement.Internal;
+using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.ContentResolution;
 using OneStarMaker.Tests.AssetManagement;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Tests.ContentResolution
 {
@@ -18,6 +22,7 @@ namespace OneStarMaker.Tests.ContentResolution
     /// AssetManagement は実物を使い、Addressables 側は <see cref="FakeAssetBackend"/>、Content Directory 側は
     /// この file 内の fake port で置き換える（既存テストの private fake は共有できず、動かさないため複製する）。
     /// 探す段（resolver）とロードを分けて観測するため、fake port のロード回数を数える。
+    /// 供給元は照合（<see cref="IContentSourceBinding"/>）を答える fake で、loader は照合が真の時だけ content 入口を呼ぶ。
     /// </summary>
     [TestFixture]
     public sealed class ContentRequestLoaderTests
@@ -58,7 +63,8 @@ namespace OneStarMaker.Tests.ContentResolution
             Assert.That(outcome.Record.Candidate.SourceKind, Is.EqualTo(ContentSourceKind.ContentDirectory));
             Assert.That(outcome.Record.Candidate.ProviderId, Is.EqualTo(ProviderId));
             Assert.That(outcome.Record.OwnerLabel, Is.EqualTo("Scene(Entry)"));
-            Assert.That(outcome.Record.SourceBindingVerified, Is.False);
+            Assert.That(outcome.Record.SourceBindingVerified, Is.True, "照合が真の時だけ読み、記録は確かめた事実を持つ");
+            Assert.That(provider.BindingCalls, Is.EqualTo(1));
             Assert.That(_port.SceneLoads, Is.EqualTo(1));
             Assert.That(_port.LastSceneRepresentation, Is.EqualTo("Full"), "候補の表現をそのまま content 入口へ渡す");
             Assert.That(_backend.LoadSceneCallCount, Is.Zero, "Addressables 側を通らない");
@@ -185,6 +191,118 @@ namespace OneStarMaker.Tests.ContentResolution
             Assert.That(_port.SceneLoads, Is.EqualTo(1));
         }
 
+        // AC1: 照合が偽なら読まない
+        [Test]
+        public void BindingMismatch_IsRejectedBeforeLoad_ForSceneAndObject()
+        {
+            var sceneProvider = Provider.Answering(Available(Candidate("Entry", ContentKind.Scene)));
+            sceneProvider.Binding = (_, _) => false;
+            var sceneFailure = Assert.ThrowsAsync<ContentResolutionException>(async () =>
+                await Loader(sceneProvider).LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")));
+            Assert.That(sceneFailure!.Rejection, Is.EqualTo(ContentLoadRejection.SourceBindingMismatch));
+            Assert.That(sceneFailure.Result.IsResolved, Is.True, "resolver の成功を書き換えない");
+
+            var objectProvider = Provider.Answering(Available(Candidate("Widget", ContentKind.Object)));
+            objectProvider.Binding = (_, _) => false;
+            var objectFailure = Assert.ThrowsAsync<ContentResolutionException>(async () =>
+                await Loader(objectProvider).LoadAssetAsync<GameObject>(new ContentRequest("Widget", ContentKind.Object, "Full"), AssetOwner.Manual));
+            Assert.That(objectFailure!.Rejection, Is.EqualTo(ContentLoadRejection.SourceBindingMismatch));
+
+            Assert.That(_port.SceneLoads + _port.AssetLoads, Is.Zero, "port の load は 0 回");
+        }
+
+        // AC1: 照合を答えない供給元の候補は読まない
+        [Test]
+        public void ProviderWithoutBinding_IsRejectedBeforeLoad()
+        {
+            var provider = new UnboundProvider(Available(Candidate("Entry", ContentKind.Scene)));
+            var loader = new ContentRequestLoader(_assets, new ResolutionPolicy(new IContentProvider[] { provider }, new AcceptAllRule()));
+
+            var failure = Assert.ThrowsAsync<ContentResolutionException>(async () =>
+                await loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")));
+
+            Assert.That(failure!.Rejection, Is.EqualTo(ContentLoadRejection.SourceBindingUnavailable));
+            Assert.That(_port.SceneLoads, Is.Zero);
+        }
+
+        // AC1: 照合は loader に渡した IAssetManagement と候補で尋ねる
+        [Test]
+        public void Binding_IsAskedWithTheAdoptedCandidateAndTheLoaderAssetManagement()
+        {
+            var candidate = Candidate("Entry", ContentKind.Scene);
+            var provider = Provider.Answering(Available(candidate));
+            ContentCandidate? askedCandidate = null;
+            IAssetManagement? askedAssets = null;
+            provider.Binding = (c, a) => { askedCandidate = c; askedAssets = a; return true; };
+
+            Loader(provider).LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+
+            Assert.That(askedCandidate, Is.SameAs(candidate));
+            Assert.That(askedAssets, Is.SameAs(_assets));
+        }
+
+        // AC1: 探索の途中で directory が入れ替わると、前の候補の記録で成功しない
+        [Test]
+        public void DirectorySwappedDuringFind_DoesNotSucceedWithThePreviousCandidate()
+        {
+            var original = _port;
+            var replacement = new DirectoryPort();
+            var provider = Provider.Answering(Available(Candidate("Entry", ContentKind.Scene)));
+            // 供給元は自分が答えた directory（original）が今も登録中かで照合する（実物の供給元と同じ答え方）。
+            provider.Binding = (_, assets) => assets is Runtime.AssetManagement.AssetManagement concrete && concrete.IsInstalledContentDirectory(original);
+            provider.OnFind = () =>
+            {
+                _assets.CloseContentDirectoryAsync().GetAwaiter().GetResult();
+                _assets.InstallContentDirectory(replacement);
+            };
+
+            var failure = Assert.ThrowsAsync<ContentResolutionException>(async () =>
+                await Loader(provider).LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")));
+
+            Assert.That(failure!.Rejection, Is.EqualTo(ContentLoadRejection.SourceBindingMismatch));
+            Assert.That(original.SceneLoads + replacement.SceneLoads, Is.Zero);
+        }
+
+        // I-1 の経路 (6): directory の Scene を unload した後に同じ identity の Addressables の Scene が載ると、
+        // 表現の記録は残っている。封じていない実物の AssetManagement でも、その Scene を directory の記録で返さない。
+        [Test]
+        public void AddressablesSceneWithSameIdentity_AfterDirectorySceneUnload_IsNotReturnedWithADirectoryRecord()
+        {
+            var loader = Loader(Provider.Answering(Available(Candidate("Entry", ContentKind.Scene))));
+            loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+            _assets.UnloadSceneAsync("Entry").GetAwaiter().GetResult();
+            _assets.ReleaseScene("Entry");
+            _assets.LoadSceneAsync("Entry", AddressablesScene("Entry")).GetAwaiter().GetResult();
+            Assert.That(_backend.LoadSceneCallCount, Is.EqualTo(1), "前提: Addressables の Scene が同じ identity で台帳にある");
+
+            var failure = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                await loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")));
+            Assert.That(failure!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
+
+            // resolver を使わない content 入口も同じ（表現の記録が無い時と同じ拒否）。
+            var direct = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                await _assets.LoadContentSceneAsync("Entry", "Full"));
+            Assert.That(direct!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
+            Assert.That(_port.SceneLoads, Is.EqualTo(1), "directory から読み直さない");
+        }
+
+        // 対照: directory が読んだ Scene が載ったままなら、同じ表現の要求は台帳の Scene を返す（既存の挙動）。
+        [Test]
+        public void DirectorySceneStillLoaded_IsReusedForTheSameRepresentation()
+        {
+            var loader = Loader(Provider.Answering(Available(Candidate("Entry", ContentKind.Scene))));
+            loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+
+            var outcome = loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+
+            Assert.That(outcome.Handle.IsLoaded, Is.True);
+            Assert.That(outcome.Record.SourceBindingVerified, Is.True);
+            Assert.That(_port.SceneLoads, Is.EqualTo(1), "再利用で port を呼ばない");
+        }
+
+        private static SceneAssetDescription AddressablesScene(string identity)
+            => new(identity, LoadType.OnDemand, new List<AssetPayload> { new(string.Empty, new AssetReference("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) });
+
         private ContentRequestLoader Loader(Provider provider)
             => new(_assets, new ResolutionPolicy(new IContentProvider[] { provider }, new AcceptAllRule()));
 
@@ -199,7 +317,8 @@ namespace OneStarMaker.Tests.ContentResolution
         private static ContentAvailability Available(ContentCandidate candidate)
             => new(ContentAvailabilityStatus.Available, candidate);
 
-        private sealed class Provider : IContentProvider
+        /// <summary>候補を返し、照合を答える fake の供給元。既定の照合は真。</summary>
+        private sealed class Provider : IContentProvider, IContentSourceBinding
         {
             private readonly ContentAvailability _answer;
 
@@ -218,11 +337,39 @@ namespace OneStarMaker.Tests.ContentResolution
 
             internal int Calls { get; private set; }
 
+            internal int BindingCalls { get; private set; }
+
+            internal Func<ContentCandidate, IAssetManagement, bool> Binding { get; set; } = (_, _) => true;
+
+            internal Action? OnFind { get; set; }
+
             public ValueTask<ContentAvailability> FindAsync(ContentRequest request, CancellationToken cancellationToken)
             {
                 Calls++;
+                OnFind?.Invoke();
                 return new ValueTask<ContentAvailability>(_answer);
             }
+
+            public bool IsLoadedBy(ContentCandidate candidate, IAssetManagement assetManagement)
+            {
+                BindingCalls++;
+                return Binding(candidate, assetManagement);
+            }
+        }
+
+        /// <summary>照合を答えない供給元（<see cref="IContentSourceBinding"/> を実装しない）。</summary>
+        private sealed class UnboundProvider : IContentProvider
+        {
+            private readonly ContentAvailability _answer;
+
+            internal UnboundProvider(ContentAvailability answer) => _answer = answer;
+
+            public string Id => ProviderId;
+
+            public ContentSourceKind SourceKind => ContentSourceKind.ContentDirectory;
+
+            public ValueTask<ContentAvailability> FindAsync(ContentRequest request, CancellationToken cancellationToken)
+                => new(_answer);
         }
 
         private sealed class AcceptAllRule : IContentCompatibilityRule

@@ -10,10 +10,12 @@ namespace OneStarMaker.Runtime.ContentResolution
     /// 1 要求の実績: 要求、採用した候補（由来）、probe の実績、所有の表記、到達度。
     /// </summary>
     /// <remarks>
-    /// この記録は選択結果の記録であり、実際にロードした元の証拠ではない。AssetManagement は読んだ directory の
-    /// identity を公開しないので、採用した候補と実ロード元の同一性は現在の loader では検証できず、
-    /// <see cref="SourceBindingVerified"/> は常に false になる。この接続と検証は、provider route と install と Unity load を
-    /// つなぐ後続の統合作業が所有する。
+    /// この記録は選択結果の記録で、型そのものは実ロード元の証拠を持たない。採用した候補と実際に読む directory の同一性は、
+    /// 記録を作る側が確かめ、確かめたかどうかを <see cref="SourceBindingVerified"/> に書く。
+    /// 現在の loader は、候補を返した供給元が「候補は今読む directory の物」と答えた時だけ読み、その時だけ記録を返すので、
+    /// loader が成功として返す記録の <see cref="SourceBindingVerified"/> は常に true になる。欄を残すのは、後続の経路が
+    /// 確かめられない記録を作りうるためである。
+    /// 記録が言うのは「その handle の中身はこの directory の物」で、新しく読んだか既に載っていた物を再利用したかは言わない。
     /// <see cref="OwnerLabel"/> が表すのは AssetManagement の台帳上の owner だけで、Scene の lifecycle や
     /// 物理 Scene の unload 責任は SceneSystem 側の記録が担う。
     /// 由来の無い成功を作らせないため、候補の SourceKind・ProviderId・AcceptanceBasis のどれかが欠けていれば作れない。
@@ -94,7 +96,10 @@ namespace OneStarMaker.Runtime.ContentResolution
 
         public ContentTraceability Traceability { get; }
 
-        /// <summary>採用した候補と実ロード元の同一性を検証したか。現在の loader は常に false。</summary>
+        /// <summary>
+        /// 採用した候補と実際に読んだ directory の同一性を、読む前に確かめたか。現在の loader が成功として返す記録は常に true
+        /// （確かめられない候補は読まずに拒むため）。
+        /// </summary>
         public bool SourceBindingVerified { get; }
     }
 }

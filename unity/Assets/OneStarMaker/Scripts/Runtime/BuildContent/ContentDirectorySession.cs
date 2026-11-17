@@ -33,14 +33,31 @@ namespace OneStarMaker.Runtime.BuildContent
         private Action? _evictCache;
 
         private ContentDirectorySession(string path, string identity, string target, IDisposable reservation,
-            ContentDirectoryIndex index, IContentNativeDirectory backend, BuildContentDeclaration? declaration)
-        { _path=path; BuildIdentity=identity; Target=target; _reservation=reservation; _registered=true; _index=index; _backend=backend; Declaration=declaration; }
+            ContentDirectoryIndex index, IContentNativeDirectory backend, BuildContentDeclaration? declaration,
+            VerifiedInstalledRevision? verifiedRevision)
+        { _path=path; BuildIdentity=identity; Target=target; _reservation=reservation; _registered=true; _index=index; _backend=backend; Declaration=declaration; VerifiedRevision=verifiedRevision; }
 
         public string BuildIdentity { get; }
         public string Target { get; }
 
         /// <summary>登録した root が持つ宣言。宣言の無い root（旧 build、合成 fixture）では null。起動が設定との不一致を見るために読む。</summary>
         internal BuildContentDeclaration? Declaration { get; }
+
+        /// <summary>
+        /// 検証済みの installed revision から登録した時の検証の値（4 欄の identity と manifest の互換の事実。登録の予約の中で検証し直した値）。
+        /// 検証済みでない登録（Editor の path 指定、Player に同梱した directory）では null。要求時解決の供給元が使う。
+        /// </summary>
+        internal VerifiedInstalledRevision? VerifiedRevision { get; }
+
+        /// <summary>新しい load を受け付けているか。close・Play 停止・同期終了の後は false で、戻らない。</summary>
+        internal bool IsAccepting => _accepting && !_closed;
+
+        /// <summary>索引で entry を引く（native の load はしない）。規則は content 入口と同じ（要求の表現が無ければ Full、空の表現は Full）。</summary>
+        internal bool TryFindEntry(string logicalKey, BuildContentKind kind, string representation, out BuildContentEntry? entry)
+            => kind == BuildContentKind.Scene
+                ? _index.TryResolveScene(logicalKey, representation, out entry, out _)
+                : _index.TryResolveObject(logicalKey, representation, out entry, out _);
+
         public string CachePrefix => ContentDirectoryIndex.CachePrefix(_path, BuildIdentity, Target);
 
         public AssetKey GetObjectKey(string logicalKey, string representation)
@@ -110,7 +127,7 @@ namespace OneStarMaker.Runtime.BuildContent
             var registered = false;
             try
             {
-                if(verified!=null) InstalledRevisionVerifier.VerifyInsideLease(verified.RevisionRoot,verified.ManifestSha256,verified.ContentSet,verified.Identity,verified.Target);
+                if(verified!=null) verified=InstalledRevisionVerifier.VerifyInsideLease(verified.RevisionRoot,verified.ManifestSha256,verified.ContentSet,verified.Identity,verified.Target);
                 registered = backend.Register(normalized);
                 if (!registered) throw new ContentDirectoryException(ContentDirectoryFailureCode.RegistrationFailed, "Content directory registration returned an invalid handle.", identity, target);
                 var roots = backend.GetRoots();
@@ -118,7 +135,7 @@ namespace OneStarMaker.Runtime.BuildContent
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidRoot, "Content directory must contain exactly one BuildContentRoot.", identity, target);
                 if (!ContentDirectoryIndex.TryCreate(roots[0], identity, target, out var index, out var issue))
                     throw new ContentDirectoryException(issue.Code, issue.Message, identity, target, issue.LogicalKey, issue.Representation);
-                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend, roots[0].Declaration);
+                return new ContentDirectorySession(normalized, identity, target, reservation, index!, backend, roots[0].Declaration, verified);
             }
             catch (Exception ex)
             {

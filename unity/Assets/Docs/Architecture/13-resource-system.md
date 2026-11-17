@@ -108,21 +108,21 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 開発時の Editor の Play で、取得した目的 build（base）に手元で build した上書きを重ねる時に、登録する側が守る文である。
 上書きの作り方は [18 章](18-asset-description.md)「上書きの build と逆引き（現況）」、実測は
 [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の 2 つの上書きの節。
-`AssetManagement` は今も Content Directory を 1 つしか登録できず（2 件目を拒む）、下の文を強制する実装は S3 が持つ。
+`AssetManagement` は今も Content Directory を 1 つしか登録できず（2 件目を拒む）、下の文を強制する実装は S3-2 が持つ。
 「禁止」は未測定のため契約で塞ぐ意味で、後続が測れば解ける。
 
 - **順序:** base を先に、上書きを後に登録する。逆の順では base の版が出た（実測）。
 - **個数:** base 1 つと上書き 0 か 1 つ。編集が増えたら、和集合の編集で上書きを作り直す（2 つ以上は未測定のため禁止）。
 - **時点:** 両方の登録を、最初の Scene と asset の load より前に終える（load の後の登録は未測定のため禁止）。
 - **同じ id の物:** 上書きの登録中は、上書きにある id の物の base の版を選べない。どちらの root から引いても上書きの版を得る（実測。製品の既定の制約として受け入れた）。
-- **logical key の解決:** 両方の root の entry から引き、同じ key が両方にあれば上書きの entry を採る（設計上の規則。上書きにだけある root、移動・rename で id が変わった Scene のため。後者の実測は S3）。
-- **重ねてよい組み合わせ:** 上書きは、作った時に記録した base の identity（contentSet・revision・target・transport manifest の digest）と宣言の名前が一致する base にだけ重ねる。合わなければ登録せず、作り直しを求める（記録と build 時の照合は実装済み、登録時の照合は S3）。
+- **logical key の解決:** 両方の root の entry から引き、同じ key が両方にあれば上書きの entry を採る（設計上の規則。上書きにだけある root、移動・rename で id が変わった Scene のため。後者の実測は S3-2）。
+- **重ねてよい組み合わせ:** 上書きは、作った時に記録した base の identity（contentSet・revision・target・transport manifest の digest）と宣言の名前が一致する base にだけ重ねる。合わなければ登録せず、作り直しを求める（記録と build 時の照合は実装済み、登録時の照合は S3-2）。
 - **解除:** Play の終わりまで両方を保持し、どちらから載せた物も全て離してから、上書き → base の順に解除する。途中の解除と base を先に解除する順は禁止（後から登録した側の解除が、先に登録した側から載せた物を Error なしに壊した実測がある）。
 - **範囲:** 上書きは Editor の Play だけで使い、Player は 1 つの目的 build だけを載せる（Player は未測定）。
 - **実体の重複:** 上書きの root と base の root の両方が直接参照する共有 asset は実体が 2 つになり、状態を持つ asset（参照の同一性で共有する ScriptableObject 等）は別の実体に分かれる。上書きの build は、`Assets/` の下の該当 asset の一覧を preflight に出す（実測で一覧と実体の数が合った）。
 - **上書きの中身:** 上書きの root は build の時の手元の版で作られる。渡していない手元の編集も、上書きの root が直接参照していれば入るので、同じ Play に同じ asset の 2 つの版が出うる（実測）。
 - **Scene に置いた prefab の編集:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の差分 build が古い Scene の出力を再利用して上書きに編集が入らない不成立は、build の間だけ Scene の `.meta` に焼き込む prefab の版の印を書く形で解消した（S2-2b、PR #193。契約は [18 章](18-asset-description.md) §4「Scene に焼き込む prefab の版の印」、実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「製品の build 経路での印」）。印を書く Scene か前回の印の戻しの対象の Scene が Editor で開いていると、build は止まる。この不成立は Unity 6000.6.0f1 で測った。6000.6.9f1 では OSM を含まない最小の再現で起きなかった（2026-11-17。確かめたのは入れ子でない prefab 1 つ、Editor の build、`CleanBuildCache()` なしの 2 回の build だけで、入れ子の prefab と Player の build は未確認。[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)）。製品に入れた印の方式を残すかどうか、その計画は見直しが要り、採否は未定。
-- **測った設定:** Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き。prefab の証拠は variant・override・unpack の無い instance に限る（Domain Reload 有効は S3、別の PC の base は S4）。
+- **測った設定:** Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き。prefab の証拠は variant・override・unpack の無い instance に限る（Domain Reload 有効は S3-2、別の PC の base は S4）。
 
 ### DIST transport と disk cache の境界
 
@@ -268,22 +268,62 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 
 | 型 | 役割 |
 |---|---|
-| `ContentRequest` | logical key、kind（Scene / Object）、表現、expected identity。resolver も provider も書き換えない |
+| `ContentRequest` | logical key、kind（Scene / Object）、表現、任意の fallback の表現、expected identity。resolver も provider も書き換えない |
 | `IContentProvider` | 供給元。候補の有無を `Available` / `NotFound` / `Unavailable` / `Rejected` で答えるだけで、bytes の取得や install はしない |
 | `IContentCompatibilityRule` | 候補を採ってよいかの規則。製品の実装は `ContentCompatibilityRule`（下記）で、host が policy に渡す |
 | `ResolutionPolicy` | provider の順序と規則 |
 | `ContentResolver` | 上の 3 つを順に当て、probe ごとの結果を残す。Unity に依存しない（`Core/`） |
-| `ContentRequestLoader` | 採用した候補を既存の `LoadContentSceneAsync` / `LoadContentAssetAsync<T>` に渡し、handle と `ContentLoadRecord` を返す |
+| `ContentRequestLoader` | 採用した候補の供給元に実ロード元との一致を尋ね、一致した時だけ既存の `LoadContentSceneAsync` / `LoadContentAssetAsync<T>` に渡し、handle と `ContentLoadRecord` を返す |
 
 - **順序・可用性・互換は別の判定である。** 供給元の順序、候補があること、候補を採ってよいことを混ぜない。採用した時点で以後の供給元を probe しない。不在・不達・規則の不採用は記録して次へ進む。
 - **fail-closed:** 採用、identity の無い `Rejected`、pin の食い違い、`Fault`、取消の 5 つだけが探索を止める。候補は受け入れ根拠（`ContentAcceptanceBasis`）を申告し、供給元の種別ごとの固定表に合わなければ規則が採用しても採用しない。`Rejected` が 4 欄そろった identity を伴うときは、その identity と全欄一致する検証済みの候補だけで修復できる。この pin は 1 要求の中だけで持続する。
 - **`IAssetManagement` に member を足さない理由:** 探索と由来は任意の機能なので、使わない利用者の必須依存にしない。loader は AssetManagement の public だけを使い、同じ assembly の internal を呼ばない。別 asmdef に分けていないので、コンパイルでは防げない。この点を確かめる検査は常設していない。
-- **所有と解放は既存の契約のまま。** `Release`、`UnloadSceneAsync` → `ReleaseScene`、`ReleaseAll` を使い、解放 API を足さない。
-- **まだ保証しないこと:** record は採用した候補の記録であり、実際にロードした directory との同一性は検証していない（`SourceBindingVerified` は常に false）。`IAssetManagement` が directory の identity を返さないためで、Runtime の供給元の接続で閉じる。record の表現は provider が申告した値で、`ContentDirectoryIndex` の `Full` fallback の実効値は写さない。Scene の provider adapter・SceneDirector 経由の経路・要求をまたぐ pin は未実装である。実在の provider はまだ無く、fake でだけ検証している。
+- **所有と解放は既存の契約のまま。** `Release`、`UnloadSceneAsync` → `ReleaseScene`、`ReleaseAll` を使い、解放 API を足さない。loader の失敗の後に、Addressables・source・別の directory へ読み直さない。
+
+#### 登録した directory の供給元（`Directory/`）
+
+実在の供給元は、検証済みの installed revision から登録した 1 つの Content Directory を答える `RegisteredDirectoryProvider`（internal）だけである。
+`RegisteredDirectoryRoute.TryCreate` が、登録した session と実物の `AssetManagement` から、供給元・互換の基準・policy・loader を組み立てる。起動の配線と test は同じ関数を使う。
+
+- **対象は検証済みの登録だけ。** session が `VerifiedInstalledRevision`（contentSet・revision・target・manifest の SHA-256 と、検証で読んだ manifest の Unity の版・root schema の版）を持つ時だけ組み立てる。持たない登録（`directoryPath` の明示、Player に同梱した directory など、installed cache の外の path）には「作らない」と理由を返す。検証済みの登録で組み立てが失敗した時（その session を登録していない `AssetManagement`、受付を止めた session）は例外を投げる。結果はこの 3 通りだけである。
+- **候補の値の出所。** identity は登録の検証済みの 4 欄、受け入れ根拠は `VerifiedDigest`、経路は `ContentDirectory`。互換の事実（`osm.compat.engineVersion` / `osm.compat.rootSchemaVersion`）は検証で読んだ manifest の値から作る。基準は contentSet と target が登録の検証済みの値、engine と root schema が `ContentManifestValidation` の定数（この runtime が受け付ける値）で、revision は固定しない。事実と基準を同じ定数から作ると判定が常に通るので、出所を分けている。
+- **寿命。** 供給元は session と同じ寿命で、session の token を取らず native の load もしない。供給元が生きていても close は完了する。close と Play 停止の後は `Unavailable` を返す。
+- **置き場。** `Directory/` は BuildContent の session・索引・定数と、`AssetManagement` の internal の問い合わせ 1 つ（`IsInstalledContentDirectory`）を使う連携部分である。参照の向きは `Directory/` → BuildContent・AssetManagement・`Core/` の一方向で、AssetManagement と BuildSystem 本体は `ContentResolution` を参照しない。`Core/` は Unity と BuildContent を参照せず、loader は BuildContent を知らない。
+
+#### record と実ロード元の一致
+
+loader が成功として返す record の候補の identity は、その handle の中身を読んだ directory の identity と 4 欄とも一致する。一致を確かめられない時は native の load を始めない。
+
+- **照合は供給元が答える。** `AssetManagement` は登録中の directory の identity を公開しないので、loader は採用した候補を返した供給元に internal の `IContentSourceBinding.IsLoadedBy(candidate, assetManagement)` を尋ねる。`RegisteredDirectoryProvider` は、渡された `IAssetManagement` が実物の `AssetManagement` で、今登録している directory が自分の session で、session が受付中で、候補の provider id・由来・経路・identity の 4 欄が自分の値と一致する時だけ真を返す。wrapper・fake・別実装の `IAssetManagement` は今読む directory を確かめられないので偽になる。照合は session ごとに答えるので、directory の数を公開面に固定しない。
+- **確かめずに読む道は無い。** 照合を答えない供給元の候補は `ContentLoadRejection.SourceBindingUnavailable`、偽なら `SourceBindingMismatch` で、どちらも content 入口を呼ばずに `ContentResolutionException` で拒む。`IContentSourceBinding` は internal なので、host が自作した供給元の候補は loader では読めない。成功した record の `SourceBindingVerified` は常に true で、欄は後続の経路が確かめられない record を作りうるために残している。
+- **照合と content 入口の呼び出しの間に `await` を置かない。** 照合は各 load method の中で、解決の `await` の後に同期で行い、その直後に content 入口を呼ぶ。content 入口は最初の `await` より前にその時点の directory を掴み、load gate の後に登録中の directory を読み直さない。このため、解決の後の directory の入れ替えは照合で落ちるか、掴んだ directory の受付停止で失敗する。この掴む位置を動かさない。
+- **record は新しく読んだか再利用かを言わない。** 言うのは「その handle の中身はこの directory の物」である。`LoadContentSceneAsync` は、台帳の同じ identity の Scene が directory の token の Scene で、同じ表現で読んだ物の時だけ再利用する。Addressables で載った同じ identity の Scene は、表現の記録が残っていても `EntryAmbiguous` で拒む。close は token の Scene を全て unload するので、台帳に並ぶ token の Scene は今の session が読んだ物だけである。
+
+#### 表現の fallback
+
+- **要求した表現を黙って変えない。** loader に渡した要求が表現を指定した時、別の表現の中身を返すのは、要求が `ContentRequest` の `fallbackRepresentation`（constructor の末尾の任意引数）で fallback を明示した時だけである。表現を指定しない要求の fallback、要求の表現と同じ値、空・空白だけの値は constructor が拒む。
+- **採否の判定は resolver だけにある。** 供給元は directory の索引が返した entry の実効の表現をそのまま申告する（索引は要求の表現の entry が無ければ `Full` の entry を返し、空の表現の entry は `Full` と読む）。resolver は、候補の表現が要求の表現か明示した fallback と一致する時だけ採り、それ以外は `RepresentationMismatch` にする。directory が代わりに返すのは `Full` だけなので、`Full` 以外を fallback に書いても候補は出ない。
+- **record の表現は実際に読んだ表現である。** loader は候補の表現（実効の値）で content 入口を呼ぶ。resolver を使わずに content 入口を直接呼ぶ利用は、今も索引で黙って `Full` に読み替わる。直接の経路と loader の経路が同じ Scene を別の表現の名前で要求すると、Scene の台帳が `EntryAmbiguous` で拒む。
+
+#### SceneDirector の経路
+
+- loader を渡した `SceneDirector`（internal の constructor。public の constructor は変えない）は、content directory の分岐で Scene を loader で読み、record をその Scene の組に持たせる。`GetContentLoadRecord(sceneIdentity)` が今持つ Scene の record を返す。loader を通らずに用意した Scene（Addressables、既に `SceneManager` にあって再利用した Scene、payload の無い論理 node）、持っていない id、unload の後は null で、例外にしない。失敗・取消の後始末で組が外れると record も消える。
+- 起動時の表現は全 Scene に同じ値なので、それが空でも `Full` でもない時だけ fallback に `Full` を明示して要求する。表現を持たない Scene は `Full` で載り、record の表現は `Full` になる。
+- loader が拒んだ時は既存の load の失敗と同じ後始末をし、content 入口を直接呼んで読み直さない。取消は今までどおり Unity の Scene の load に渡さない。
+- 起動での配線の条件は [04 章 §4.6](04-app-startup.md#46-play-from-any-sceneeditor-対応)。
+
+#### まだ保証しないこと
+
+- 供給元は登録した directory 1 つだけである。base と上書きの 2 つの登録、Editor snapshot の候補、Local / LAN の供給元、要求の時点の install は無い。
+- 起動時の読み込み（UICommon の Scene、SceneResourceMap）と、`SceneBase` が読む付属 asset は resolver を通らず、record は無い。Player では配線しない。
+- 採用の後に content 入口が失敗した時、probe と候補は呼び手に残らない。`Rejected` の expected identity は record に残らない。要求をまたぐ pin と revision の固定は無い。
+- `SceneDirector` の取消は Unity の Scene の load に届かない。
+- resident cache から取り出す asset が別の directory の物にならないことは cache の key（directory の path・identity・target を含む）に依るが、cache の全経路は確かめていない。
+- 実 Editor での確認は Reload Domain 無効の Play だけで、Reload Domain 有効と Player の実機は確かめていない。
 
 #### 候補の互換判定（`ContentCompatibilityRule`）
 
-`IContentCompatibilityRule` の製品実装である。host の宣言（宣言名・Scene 名等）を知らず、Play 前に固定した互換の基準 `ContentCompatibilityEnvelope` と、要求の expected identity だけで判定する。汎用の既定値は持たず、基準の値の出所は host か後続の adapter が決める。
+`IContentCompatibilityRule` の製品実装である。host の宣言（宣言名・Scene 名等）を知らず、Play 前に固定した互換の基準 `ContentCompatibilityEnvelope` と、要求の expected identity だけで判定する。汎用の既定値は持たず、基準の値の出所は policy を組む側が決める（登録した directory の基準は上の「登録した directory の供給元」）。
 
 | 基準の欄 | 扱い |
 |---|---|
@@ -306,7 +346,7 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 - **`Evaluate` は互換性だけの部分判定である。** 要求の logical key・kind・表現と候補の一致、probe した供給元と候補の一致は resolver が規則の前に見る。resolver を通さずに結果だけで候補を確定する呼び手は、それらの一致を別に保証する。
 - **基準を固定しない要求の読み方:** expected identity も基準の revision も無ければ、互換な候補はどの revision・digest でも採る。上位の供給元が不採用で、下位の別 revision が採られることは整合性の失敗ではない（別 revision を避けたい host は基準の revision か expected identity で固定する）。同名で digest が違う候補を見分けるのは expected identity がある時だけである。要求が表現を指定しない時は、別表現の候補も採りうる。
 - **snapshot を優先する policy は、要求に directory の expected identity を載せない。** 載せると identity の空な snapshot は pin と一致せず、pin に合う directory が成功する。
-- **まだ保証しないこと:** 規則は供給元の申告を照合するだけで、申告が bytes と一致することは証明しない。host の述語を登録しない policy は、宣言だけが違う候補を採る。実在の manifest から事実を作る adapter は無く、fake の供給元と事実でだけ検証している。複数 package の合成の可否、要求をまたぐ revision の一貫も判定しない。
+- **まだ保証しないこと:** 規則は供給元の申告を照合するだけで、申告が bytes と一致することは証明しない。host の述語を登録しない policy は、宣言だけが違う候補を採る。実在の manifest から事実を作る供給元は、登録した directory の 1 つだけである。複数 package の合成の可否、要求をまたぐ revision の一貫も判定しない。
 
 ### IResourceHandle / IResourceCache（不採用: 独立レイヤー案）
 

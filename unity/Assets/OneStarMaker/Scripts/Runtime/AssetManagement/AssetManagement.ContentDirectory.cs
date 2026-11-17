@@ -24,6 +24,14 @@ namespace OneStarMaker.Runtime.AssetManagement
             _contentDirectory.ConfigureCacheEviction(EvictContentDirectoryCache);
         }
 
+        /// <summary>
+        /// <paramref name="directory"/> が今登録している directory そのもの（参照の同一）か。受付中かは見ない（directory 側が答える）。
+        /// 要求時解決の供給元が「自分の候補はこの AssetManagement が今読む directory の物か」を答えるために使う。
+        /// identity を public に出さず、登録を知る側（供給元）が自分の登録を渡して尋ねる形にしている。
+        /// </summary>
+        internal bool IsInstalledContentDirectory(IContentDirectoryBackend directory)
+            => _contentDirectory != null && ReferenceEquals(_contentDirectory, directory);
+
         internal async UniTask CloseContentDirectoryAsync()
         {
             var directory = RequireContentDirectory();
@@ -116,7 +124,10 @@ namespace OneStarMaker.Runtime.AssetManagement
                 if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
                 {
                     // Scene 台帳は identity 単位。異なる表現を同じ Scene と偽って返さない。
-                    if (!_contentSceneRepresentations.TryGetValue(sceneIdentity, out var loadedRepresentation)
+                    // 台帳は Addressables の Scene も同じ identity で持ち、表現の記録は Scene の unload では消えない。
+                    // directory が読んだ Scene（token）でなければ、表現の記録が残っていても directory の Scene と偽って返さない。
+                    if (existing.Backend is not IContentDirectoryToken
+                        || !_contentSceneRepresentations.TryGetValue(sceneIdentity, out var loadedRepresentation)
                         || !string.Equals(loadedRepresentation, representation, StringComparison.Ordinal))
                         throw new ContentDirectoryException(ContentDirectoryFailureCode.EntryAmbiguous,
                             "Scene identity is already loaded with a different representation.", directory.BuildIdentity, directory.Target, sceneIdentity, representation);

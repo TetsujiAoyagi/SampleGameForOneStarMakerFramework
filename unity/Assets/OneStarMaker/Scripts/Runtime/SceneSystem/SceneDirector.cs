@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.ContentResolution;
 using OneStarMaker.Runtime.UISystem;
 using UnityEngine;
 using R3;
@@ -46,6 +47,14 @@ namespace OneStarMaker.Runtime.SceneSystem
             /// </summary>
             public System.Threading.CancellationTokenSource? LoadCts { get; set; }
 
+            /// <summary>
+            /// この組の Scene を要求時解決の loader で読んだ時の記録。loader で読んだ分岐でだけ入れ、それ以外（Addressables、
+            /// SceneManager にあった Scene の再利用、payload の無い論理 node）では null のまま。
+            /// 組と同じ寿命にすることで、失敗・取消・unload の後始末が組を外せば記録も消え、次に同じ名前で再利用された
+            /// Scene に古い記録が付かない。消す code を別に持たない。
+            /// </summary>
+            public ContentLoadRecord? ContentRecord { get; set; }
+
             public ScenePair(SceneBase sceneBase)
             {
                 SceneBase = sceneBase;
@@ -77,6 +86,14 @@ namespace OneStarMaker.Runtime.SceneSystem
         private readonly ILoadingDisplay _loadingDisplay;
         private readonly string _sceneVariant;
         private readonly bool _useContentDirectory;
+
+        /// <summary>
+        /// 要求時解決の loader。起動の配線が検証済みの directory の Play でだけ渡す。null なら content 入口を直接呼ぶ（今までの経路）。
+        /// </summary>
+        private readonly ContentRequestLoader? _contentLoader;
+
+        /// <summary>loader の要求に明示する fallback の表現。起動時の表現が空でもこの値と同じでもない時だけ要求に付ける。</summary>
+        private readonly string _contentFallbackRepresentation;
 
         /// <summary>
         /// Addressables Load / Release 管理。PerformUnitySceneLoad/Unload および Phase 3 Release に使用。
@@ -125,6 +142,8 @@ namespace OneStarMaker.Runtime.SceneSystem
         }
 
         // 公開 constructor の署名を維持し、起動配線だけが mode を固定する。
+        // この 7 引数の署名は変えない: 既存の test（VFX の Play 系）が引数の数で reflection してこの constructor を探し、
+        // アプリの SceneDirector の欄を写した複製を作る。loader は下の constructor で受ける。
         internal SceneDirector(
             ISceneFactory sceneFactory,
             UICommon uiCommon,
@@ -133,7 +152,27 @@ namespace OneStarMaker.Runtime.SceneSystem
             IAssetManagement assetManagement,
             string sceneVariant,
             bool useContentDirectory)
+            : this(sceneFactory, uiCommon, sceneResourceMap, loadingDisplay, assetManagement, sceneVariant, useContentDirectory, null, "")
         {
+        }
+
+        // 起動配線が要求時解決の loader を固定する。
+        // loader は content directory から読む時だけ意味を持つので、loader と useContentDirectory: false の組は拒む
+        // （黙って Addressables の経路で読み、記録の無い Scene を作らないため）。
+        internal SceneDirector(
+            ISceneFactory sceneFactory,
+            UICommon uiCommon,
+            SceneResourceMap sceneResourceMap,
+            ILoadingDisplay loadingDisplay,
+            IAssetManagement assetManagement,
+            string sceneVariant,
+            bool useContentDirectory,
+            ContentRequestLoader? contentLoader,
+            string contentFallbackRepresentation)
+        {
+            if (contentLoader != null && !useContentDirectory)
+                throw new ArgumentException("A content request loader needs the content directory mode.", nameof(contentLoader));
+
             _sceneFactory = sceneFactory ?? throw new ArgumentNullException(nameof(sceneFactory));
             _uiCommon = uiCommon ?? throw new ArgumentNullException(nameof(uiCommon));
             _sceneResourceMap = sceneResourceMap ?? throw new ArgumentNullException(nameof(sceneResourceMap));
@@ -141,6 +180,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             _assetManagement = assetManagement ?? throw new ArgumentNullException(nameof(assetManagement));
             _sceneVariant = sceneVariant ?? throw new ArgumentNullException(nameof(sceneVariant));
             _useContentDirectory = useContentDirectory;
+            _contentLoader = contentLoader;
+            _contentFallbackRepresentation = contentFallbackRepresentation ?? throw new ArgumentNullException(nameof(contentFallbackRepresentation));
         }
 
         // ─── IDisposable ───
@@ -178,6 +219,21 @@ namespace OneStarMaker.Runtime.SceneSystem
             return _currentScenes.TryGetValue(identity, out var pair)
                    && pair.SceneBase.Lifecycle.State == SceneState.Stable
                    && !pair.SceneBase.Lifecycle.IsUnloadStarted;
+        }
+
+        /// <summary>
+        /// 今 SceneDirector が持つその Scene を、要求時解決の loader で読んだ時の記録（どの directory のどの revision・表現から
+        /// 読んだか）。loader を通らずに用意した Scene（Addressables、既に SceneManager にあった Scene、payload の無い論理 node）、
+        /// 持っていない id、null、unload の後は null を返し、例外にしない。
+        /// </summary>
+        public ContentLoadRecord? GetContentLoadRecord(string sceneIdentity)
+        {
+            if (sceneIdentity == null)
+            {
+                return null;
+            }
+
+            return _currentScenes.TryGetValue(sceneIdentity, out var pair) ? pair.ContentRecord : null;
         }
 
         // ─── ISceneVolumeQuery 実装 ───
