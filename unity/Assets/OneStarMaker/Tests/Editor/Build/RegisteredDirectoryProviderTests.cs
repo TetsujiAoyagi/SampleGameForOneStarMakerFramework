@@ -31,7 +31,7 @@ namespace OneStarMaker.Tests.Editor.Build
         private const string Set = "s31set";
         private const string Revision = "s31rev";
         private const string Target = "StandaloneWindows64-Player";
-        private const string ManifestUnityVersion = "6000.6.0f1";
+        private const string ManifestUnityVersion = "6000.6.9f1";
         private const int ManifestRootSchemaVersion = 2;
         private const string ScenePath = "Assets/OneStarMaker/Scenes/UISystem/UIScene.unity";
         private const string ObjectPath = "Assets/TutorialInfo/Icons/URP.png";
