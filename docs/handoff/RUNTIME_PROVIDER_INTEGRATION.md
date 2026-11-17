@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C'`（C' 2 巡目: CP1 は解消、実装の blocker なし。入力の梱包の不備 CP2 が残る。§8「C' 2 巡目」。次は C' 用 blind bundle の作り直しと C' 3 巡目）
+- status: `C'`（C' 2 巡目の CP2 の梱包を直し、C' 3 巡目用の blind bundle を作り直した。次は C' 3 巡目）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `d244aeb12dc52f74d7d1fd6c953754cf46843b89`
@@ -19,16 +19,16 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（B の test の結果と動作確認の観測は §6 に要約した。判定の入力にはしない）
 - evidence bundle の取得案内・状態: 判定 C 3 回目用（head `d244aeb1`）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は git 管理外の `artifacts/handoff-guides/runtime-provider-integration/` に置いた（判定用の file）。判定 C 2 回目用（前の head `699ae83a`）は今の head の判定に使わない
-- C' blind bundle の取得案内・状態: 2 巡目用（head `d244aeb1`）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は同じ directory の、判定用とは別の file（`cprime-round2-blind.md`）。1 巡目用（前の head `699ae83a`）は使わない
+- C' blind bundle の取得案内・状態: 3 巡目用（head `d244aeb1`）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は同じ directory の、判定用とは別の file（`cprime-round3-blind.md`）。2 巡目用と同じ構成で、`phase-b-result-section6.md` だけを §6 から「差し戻しの修正（1 巡目）」の小節を除いた版に替え、同梱 manifest の hash をその file に合わせた（別 process の fetch で `passed`、manifest の 41 件が全て一致）。2 巡目用（`cprime-round2-blind.md`）と 1 巡目用（前の head `699ae83a`）は使わない
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（判定 C の担当が C' 用 blind bundle を作り直す）。その後に C' 3 巡目（CP2 の確認）。
-  - 次の作業: §8「C' 2 巡目」の CP2 を直す。head `d244aeb1` の C' 用 blind bundle を、2 巡目用と同じ構成で作り直し、`phase-b-result-section6.md` には §6 から「差し戻しの修正（1 巡目）」の小節（判定 C の指摘を名指しする）を除いた版を入れて、manifest の hash がその file と一致する形で stage する。別 process の fetch で `passed` を確かめ、取得案内を `artifacts/handoff-guides/runtime-provider-integration/` に別名（3 巡目用）で置き、§0 の C' blind bundle の欄と票を C' 3 巡目へ更新して記録 commit を切る。implementation head と判定 evidence bundle は変えない。Unity の再実行は要らない。
-  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 次の Phase・役割: C'（3 巡目。CP2 の確認。最終 C'。高コスト証拠なし）。
+  - 次の作業: C' 3 巡目用の blind bundle だけを入力に、前巡の CP2（`phase-b-result-section6.md` と manifest の不一致）の解消を確かめる。実装（implementation head）と判定 evidence bundle は 2 巡目から変わっていないので、範囲は CP2 と、作り直した bundle の入力の同一性（`review-evidence.md`「巡ごとの範囲」）。進行役は packet で bundle の file を加工しない（除去や差し替えが要るなら bundle を作り直す）。head の source は 2 巡目と同じく bundle に無いので、進行役が `git archive d244aeb1` で同じ範囲を加える。起動と記録は進行役が行い、§8 に「C' 3 巡目」を追記する。
+  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（この票を含む commit との差は本書だけ）。
-  - 入力の snapshot・bundle: 判定 C 3 回目用の判定 evidence bundle と C' 2 巡目用の blind bundle（上の取得案内）。
-  - 必要な権限: Artifact Storage の stage と fetch（同一 PC、非仮想化の pwsh、sandbox 外）。Unity は不要。
-  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡（B への差し戻しは 1 巡目を使った。CP2 は実装を変えない梱包の修正で、B へは戻さない）。
-  - 引き渡さないもの: 発見 C と判定 C の所見（§7）を C' の入力に入れない。
+  - 入力の snapshot・bundle: C' 3 巡目用の blind bundle（上の取得案内）。決定記録: なし（C' 2 巡目の CP2 には人間の裁定は無く、梱包を作り直した）。
+  - 必要な権限: Artifact Storage の fetch（同一 PC、非仮想化の pwsh、sandbox 外）。Unity は不要。
+  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡（1 巡目と 2 巡目を使った。3 巡目が最後）。
+  - 引き渡さないもの: 発見 C と判定 C の所見（§7）を C' の入力に入れない。blind bundle は §7 を含まない（HANDOFF は A3 凍結版の全文、§1〜§5 の今の版、§6 から「差し戻しの修正（1 巡目）」を除いた版、§8 の C' 1 巡目だけを入れ、diff からも本書を除いた）。
 
 ## 1. 目的と対象外
 
