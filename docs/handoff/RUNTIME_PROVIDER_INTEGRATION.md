@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C'`（判定 C の 2 回目が完了した。次は C' の 1 巡目。§7「判定 C（2 回目）」）
+- status: `B`（C' の 1 巡目で blocker 1 件（CP1）。B へ差し戻し。§8「C' 1 巡目」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `699ae83ada175635bafabebf45baa27e9ffa1f6a`
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 判定 C 2 回目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）にある
 - C' blind bundle の取得案内・状態: 1 巡目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目）。
-  - 次の作業: C' blind bundle だけを入力に、implementation head を監査し、§8 に結果を記録する（記録は進行役が C' の出力から書いてよい）。
-  - 読む範囲: C' は本書を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は `699ae83a`（この票を含む commit との差は本書だけ。ローカルの軽量 tag `evidence/runtime-provider-integration/1` が同じ commit を指す）。
-  - 入力の snapshot・bundle: C' blind bundle（上の取得案内。凍結した Phase A の本書、A3 後の例外承認の 1 行、所見を含まない Phase B の結果、本書を除く完全 diff、head の source、機械検査、全 EditMode の生結果、AC7 の生の観測）。
-  - 必要な権限: blind bundle の fetch（非仮想化の pwsh、sandbox 外）。Unity の再実行は必須にしない。
-  - 停止規則: §2.6。C' の担当は §5 の予約（Codex。動かなければ Grok 系で「独立性制約あり」）。
-  - 引き渡さないもの: 発見 C と判定 C の結論と所見（§7）、判定用 bundle の取得案内を C' に渡さない。
+  - 次の Phase・役割: Phase B（C' からの差し戻し。C' の差し戻しの 1 巡目、上限 3 巡）。
+  - 次の作業: §8「C' 1 巡目」の CP1 を直す。修正を commit し、implementation head 欄を新しい head にして、§6 に修正の事実を足し、票を次の担当（発見 C。差し戻しの修正の確認）へ更新する。
+  - 読む範囲: 既定（Phase B の差し戻しは §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（差し戻し前の head。B が直したら新しい head に書き換える）。
+  - 入力の snapshot・bundle: なし。判定 C 2 回目用と C' 1 巡目用の bundle は、差し戻し前の head `699ae83a` のもの。
+  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。
+  - 停止規則: §2.6（CP1 を `AssetManagement` に public の型か member を足さずには直せない時は NO-GO (i) として owner へ返す）。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。AC9 の範囲（§3 の file と test の folder）の外を変える必要が出たら、変える前に owner の例外承認を得る。
+  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。B の §6 にも所見を転載しない（修正の事実だけを書く）。
 
 ## 1. 目的と対象外
 
@@ -526,7 +526,22 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 
 ## 8. Phase C'
 
-未着手
+### C' 1 巡目
+
+- 担当方式: AI（Codex CLI 0.169.0、`codex exec --sandbox read-only`、新規 session）。起動と記録は進行役が行った（§0 の票のとおり）。
+- 種別と巡: 最終 C'（高コスト証拠なし）、1 巡目（全体を初見で監査）。
+- 受け取った決定記録の版: なし。
+- 使用した blind audit bundle の取得案内・状態: §0 の C' blind bundle（1 巡目用、ローカル固定済み（未昇格））。進行役が別 process で fetch して `passed` を確かめ、所見の混入が無いことを見たうえで、bundle・head の source の展開・規則の写し（`AGENTS.md`、`unity/Assets/README.md`、osm-workflow の `phase-c-prime.md`・`phases-and-handoff.md`・`review-evidence.md`・`architecture-gates.md`）・指示書 1 つ（`phase-c-prime.md` に従って監査し、結果を最終メッセージに全文出す。発見 C・判定 C の結論と疑念候補は書いていない）だけを置いた packet を渡した。
+- 確認範囲・方法: `implementation.patch` 全 2,431 行・28 file、凍結計画の各節、owner の例外承認、B result、規則。AC1〜AC9 を実装・test・生の evidence と照合（Unity の再実行なし）。
+- 判定: blocker あり（1 件）。
+- 現在の問いを阻害する findings:
+  - **CP1（blocker）:** 違反する条件は §2.1 の I-1（loader が成功として返す record は、その handle の実ロード元と一致する）。到達順序（C' の記録）: (1) 未封じの実物の `AssetManagement` に検証済み session を登録し、`RegisteredDirectoryRoute.TryCreate` で loader を作る（AC5 と同じ構成）。(2) directory の `Entry` / `Full` を読む。(3) `UnloadSceneAsync("Entry")` → `ReleaseScene("Entry")`。Scene の台帳は消えるが `_contentSceneRepresentations["Entry"] = "Full"` が残る。(4) 同じ `AssetManagement` の `LoadSceneAsync` で、別内容の Addressables の Scene を ID `Entry` で読む。(5) loader に `Entry` / `Full` を要求すると、供給元の照合は真になり、content 入口は残った表現の情報を根拠に Addressables の handle を再利用し、directory の identity と `SourceBindingVerified=true` の record を返す。一次証拠（`unity/Assets/OneStarMaker/Scripts/Runtime/` 起点）: `AssetManagement/AssetManagement.ContentDirectory.cs:124–135`（再利用時に表現だけを見て `existing.Backend` の由来を見ない。表現の情報は directory の close と Play の停止でだけ消える）、`AssetManagement/AssetManagement.cs:183–206,279–295` と `AssetManagement/Internal/AssetRegistry.cs:114–130`（未封じなら Addressables を読める。通常の Scene の解放は表現の辞書を消さない）、`ContentResolution/Directory/RegisteredDirectoryProvider.cs:98–111`（登録 session・受付状態・候補の identity の一致で真を返し、台帳の差し替わりを検出しない）、`ContentResolution/ContentRequestLoader.cs:63–67,107–117`、`unity/Assets/SampleGame/Tests/Editor/Build/RegisteredDirectoryRouteIntegrationTests.cs:124–132`（AC5 も未封じの実物から route を作る）。通常の bootstrap は `AbstractApplicationInitializer.cs:259` で Addressables を封じるのでこの列は起きないが、route は封じを成立条件にしておらず、I-1 も bootstrap 経由に限定していない。新しい登録用の public API を求める指摘ではない。修正では I-3 の既存入口の互換も保つ必要がある（C' の記録）。C' はこの列を code から導き、Unity では再現していない。
+- 後続スライスへ移送する findings: なし。
+- 残存リスク: CP1 は code から導いた列で未再現。全 EditMode の run は終了 stall の後に強制終了されており、正常終了の証拠ではない（合否は XML）。Player の実機と Reload Domain 有効は保証範囲外。
+- 監査できなかった範囲: Unity の再実行、network、git repository、packet 外の参照は指示により行っていない。実行時の head の同一性は同梱の記録に依拠した。
+- 独立性: B・発見 C・判定 C は Anthropic 系（Claude）、C' は OpenAI 系（`gpt-6-astra`、Codex の起動 log の `model:` 行）で、Phase A〜C に未関与。最低条件（B/C と異なるモデル、新規 session、blind bundle）と強化条件（未関与の系列）を満たす。C' 自身は bundle から Phase C のモデルを確かめられず「独立性の充足は未確認」と書いたが、上の事実で充足する。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし（C' の packet に含めていない。進行役は両方を読んでいるが、C' の指示書には書いていない）。
+- 担当・モデル: AI、Codex CLI 0.169.0（OpenAI、`gpt-6-astra`、reasoning effort high）。
 
 ## 9. Phase D
 
