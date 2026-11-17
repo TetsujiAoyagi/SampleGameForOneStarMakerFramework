@@ -17,7 +17,7 @@ using UnityEngine.SceneManagement;
 namespace OneStarMaker.Tests.Editor.Build
 {
     /// <summary>
-    /// adapter が利用者の source（Scene の file と .meta）を書かず、開いている未保存の Scene と読み取り専用・使用中の .meta、
+    /// adapter が利用者の source（Scene の file と .meta）を書かず、開いている未保存の Scene と、読み取り専用の .meta・`userData` が空でない .meta、
     /// Unity の build の失敗・例外のどれでも build の前後で source が変わらず生成 folder が残らないこと
     /// （HANDOFF CONTENT_PREFAB_STAMP_REMOVAL の AC6 (a)〜(c)）。Unity の Content Directory build は adapter の継ぎ目で差し替える
     /// （成功は workspace に manifest の pointer だけを書く）。実 build の確認は別の実行用 harness が担う。

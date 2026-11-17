@@ -50,6 +50,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.NoStamp
                     ("stampInOutputs", o.StampInOutputs));
             }
             var complete = facts.finished && S.Steps.All(x => observed.ContainsKey(x.Name));
+            ModelProbe(run, observed);
             Ac1(run, observed);
             Ac2(run, facts, observed);
             Ac3(run, observed);
@@ -132,6 +133,22 @@ namespace OneStarMaker.Tests.Editor.Spikes.NoStamp
             }
             if (!step.Overlay && o.Marks.Count != S.Scenes.Length) failures.Add(step.Name + " has " + o.Marks.Count + " scenes");
             return failures;
+        }
+
+        // model の識別値（版だけが持つ group の名前）が Scene の .cf に出るかの観測経路の確認（HANDOFF §5 の未知の経路、§6 の B 適応）。
+        // どの回の SModel にもどちらの版の名前も無ければ、AC1 の SModel の不成立は「古い出力」ではなく観測経路の不成立で、
+        // B 適応で別の model の編集を選ぶ（ATTR (1) の B5' の SModel でも同じ形で崩れる）。判定 C がこの行を先に読めるように独立に書く。
+        private static void ModelProbe(NstRun run, Dictionary<string, Observed> observed)
+        {
+            var perStep = S.Steps.Where(x => observed.ContainsKey(x.Name)).Select(x =>
+            {
+                var marks = observed[x.Name].Marks.GetValueOrDefault(S.SModel);
+                var found = marks == null ? "no-SModel" : string.Join(";", marks.Where(m => m.StartsWith(S.Model + ".", StringComparison.Ordinal))
+                    .OrderBy(m => m, StringComparer.Ordinal));
+                return x.Name + "=" + (found.Length == 0 ? "none" : found);
+            }).ToList();
+            var observable = observed.Values.Any(o => o.Marks.TryGetValue(S.SModel, out var m) && m.Any(x => x.StartsWith(S.Model + ".", StringComparison.Ordinal)));
+            run.Write("model-identifier", ("names", new[] { S.ModelName(S.V1), S.ModelName(S.V2) }), ("observable", observable), ("perStep", perStep));
         }
 
         // AC1: 各回（B3o を含む）の出力に含まれる各 Scene の .cf が、その回の版の識別値を全て持ち、他の版の識別値を持たない。

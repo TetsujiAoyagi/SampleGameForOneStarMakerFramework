@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `C`（Phase B を 2026-11-18 に完了した。次は発見 C）
+- status: `C`（Phase B を 2026-11-18 に完了した。発見 C の入口で進行役のレビューの修正を加えた（§6）。次は発見 C の限定実行）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: この票を含む commit
@@ -273,6 +273,7 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 - 未実行: `pwsh tools/run-tests.ps1`（全 EditMode 回帰と `UnityContentDirectoryAdapterTests`）、harness の第 1・第 2 process、Unity の build を伴う全て（AC1〜AC6・AC8 の実行は Phase C）。
 - implementation head commit: この票を含む commit（実装と票を 1 つの commit で切った）。
 - Phase B 担当・モデル・ベンダー: 本 session（Anthropic、Sonnet 系）。
+- Phase C の進行役による入口のレビュー（2026-11-18、owner の指示。`e16567ea` を対象、B 適応の範囲）: adapter・`UnityContentDirectoryAdapterTests`・harness 4 file・18 章・13 章を読み、ロジックの誤りは無かった（片付けの段、`ContentPath` が identity ごとの final directory であること、ATTR の前後比較、AC8 の範囲を確認）。直したのは 2 点: (1) 判定の process に `model-identifier` の行を足した（model の識別値 `ModelOnlyV1` / `ModelOnlyV2` が各回の `SModel` の `.cf` に出たか、`observable` で一度でも出たか）。AC1・ATTR の判定は変えない。どの回にも出なければ観測経路の不成立で、B 適応で別の model の編集を選ぶ（§5・上の B 適応）。(2) test の header comment の「使用中の .meta」を「`userData` が空でない .meta」に直した。`pwsh tools/contract-audit.ps1` は違反なし。Unity の compile は未確認（判定必須 1 の実行で確かめる）。implementation head はこの修正の commit に移る。
 
 ## 7. Phase C
 
