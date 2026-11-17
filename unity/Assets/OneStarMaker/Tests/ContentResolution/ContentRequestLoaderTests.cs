@@ -1,15 +1,19 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
+using OneStarMaker.Runtime.AssetDescriptions;
 using OneStarMaker.Runtime.AssetManagement;
 using OneStarMaker.Runtime.AssetManagement.Internal;
+using OneStarMaker.Runtime.BuildContent;
 using OneStarMaker.Runtime.ContentResolution;
 using OneStarMaker.Tests.AssetManagement;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
 namespace OneStarMaker.Tests.ContentResolution
 {
@@ -258,6 +262,46 @@ namespace OneStarMaker.Tests.ContentResolution
             Assert.That(failure!.Rejection, Is.EqualTo(ContentLoadRejection.SourceBindingMismatch));
             Assert.That(original.SceneLoads + replacement.SceneLoads, Is.Zero);
         }
+
+        // I-1 の経路 (6): directory の Scene を unload した後に同じ identity の Addressables の Scene が載ると、
+        // 表現の記録は残っている。封じていない実物の AssetManagement でも、その Scene を directory の記録で返さない。
+        [Test]
+        public void AddressablesSceneWithSameIdentity_AfterDirectorySceneUnload_IsNotReturnedWithADirectoryRecord()
+        {
+            var loader = Loader(Provider.Answering(Available(Candidate("Entry", ContentKind.Scene))));
+            loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+            _assets.UnloadSceneAsync("Entry").GetAwaiter().GetResult();
+            _assets.ReleaseScene("Entry");
+            _assets.LoadSceneAsync("Entry", AddressablesScene("Entry")).GetAwaiter().GetResult();
+            Assert.That(_backend.LoadSceneCallCount, Is.EqualTo(1), "前提: Addressables の Scene が同じ identity で台帳にある");
+
+            var failure = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                await loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")));
+            Assert.That(failure!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
+
+            // resolver を使わない content 入口も同じ（表現の記録が無い時と同じ拒否）。
+            var direct = Assert.ThrowsAsync<ContentDirectoryException>(async () =>
+                await _assets.LoadContentSceneAsync("Entry", "Full"));
+            Assert.That(direct!.Code, Is.EqualTo(ContentDirectoryFailureCode.EntryAmbiguous));
+            Assert.That(_port.SceneLoads, Is.EqualTo(1), "directory から読み直さない");
+        }
+
+        // 対照: directory が読んだ Scene が載ったままなら、同じ表現の要求は台帳の Scene を返す（既存の挙動）。
+        [Test]
+        public void DirectorySceneStillLoaded_IsReusedForTheSameRepresentation()
+        {
+            var loader = Loader(Provider.Answering(Available(Candidate("Entry", ContentKind.Scene))));
+            loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+
+            var outcome = loader.LoadSceneAsync(new ContentRequest("Entry", ContentKind.Scene, "Full")).GetAwaiter().GetResult();
+
+            Assert.That(outcome.Handle.IsLoaded, Is.True);
+            Assert.That(outcome.Record.SourceBindingVerified, Is.True);
+            Assert.That(_port.SceneLoads, Is.EqualTo(1), "再利用で port を呼ばない");
+        }
+
+        private static SceneAssetDescription AddressablesScene(string identity)
+            => new(identity, LoadType.OnDemand, new List<AssetPayload> { new(string.Empty, new AssetReference("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) });
 
         private ContentRequestLoader Loader(Provider provider)
             => new(_assets, new ResolutionPolicy(new IContentProvider[] { provider }, new AcceptAllRule()));

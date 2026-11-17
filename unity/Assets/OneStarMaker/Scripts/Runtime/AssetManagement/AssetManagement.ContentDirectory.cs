@@ -124,7 +124,10 @@ namespace OneStarMaker.Runtime.AssetManagement
                 if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
                 {
                     // Scene 台帳は identity 単位。異なる表現を同じ Scene と偽って返さない。
-                    if (!_contentSceneRepresentations.TryGetValue(sceneIdentity, out var loadedRepresentation)
+                    // 台帳は Addressables の Scene も同じ identity で持ち、表現の記録は Scene の unload では消えない。
+                    // directory が読んだ Scene（token）でなければ、表現の記録が残っていても directory の Scene と偽って返さない。
+                    if (existing.Backend is not IContentDirectoryToken
+                        || !_contentSceneRepresentations.TryGetValue(sceneIdentity, out var loadedRepresentation)
                         || !string.Equals(loadedRepresentation, representation, StringComparison.Ordinal))
                         throw new ContentDirectoryException(ContentDirectoryFailureCode.EntryAmbiguous,
                             "Scene identity is already loaded with a different representation.", directory.BuildIdentity, directory.Target, sceneIdentity, representation);
