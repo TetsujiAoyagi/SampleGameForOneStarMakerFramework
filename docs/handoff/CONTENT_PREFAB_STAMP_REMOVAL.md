@@ -137,9 +137,9 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 
 - **U1 目的・利用者の文言の承認:** 2026-11-17 に owner が §1 の 2 欄を承認した。
 - **U2 撤去より前に残った印:** 2026-11-17 に owner が (a) を選んだ。(a) **推奨:** 戻す code を残さず、18 章 §4 に見分け方と戻し方を書く。印が残るのは 2026-11-15〜撤去の間に印ありの版で build が異常終了し、その後に印ありの版で build しなかった `.meta` だけで、この repository の `.meta` には無い（§1 現況）。残っても `userData` の値が cache の鍵に入るだけで、出力の正しさは変わらない（S2-2b の AC6）。(b) 記録と `userData` の形から戻す処理（S2-2b の「残りの戻し」）だけを残す。残した印を戻せるが、`.meta` を書く経路と、開いている Scene で止める検査も残り、S3 と両立しない。
-- **U3 古い cache を持つ `Library`（I1 (e)、A2 R2 F6、X）:** 未決。(a) **推奨（外部計画レビューの限定を採った版）:** 18 章 §4 に「6000.6.3f1 より前の Unity で Content Directory を build したことのある `Library` は、印の無い `.meta` を鍵にした古い Scene の cache を持つことがあり、印を外すとその鍵に戻る。当たると build は成功し Warning も出ずに古い Scene を出す。そうした `Library` では撤去の後に `BuildPipeline.CleanBuildCache()` を 1 回実行する」と書く。「疑う時」とは書かない（この失敗は Warning を出さない）。6000.6.9f1 で印ありの build だけをした `Library` は条件にしない（その鍵は印のある `.meta` の側にある）。build の手順には入れない。(b) 何も書かない（撤去が開き直す無警告の経路が契約の文書から消える）。
-- **U4 対話の Editor での実 build（外部計画レビュー、OpenAI）:** 未決。(a) **推奨:** 追加の確認をせず、18 章 §4 と事実の文書に「開いている未保存の Scene の build は batch で確かめ、対話の Editor では確かめていない」と書く。印の撤去で外れるのは製品の検査（`.meta` を書く前に止める）で、対話の Editor で Unity の build 自体が dirty な Scene に何をするかは、印より前と同じ Unity の振る舞いで、本スライスが変えるものではない。(b) 判定 C の前に、対話の Editor で dirty な Scene を開いて製品の実 build を 1 回実行し、未保存の状態・disk・出力・dialog を観察する smoke を足す（Editor の eval は build 中に捨てられることがあり、観測の経路の確認が要る）。
-- 未決事項: U3、U4。
+- **U3 古い cache を持つ `Library`（I1 (e)、A2 R2 F6、X）:** 2026-11-17 に owner が (a) を選んだ。(a) **推奨（外部計画レビューの限定を採った版）:** 18 章 §4 に「6000.6.3f1 より前の Unity で Content Directory を build したことのある `Library` は、印の無い `.meta` を鍵にした古い Scene の cache を持つことがあり、印を外すとその鍵に戻る。当たると build は成功し Warning も出ずに古い Scene を出す。そうした `Library` では撤去の後に `BuildPipeline.CleanBuildCache()` を 1 回実行する」と書く。「疑う時」とは書かない（この失敗は Warning を出さない）。6000.6.9f1 で印ありの build だけをした `Library` は条件にしない（その鍵は印のある `.meta` の側にある）。build の手順には入れない。(b) 何も書かない（撤去が開き直す無警告の経路が契約の文書から消える）。
+- **U4 対話の Editor での実 build（外部計画レビュー、OpenAI）:** 2026-11-17 に owner が (a) を選んだ。(a) **推奨:** 追加の確認をせず、18 章 §4 と事実の文書に「開いている未保存の Scene の build は batch で確かめ、対話の Editor では確かめていない」と書く。印の撤去で外れるのは製品の検査（`.meta` を書く前に止める）で、対話の Editor で Unity の build 自体が dirty な Scene に何をするかは、印より前と同じ Unity の振る舞いで、本スライスが変えるものではない。(b) 判定 C の前に、対話の Editor で dirty な Scene を開いて製品の実 build を 1 回実行し、未保存の状態・disk・出力・dialog を観察する smoke を足す（Editor の eval は build 中に捨てられることがあり、観測の経路の確認が要る）。
+- 未決事項: なし。
 
 ## 3. 責務マップ
 
@@ -227,12 +227,12 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
   | X1 | B3 が再利用（Scene を書かない）と開いている未保存の Scene の実 build を同じ回で数え、Unity が書き出すと「再利用の喪失」と「欠陥」のどちらにも落ちる | 採用 | B3 は Scene を開かずに数え、未保存の回は B3o に分けた。B3o の書き出しは AC3 に使わない（AC3・AC5b・§5） |
   | X2 | 帰属の確認で外側・variant の `GetAssetDependencyHash` を file の版と同一視すると、正しい結果ほど欠陥になる | 採用 | 帰属の確認を、書いた file の sha256、その asset の dependency hash が直前と違うこと、変えない file の sha256 が同じことに限った（§2.5） |
   | X3 | R1 の「印の残った `Library` から移っても壊れない」は、採用先が保証していない | 採用 | §5.1 の R1 の行を一部採用に直した。目的の欄は変えない |
-  | X U3 | U3 は (a) を、6000.6.3f1 より前の `Library` に限り、「疑う時」と書かずに | 採用（推奨案を直した。裁定は owner） | §2.8 U3 |
+  | X U3 | U3 は (a) を、6000.6.3f1 より前の `Library` に限り、「疑う時」と書かずに | 採用（推奨案を直した。2026-11-17 に owner が (a) を選んだ） | §2.8 U3 |
   | X4 | B4 の sha256 だけが違う時は「識別値の外の差」 | 採用 | AC3 |
   | X5 | AC2 に逆引きの root が `SOuter` だけであること。AC8 の文書を Phase B の文書と HANDOFF・program に分ける。事実の文書は merge 前のこの PR の Phase D で | 採用 | AC2・AC8・§2.7 |
   | X6 | model の識別値（子の名前）を凍結前に Editor で見ておく | 不採用（凍結前には行わない） | Unity の build を伴わない確認で、不成立時の B 適応（識別値の選び直し）を §5 に定めてある。Phase B の最初の確認に置いたまま凍結しても、判定の意味は変わらない |
   | O1 | OpenAI が Phase A に関与したので、C' の予約（OpenAI）と食い違う | 採用 | §5 の予約を外し、C' は `独立性制約あり` で行うと書いた |
-  | O2 | 対話の Editor での実 build は batch の AC5b から推論できない | 採用（扱いは owner） | §2.8 U4 で、明記だけにするか smoke を足すかを問う。AC5b に「対話の Editor は確かめたことにしない」と書いた |
+  | O2 | 対話の Editor での実 build は batch の AC5b から推論できない | 採用（2026-11-17 に owner が (a) を選んだ） | §2.8 U4。smoke は足さず、18 章と事実の文書に対話の Editor は未確認と書く。AC5b に「対話の Editor は確かめたことにしない」と書いた |
   | H1 | B3 の「Scene を 1 つも書かない」は、6000.6.9f1 で trace の event 名が変わり何も数えられない時にも合格する | 採用 | B2・B4b の書き出しを「ちょうど」の数にし、対照を兼ねさせた。event が見つからない時は harness の欠陥とする（AC3） |
   | H2 | 発見 C の限定実行で owner に返す時、その実行の証拠の扱いが無い（前例では限定実行の結果を判定に使わない） | 採用 | §2.5 に、返す前に evidence に固定し、owner が判定 C を求めてもよいと書いた |
   | H3 | `.obj` を書いた後に import させないと、製品の snapshot の前提（import 済み）を外れ、R2 F5 で不採用にした経路を harness が踏む | 採用 | §5 の fixture に、書いた asset を snapshot の前に import させると書いた |
