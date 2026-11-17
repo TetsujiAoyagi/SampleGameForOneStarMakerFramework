@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `B`（C' の 1 巡目で blocker 1 件（CP1）。B へ差し戻し。§8「C' 1 巡目」）
+- status: `C`（C' の 1 巡目の差し戻し CP1 を B が直した。次は発見 C。§6「差し戻しの修正（C' 1 巡目）」）
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `699ae83ada175635bafabebf45baa27e9ffa1f6a`
+- implementation head commit: `d244aeb12dc52f74d7d1fd6c953754cf46843b89`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠）: 承認者 owner（root）、2026-11-17、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件と外部計画レビュー 3 件（2 巡の cursor の PR レビューと、owner のアカウントの計画レビュー）の採否を §5.1 に記録し、2 巡目以降に blocker と設計の変更を求める指摘が無いことを確かめたうえで、owner が会話で「確認したら凍結して」と指示した。§2.8 の U3〜U8 は同日に owner が決めた
 - risk: `high`（program の行の値。public な型と member を足し、record の意味、SceneDirector の Scene の読み方、起動の配線を変える）
 - owner: root（依頼者）
@@ -18,17 +18,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§6、§8 の S3 と各スライスからの移送、§9）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本。§2.1 の分類で、供給元と配線は連携部分に置く）、[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)（同じ起動 code を触る。2026-11-17 時点で A0 だけで、Phase B を同時に走らせない）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（B の test の結果と動作確認の観測は §6 に要約した。判定の入力にはしない）
-- evidence bundle の取得案内・状態: 判定 C 2 回目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）にある
-- C' blind bundle の取得案内・状態: 1 巡目用はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
+- evidence bundle の取得案内・状態: 判定 C 2 回目用（差し戻し前の head `699ae83a` のもの。今の head の判定には使わない）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）にある
+- C' blind bundle の取得案内・状態: 1 巡目用（差し戻し前の head `699ae83a` のもの）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は進行役の共有メモ（git 管理外）に、判定用とは別の file で置いた
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（C' からの差し戻し。C' の差し戻しの 1 巡目、上限 3 巡）。
-  - 次の作業: §8「C' 1 巡目」の CP1 を直す。修正を commit し、implementation head 欄を新しい head にして、§6 に修正の事実を足し、票を次の担当（発見 C。差し戻しの修正の確認）へ更新する。
-  - 読む範囲: 既定（Phase B の差し戻しは §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（差し戻し前の head。B が直したら新しい head に書き換える）。
-  - 入力の snapshot・bundle: なし。判定 C 2 回目用と C' 1 巡目用の bundle は、差し戻し前の head `699ae83a` のもの。
-  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。
-  - 停止規則: §2.6（CP1 を `AssetManagement` に public の型か member を足さずには直せない時は NO-GO (i) として owner へ返す）。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。AC9 の範囲（§3 の file と test の folder）の外を変える必要が出たら、変える前に owner の例外承認を得る。
-  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。B の §6 にも所見を転載しない（修正の事実だけを書く）。
+  - 次の Phase・役割: 発見 C（C' の 1 巡目の差し戻し CP1 の修正の確認。C' の差し戻しの 1 巡目）。
+  - 次の作業: §6「差し戻しの修正（C' 1 巡目）」の修正が CP1 を塞ぎ、§3・§2.7・I-3 と AC8・AC9 を崩していないことを、固定 diff（implementation base → 上の head）と、前の head `699ae83a` → 上の head の差で確かめる。修正の確認の test は §6 の起点 filter（Unity の行の `-Filter`）で行う（足した 2 件は `ContentRequestLoaderTests` にある）。通れば票を判定 C（全 EditMode 回帰、AC7 の観測、判定 evidence bundle）へ更新する。判定 C が GO なら C' の 2 巡目（差し戻しの修正の確認）へ渡す。
+  - 読む範囲: 既定（Phase C は §0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（実装の commit。この票を含む commit との差は本書だけ）。
+  - 入力の snapshot・bundle: なし（機械向けの期待値・照合 script は無い。§5）。判定 C 2 回目用と C' 1 巡目用の bundle は前の head `699ae83a` のもので、今の head の入力にしない（判定 C が作り直す）。
+  - 必要な権限: Unity の test（`pwsh tools/run-tests.ps1`、sandbox 外）。B の session が開いた Editor は B の出口で閉じた。
+  - 停止規則: §2.6。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。
+  - 引き渡さないもの: 発見 C と判定 C の所見を C' の入力に入れない（§7 は C' の blind bundle に含めない）。B の §6 には所見を転載していない（修正の事実だけ）。
 
 ## 1. 目的と対象外
 
@@ -390,6 +390,18 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 行数（`wc -l`）: `SceneDirector.cs` 321 → 336。
 - 実行した検査（B の session が取った結果。判定の入力にはしない）: `pwsh tools/contract-audit.ps1` は errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は errors 0（warning 1 件は program の文書の既存の harvest 案内）。Editor のコンパイル（6000.6.0f1、`tools/unity-editor.cmd`）: `compilationFailed=false`、console の error 0、触った file からの warning なし。`eval` で `SceneDirector` の constructor が public の 6 引数、internal の 7 引数と 9 引数の 3 つで、7 引数の internal は 1 つだけであることを見た。
 - 未実行: Unity の test（起点 filter と J1 の 3 class、最終の全 EditMode 回帰）。Phase C が行う。
+
+### 差し戻しの修正（C' 1 巡目）
+
+- 対象: §8「C' 1 巡目」の CP1。分類は B 適応（§3 の `AssetManagement.ContentDirectory.cs` の中の不具合修正。public の面、internal の口の数、`IContentDirectoryBackend`、directory を掴む位置は変えない）。
+- 変更（実装の commit `d244aeb1`）:
+  - `AssetManagement.ContentDirectory.cs`: `LoadContentSceneAsync` の台帳の再利用の分岐に、台帳の Scene の backend が directory の token（`IContentDirectoryToken`）であることを足した。token でなければ、表現の記録が残っていても、表現の記録が無い時と同じ `EntryAmbiguous` で拒む。表現の記録は通常の Scene の unload では消えないので、封じていない `AssetManagement` で directory の Scene を unload した後に同じ identity の Addressables の Scene が載ると、前はその Scene を directory の Scene として返していた。再利用は「台帳にある directory 由来の Scene は今の session が読んだものだけ」（§2.1 の I-1 の (6)。close が全て unload する）に依る形になる。
+  - resolver を使わない利用（I-3）: directory が読んだ Scene が載ったままの同じ表現の要求は今までどおり台帳の Scene を返し、違う表現と、表現の記録が無い Addressables の Scene は今までどおり拒む。変わるのは、表現の記録が残った Addressables の Scene を返していた分岐だけで、拒否の code は既存のもの。既存の test の fake の directory の Scene（4 つの test の file）は全て token を実装している。
+  - test（`OneStarMaker/Tests/ContentResolution/ContentRequestLoaderTests.cs` に 2 件を追加。既存の test は変えていない）: `AddressablesSceneWithSameIdentity_AfterDirectorySceneUnload_IsNotReturnedWithADirectoryRecord`（loader で `Entry` を読み、`UnloadSceneAsync` → `ReleaseScene` の後、封じていない実物の `AssetManagement` の `LoadSceneAsync` で Addressables の `Entry` を載せ、loader の要求と content 入口の直接の呼び出しがどちらも `EntryAmbiguous` で失敗し、port の load が増えないこと）と、対照の `DirectorySceneStillLoaded_IsReusedForTheSameRepresentation`（directory の Scene が載ったままなら再利用し、port を呼ばない）。
+  - §3 の file と test の folder の外は変えていない（AC9）。
+- 行数（`wc -l`）: `AssetManagement.ContentDirectory.cs` 172 → 175、`ContentRequestLoaderTests.cs` 406 → 450。
+- 実行した検査（B の session が取った結果。判定の入力にはしない）: `pwsh tools/contract-audit.ps1` は errors 0、warnings 0。`pwsh tools/docs-audit.ps1` は errors 0、warning 2（program の文書の既存の harvest 案内と、本書の §7・§8 が両方埋まったことの同じ種類の案内）。AC8 の 4 つの `grep` はいずれも該当なし。Editor のコンパイル（6000.6.0f1、この session が CLI の `open` で起動、`tools/unity-editor.cmd eval`）: `scriptCompilationFailed=false`、console の error 0、触った 2 file からの warning なし、追加した 2 件の test method を reflection で確かめた。Editor は `EditorApplication.Exit(0)` で閉じた（process と `UnityLockfile` が消えた）。
+- 未実行: Unity の test（起点 filter と最終の全 EditMode 回帰）と AC7 の観測。Phase C が行う。
 
 ### 動作確認
 
