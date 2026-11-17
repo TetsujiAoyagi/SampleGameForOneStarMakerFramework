@@ -9,7 +9,7 @@
 
 | 項目 | バージョン / 選定 |
 |---|---|
-| Unity | **6.6 (6000.6.0f1)** |
+| Unity | **6.6 (6000.6.9f1)** |
 | Render Pipeline | **URP 17.6.0** |
 | Scripting Backend | **IL2CPP** (Android) |
 | .NET | **.NET Standard 2.1** |
@@ -192,6 +192,6 @@ MonoBehaviour.Update によらない更新基盤（Layer / Coordinator / Job Sys
 
 ## セットアップ
 
-1. Unity 6.6 (6000.6.0f1) で **`unity/`** フォルダを開く
+1. Unity 6.6 (6000.6.9f1) で **`unity/`** フォルダを開く
 2. NuGetForUnity が自動で NuGet パッケージを復元する
 3. Editor directory Play には **Tools > OSM > Content** での Content Directory build に加え、transport publish と Delivery の verified install / **Use For Next Play** が必要。Editor Play 向け publish 入口は未整備なので、build メニューだけではこの手順は完了しない。BS4 Player は Player build 内で publish する。手順と現状の制約は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)

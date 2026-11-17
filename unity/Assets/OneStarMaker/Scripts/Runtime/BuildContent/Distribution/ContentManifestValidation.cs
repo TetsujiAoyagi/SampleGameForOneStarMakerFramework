@@ -12,7 +12,7 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
     {
         internal const int MaxManifestBytes = 4 * 1024 * 1024;
         internal const int MaxFiles = 100000;
-        internal const string SupportedUnityVersion = "6000.6.0f1";
+        internal const string SupportedUnityVersion = "6000.6.9f1";
         internal const int SupportedRootSchemaVersion = 2;
 
         internal static void RequireObjectFields(string json, params string[] names)

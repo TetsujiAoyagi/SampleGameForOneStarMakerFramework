@@ -20,8 +20,8 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         private const string Target = "StandaloneWindows64-Player";
         private const string PlaceholderHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-        [TestCase("set", "other", Target, "6000.6.0f1", ContentDeliveryFailureCode.IdentityMismatch)]
-        [TestCase("set", "revision", "OtherTarget", "6000.6.0f1", ContentDeliveryFailureCode.TargetMismatch)]
+        [TestCase("set", "other", Target, "6000.6.9f1", ContentDeliveryFailureCode.IdentityMismatch)]
+        [TestCase("set", "revision", "OtherTarget", "6000.6.9f1", ContentDeliveryFailureCode.TargetMismatch)]
         [TestCase("set", "revision", Target, "other", ContentDeliveryFailureCode.CompatibilityMismatch)]
         public void ManifestMismatch_ReturnsStructuredFailure(
             string set, string revision, string target, string unity, ContentDeliveryFailureCode expected)
@@ -195,7 +195,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             try
             {
                 var request = new ContentInstallRequest(digest, "set", "revision", Target,
-                    "6000.6.0f1", 2, 1024 * 1024);
+                    "6000.6.9f1", 2, 1024 * 1024);
 
                 var error = await CaptureException<ContentDeliveryException>(async () =>
                     await new ContentInstaller(new ContentCacheStore(cacheRoot)).InstallAsync(
@@ -401,7 +401,7 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 contentSet = "set",
                 revision = "revision",
                 target = Target,
-                unityVersion = "6000.6.0f1",
+                unityVersion = "6000.6.9f1",
                 rootSchemaVersion = 2,
                 playerConfigSchemaVersion = 1,
                 files = new[]
