@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `A`（A3 統合案、外部計画レビュー 2 巡目を反映。未凍結）
+- status: `B`（Phase A を 2026-11-17 に凍結した。次は Phase B）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `未固定`
-- A3 凍結記録: `未凍結`
+- A3 凍結記録: 2026-11-17、owner（root）が PR #199 の外部計画レビュー 2 巡目の反映（`f4e7d099`）の後に凍結を承認した（PR #199 の会話での指示）。対象は revision 1 の A3 凍結版（この記録を含む commit）。
 - risk: `high`（Unity の差分 build が黙って古い Scene を出す不成立への守りを外す。判断を誤ると、build は成功し Warning も出ずに古い出力が配られる）
 - owner: root（依頼者）
 - created: 2026-11-17
@@ -20,7 +20,15 @@
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票: 未作成（A3 凍結の後に書く）
+- 引継ぎ票（2026-11-17、Phase A から Phase B へ）:
+  - 凍結した Phase A: revision 1。引き継ぐ commit はこの票を含む commit（A3 凍結版）で、その SHA は次の担当の起動指示と PR #199 の状態ブロックの `引き継ぐ commit` で渡す。implementation head は上の欄（`未固定`）。
+  - 次の Phase・役割: Phase B（実装）。§4 の順で、adapter から印を外し、印の 2 file と test 2 file を消し、`UnityContentDirectoryAdapterTests`（AC6）、18 章 §4・13 章の書き換え（§2.7）、harness（`2bc0c108` の `PrefabStamp/` を `Spikes/NoStamp/` に戻して §5 の fixture・build の列・record に改める）を作る。model の識別値の確認（§5 の未知の経路）は Phase B の最初に Editor で行う。
+  - 読む範囲: 既定（§0〜§5）。
+  - 必要な権限: Unity Editor の操作（`.obj` の import の確認と compile。Unity の build と harness の実行は行わない）。
+  - 停止規則: §4 の「Phase A へ差し戻す条件」。AC1〜AC4 の期待値を実装の出力から作らない。印の一部を残さない。事実の文書を変えない。
+  - Evidence: Phase A snapshot は未生成（機械向けの期待値・照合 script を持たない）。
+  - 引き渡さないもの: なし。
+  - 未決: なし。
 
 ## 1. 目的と対象外
 
