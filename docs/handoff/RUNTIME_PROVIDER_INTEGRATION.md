@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-1。S3 を S3-1・S3-2・S3-3 に分け、要求時の install を S4 へ送った判断は §2.5）
-- status: `C'`（C' 2 巡目の CP2 の梱包を直し、C' 3 巡目用の blind bundle を作り直した。次は C' 3 巡目）
+- status: `D`（C' 3 巡目で CP2 の解消を確認し、C' 完了。blocker なし。判定 C は GO（3 回目）。次は Phase D（owner のマージ判断））
 - branch: `claude/runtime-provider-integration`（PR の base は `develop`）
 - implementation base commit: `36d069e8`（`origin/develop` の head、2026-11-17。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `d244aeb12dc52f74d7d1fd6c953754cf46843b89`
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 判定 C 3 回目用（head `d244aeb1`）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は git 管理外の `artifacts/handoff-guides/runtime-provider-integration/` に置いた（判定用の file）。判定 C 2 回目用（前の head `699ae83a`）は今の head の判定に使わない
 - C' blind bundle の取得案内・状態: 3 巡目用（head `d244aeb1`）はローカル固定済み（未昇格）。`evidence stage`、task `runtime-provider-integration`。取得案内は同じ directory の、判定用とは別の file（`cprime-round3-blind.md`）。2 巡目用と同じ構成で、`phase-b-result-section6.md` だけを §6 から「差し戻しの修正（1 巡目）」の小節を除いた版に替え、同梱 manifest の hash をその file に合わせた（別 process の fetch で `passed`、manifest の 41 件が全て一致）。2 巡目用（`cprime-round2-blind.md`）と 1 巡目用（前の head `699ae83a`）は使わない
 - 引継ぎ票:
-  - 次の Phase・役割: C'（3 巡目。CP2 の確認。最終 C'。高コスト証拠なし）。
-  - 次の作業: C' 3 巡目用の blind bundle だけを入力に、前巡の CP2（`phase-b-result-section6.md` と manifest の不一致）の解消を確かめる。実装（implementation head）と判定 evidence bundle は 2 巡目から変わっていないので、範囲は CP2 と、作り直した bundle の入力の同一性（`review-evidence.md`「巡ごとの範囲」）。進行役は packet で bundle の file を加工しない（除去や差し替えが要るなら bundle を作り直す）。head の source は 2 巡目と同じく bundle に無いので、進行役が `git archive d244aeb1` で同じ範囲を加える。起動と記録は進行役が行い、§8 に「C' 3 巡目」を追記する。
-  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
+  - 次の Phase・役割: Phase D（owner のマージ判断と、保存・引渡しの確認）。
+  - 次の作業: §7（判定 C）と §8（C'）を突き合わせ、GO 候補 head（implementation head `d244aeb1`）の整理と push を owner が決める。Evidence の保存・引渡し（判定 C 3 回目用の bundle と C' 3 巡目用の blind bundle はローカル固定済み・未昇格）を `review-evidence.md`「Phase D の保存・引渡し確認」で確かめ、harvest to の文書へ反映してから本書を削除する。PR 本文の要約は計画段階のままなので、push の時に最終 head に合わせて直す。
+  - 読む範囲: 全節。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation base は上の `36d069e8`、implementation head は上の欄（この票を含む commit との差は本書だけ）。
-  - 入力の snapshot・bundle: C' 3 巡目用の blind bundle（上の取得案内）。決定記録: なし（C' 2 巡目の CP2 には人間の裁定は無く、梱包を作り直した）。
-  - 必要な権限: Artifact Storage の fetch（同一 PC、非仮想化の pwsh、sandbox 外）。Unity は不要。
-  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡（1 巡目と 2 巡目を使った。3 巡目が最後）。
-  - 引き渡さないもの: 発見 C と判定 C の所見（§7）を C' の入力に入れない。blind bundle は §7 を含まない（HANDOFF は A3 凍結版の全文、§1〜§5 の今の版、§6 から「差し戻しの修正（1 巡目）」を除いた版、§8 の C' 1 巡目だけを入れ、diff からも本書を除いた）。
+  - 入力の snapshot・bundle: 判定 C 3 回目用の判定 evidence bundle、C' 3 巡目用の blind bundle（上の取得案内）。
+  - 必要な権限: push（owner の承認）、Artifact Storage の昇格・保存の確認。
+  - 停止規則: owner の判断を待つ。
+  - 引き渡さないもの: なし（C' が完了したので、§7 と §8 の突き合わせができる）。
 
 ## 1. 目的と対象外
 
@@ -636,6 +636,22 @@ program が「S3」へ送った入力の引き取りと送り先を、ここに�
 - 残存リスク: run3 の `step.json` は failed、process の exit code は 2（inconclusive 25 件のため。合否は XML）。run1 は終了 stall の後の強制終了、run2・run3 は自然に終了。CP1 の再現 test は実物の `AssetManagement` と fake の backend で、実 native の Addressables で同じ列を再現した証拠ではない。
 - 監査できなかった範囲: Unity の再実行、network、git repository、packet 外の参照は指示により行っていない。実行時の head と clean の状態は同梱の記録に依拠した。CP2 により、B result の正本との同一性は未確認。
 - 独立性: 1 巡目と同じ（C' は OpenAI 系の `gpt-6-astra`、Codex の起動 log の `model:` 行。Phase A〜C に未関与。最低条件と強化条件を満たす）。
+- 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
+- 担当・モデル: AI、Codex CLI 0.169.0（OpenAI、`gpt-6-astra`、reasoning effort high）。
+
+### C' 3 巡目
+
+- 担当方式: AI（Codex CLI 0.169.0、`codex exec --sandbox read-only`、新規 session）。起動と記録は進行役が行った。
+- 種別と巡: 最終 C'（高コスト証拠なし）、3 巡目（前巡の CP2 の解消と、作り直した bundle の入力の同一性）。
+- 受け取った決定記録の版: なし（CP1・CP2 に人間の裁定は無い）。C' 自身の前巡の指摘（CP1・CP2・F1）と、2 巡目から変わったもの（bundle の作り直しだけで、implementation head・source・判定の生の証拠は不変）を指示書で渡した。
+- 使用した blind audit bundle の取得案内・状態: §0 の C' blind bundle（3 巡目用、ローカル固定済み（未昇格））。進行役が別 process で fetch して `passed` を確かめ、bundle の file は加工せずに packet へ置いた。加えたのは 2 巡目と同じ head の source（`git archive d244aeb1`）、規則の写し、指示書だけ。
+- 確認範囲・方法: manifest の 41 file の size と SHA-256（全件一致、欠落・重複なし）、`phase-b-result-section6.md` の全文（17,367 bytes、SHA-256 `9916b604…`。実装結果、CP1 の修正の記録、動作確認が残っている）、CP1 の修正の source と test、3 回の XML、AC7 の生の出力。
+- 判定: **blocker なし。CP2 は解消、CP1 の解消の判断も維持。**
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: F1（2 巡目と同じ。Build 系の test の `Directory.Move` の間欠的な `Access denied`、`BuildContentCoordinator.Build` の 101 行。後続の Build の test の安定性の調査の入力）。
+- 残存リスク: run3 の XML は root `Passed`・failed 0 で、25 件は VFX の inconclusive（全件 Passed ではない）。run3 の `step.json` は `failed`。run1 は強制終了。AC7 は Reload Domain 無効の Editor の Play の証拠で、Player の実機と Reload Domain 有効は保証しない。
+- 監査できなかった範囲: 2 巡目の payload との byte 単位の比較（2 巡目の file 一式が packet に無い）、checkout と commit の同一性・stage と fetch そのものの独立の検証、変わっていない実装全体の初見の再監査（2 巡目までで実施）。
+- 独立性: 1・2 巡目と同じ（OpenAI 系の `gpt-6-astra`。Phase A〜C に未関与。最低条件と強化条件を満たす）。
 - 発見 C / 判定 C 結論の事前閲覧・設計実装への関与: なし。
 - 担当・モデル: AI、Codex CLI 0.169.0（OpenAI、`gpt-6-astra`、reasoning effort high）。
 
