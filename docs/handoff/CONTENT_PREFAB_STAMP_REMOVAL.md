@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `A`（A1 初稿）
+- status: `A`（A3 統合案。未凍結）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `未固定`
@@ -41,7 +41,7 @@
   - **印が無かった時の不成立は 6000.6.0f1 で測った。** prefab を編集した後に同じ `Library` で build すると、Scene の build instruction が変わらず前回の Scene の serialized file が再利用され、焼き込まれた prefab が古い版のまま出た（`Full` でも上書きでも。build は成功し Warning も出ない）。cache の鍵は Scene の file と `.meta` のバイトで、prefab の状態は鍵に入らなかった（[事実の文書](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）。
   - **Unity の修正と 6000.6.9f1 での最小の確認（2026-11-17、PR #198）。** Unity は 6000.6.3f1 の release note に、Scene が使う prefab だけを編集した後の Content Directory の差分 build がその Scene を作り直さない不具合の修正（Build System、UUM-151103）を載せている。release note の文が言うのは「prefab だけを編集した後の差分 build で Scene が作り直される」ことまでで、入れ子・variant・model、上書きの経路、作り直しの範囲（変わっていない Scene まで作り直すか）は言っていない。OSM を含まない最小の再現（入れ子でない prefab 1 つ、Editor の build、`CleanBuildCache()` なしの 2 回）では、6000.6.9f1 で 2 回目の出力に編集が入った。入れ子・共有・variant の prefab、model、製品の経路（印を外した状態）、上書き、再利用の範囲は測っていない。
   - **model の頂点は印なしでも入る（6000.6.0f1）。** Mesh は Scene に焼き込まれない。Scene に焼き込まれる model の階層と Transform の編集は、印の有無にかかわらず測っていない（事実の文書「印の形と検知の鍵」）。
-  - **測り直しの harness が git にある。** commit `2bc0c108` の `Tests/Editor/Spikes/PrefabStamp/`（`PrefabStampHarness.cs` 416 行、`PrefabStampProcesses.cs` 426 行）。第 1 process が fixture（`Inner`・`Outer`（`Inner` を nest）・`Shared`、Scene `SOuter`・`SShared1`・`SShared2`・`SPlain`）を作り B1〜B6・B5' を製品の coordinator で build して record を書き、第 2 process が record と `Library/BuildHistory` から判定を計算し直す。印の文字列は接頭辞の literal で探しており、`ScenePrefabStampRules` を参照していない（2026-11-17 に `2bc0c108` で確認）。
+  - **測り直しの harness が git にある。** commit `2bc0c108` の `Tests/Editor/Spikes/PrefabStamp/`（`PrefabStampHarness.cs` 416 行、`PrefabStampProcesses.cs` 426 行）。第 1 process が fixture（`Inner`・`Outer`（`Inner` を nest）・`Shared`、Scene `SOuter`・`SShared1`・`SShared2`・`SPlain`）を作り B1〜B6・B5' を製品の coordinator で build して record を書き、第 2 process が record と `Library/BuildHistory` から判定を計算し直す。印の文字列は `PrefabStampProcesses.cs` が `ScenePrefabStampRules.Prefix` を参照して探す（A2 R2 F7。撤去後は literal に置き換える。§4）。prefab の編集は `SaveAsPrefabAsset` で行い、build の前に import 済みにする。
   - **この repository の Scene の `.meta` に印は無い。** `unity/Assets` の `.meta` に `osm-prefab-stamp-` を含む物は無い（2026-11-17 に base で確認）。
   - **`run-tests.ps1` は Unity を `ProjectVersion.txt` の版で探す。** Harness の `ApprovedSpecifications.psm1` と `UnityChecks.psm1` は 6000.6.0f1 のまま残っているが（program §8 の移送）、本スライスは Harness の Unity gate を使わない。
 - UC ごとの利用者の入力:
@@ -62,31 +62,32 @@
 
 **不変条件**（起きてはいけないこと）
 
-- **I1 古い版を焼き込んだ Scene を出さない。** 印を外した build の出力のどの Scene の file にも、その build の直前の手元の source より前の prefab・model の版が残らない。
+- **I1 古い版を焼き込んだ Scene を出さない。** 印を外した build の出力のどの Scene の file にも、その build の直前の手元の source（disk に保存され Unity が import 済みの版。未保存の編集と Prefab Mode の編集は含まない）より前の prefab・model の版が残らない。ただし (e) の古い cache は本スライスの主張から除く（§2.3、§2.8 U3）。
   - 主張を崩しうる経路: (a) Unity の修正（UUM-151103）の範囲が入れ子でない prefab に限られ、入れ子の内側だけの編集（外側の prefab の file は変わらない）、variant の基の prefab の編集、model の階層の編集を取りこぼす。(b) 上書きの build は毎回新しい `BuildContentRoot` を root にするので、Scene の build instruction の作り方が目的 build と違う経路を通る。(c) `Full` も同じ `Library` の build cache を使う（6000.6.0f1 で `Full` でも古い版が出た）。(d) 前の版へ戻した source が、同じ鍵で古い cache の項目に当たる（戻した版の cache なら正しく、別の版の cache なら誤り）。(e) 印ありの build（S2-2b）と印の無い 6000.6.0f1 の build が残した cache を持つ `Library` で、`.meta` が元のバイトに戻った Scene が、印より前に作った古い cache の項目に当たる。
-  - 探索した境界: release note の該当行の文言、事実の文書の 6000.6.0f1 の観察と 6000.6.9f1 の最小の再現、S2-2b の harness の build の列。未確認: Unity の差分 build の鍵が 6000.6.9f1 で何を含むか（trace から読めるのは作り直したかどうかまで）、(e) の古い cache（harness は毎回新しい fixture を作り GUID が新しいので当たらない）、override を持つ instance。
-- **I2 build は利用者の source を書かない。** build の成否にかかわらず、`Assets/` と `ProjectSettings/` の全 file は build の前後で同じバイトで、build は Scene の file と `.meta` を書かず、`Library/OneStarMaker/ScenePrefabStamp/` に何も書かない。adapter の生成 folder は build の後に残らない。
+  - 探索した境界: release note の該当行の文言、事実の文書の 6000.6.0f1 の観察と 6000.6.9f1 の最小の再現、S2-2b の harness の build の列。未確認: Unity の差分 build の鍵が 6000.6.9f1 で何を含むか（trace から読めるのは作り直したかどうかまで）、(e) の古い cache（harness は毎回新しい fixture を作り GUID が新しいので当たらない。撤去で `.meta` が印より前のバイトに戻ることが、この経路を再び開く。A2 R2 F6）、override を持つ instance。
+- **I2 build は利用者の source を書かない。** build の成否にかかわらず、adapter は Scene の file と `.meta`、既にある file の中身を書かず、`Library/OneStarMaker/ScenePrefabStamp/` に何も書かない。adapter の生成 folder は build の後に残らない。除くもの（印より前からの既存の経路で、本スライスで変えない）: 製品の `Refresh` が `.meta` の無い file に `.meta` を作る import、adapter が所有する生成 subtree（`CleanupOrphans` が消す前回の孤児、`DeleteIfEmpty` が消す空の `Assets/OneStarMakerGenerated`）（A2 R2 F3）。
   - 主張を崩しうる経路: (a) 印の code を一部だけ外し、`.meta` の書き込みか戻しの `ImportAsset` が残る。(b) 生成 folder の片付けが例外で止まる（S2-2b の段ごとの片付けを外すと、1 段の失敗で残りを飛ばす）。(c) 製品の `Refresh` か `BuildContentRoot` の import に、project の `AssetPostprocessor` が反応して別の file を書く（印と無関係な既存の経路）。
   - 探索した境界: adapter の base の手順、S2-2b の harness の source の照合（`Assets/` と `ProjectSettings/` の全 file の sha256）。未確認: host の project の `AssetPostprocessor`（SampleGame 以外）。
-- **I3 保存していない編集を壊さない。** build の root の Scene が Editor で開かれて未保存の変更を持つ時も、build はその Scene の file と `.meta` を書かず、未保存の変更はそのまま残る。
+- **I3 保存していない編集を壊さない。** build の root の Scene が Editor で開かれて未保存の変更を持つ時も、build はその Scene の file と `.meta` を書かず、未保存の変更はそのまま残り、出力はその Scene の disk の版を焼き込む。
   - 主張を崩しうる経路: 印の撤去で検査が消え、開いている Scene を持つ build が Unity の build まで進む。製品の `Refresh` は変わった file だけを import するので開いている Scene を読み直さない見込み。Unity の build 自体が開いている Scene を保存させるか・読み直すかは、印より前の経路と同じで測っていない。
-  - 探索した境界: adapter の手順、S2-2b の開いている Editor での観察（`.meta` を書かなければ dialog は出ない）。未確認: 開いている Editor での実 build（batch でない）。
+  - 探索した境界: adapter の手順、S2-2b の開いている Editor での観察（`.meta` を書かなければ dialog は出ない）。batch の実 build で 1 回観測する（§5 の B3、A2 R2 F4）。未確認: 開いている Editor（batch でない）での実 build。
 
 **成立条件**（起きなければならないこと）
 
-- **S1 焼き込んだ prefab と model の編集が、印なしで同じ `Library` の差分 build の出力に入る。** 入れ子の内側だけの編集、複数の Scene が共有する prefab の編集、variant の基の prefab の編集、model の階層の編集を含む。目的 build（`Incremental` と `Full`）と上書きの build の両方。
+- **S1 焼き込んだ prefab と model の編集が、印なしで同じ `Library` の差分 build の出力に入る。** 入れ子の内側だけの編集、複数の Scene が共有する prefab の編集、variant の基の prefab の編集、model の階層の編集を含む。目的 build（`Incremental` と `Full`）と上書きの build の両方。入れ子・共有・variant・model の各編集は、少なくとも 1 回ずつ `Incremental` の回で確かめる（A2 R2 F2）。
 - **S2 prefab が変わっていない Scene は作り直されない。** prefab を変えずに build し直した時、Scene の serialized file は 1 つも書かれない。prefab を 1 つ編集した build は、それを焼き込む Scene だけを書く。prefab を前の版に戻した build は、その版で build した時と同じ Scene の file を出す。
 - **S3 印とその制約が製品から消える。** 印を書く・戻す・記録する code と test が無く、開いている Scene・読み取り専用の `.meta`・空でない `userData` を理由に build が止まらない。
 
 ### 2.2 受け入れ条件
 
-AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、Unity 6000.6.9f1、batch）で、AC6 は EditMode test で、AC7・AC8 は差分と機械検査で閉じる。「その回の版」は、その build の直前の手元の source の版をいう。
+AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator、Unity 6000.6.9f1、batch）で、AC6 は EditMode test で、AC7・AC8 は差分と機械検査で閉じる。「その回の版」は、その build の直前の手元の source の版をいう。
 
-- **AC1（S1・I1）入れ子・共有・variant・model の編集が入る。** §5 の build の列 B1〜B6 と B5' の各回の出力に含まれる各 Scene の file が、その回の版の識別値（prefab は子の位置の float 列、model は §5 の識別値）を全て持ち、前の版の識別値を持たない（B6 は上書きなので、出力に含まれる Scene だけを見る）。合格例: B2（`Inner` だけ v2）で、`Inner` を `Outer` 経由でだけ焼き込む `SOuter` の file が `Inner` v2 の列と `Outer` v1 の列を持つ。B5 で `SVariant` の file が `Shared` v2 の列を持つ。不合格例: B2 の `SOuter` が `Inner` v1 の列を持つ（6000.6.0f1 で印なしに起きた形）。
+- **AC1（S1・I1）入れ子・共有・variant・model の編集が入る。** §5 の build の列 B1〜B4・B4b・B5・B6・B5' の各回の出力に含まれる各 Scene の file が、その回の版の識別値（prefab は子の位置の float 列、model は §5 の識別値）を全て持ち、前の版の識別値を持たない（B6 は上書きなので、出力に含まれる Scene だけを見る）。合格例: B2（`Inner` だけ v2）で、`Inner` を `Outer` 経由でだけ焼き込む `SOuter` の file が `Inner` v2 の列と `Outer` v1 の列を持つ。B4b で `SVariant` の file が `Shared` v2 の列を持ち、`SModel` の file が `Model` v2 の識別値を持つ。不合格例: B2 の `SOuter` が `Inner` v1 の列を持つ（6000.6.0f1 で印なしに起きた形）。
 - **AC2（S1・I1）上書きにも入る。** B6 は、B5 と同じ `Library` で、`Outer` だけを v1 に戻した source から、編集した prefab をもとに `ContentOverlaySelection` が逆引きした root だけを、別の contentSet の上書きとして build する。上書きの出力の `SOuter` の file が `Outer` v1 の列と `Inner` v2 の列を持ち、`Outer` v2 の列を持たず、sha256 が B2 の `SOuter` と一致する（(`Outer` v1, `Inner` v2) は B2 と同じ組み合わせで、直前の B5 とは違う）。
-- **AC3（S2）再利用。** `Library/BuildHistory/<build>/BuildContentTEP.json` の `BuildPipeline::WriteSerializedFile` の event で、`Incremental` の回だけを数える（S2-2b と同じ数え方。`Full` は workspace を空にするので数えない）。B3（変更なし）は Scene の serialized file を 1 つも書かない。B2 が書く Scene の serialized file は `SOuter` の分だけである。B4（`Inner` を v1 に戻す）の各 Scene の file の sha256 が B1 と一致する。合格例: B2 で書いた Scene が `SOuter` だけ。不合格例: B2 で `SShared1` や `SPlain` も書かれる（Unity が prefab の編集で Scene を広く作り直す形。出力は正しいが再利用を失う）。
+- **AC3（S2）再利用。** `Library/BuildHistory/<build>/BuildContentTEP.json` の `BuildPipeline::WriteSerializedFile` の event で、`Incremental` の回だけを数える（S2-2b と同じ数え方。`Full` は workspace を空にするので数えない）。B3（変更なし）は Scene の serialized file を 1 つも書かない。B2 が書く Scene の serialized file は `SOuter` の分だけで、B4b が書く Scene の serialized file は `SShared1`・`SShared2`・`SVariant`・`SModel` の分だけである。B4（`Inner` を v1 に戻す）の各 Scene の file の sha256 が B1 と一致する。合格例: B2 で書いた Scene が `SOuter` だけ。不合格例: B2 で `SShared1` や `SPlain` も書かれる（Unity が prefab の編集で Scene を広く作り直す形。出力は正しいが再利用を失う）。
 - **AC4（S1・I1）clean な build と同じ。** B5 の出力の各 Scene の file が、`BuildPipeline.CleanBuildCache()` の後に同じ source を `Full` で build した B5' の Scene の file と同じ sha256 である。Scene 以外の file の B5 と B5' の差は record に残すが、合否に使わない（印と無関係にも起きる。事実の文書「build をまたぐ同じ file」）。
-- **AC5（I2）source を書かない。** harness の各 build で、`coordinator.Build` が戻った直後（harness が `Refresh`・`ImportAsset` を呼ぶ前）に、`Assets/` と `ProjectSettings/` の全 file の sha256 が build の前に harness が記録した値と一致し、fixture の各 Scene の file と `.meta` の更新時刻が変わらず、adapter の生成 folder が残っておらず、`Library/OneStarMaker/ScenePrefabStamp/` が run の始めと同じ状態（無ければ無いまま）である。全ての build の出力に `osm-prefab-stamp-` の文字列が無い。
+- **AC5（I2）source を書かない。** harness の各 build で、`coordinator.Build` が戻った直後（harness が `Refresh`・`ImportAsset` を呼ぶ前）に、`Assets/` と `ProjectSettings/` の全 file の sha256 が build の前に harness が記録した値と一致し、fixture の各 Scene の file と `.meta` の更新時刻が変わらず、adapter の生成 folder が残っておらず、`Library/OneStarMaker/ScenePrefabStamp/` が run の始めと同じ状態（無ければ無いまま）である。全ての build の出力に `osm-prefab-stamp-` の文字列が無い。照合から除くのは I2 の「除くもの」だけで、harness はそれを避けるため fixture の folder と marker を build の前に import しておく（前例どおり）。
+- **AC5b（I3）開いている未保存の Scene の実 build。** B3 は、`SShared1` を開いて root の GameObject の名前を変えた未保存の状態で build する。build は成功し、`SShared1` の file と `.meta` の sha256 が build の前と同じで、build の後も `SShared1` が開かれたまま `isDirty` で変更が残り、出力の `SShared1` の file が変えた名前の文字列を持たない（disk の版を焼き込む）。B3 の AC3（Scene を 1 つも書かない）はこの状態で数える。
 - **AC6（I2・I3・S3）開いている Scene と失敗経路（EditMode test、adapter の Unity の build の継ぎ目を差し替える）。** (a) root の Scene（閉包に prefab を持つ）を Editor で開いて未保存の変更を持たせ、その `.meta` を読み取り専用にし、build（継ぎ目は成功を返す）すると、build は成功し、継ぎ目は 1 回呼ばれ、Scene の file と `.meta` の sha256 が変わらず、未保存の変更が Editor に残っている。(b) root の Scene の `.meta` の `userData` が空でない時も build は成功し、`.meta` は変わらない。(c) 継ぎ目が失敗を返した時と例外を投げた時、build は失敗し、生成 folder が残らず、root の Scene の file と `.meta` の sha256 が変わらない。
 - **AC7（S3）印が消える。** 差分の後の `unity/Assets/OneStarMaker/Scripts/` と `Tests/`（harness を除く）に `ScenePrefabStamp`・`osm-prefab-stamp-`・`DisallowAutoRefresh` の参照が無い。18 章 §4 と 13 章から、印の手順・止める条件・記録の場所の記述が消え、代わりに §2.7 の契約の文がある。`unity/Assets` の `.meta` に `osm-prefab-stamp-` を含む物が無い。
 - **AC8（全体）非退行と範囲。** 全 EditMode 回帰が通る（XML の failed 0 と root result `Passed`）。差分は §3 の file と §5 の harness と文書だけで、`Scripts/Runtime/`、coordinator、SampleGame の source を変えない。
@@ -95,7 +96,7 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 
 - override を持つ instance・unpack した instance・実データ（SampleGame）での確認: S5（実データの接続）。印も測っていない範囲で、本スライスの撤去で守りを失う範囲は「印の規則が理屈の上で含んでいた override」だけである。
 - Player の build の差分 build で同じ取りこぼしが起きるか: 所有 program 未定（program §8 の S3 の Player の非退行の入力）。
-- 印ありの build や 6000.6.0f1 の build が残した cache を持つ `Library` での古い出力（I1 (e)）: 所有 program 未定。利用者の手元の `Library` の扱いは S5 の明示回復の入力に送る。
+- 印ありの build や 6000.6.0f1 の build が残した cache を持つ `Library` での古い出力（I1 (e)）: 所有 program 未定。利用者の手元の `Library` の扱いは S5 の明示回復の入力に送る。本スライスでの文書の扱いは §2.8 U3。
 - 別の PC・`Library`、CI の agent をまたぐ cache: S4。
 - 6000.6.3f1 より前の Unity を拒む検査: 所有 program 未定（install と検証の受け入れ版の扱い、program §8 の S4 の移送と一緒に決める）。
 
@@ -107,8 +108,11 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 ### 2.5 判定定義と停止規則
 
 - GO: §2.1 の不変条件と成立条件が、§2.2 の AC で全て成り立つ。
-- NO-GO（答え）: AC1〜AC4 のどれかが成り立たない。これは実装の欠陥ではなく、問いへの答え（6000.6.9f1 では印を外せない）である。B への差し戻しにせず、判定 C（発見 C の限定実行で先に分かった時はその時点）で止め、owner に返す。撤去の差分は merge しない。測定の record は evidence に残し、事実の文書への反映と、印を残す範囲の決定は owner が決める（本スライスの外の文書の変更か、新しい revision）。B は AC1〜AC4 を満たすために印の一部を戻したり harness の期待値を変えたりしない。
-- NO-GO（欠陥）: AC5〜AC8 のどれかが成り立たない。通常の差し戻し。
+- 帰属の確認（A2 R2 F1）: AC1〜AC4 の不成立を「答え」と扱うのは、次の 2 つが両方成り立つ時だけである。(1) B5'（cache を捨てた build）の全 Scene の識別値が期待どおりで、harness の識別値と fixture が働いている。(2) 不成立の回の record で、prefab・model の file の sha256 と `GetAssetDependencyHash` が、その回に期待する版を示している（source の編集は届いている）。どちらかが崩れていれば harness か adapter の欠陥として B へ戻す。発見 C の限定実行で owner へ返す経路にも、先にこの確認を当てる。
+- NO-GO（答え・古い出力）: 帰属の確認の後、AC1・AC2・AC4 のどれかで、Scene の file がその回より前の版の識別値を持つか、その回の版の識別値を欠く。6000.6.9f1 では印を外せない。実装の欠陥ではないので B への差し戻しにせず、判定 C（発見 C の限定実行で先に分かった時はその時点）で止め、owner に返す。
+- 答え・識別値の外の差: 識別値は全て期待どおりで、AC2・AC4 の sha256 だけが違う。古い出力の証拠ではないので、差の出た file と回を添えて owner に返し、撤去を続けるかを owner が決める（Phase A の新しい revision か決定記録）。
+- 答え・再利用の喪失: AC1・AC2・AC4 は成り立ち、AC3 だけが成り立たない（出力は正しいが、変わっていない Scene も作り直す）。owner に返し、撤去を続けるかを owner が決める（A2 R2 F8、R3）。古い出力の時は撤去の差分を merge しない。測定の record は evidence に残し、事実の文書への反映と、印を残す範囲の決定は owner が決める（本スライスの外の文書の変更か、新しい revision。program §8 の「残す範囲を決める」は、本スライスが結果を返した後の owner の決定として読む。A2 R3）。B は AC1〜AC4 を満たすために印の一部を戻したり harness の期待値を変えたりしない。
+- NO-GO（欠陥）: AC5・AC5b・AC6〜AC8 のどれかが成り立たないか、帰属の確認が崩れる。通常の差し戻し。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 
 ### 2.6 A3 後の例外承認・決定記録
@@ -118,7 +122,7 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 
 ### 2.7 本文へ転記した実装制約
 
-- **adapter の手順:** `ValidateTarget` → `CleanupOrphans` → 生成 folder と marker → 製品の `AssetDatabase.Refresh()` → root の照合と `BuildContentRoot` の作成 → Unity の build → `finally` の片付け。`ScenePrefabStamp` の生成・`Prepare`・`Apply`・`Dispose`、`DisallowAutoRefresh` / `AllowAutoRefresh`、記録の置き場の引数を外す。
+- **adapter の手順:** `ValidateTarget` → `CleanupOrphans` → 生成 folder と marker → 製品の `AssetDatabase.Refresh()` → root の照合と `BuildContentRoot` の作成 → Unity の build → `finally` の片付け。`ScenePrefabStamp` の生成・`Prepare`・`Apply`・`Dispose`、`DisallowAutoRefresh` / `AllowAutoRefresh`、記録の置き場の引数を外す。`DisallowAutoRefresh` は S2-2b が印の `.meta` を製品の `Refresh` より前に import させないために足した物で、印より前の adapter には無かった（生成 folder と marker は製品の `Refresh` で import され、自動 refresh で先に import されても build の入力は変わらない。A2 R3 の確認）。
 - **残すもの:** Unity の build の internal の継ぎ目（`Func<BuildContentDirectoryParameters, UnityContentBuildResult>`、`UnityContentBuildResult`）は AC6 の test に使うので残し、internal のコンストラクタの引数から記録の置き場を外す。`try` を生成 folder の作成の前から始める形と、`finally` の片付けを段ごとに受け止めて最初の例外を投げ直す形は、印と独立に I2 (b) を守るので残す。
 - **消すもの:** `ScenePrefabStamp.cs`・`ScenePrefabStampRules.cs` とその `.meta`、`ScenePrefabStampEditorTests.cs`・`ScenePrefabStampRulesTests.cs` とその `.meta`。adapter の印に触れる comment。
 - **版の検査は足さない:** 印を外した経路は Unity 6000.6.3f1 以降の差分 build に依拠するが、project の版は `ProjectVersion.txt` で固定されているので、adapter に Unity の版の検査を足さない。依拠することは 18 章 §4 に書く。
@@ -132,7 +136,8 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 
 - **U1 目的・利用者の文言の承認:** 2026-11-17 に owner が §1 の 2 欄を承認した。
 - **U2 撤去より前に残った印:** 2026-11-17 に owner が (a) を選んだ。(a) **推奨:** 戻す code を残さず、18 章 §4 に見分け方と戻し方を書く。印が残るのは 2026-11-15〜撤去の間に印ありの版で build が異常終了し、その後に印ありの版で build しなかった `.meta` だけで、この repository の `.meta` には無い（§1 現況）。残っても `userData` の値が cache の鍵に入るだけで、出力の正しさは変わらない（S2-2b の AC6）。(b) 記録と `userData` の形から戻す処理（S2-2b の「残りの戻し」）だけを残す。残した印を戻せるが、`.meta` を書く経路と、開いている Scene で止める検査も残り、S3 と両立しない。
-- 未決事項: なし。
+- **U3 古い cache を持つ `Library`（I1 (e)、A2 R2 F6）:** 未決。(a) **推奨:** 18 章 §4 に「6000.6.3f1 より前の Unity か印ありの版で build した `Library` で、Scene に置いた prefab の編集が出力に入っていないと疑う時は、`BuildPipeline.CleanBuildCache()` を 1 回実行する」と書く。必須の操作にはせず、build の手順も変えない。(b) 何も書かない（§2.3 の後続に送るだけ）。
+- 未決事項: U3。
 
 ## 3. 責務マップ
 
@@ -152,6 +157,7 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 
 - 順序: (1) adapter から印を外し、印の 2 file と test 2 file を消す。(2) `UnityContentDirectoryAdapterTests`。(3) 18 章 §4・13 章。(4) harness（`2bc0c108` の `PrefabStamp/` から戻して改める）。
 - Phase B から Phase A へ差し戻す条件: §2.7 の外の変更が要る時（coordinator・public な型・Runtime の変更、印の一部を残す、版の検査を足す）。
+- harness の改め（B 適応で行ってよい範囲）: `ScenePrefabStampRules.Prefix` の参照を literal `osm-prefab-stamp-` に置き換える。印に固有の観測（`userData` の戻し）を外す。§5 の fixture・build の列・record の値を足す。期待値は fixture の source から導く。
 - Phase B がしないこと: Unity の build を伴う実行（harness の実行は Phase C）。AC1〜AC4 の期待値を実装の出力から作ること。
 - 対象外を維持する方法: `Scripts/Runtime/`、coordinator、SampleGame を変えない（AC8）。
 
@@ -161,30 +167,56 @@ AC1〜AC5 は §5 の harness（印を外した head の製品の coordinator、
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Build`（C が根拠付きで変更可）。
 - 判定必須テスト（GO 候補 head）。別々の Unity process で、この順に:
   1. `pwsh tools/run-tests.ps1`（全 EditMode 回帰）。合格は XML の failed 0 と root result `Passed`（`step.json` は VFX の Inconclusive で常に `failed` なので使わない）。他の Unity を止めてから実行する。
-  2. harness の第 1 process（fixture を作り、B1〜B6 と B5' を build し、record を書き、fixture を消す）。
+  2. harness の第 1 process（fixture を作り、B1〜B4・B4b・B5・B6・B5' を build し、record を書き、fixture を消す）。
   3. harness の第 2 process（record と写した `Library/BuildHistory` から AC1〜AC5 を計算し直す）。
   - 2 と 3 は XML の total が 1 以上で failed 0、record に終了行があることを harness が最後まで動いた確認とし、判定 C が record を AC ごとに読む。process の自然終了をゲートにしない（既知の終了 stall は `tools/Harness/README.md` の規則）。
-- fixture と build の列（名前は Phase B が決めてよい。S2-2b の列に `SharedVariant` と `Model` を足した）: 一時 folder に、内側の prefab `Inner`（子の位置 v1 (1,2,3) / v2 (4,5,6)）、`Inner` を nest した `Outer`（自分の子 v1 (7,8,9) / v2 (10,11,12)）、共有の `Shared`（v1 (13,14,15) / v2 (16,17,18)）、`Shared` の variant `SharedVariant`（override を持たない）、`.obj` の model `Model`（v1 は名前付きの object 1 つ、v2 は名前付きの object 2 つ。識別値は v2 だけが持つ object の名前の文字列で、Scene に焼き込まれる子の GameObject の名前として出る見込み。§5 の未知の経路）。Scene は `SOuter`（`Outer` の instance）、`SShared1`・`SShared2`（どちらも `Shared` の instance）、`SVariant`（`SharedVariant` の instance）、`SModel`（`Model` の instance）、対照の `SPlain`（prefab なし）。B1: 全て v1 で `Full`。B2: `Inner` だけ v2、`Incremental`。B3: 変更なし、`Incremental`。B4: `Inner` を v1 に戻す、`Incremental`。B5: `Inner`・`Shared`・`Outer`・`Model` を v2、`Full`。B6: B5 の後、`Outer` だけ v1 に戻した source から、`ContentOverlaySelection` で逆引きした root を、別の contentSet の上書きとして build。B5': B6 で戻した `Outer` を v2 に戻し、`CleanBuildCache()` の後に B5 と同じ source を `Full` で build。期待値は fixture の source の値から導き、実装の出力から作らない。
-- record が必ず持つ値: head、Unity の版（`Application.unityVersion`）、各 build の identity・mode・root、build の前と `coordinator.Build` の直後の各 Scene の file と `.meta` の sha256・更新時刻、`Assets/` と `ProjectSettings/` の全 file の sha256、`Library/OneStarMaker/ScenePrefabStamp/` の有無と中身の一覧、生成 folder が残っているか、各出力の file の名前と sha256、各 Scene の file の識別値の有無、`BuildContentTEP.json` の該当値（Scene の serialized file を書いた event の数と対象）、終了行。
+- fixture と build の列（名前は Phase B が決めてよい。S2-2b の列に `SharedVariant` と `Model` を足した）: 一時 folder に、内側の prefab `Inner`（子の位置 v1 (1,2,3) / v2 (4,5,6)）、`Inner` を nest した `Outer`（自分の子 v1 (7,8,9) / v2 (10,11,12)）、共有の `Shared`（v1 (13,14,15) / v2 (16,17,18)）、`Shared` の variant `SharedVariant`（override を持たない）、`.obj` の model `Model`（v1 は名前付きの object 1 つ、v2 は名前付きの object 2 つ。識別値は v2 だけが持つ object の名前の文字列で、Scene に焼き込まれる子の GameObject の名前として出る見込み。§5 の未知の経路）。Scene は `SOuter`（`Outer` の instance）、`SShared1`・`SShared2`（どちらも `Shared` の instance）、`SVariant`（`SharedVariant` の instance）、`SModel`（`Model` の instance）、対照の `SPlain`（prefab なし）。B1: 全て v1 で `Full`。B2: `Inner` だけ v2、`Incremental`。B3: 変更なし、`Incremental`。ただし `SShared1` を開いて未保存の変更を持たせた状態で build し、build の後に変更を捨てて閉じる（AC5b）。B4: `Inner` を v1 に戻す、`Incremental`。B4b: `Shared` と `Model` を v2、`Incremental`（共有・variant の基・model の編集を `Incremental` で見る回。A2 R2 F2）。B5: `Inner`・`Outer` も v2 にして全て v2、`Full`。B6: B5 の後、`Outer` だけ v1 に戻した source から、`ContentOverlaySelection` で逆引きした root を、別の contentSet の上書きとして build。B5': B6 で戻した `Outer` を v2 に戻し、`CleanBuildCache()` の後に B5 と同じ source を `Full` で build。期待値は fixture の source の値から導き、実装の出力から作らない。
+- record が必ず持つ値: head、Unity の版（`Application.unityVersion`）、各 build の直前の fixture の prefab・model の file の sha256 と `AssetDatabase.GetAssetDependencyHash`（帰属の確認、A2 R2 F1）、B3 の `SShared1` の開いている状態と `isDirty`、各 build の identity・mode・root、build の前と `coordinator.Build` の直後の各 Scene の file と `.meta` の sha256・更新時刻、`Assets/` と `ProjectSettings/` の全 file の sha256、`Library/OneStarMaker/ScenePrefabStamp/` の有無と中身の一覧、生成 folder が残っているか、各出力の file の名前と sha256、各 Scene の file の識別値の有無、`BuildContentTEP.json` の該当値（Scene の serialized file を書いた event の数と対象）、終了行。
 - 全 EditMode 回帰の適用除外: なし。
 - 統合・Unity テスト: 上の 2 と 3。
-- 発見 C の限定実行: harness が最後まで動く確認として 2 と 3 を各 1 回実行してよい。この実行で AC1〜AC4 のどれかが不成立なら、それは問いへの答えなので、判定 C を待たずに進行役が owner に返す（§2.5）。
+- 発見 C の限定実行: harness が最後まで動く確認として 2 と 3 を各 1 回実行してよい。この実行で AC1〜AC4 のどれかが不成立なら、§2.5 の帰属の確認を当て、答えなら判定 C を待たずに進行役が owner に返す。
 - 操作・実行時・目視条件の検証経路: 全て上の Unity バッチと EditMode test で閉じる。担当は Phase C の実行担当で、sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1 -Filter <完全名>` を起動する。初期状態は Editor を閉じ、active build target が StandaloneWindows64 の Player、作業ツリーが clean。目視は無い。証拠は record・XML・log を evidence bundle に入れる。動作確認は `対象なし`。
 - 未知の操作経路:
   - `2bc0c108` の harness が 6000.6.9f1 で compile し最後まで動くか: 未確認。初回確認は発見 C の限定実行（Unity の build を伴う）。compile の不成立は B が Editor の compile で先に直す（B 適応）。
   - `.obj` の v2 だけが持つ object の名前が、Scene の出力の file に子の GameObject の名前として出るか（AC1 の model の識別値）: 未確認。初回確認は Phase B（Editor で `.obj` を import し、Scene に置いた instance の子の名前を見る。Unity の build を伴わない）。不成立時: B が、Scene に焼き込まれる階層か Transform を変える別の model の編集を選び、識別値を source から導く形にする（B 適応。§6 に記録）。頂点だけの編集は Mesh の file に入り Scene の file に入らないので、識別値に使わない。
   - 成立済み: 実 build の harness を EditMode の `[Explicit]` test から別の Unity process で流す経路、`.cf` のバイト走査で float 列を探す観測、`BuildContentTEP.json` の読み取り（S2-2b、6000.6.0f1）。
 - 人間の判断が必要な条件: なし。
-- 高コスト証拠: なし（build 7 回と `CleanBuildCache()` 1 回。`CleanBuildCache()` は実行した PC の `Library` の build cache を全て捨てるので、判定 C の実行担当はその後の build が遅くなることを受け入れる）。
+- 高コスト証拠: なし（build 8 回と `CleanBuildCache()` 1 回。`CleanBuildCache()` は実行した PC の `Library` の build cache を全て捨てるので、判定 C の実行担当はその後の build が遅くなることを受け入れる）。
 - 判定 C の照合 script の方式: 判定 C の offline 実行（harness の第 2 process）。期待値は fixture の source の値から導く。機械向けの期待値 file は持たない。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC7 の `grep`。
 - A0/A1 主担当・モデル・ベンダー: 本 session（Anthropic）。A0 は program §8 の S2-2c の行と「Unity 6000.6.9f1 への更新から移送した入力」、事実の文書の該当 3 節、S2-2b の HANDOFF（`88e9d8d9^`）、base の adapter と印の source、`2bc0c108` の harness を入力とした。
 - C' 用に予約した担当・モデル・ベンダー: OpenAI（Codex CLI）。Phase A では使わない。使う前に最小のプローブで使えるか確かめ、使えなければ Phase A〜C に関与していない担当で行い `独立性制約あり` と記録する。
-- 独立性の強化条件を満たせない場合の理由: （A3 で記録）
+- 独立性の強化条件を満たせない場合の理由: なし（Phase A は Anthropic の系列だけ。外部計画レビューで他の系列を使う時は、C' の予約と重ならない系列を使うか、この欄を更新する）。
 
 ### 5.1 A2 の独立レビューと A3 の採否
 
-（A2 で記録）
+- A2 入力版: commit `675a5ce7`（HANDOFF だけ）。HANDOFF の固定 copy の sha256 `35e58132dd72fa0602cbe742e4c75b0486bad05a5dea3c29a7bb1dd85f6710dd`。base は `4aef3dd4`。
+- 目的レビューの入力: §1 の目的と利用者の欄の原文。sha256 `6b364f73eace586226719c245a4490508e018f86f564f5540fdfca5ebe67ecb5`（目的欄の本文、LF、利用者欄の本文。UTF-8、BOM なし、末尾改行なし、1,241 bytes）。
+- A2 独立レビュー（2026-11-17、3 件とも別の新しい subagent で、互いの回答を見せていない。担当は全て Anthropic の系列）:
+  - R1 目的レビュー: 入力は上の原文だけ（ツールを使わせていない）。問いは定めの 2 つ。
+  - R2 アーキテクチャゲート: 入力は A2 入力版の HANDOFF の固定 copy、`architecture-gates.md`、`AGENTS.md`、`675a5ce7` の checkout と `2bc0c108` の harness。枠として「§3・§4 の変更は実装済みと仮定し、現コードに無いことを欠陥の根拠にしない」を指示し、不変条件を破る順序、AC の識別力、判定定義の穴も求めた。
+  - R3 A0 だけからの代替構成: 入力は A0 の抜粋（§1、§2.8、program §8 の S2-2c の行と 6000.6.9f1 の移送、事実の文書の該当節。初稿の §2〜§5 を含まない）だけ。R1 とは別の担当で、目的レビューのやり直し用の未関与の担当は残っている。
+- A3 統合担当: 本 session（Anthropic、A1 と同じ主担当）。owner は A3 の統合までを指示し、凍結はまだとした（2026-11-17）。採否:
+
+  | 指摘 | 内容 | 採否 | 理由・反映先 |
+  |---|---|---|---|
+  | R1 | 保証すべきこと（4 種の編集が入る、事実で決め 1 つでも拾わなければ残す、制約を全て外す、source を書かない、cache を捨てない、目的 build と上書きで同じ、呼び手を変えない、印の残った `Library` から移っても壊れない） | 採用（既存の条件と照合） | I1〜I3・S1〜S3・AC1〜AC8 が持つ。「印の残った `Library`」は I1 (e) と U2・U3 で扱う |
+  | R1 | 作らないもの（新しい入力・操作・source を書く別の仕組み・保険の cache 全消し・独自の依存追跡・二重の経路・実行時の確認） | 採用（初稿に該当なし） | U3 (a) の `CleanBuildCache()` は疑う時の任意の案内で、必須の操作・手順にしない |
+  | R2 F1 | 「答え」の判定に harness・adapter の欠陥が紛れる。source の状態が record に無い。識別値が正しく sha256 だけ違う時の扱いが無い | 採用 | §2.5 に帰属の確認（B5' の識別値と、prefab・model の sha256・`GetAssetDependencyHash`）と、識別値の外の差の分類を足した。record の値に足した。発見 C の限定実行にも当てる |
+  | R2 F2 | 共有・variant・model の編集が `Full` の回にしかなく、`Incremental` の S1・S2 の証拠が無い | 採用 | B4b（`Shared`・`Model` を v2、`Incremental`）を足し、AC1・AC3 に期待を書いた |
+  | R2 F3 | 製品の `Refresh` の `.meta` 作成と生成 subtree の片付けが「`Assets/` の全 file が同じ」を破る | 採用 | I2 を adapter が書かない物に絞り、既存の経路を除くと明記した。AC5 の照合は前例どおり fixture を先に import して行う |
+  | R2 F4 | 開いている未保存の Scene を実 build で測っていない。「手元の source」が未保存の編集を含むか曖昧 | 採用 | I1 に「手元の source は disk の import 済みの版」と書いた。B3 で `SShared1` を開いて未保存のまま build する AC5b を足した |
+  | R2 F5 | 編集を import 済みにしてから build するので、製品の `Refresh` が外れても合格する。import していない編集を 1 つ入れる | 不採用 | 製品の snapshot は import 済みの source を前提に作り（S2-2b §1 の対象外）、import していない編集は印の有無と無関係な前提の変更で、本スライスの問いの外。`Refresh` を残すことは AC7・差分の確認で見る |
+  | R2 F6 | 撤去で `.meta` が印より前のバイトに戻り、古い cache の項目に当たる経路が再び開く | 採用（文と U3） | I1 で (e) を主張から明示的に除いた。18 章への案内の文を U3 として owner に問う |
+  | R2 F7 | harness は `ScenePrefabStampRules.Prefix` を参照している | 採用 | §1 現況を直し、literal への置き換えを §4 の B 適応の範囲に書いた |
+  | R2 F8 | AC3 だけの不成立を「外せない」と呼ぶのは価値判断 | 採用 | §2.5 で「再利用の喪失」を分け、owner が決めるとした |
+  | R3 | 問いを印ありとの比較（同等か）で立てる。同じ列を印ありの base でも回す | 不採用 | 期待値は fixture の source から絶対に導け、B5'（cache を捨てた build）が対照になる。印ありの列を 6000.6.9f1 で回す分の build を増やさない。再利用の比較の要否は R2 F8 の分類で owner が決める |
+  | R3 | 「1 つでも拾わなければ外さない」（A0）と「残す範囲を決める」（program）の食い違い | 採用 | §2.5 で、本スライスは結果を返し、範囲は owner がその後に決めると読むと書いた |
+  | R3 | 2 段の入れ子（`Mid`）、上書きを入れ子と variant で各 1 回、戻しの回を足す | 不採用 | 1 段の入れ子で「外側の file が変わらない内側の編集」の経路を通る。戻しは B4、上書きは B6 で、上書きは目的 build と同じ adapter を通る。build の回を増やさない |
+  | R3 | 6000.6.0f1 の Editor で撤去 head の B2 が v1 になる感度の対照 | 不採用 | 6000.6.0f1 の印なしの不成立は事実の文書で測り済みで、識別値の働きは B5' と B4b の帰属の確認で見る。旧版の Editor を用意する費用に見合わない |
+  | R3 | `DisallowAutoRefresh` は生成 folder のためにも要るかもしれない | 採用（確認して外す） | 印より前の adapter に無く、S2-2b が印のためだけに足した。§2.7 に理由を書いた |
+  | R3 | 最も安い確認として、OSM を含まない最小の project で入れ子・variant・model を先に測る | 不採用 | Phase A・B は Unity の build を行わない。発見 C の限定実行が撤去 head の製品の経路で同じ確認を最初に行い、答えなら判定 C を待たずに owner へ返す（§5） |
+  | R3 | 事実の文書は 6000.6.0f1 の節を書き換えず新しい節を足す | 採用（harvest の方針） | Phase D の harvest で、6000.6.0f1 の観察は残し 6000.6.9f1 の結果を足す |
 
 ## 6. Phase B 実装結果
 
