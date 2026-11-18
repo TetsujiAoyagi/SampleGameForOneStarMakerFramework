@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `C`（Phase B を 2026-11-18 に完了した。発見 C の入口で進行役のレビューの修正を加えた（§6）。次は発見 C の限定実行）
+- status: `B`（2026-11-18 の判定 C が NO-GO（欠陥、AC8）で B へ差し戻した。§7.1）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
-- implementation head commit: この票を含む commit
+- implementation head commit: `16dbc387`（§6 の進行役の入口のレビューの修正を含む。§7.1 の判定 C の対象）
 - A3 凍結記録: 2026-11-17、owner（root）が PR #199 の外部計画レビュー 2 巡目の反映（`f4e7d099`）の後に凍結を承認した（PR #199 の会話での指示）。対象は revision 1 の A3 凍結版（この記録を含む commit）。
 - risk: `high`（Unity の差分 build が黙って古い Scene を出す不成立への守りを外す。判断を誤ると、build は成功し Warning も出ずに古い出力が配られる）
 - owner: root（依頼者）
@@ -20,15 +20,16 @@
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。判定 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-18、Phase B から発見 C へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版）。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す（PR を作った後は状態ブロックの `引き継ぐ commit` にも書く）。implementation head は上の欄（この票を含む commit。実装と票を 1 つの commit で切った）。implementation base は `4aef3dd4`。
-  - 次の Phase・役割: 発見 C（動作確認の対象は無い。§5「動作確認は `対象なし`」）。作業は §5 の判定必須テスト 3 つの実行と、AC1〜AC8 の突き合わせ。Phase B は Unity の build と harness の実行をしていない（§6 の未実行）。
-  - 読む範囲: 既定（§0〜§8）。§6 の「HANDOFF との差」と「B 適応」を先に読む。
-  - 必要な権限: Unity の実行（sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`）。Editor を閉じ、active build target が StandaloneWindows64 の Player、作業ツリーが clean の初期状態にする。`CleanBuildCache()` が実行した PC の build cache を捨てる（§5 の高コスト証拠）。
-  - 停止規則: §2.5。AC1〜AC4 の不成立は、先に帰属の確認（record の `ATTR`）を当て、答えなら B へ戻さず owner へ返す（その実行の record・XML・log を先に evidence に固定する）。harness 自身の欠陥（record の `H1`、`ATTR` の不成立）は B へ戻す。AC1〜AC4 のために印の一部を戻したり、期待値を実装の出力から作ったりしない。
-  - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle は C が生成する。
+- 引継ぎ票（2026-11-18、判定 C から Phase B へ差し戻し）:
+  - 凍結した Phase A: revision 1（A3 凍結版）。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head はレビュー対象の `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
+  - 次の Phase・役割: Phase B（差し戻し 1 巡目）。対象は §7.1 の JC-1（AC8 の不成立: 全 EditMode 回帰の XML で、base から変わっていない `BuildContentCoordinator.cs:101` の `Directory.Move` の access denied による failed 2）。AC1〜AC7・AC5b・ATTR は成立している。
+  - 読む範囲: 既定（§0〜§8）。§7.1 を先に読む。
+  - B の制約: coordinator は変えない（AC8・§1 の対象外）。coordinator の変更が要ると判断したら、§4 により Phase A へ送る（owner に返す）。AC1〜AC4 のために印や harness の期待値を変えない。
+  - 必要な権限: Unity の実行（sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`）。Editor を閉じ、他の Unity を止めて実行する。harness は `CleanBuildCache()` で実行した PC の build cache を捨てる。
+  - 停止規則: §2.5。差し戻し後の GO 候補 head で、§5 の判定必須 1〜3 をやり直す（§7.1 の結果は流用しない。review-evidence「判定後の head 変更」）。
+  - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle は未生成。
   - 引き渡さないもの: なし。
-  - 未決: なし。
+  - 未決: JC-1 は、変えてはいけない coordinator の中の Windows の I/O の失敗で、§2.7 の中の B の修正では直す手段が無い見込み。原因が環境（スキャナ等）なら、環境を直してから同じ head で判定必須をやり直すかを owner が決める（§7.1 の後の owner への報告）。
 
 ## 1. 目的と対象外
 
@@ -277,7 +278,34 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 
 ## 7. Phase C
 
-（未着手）
+### 7.1 1 巡目（2026-11-18）
+
+- 対象: implementation base `4aef3dd4`、implementation head `16dbc387`（Phase B の `e16567ea` に、進行役の入口のレビューの修正（§6）を足した commit）。
+- 担当: 進行役は Anthropic（Opus 系）。判断はしない。実行担当は claude CLI（Anthropic、Opus 系）で、凍結済みのコマンドだけを実行した。判断担当は発見 C・判定 C とも cursor-agent の Grok 系（xAI）で、Phase B（Anthropic）と別の系列。
+- 機械検査: `pwsh tools/contract-audit.ps1`（head の tree）errors 0・warnings 0。
+- 発見 C:
+  - 限定実行（§5）として harness の第 1・第 2 process を各 1 回実行した。
+    - run 1（`20261117T230016Z`）は B3 で coordinator の `Directory.Move`（`BuildContentCoordinator.cs:101`、staging から final への移動）が `IOException`（access denied）になり、B3o 以降を観測していない。
+    - 同じコマンドを 1 回だけ実行し直した run 2（`20261117T231109Z`）は最後まで動いた。
+    - run 1 の build の Unity は XML 完成の後に既知の終了 stall になり、実行担当が `Win32_Process.Terminate` で止めた（時刻・PID・CPU は executor-note）。
+  - model の識別値: `ModelOnlyV1` / `ModelOnlyV2` は Scene の `.cf` に出た（record の `model-identifier` が `observable:true`。B1〜B4・B3o は `Model.v1`、B4b・B5・B5' は `Model.v2`、B6 は `SModel` を含まない）。§5 の未知の経路は成立し、B 適応の条件に当たらない。
+  - 結果: BLOCKERS 0。後続スライスの入力 DC-1 が 1 件ある（coordinator の publish で、Windows の `Directory.Move` が access denied になる失敗の扱い。base から変わっていない code で、凍結条件の違反の根拠は無い）。
+- 判定 C（head `16dbc387`、§5 の判定必須を凍結の順に別々の Unity process で実行）:
+  1. 全 EditMode 回帰: XML の root `Failed(Child)`、total 1973・passed 1944・failed 2・inconclusive 25・skipped 2。
+     - failed の 2 件は `BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory` と `PurposeBuildIndexIntegrationTests.PublishedIndexMatchesTheRegisteredDirectory_AndLocalAndHttpInstallsSelectTheSame`。どちらも DC-1 と同じ `Directory.Move` の access denied。
+     - inconclusive は VFX の 25 件（graphics device が無い）、skipped は `[Explicit]` の harness の 2 件。
+     - `UnityContentDirectoryAdapterTests` の 4 件は Passed。Unity は自然終了。
+  2. harness の第 1 process（run `20261117T234956Z`）: XML Passed 1/1。record の `process-end` は `finished:true`・`problems:[]`。自然終了。
+  3. harness の第 2 process: XML Passed 1/1。自然終了。
+  - 進行役の求めた診断: failed の 2 件だけを同じ head で 1 回実行し直し、2 件とも Passed だった。ただし、この Unity は XML 完成の後に終了 stall になり、進行役が PID を `Win32_Process.Terminate` で止めた（exit code 0 は強制終了の値）。
+- 判定 C の結論（判断担当）:
+  - AC1〜AC7・AC5b・ATTR は成立した。担当は record の生の値（`step-observed` の識別値、TEP と layout の突き合わせ、sha256、inventory）で確かめた。
+  - **AC8 は不成立。** 全 EditMode の XML が failed 0・root `Passed` でない。再実行の Passed は、全回帰ではなく狭い filter の成功で、しかも強制終了で取った結果なので、AC8 の証拠にしない（review-evidence「狭い filter の成功を全体成功にする」、Harness README「強制終了した取得は成功証拠にしない」）。
+  - 判定は **NO-GO（欠陥）**（§2.5）、戻し先は B（通常の差し戻し）。指摘は JC-1（AC8 の不成立）。
+  - coordinator の変更が要ると分かった時点で、§4 により Phase A へ送る。この判定はその変更が要るとはしていない。
+  - C' は起動しない。
+- evidence bundle: 未生成（GO でないので C' の入力を作らない。§2.5 の「答えとして owner に返す」経路にも当たらない）。判断の入力にした packet・record・XML・log はローカルの `TestResults/` に残っている（git 管理外、未保存）。
+- 差し戻しの巡数: B と発見 C の間で 1 巡目（§2.5 の判定 C からの差し戻し）。
 
 ## 8. Phase C'
 
