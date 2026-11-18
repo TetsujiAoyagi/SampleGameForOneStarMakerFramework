@@ -14,7 +14,7 @@
 - owner: root（依頼者）
 - created: 2026-11-18
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
-- harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（見出しの「Runtime の強制は未実装」を「強制は internal の登録の口にあり、入口は未配線（S3-4）」に改め、強制を確かめた設定（Domain Reload 無効、同じ PC と `Library`、loader の経路）と測り直しの結果を書く。「logical key の解決」の粒度（§2.8 U7）と、「測った設定」の Domain Reload 有効の送り先を直す。`RecordedBaseMatch` の保証の境界と 3 つの輪（§2.4）を書く。上書きのために足す public の値と面（§2.4「public の名前」）は、program §8 の S3-4 の縦断の実証まで暫定であり、方式を見直す時は外す、と書く）と「要求時の Content 解決」（上書きの供給元、record）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（root の上書きの印）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 の測り直し、移動した Scene の実測と「Scene の id は path から作られ」の訂正、native の登録と domain reload）、program §8・§10
+- harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（見出しの「Runtime の強制は未実装」を「強制は internal の登録の口にあり、入口は未配線（S3-4）」に改め、強制を確かめた設定（Domain Reload 無効、同じ PC と `Library`、loader の経路）と測り直しの結果を書く。「logical key の解決」の粒度（§2.8 U7）と、「測った設定」の Domain Reload 有効の送り先を直す。`RecordedBaseMatch` の保証の境界と 3 つの輪（§2.4）を書く。「logical key の解決」の項に id による影（上書きの root にある native の id を持つ base の entry は base から引けない）を書き、理由の句「移動・rename で id が変わった Scene のため」を A3 の測定（移動では id は変わらない）に合わせて直す。上書きのために足す public の値と面（§2.4「public の名前」）は、program §8 の S3-4 の縦断の実証まで暫定であり、方式を見直す時は外す、と書く）と「要求時の Content 解決」（上書きの供給元、record）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（root の上書きの印）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 の測り直し、移動した Scene の実測と「Scene の id は path から作られ」の訂正、native の登録と domain reload）、program §8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§4.1、§4.4、§5.3、§6、§8 の S3-2 と S3-1 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: A3（外部計画レビュー、owner の採否、凍結）。凍結の後に Phase B。
-  - 次の作業: 設計レビュー 2 件の反映（program §5.3 の方式の理由と見直しの条件）が済んだ。owner が設計レビューの採否案を確かめ、凍結判断を上の凍結記録に書いて凍結版を commit する。owner が §2.8 の U3〜U7 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。
+  - 次の作業: 設計レビュー 3 件と凍結前レビューの反映が済んだ。owner が設計レビュー・凍結前レビューの採否と program §5.3 の 2 つの項を確かめ、凍結判断を上の凍結記録に書いて凍結版を commit する。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
   - 引き渡さないもの: なし。
@@ -116,7 +116,7 @@
   - 経路: (1) 両方の root を同じ供給元が引き、どちらから引いたかを record に残さない。(2) base の供給元が、上書きの root にもある (key, kind, 表現) に候補を返す（Unity は上書きの版を出すので、record が base を言い、pin した base の版の要求が成功する）。(3) 解決を key だけの単位にすると、上書きの root に `K` の `Whitebox` だけがある時、編集と関係の無い base の `K` の `Full` の要求が失敗し、逆向きでも fallback なしの要求が失敗する（A2 の反証。1 directory の時に読めた要求が上書きで後退する）。(4) 上書きの候補を `ContentDirectory` + `VerifiedDigest` で申告する。(5) 照合（`IsLoadedBy`）が層を見ず、base の供給元の候補に上書きの層を合格させる。(6) resident cache の key が層を区別しない、または退避が片方の層に届かない。(7) Scene の台帳（identity ごとに 1 つ）が、上書きの登録より前に載った同じ identity の Scene を再利用する。(8) 同じ asset が base と上書きで別の (key, kind, 表現) を持つ（例: 表現の tag を `Whitebox` から `Full` に変えて上書きを作った。GUID と local file id は同じなので native の id も同じ）。base の `(K, Whitebox)` を選ぶと native は上書きの版を読み、record と base の pin が嘘になる（外部計画レビュー 3 巡目）。
   - 塞ぎ方: 層の解決は層の列の 1 か所（上の規則）で決め、load の入口・2 つの供給元・照合が共有する。供給元は層ごとに 1 つで id は別（base は今の `registered-content-directory`、上書きは `registered-content-overlay`）、policy の順は上書き → base。各供給元は解決が自分の層を選んだ時だけ候補を返し、base の供給元は上書きの層が選ばれた時に `NotFound`（理由で上書きを指す）を返す。上書きの候補は新しい由来・受け入れ根拠の組（§2.4 K1）で申告し、load の経路は base と同じ `ContentLoadPath.ContentDirectory` にする（loader はこの経路の候補だけを content 入口に渡すので、loader を変えずに済む）。照合は層まで比べる。(8) は上の id による影で塞ぐ（影になった base の entry は、loader でも `IAssetManagement` の content 入口でも base から引かれない。content 入口は今の索引の失敗と同じ `EntryMissing` で拒む）。cache の key は session に共通の前置き（今の base の `CachePrefix`）の後に層の部分（上書きは path・identity）を続ける形にし、`AssetManagement` の `EvictByPrefix` 1 回で両方の層が消える。(7) は、上書きは session の作成の時に base と一緒に登録し、後から足す口を作らない（I-4）ことで、上書きより前に載った Scene が無い。
   - 13 章との関係: 13 章「logical key の解決」の「同じ key が両方にあれば上書きの entry を採る」を、harvest で「同じ key・kind・実効の表現」と書き改める（設計上の規則の粒度の確定で、実測には依らない。§2.8 U7）。
-  - 探索した境界: `ContentDirectorySession.TryFindEntry` / `GetObjectKey` / `ResolveObject` / `ResolveScene`、`ContentDirectoryIndex` の解決と cache の key、`ContentEntryTable`、`RegisteredDirectoryProvider`、`RegisteredDirectoryRoute`、`ContentRequestLoader`、`ResolutionPolicy`（id の重複を拒む）、`ContentResolver` の固定表、`ContentCompatibilityRule`、`AssetManagement.LoadContentSceneAsync` / `LoadContentAssetAsync` / `EvictContentDirectoryCache`。未確認・既知の制約: 上書きの root に無い base の entry の依存のうち、上書きの directory に同じ id の file があるもの（base の root の entry から読んでも、依存は上書きの版になる。13 章が「上書きにある id の物の base の版を選べない」として受け入れた制約で、record は依存の由来を言わない）。上書きの層の load の失敗の例外は、session の `BuildIdentity`（base）を載せ、層は message で区別する（`IContentDirectoryBackend` の identity は 1 組のまま）。
+  - 探索した境界: `ContentDirectorySession.TryFindEntry` / `GetObjectKey` / `ResolveObject` / `ResolveScene`、`ContentDirectoryIndex` の解決と cache の key、`ContentEntryTable`、`RegisteredDirectoryProvider`、`RegisteredDirectoryRoute`、`ContentRequestLoader`、`ResolutionPolicy`（id の重複を拒む）、`ContentResolver` の固定表、`ContentCompatibilityRule`、`AssetManagement.LoadContentSceneAsync` / `LoadContentAssetAsync` / `EvictContentDirectoryCache`。未確認・既知の制約: 上書きの root に無い base の entry の依存と、上書きに root ではなく依存として入った同じ id の物（要求した物自身でありうる。例: Scene `S` だけを編集すると、`S` が参照する base の Object の root `Q` の複製が上書きに依存として入る。`Q` は上書きの root の entry ではないので影にならず、`Q` の要求は base の候補で通る。`LoadableObjectId` での load がどちらの directory の `Q` を返すかは未測定。同じ PC と `Library` では `Q` は編集していないので中身は同じで本書の GO に効かないが、別の PC の base では違いうる。S4 へ）のうち、上書きの directory に同じ id の file があるもの（base の root の entry から読んでも、依存は上書きの版になる。13 章が「上書きにある id の物の base の版を選べない」として受け入れた制約で、record は依存の由来を言わない）。上書きの層の load の失敗の例外は、session の `BuildIdentity`（base）を載せ、層は message で区別する（`IContentDirectoryBackend` の identity は 1 組のまま）。
 - **I-4 上書きは最初の load より前に揃い、個数は 0 か 1 で、途中で増減しない。** session が load を 1 つでも受け付けた後に層を足す・外す口は無い。上書きを 2 つ以上、base を 2 つ持つ session は作れない。
   - 経路: (1) session に層を足す method。(2) `AssetManagement.InstallContentDirectory` を 2 回呼ぶ（今も拒む）。(3) gate に 2 つ目の登録を予約する（今も拒む。層を持つ登録の後も拒む）。(4) 上書きの root を持つ directory を、上書きを重ねた session の base にする（I-1 の (4)）。
   - 塞ぎ方: 層は登録の口の引数だけで決まり、session は層の列を変える member を持たない。登録の口は base 1 つと上書き 0 か 1 つだけを受ける。
@@ -140,7 +140,7 @@ fixture は SampleGame を使わない合成（program D10）。実機は S3-1 �
 | AC2 | I-1 | 単体（Editor、adapter の test）。上書きの build は `BuildContentRoot` に base の記録（5 欄）・上書きの contentSet・Unity の版を書き、`AssetDatabase` で読み戻した root で同じ値が読め、Editor の `ContentOverlayBaseIdentity` からの変換が往復で一致する。上書きでない build の root は、読み戻しても「記録なし」と読める（Unity の直列化は class の欄を null にしないので、宣言の `IsDeclared` と同じく必須の欄が空なら記録なしと読む property で見る）。coordinator は書式の違う digest の上書きの build を report の前に拒む。記録を持たない既存の root の索引の作成は変わらない |
 | AC3 | I-2・S-3 | 単体（層 2 つの session、AC1 の fake）。全ての token を返して `CloseAsync` すると、log は `[base 登録, 上書き登録, 上書き解除, base 解除]` で、gate の予約は最後に 1 回返る。**失敗経路:** 上書きの層の token だけ 0 にして受付を止めても、base の層の token が残る間はどちらも解除しない（逆も同じ）。上書きの解除が失敗すると base は解除されず、予約は残り、close の再試行で上書き → base の順に解除される。base の解除が失敗すると上書きは解除済みのまま、再試行で base だけ解除される。`CompletePlayStop` は token が残っていても上書き → base の順に解除し、上書きの解除が失敗すると base を解除せず、次の登録の前の巻き戻しの再試行で上書き → base の順に解除する。Play 停止の後に止まっていた close が再開しても、各層の成功した解除は 1 回だけ。`BeginSynchronousShutdown` も同じ順。途中の時点も見る: 各失敗の直後と各再試行の直後に、fake の log（どの層を何回解除したか）、gate の予約の有無、session が closed か、保留中の再試行の有無をそれぞれ確かめる。保留中の再試行が失敗すると次の登録は native の登録を始めずに拒まれる（既存の挙動） |
 | AC4 | I-2・I-4・I-5 | 単体（`ContentRevisionGateTests` に追記）。層 2 つの登録は 1 件の登録として予約され（OS の lease は層ごとに取って合成する）、2 つの path と identity のどちらへの削除の許可も拒まれ、予約を返した後は両方とも許可される。拒否の値の優先: いずれかの層と path が同じで identity が違えば `PathInUse`、それ以外で当たれば `RevisionBusy`。層 2 つの登録の後の別の登録は今までどおり拒まれる。**失敗経路:** 上書きの path か identity が base と同じ組は予約の前に拒まれる。2 つ目の path の OS の lease の取得に失敗すると、1 つ目を返して予約 0 件で終わる。1 件の登録の既存の test は変更なしで通る |
-| AC5 | I-3 | 単体（層 2 つの session と実物の `AssetManagement`、fake の native、route）。route は層 2 つの session から供給元 2 つ（上書き → base の順、id は別）の policy を作り、`Provider` は base の供給元のまま。I-3 の解決の規則どおりに次が採られる: 上書きにある (key, kind, 表現) は上書きの候補（由来・根拠は K1、identity は上書きの contentSet・build identity・target・空の digest、事実に base の記録 4 欄・Unity の版・root schema）、base にだけある物は base の候補（S3-1 と同じ値）。表現の 2 方向: 上書きに `K` の `Full` だけ・base に `K` の `Whitebox` と `Full` → `Whitebox` の要求は base の `Whitebox`、`Full` の要求は上書き。上書きに `K` の `Whitebox` だけ・base に `K` の `Full` → `Full` の要求は base、`Whitebox` の要求は上書き。層をまたぐ fallback: 両層に `K` の `Whitebox` が無く両層に別の `Full` がある時、`Whitebox`・fallback `Full` の要求は上書きの `Full` の候補・record・content 入口に渡す表現で採られる（base の `Full` が採られれば不合格）。上書きに `K` の `Full` も無ければ、同じ要求は base の `Full` で採られる。fallback を指定しない要求は採られない（期待する拒否）。id による影: base に `(K, Object, Whitebox)`、上書きに同じ native id の `(K, Object, Full)` がある時、`K/Whitebox` の要求は base から採られず（base の供給元は `NotFound`、理由は id による影）、base の expected identity で pin しても採られない。`K/Whitebox`・fallback `Full` の要求は上書きの `Full` で採られる。同じ組で `IAssetManagement.LoadContentAssetAsync(K, Whitebox)` を直接呼ぶと `EntryMissing` で拒まれ、native の load は 0 回。record の `SourceBindingVerified` は true、probe に上書きの `NotFound` → base の採用の経緯が残る。cache: 両方の層から Object を載せて解放し cache に入れた後、実物の `AssetManagement` の close の退避（`EvictByPrefix` 1 回）で両方の層の entry が消える。**失敗経路:** 上書きにある物を base の expected identity で pin した要求は採られない。probe は上書きの `PinMismatch`（resolver は互換の規則より先に pin を見る）→ base の `NotFound`（上書きが選ばれた理由）で、要求は pin が未充足の失敗（`DecideFailureCode` の (1)）で終わる。上書きの候補の digest は空なので、上書きを pin で選ぶ要求は作れない（上書きの登録中に base の版を選べないことの帰結で、13 章が受け入れた制約）。base の供給元の候補を上書きの層の照合に、上書きの候補を base の照合に渡すと偽。上書きの候補は `ContentCompatibilityRule` で、§2.4 の上書きの分岐の表の各行に当たる事実・基準を 1 つずつ崩すと、その行の `ContentCompatibilityMismatch` の値で採られない（期待値は値で書く。offline の test を含む）。採った時の理由は `compat:Compatible:ContentOverlay`。照合を答えない test 用の供給元が `ContentOverlay` + `RecordedBaseMatch` と正しい形の事実を申告した候補は、実物の `ContentCompatibilityRule` が `Compatible` と答えても、loader は `SourceBindingUnavailable` で拒み、content 入口を呼ばない（`ContentRequestLoaderTests` の `ProviderWithoutBinding_IsRejectedBeforeLoad` と同じ形）。1 層の session の route は今までどおり供給元 1 つ（S3-1 の test が変更なしで通る） |
+| AC5 | I-3 | 単体（層 2 つの session と実物の `AssetManagement`、fake の native、route）。route は層 2 つの session から供給元 2 つ（上書き → base の順、id は別）の policy を作り、`Provider` は base の供給元のまま。I-3 の解決の規則どおりに次が採られる: 上書きにある (key, kind, 表現) は上書きの候補（由来・根拠は K1、identity は上書きの contentSet・build identity・target・空の digest、事実に base の記録 4 欄・Unity の版・root schema）、base にだけある物は base の候補（S3-1 と同じ値）。表現の 2 方向: 上書きに `K` の `Full` だけ・base に `K` の `Whitebox` と `Full` → `Whitebox` の要求は base の `Whitebox`、`Full` の要求は上書き。上書きに `K` の `Whitebox` だけ・base に `K` の `Full` → `Full` の要求は base、`Whitebox` の要求は上書き。層をまたぐ fallback: 両層に `K` の `Whitebox` が無く両層に別の `Full` がある時、`Whitebox`・fallback `Full` の要求は上書きの `Full` の候補・record・content 入口に渡す表現で採られる（base の `Full` が採られれば不合格）。上書きに `K` の `Full` も無ければ、同じ要求は base の `Full` で採られる。fallback を指定しない要求は採られない（期待する拒否）。id による影: base に `(K, Object, Whitebox)`、上書きに同じ native id の `(K, Object, Full)` がある時、`K/Whitebox` の要求は base から採られず（base の供給元は `NotFound`、理由は id による影）、base の expected identity で pin しても採られない。`K/Whitebox`・fallback `Full` の要求は上書きの `Full` で採られる。同じ組で `IAssetManagement.LoadContentAssetAsync(K, Whitebox)` を直接呼ぶと `EntryMissing` で拒まれ、native の load は 0 回。Scene でも同じ: base に `(K, Scene, Whitebox)`、上書きに同じ Scene の id の `(K, Scene, Full)` がある時、`K/Whitebox` の要求は base から採られず、base の pin でも採られず、`LoadContentSceneAsync(K, Whitebox)` の直接の呼び出しは `EntryMissing` で native の load は 0 回。record の `SourceBindingVerified` は true、probe に上書きの `NotFound` → base の採用の経緯が残る。cache: 両方の層から Object を載せて解放し cache に入れた後、実物の `AssetManagement` の close の退避（`EvictByPrefix` 1 回）で両方の層の entry が消える。**失敗経路:** 上書きにある物を base の expected identity で pin した要求は採られない。probe は上書きの `PinMismatch`（resolver は互換の規則より先に pin を見る）→ base の `NotFound`（上書きが選ばれた理由）で、要求は pin が未充足の失敗（`DecideFailureCode` の (1)）で終わる。上書きの候補の digest は空なので、上書きを pin で選ぶ要求は作れない（上書きの登録中に base の版を選べないことの帰結で、13 章が受け入れた制約）。base の供給元の候補を上書きの層の照合に、上書きの候補を base の照合に渡すと偽。上書きの候補は `ContentCompatibilityRule` で、§2.4 の上書きの分岐の表の各行に当たる事実・基準を 1 つずつ崩すと、その行の `ContentCompatibilityMismatch` の値で採られない（期待値は値で書く。offline の test を含む）。採った時の理由は `compat:Compatible:ContentOverlay`。照合を答えない test 用の供給元が `ContentOverlay` + `RecordedBaseMatch` と正しい形の事実を申告した候補は、実物の `ContentCompatibilityRule` が `Compatible` と答えても、loader は `SourceBindingUnavailable` で拒み、content 入口を呼ばない（`ContentRequestLoaderTests` の `ProviderWithoutBinding_IsRejectedBeforeLoad` と同じ形）。1 層の session の route は今までどおり供給元 1 つ（S3-1 の test が変更なしで通る） |
 | AC6 | S-1・S-2・S-3・I-2・I-3 | 実機（Content Directory の build を伴う EditMode の `[UnityTest]`。Play mode に入って読む）。合成の目的: Scene `Entry`（`Full` と `Whitebox` の両方の Scene が、Read/Write を有効にした texture `Tex` を material で直接参照）、Scene `Stay`（`Full`、`Tex` を参照しない）、Scene `Moved`、Object `Prop`（`Tex` を参照する material を持つ prefab）。手順: 登録の一覧が 0 件であることを見る → base を build・publish・install・検証する → fixture を残したまま `Tex` の pixel を変え、`Moved` を別の folder へ移し（`AssetDatabase.MoveAsset`）、新しい Scene `Added` を root に足し、編集の集合（`Tex`、`Moved` の新しい path、`Added`）で逆引きして上書きを build する → 登録の口で層 2 つを登録し、route の loader で読む。`Entry` の `Whitebox`・`Prop`・`Moved`・`Added` は上書きの版（`Tex` の pixel は編集後）で載り、record は上書きを指す。`Moved` の上書きと base の entry の Scene の id は比べて記録するが合否にしない（A3 の測定では移動の前後で同じ。同じなら「同じ id は上書きの版」、違えば「key で上書きの entry を採る」で、どちらも契約の内）。`Stay` は base を指す record で載る。全ての record の identity は、base なら install した manifest の値と digest、上書きなら上書きの build の identity と等しく、`SourceBindingVerified` は true。全てを離した後 `CloseContentDirectoryAsync` が `ResourcesInUse` を出さずに完了し、`ContentLoadManager.GetContentDirectories` が 0 件になる。観測窓（登録から close まで）の Error / Exception は 0 件。test の `Timeout` は build 2 回分にする（S3-1 の 360 秒を超えてよい）。照合の失敗経路は AC1 が持つ（root の記録は製品の API で書き換えられないため） |
 | AC7 | I-5 | 既存の test と検査。`IAssetManagement`・`AssetManagement` の public の member と `AssetManagement.ContentDirectory.cs`、`IContentDirectoryBackend`、`ContentRequestLoader.cs`、`AbstractApplicationInitializer`、`PlayerContentConfiguration` は変わらない（diff）。次の参照が無い（`grep` と C の構造レビュー）: `Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` と `ContentRequestLoader.cs` → `BuildContent`、`Runtime/BuildContent/` → `ContentResolution`（root の記録を互換の事実に変える処理は `Directory/` の供給元に置く）。既存の `ContentDirectorySessionTests`・`ContentRevisionGateTests`・`RegisteredDirectoryProviderTests`・`ContentRequestLoaderTests`・`RegisteredDirectoryRouteIntegrationTests`・`PurposeBuildIndexIntegrationTests`・`UnityContentDirectoryAdapterTests`・offline の test は変更なしで通る。例外は次だけで、どれも期待する結果を変えない: (1) `IContentDirectoryAdapter` を実装する test の fake 3 つ（`BuildContentFullModeTests.WritingAdapter`・`BuildContentProjectionTests.FailingAdapter`・`ContentOverlaySelectionTests.ManifestAdapter`）の `Build` の署名。(2) 上書きの test が使う digest の文字列（`BuildContentFullModeTests` の `digest-1` と `ContentOverlaySelectionTests.BaseIdentity`）を、書式の検査（AC2）に合わせて SHA-256 の形の値に替える。既存の internal の `ContentRevisionGate.Reserve(identity, target, path)` と `RegisteredDirectoryProvider(session)` の constructor は、今の署名と意味のまま残し（層 2 つの予約と層の指定は別の overload）、それらを呼ぶ既存の test は変えない。offline の C17（由来と根拠の表の一致）は変えず、上書きの組を含む表の一致は新しい test で見る |
 | AC8 | 範囲 | Phase B の commit が変える file は、§3 の file とその `.meta`、§3 の test の folder の file、`docs/handoff/` の文書だけで、asmdef の `references`、`AssemblyInfo.cs` の friend、`SceneState`、`tools/Artifacts`、SampleGame の製品 code に変更が無い |
@@ -154,7 +154,8 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 | base → 上書きの登録の順・個数・時点・解除の順、重ねてよい組の登録時の照合、両方の root からの key の解決（S2-1・S2-2、13 章） | **本書**（I-1〜I-4、AC1〜AC6） |
 | directory が 2 つの時に record がどちらを指すか（S3-1） | **本書**（I-3、AC5・AC6） |
 | 移動・rename で id が変わった Scene の key の解決の実測（13 章「logical key の解決」） | **本書**（AC6 の `Moved`。A3 の測定で、移動では Scene の id は変わらなかった。rename は測っていない） |
-| Domain Reload 有効の Play（S2-1・S2-2・S3-1 から移送） | **本書の A3**（§1 の測定。native の登録は Play を終えても残り、script の reload で消える）。Play の入口から Domain Reload 有効で Play する確認は S3-4。Play に入る時の reload が前の Play の残りを消さないと分かれば、再試行の方式を本書の Phase A の新しい revision で決め直す |
+| Domain Reload 有効の Play（S2-1・S2-2・S3-1 から移送） | **本書の A3**（§1 の測定。native の登録は Play を終えても残り、script の reload で消える）。Play の入口から Domain Reload 有効で Play する確認は S3-4。Play に入る時の reload が前の Play の残りを消さないと分かれば、再試行の方式を本書の Phase A の新しい revision で決め直す。reload の後の OS の lease の file handle の扱いも同じ測定で S3-4 が確かめる |
+| 上書きに root ではなく依存として入った同じ id の物（要求した物自身）を `LoadableObjectId` で読む時、どちらの directory の物が返るか（凍結前レビュー） | S4（別の PC の base では中身が違いうる） |
 | resident cache の key の全経路（S3-1 の未確認） | **本書**（I-3 の経路 (6)、AC5）。A1 で `CacheKey` / `CachePrefix` の呼び出し元を `grep` で全て読んだ（`ContentDirectorySession.GetObjectKey`・`CachePrefix` と `AssetManagement.EvictContentDirectoryCache` だけ）。cache の内部（`AssetResidentCache`）は key を不透明な文字列として扱う |
 | 13 章の登録契約が依拠する実測の 6000.6.9f1 での測り直し（Unity 更新） | **本書の A1**（§1「測り直しの結果」） |
 | 上書きの base の選択に索引を使う接続（S2-3） | S4（base の目的 build を選ぶのは供給元が候補の一覧を持つ時で、本書は呼び手が渡す base を照合するだけ） |
@@ -186,7 +187,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 
 | 案 | 内容 | 費用と危険 | 推奨 |
 |---|---|---|---|
-| K1 | `ContentSourceKind.ContentOverlay` と `ContentAcceptanceBasis.RecordedBaseMatch`（名前は仮）を足し、resolver の固定表と規則に上書きの組を足す。identity は上書きの値、事実に base の記録 | public の enum の値と事実の予約 key の追加（S0-a・S1 の core の改訂）。表が 2 か所にある。record が上書きを読んだと正直に言う | **採る**（§2.8 U3） |
+| K1 | `ContentSourceKind.ContentOverlay` と `ContentAcceptanceBasis.RecordedBaseMatch`（名前は下の「public の名前」で確定）を足し、resolver の固定表と規則に上書きの組を足す。identity は上書きの値、事実に base の記録 | public の enum の値と事実の予約 key の追加（S0-a・S1 の core の改訂）。表が 2 か所にある。record が上書きを読んだと正直に言う | **採る**（§2.8 U3） |
 | K2 | 上書きの候補を `ContentDirectory` + `VerifiedDigest` と base の identity で申告し、事実に上書きを書く | core を変えない。record の主な欄が「digest で検証した base」と言い、上書きの版の内容と食い違う（道 (e)） | 採らない |
 | K3 | 上書きを供給元にせず、base の供給元が層を区別しない | record がどちらを読んだかを言えない | 採らない |
 
@@ -314,7 +315,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 - 判定 C の照合 script の方式: なし（test の XML を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC7 の 3 つの `grep`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: xAI（Grok、cursor-agent。Grok 系のモデルを明示する）。Phase A は Anthropic 系（A1・A2・外部 1 巡目）と OpenAI 系（外部 2 巡目）を使った。B・C も Grok を使わない。
+- C' 用に予約した担当・モデル・ベンダー: xAI（Grok、cursor-agent。Grok 系のモデルを明示する）。Phase A は Anthropic 系（A1・A2・外部 1 巡目・設計レビュー 2 件目・凍結前レビュー）と OpenAI 系（外部 2・3 巡目・設計レビュー 1 件目と 3 件目）を使った。B・C も Grok を使わない。
 - 独立性の強化条件を満たせない場合の理由: 満たす見込み（Grok は Phase A〜C に関与しない）。B か C が Grok を使えば `独立性制約あり` と記録する。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -324,7 +325,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   - 不変条件の反証と AC の読み違い: 照合は一致。結論は blocker 0、major 6、minor 9。I-1・I-4・I-5 は破れず、I-2 は Play 停止の経路で本文と矛盾し、I-3 は key の単位の解決が 1 directory の時に読めた要求を後退させた。
   - 目的レビュー: §1 の目的と利用者の本文だけを渡した別の担当（道具を使わない）。入力の sha256 `e47b1cec69c7142ac335f8c351c2a4b888be9e79bc11c6b71e653c5c08d96a31`。
   - A0 だけからの代替構成（risk `high` の追加分）: 目的レビューの回答を記録した後、同じ担当に A0 の packet（sha256 `a296ee7d2694b21741f079f0126824e601e9176741b9387a7e7a9fa448eae430`。目的、利用者、対象外、現況、測り直し、問い、13 章の登録契約の原文、制約）と固定 base を渡して続けた。初稿は読ませていない。目的レビューのやり直しに使える未関与の担当は残してある。
-- A3 の分類（担当の案。owner の承認待ち。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
+- A3 の分類（担当の案を owner が 2026-11-18 に承認。目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い）:
 
   | 出所 | 指摘 | 分類 | 反映 |
   |---|---|---|---|
@@ -354,7 +355,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   | 代替構成 | 記録に上書きの contentSet と Unity の版・root schema を事実に | 採用 | §2.4 の上書きの分岐 |
   | 代替構成の検証 | 解除の順の逆転と、pin による由来の嘘を最小の test で見る | 採用 | AC3、AC5 の失敗経路 |
 
-- 外部計画レビュー 1 巡目（2026-11-18、Draft PR #200 の review と行コメント。担当は Claude（Anthropic 系の最上位のモデル。owner が依頼）。A1・A2 と同じ系列なので、系列の独立したレビューには数えない）。対象は統合案の commit。結論は、設計の本体（L1・C1・K1・G2、I-1〜I-5、AC1〜AC5）に破れは見つからず、凍結の前に直すのは GO が何を言うかの境界、というもの。採否（担当の案。owner の承認待ち）:
+- 外部計画レビュー 1 巡目（2026-11-18、Draft PR #200 の review と行コメント。担当は Claude（Anthropic 系の最上位のモデル。owner が依頼）。A1・A2 と同じ系列なので、系列の独立したレビューには数えない）。対象は統合案の commit。結論は、設計の本体（L1・C1・K1・G2、I-1〜I-5、AC1〜AC5）に破れは見つからず、凍結の前に直すのは GO が何を言うかの境界、というもの。採否（担当の案を owner が 2026-11-18 に承認）:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -377,7 +378,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   - 上書きの root に書く Unity の版は `Application.unityVersion`、基準は `ContentManifestValidation.SupportedUnityVersion`（今は `6000.6.9f1` で一致する）。両者が食い違う Editor では AC6 の上書きの候補が `EngineVersionMismatch` になる。これは規則の意図どおりで、Unity の版を上げる PR が literal を揃える既存の運用に従う。
   - AC6 は build 2 回を伴うので、test の `Timeout` を S3-1 の 360 秒より長くしてよいと書いた。
   - 実測の事実の「Scene の id は path から作られ」の訂正を harvest に入れた。
-- 外部計画レビュー 2 巡目（2026-11-18、別の系列。担当は Codex CLI（OpenAI、`gpt-5.6-luna`、effort `medium`。owner が依頼）。入力は commit `91d2c8c6` の HANDOFF（sha256 `ec1e426ac3a1148c5db5d64cbc2df78b0f7ca19b81a58db24d7f02bb06d77469`、照合は一致）と固定 base の clean な checkout（照合は一致）。重点は I-2 と K1 の分岐）。結論は blocker 2・major 2。採否（担当の案。owner の承認待ち）:
+- 外部計画レビュー 2 巡目（2026-11-18、別の系列。担当は Codex CLI（OpenAI、`gpt-5.6-luna`、effort `medium`。owner が依頼）。入力は commit `91d2c8c6` の HANDOFF（sha256 `ec1e426ac3a1148c5db5d64cbc2df78b0f7ca19b81a58db24d7f02bb06d77469`、照合は一致）と固定 base の clean な checkout（照合は一致）。重点は I-2 と K1 の分岐）。結論は blocker 2・major 2。採否（担当の案を owner が 2026-11-18 に承認）:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -386,7 +387,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   | major: AC1・AC3 が巻き戻しの途中の状態（直後の保留、一部の成功、再 close、2 件以上の保留）を見ない | 採用 | AC3 に途中の時点の 4 つの観測と、保留中の再試行が失敗した時の次の登録の拒否を足した |
   | blocker: U3〜U7 が owner の未決のまま | 記録 | 凍結の手順そのもの（owner が A3 で決める）。凍結記録に転記する |
 
-- 外部計画レビュー 3 巡目（2026-11-18、Codex CLI（OpenAI、`gpt-6-astra`、effort `high`。risk `high` の計画なので上位のモデルで 1 巡追加した。owner が依頼）。入力は commit `49681e37` の HANDOFF（sha256 `7d3d9fedae4291777a3910dd18cf9095e3a1fc2e8e73711bf09b74423c70548c`、照合は一致）と固定 base の clean な checkout（照合は一致））。結論は major 2。I-2 は共有状態の設計を前提にすると破れる操作の列を作れず、K1 の固定表・空の digest による pin の不一致・修復を `VerifiedDigest` に限ること・load の経路は互いに整合している、とした。採否（担当の案。owner の承認待ち）:
+- 外部計画レビュー 3 巡目（2026-11-18、Codex CLI（OpenAI、`gpt-6-astra`、effort `high`。risk `high` の計画なので上位のモデルで 1 巡追加した。owner が依頼）。入力は commit `49681e37` の HANDOFF（sha256 `7d3d9fedae4291777a3910dd18cf9095e3a1fc2e8e73711bf09b74423c70548c`、照合は一致）と固定 base の clean な checkout（照合は一致））。結論は major 2。I-2 は共有状態の設計を前提にすると破れる操作の列を作れず、K1 の固定表・空の digest による pin の不一致・修復を `VerifiedDigest` に限ること・load の経路は互いに整合している、とした。採否（担当の案を owner が 2026-11-18 に承認）:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -395,7 +396,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   | 2 巡目の指摘 1 の分類の理由（`AssetManagement` が session を手放す）は不十分で、進行中の close は session を局所の変数に持つ | 採用 | 2 巡目の表の理由を、共有状態と gate の基数に書き直した |
   | Domain Reload: script の reload と、Play に入る時の reload が前の Play の残りを消すかは別。本書の結論を Domain Reload 無効の確認の範囲に限るなら blocker にしない | 採用 | 下の「確かめた範囲」 |
 
-- 設計レビュー（2026-11-18、PR #200 の review 2 件。owner が依頼。1 件目は方式の選択への問い、2 件目は Claude（Anthropic 系、外部 1 巡目と同じ担当）の意見と提案）。対象は commit `bb37ef10`。採否（担当の案。2026-11-19 に owner が、SampleGame はサンプルなのでその所要の秒数は判断に意味が無いと示した）:
+- 設計レビュー（2026-11-18、PR #200 の review 2 件。owner が依頼。1 件目は OpenAI 系のモデルによる方式の選択への問い、2 件目は Claude（Anthropic 系、外部 1 巡目と同じ担当）の意見と提案）。対象は commit `bb37ef10`。採否（担当の案。2026-11-19 に owner が、SampleGame はサンプルなのでその所要の秒数は判断に意味が無いと示した）:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -408,10 +409,25 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   | 上書きのために足す public の値と面は S3-4 の縦断の実証まで暫定 | 採用 | program §5.3、harvest to |
   | （担当の追加）広く共有された asset の編集の扱い。owner と検討した、編集の種類ごとのユースケースと困ることの組 | 採用（owner の確認待ち） | program §5.3「編集の種類ごとの扱い」。部分 checkout で手元に無い root に効く編集（D）を黙って混ぜないことを S3-4 の gate に、CI が作った build を自分の base に選ぶ規則を S4 に入れた。本書の範囲と凍結条件は変えない |
 
+- 設計レビュー 3 件目と凍結前レビュー（2026-11-18、PR #200。対象は commit `9dbce4d8`）。3 件目は 1 件目と同じ OpenAI 系の担当で、前回の 2 点を解消とし、program §5.3 の D の文だけを指摘した（凍結を止めない）。凍結前レビューは Claude（Anthropic 系、外部 1 巡目と同じ担当）で、「設計は収束していて凍結してよい」とし、凍結の commit に入れる物を 6 つと、凍結を止めない物を 3 つ挙げた。採否（担当の案。owner の確認待ち）:
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | 3 件目・凍結前 5: D の「base の版のまま」は誤り。手元に無い root の直接参照は base の版、id で引く物は上書きの版で混在しうる。索引で検知した時も、索引が無く検知できない時も、完全に反映した Play として黙って通さない。小さい例（手元の A と手元に無い B が同じ asset を参照）で root の record と依存の版を別に観測する | 採用 | program §5.3 の D の行と S3-4 の行 |
+  | 凍結前 1: id による影の case が Object だけ | 採用 | AC5 に Scene の case |
+  | 凍結前 2: 13 章の harvest に、id による影と「id が変わった Scene のため」の句の訂正 | 採用 | §0 の harvest to |
+  | 凍結前 3: 設計レビュー 1 件目の系列 | 採用 | OpenAI 系（owner が 2026-11-19 に回答）。C' の Grok の予約は保てる（§5） |
+  | 凍結前 4: 再レビューを省く理由が、後から入った id による影を覆っていない | 採用 | 下の「A2 の再レビューの要否」 |
+  | 凍結前 6: 「承認待ち」の残り、§0 の重複、K1 の「名前は仮」、C' の行 | 採用 | 各所を確定の文にした。program §5.3 の 2 つの項の「owner の確認待ち」は、owner の確認まで残す |
+  | 凍結前（止めない）: I-3 の既知の制約は依存だけを言う。上書きに root ではなく依存として入った同じ id の物（要求した物自身）も同じ形で、どちらの directory の物を返すかは未測定 | 採用 | I-3 の探索した境界と §2.3（S4 へ） |
+  | 凍結前（止めない）: I-2 の未確認の 2 つ目（reload の後の OS の lease の file handle）に送り先が無い | 採用 | §2.3 の Domain Reload の行（S3-4） |
+  | 凍結前（止めない）: 最小化する量がどこでも観測されない。導入先が評価できるよう、入口が逆引きした root の数と build の所要を示し record に残す | 採用 | program §8 の S3-4 の行の入力（Framework は閾値を持たない） |
+  | 凍結前（止めない）: 「D を見分けられるのは base の索引だけ」は手段を言い切っている | 採用 | program §5.3 を要件の文（base の build の時点の閉包の情報が要る。形は S3-4 の A1）に直した |
+
 - 確かめた範囲: 本書の GO が言うのは、Domain Reload 無効の Play での登録・解決・解除である。Domain Reload 有効の Play は、§1 の測定（native の登録は Play を終えても残り、script の reload で消える）までを本書が持ち、Play に入る時の reload が残りを消すかと、Play の入口からの確認は S3-4 が持つ（§2.3）。
 
-- 独立性: A1、A2 の 4 件、外部計画レビュー 1 巡目は Anthropic 系、2・3 巡目は OpenAI 系（Codex。2 巡目と 3 巡目は同じ系列の別のモデル）である。A2 の後に G2・K1 の分岐・失敗の値・digest の定義が入り、A2 の再レビューは行っていない。2 巡目で I-2 と K1 の分岐を別の系列に見せた。C' は Phase A〜C に関与していない xAI（Grok、cursor-agent）に予約する。
-- A2 の再レビューの要否: 行わない。解決の粒度（G2）、上書きの分岐の比較項目、失敗の値、digest の定義は、A2 の指摘に沿って曖昧さを決めたもので、新しい辺は増えていない。Draft PR の外部計画レビューで見てもらう。
+- 独立性: A1、A2 の 4 件、外部計画レビュー 1 巡目、設計レビュー 2 件目、凍結前レビューは Anthropic 系、外部計画レビュー 2・3 巡目と設計レビュー 1・3 件目は OpenAI 系である。A2 の後に G2・K1 の分岐・失敗の値・digest の定義が入り、A2 の再レビューは行っていない。2 巡目で I-2 と K1 の分岐を別の系列に見せた。C' は Phase A〜C に関与していない xAI（Grok、cursor-agent）に予約する。
+- A2 の再レビューの要否: 行わない。解決の粒度（G2）、上書きの分岐の比較項目、失敗の値、digest の定義は、A2 の指摘に沿って曖昧さを決めたもので、新しい辺は増えていない。外部計画レビュー 3 巡目の後に入った id による影は、新しい解決の規則（base の entry を層から除く）で、3 巡目の指摘への対処である。影は凍結前レビューが反証の観点で 1 巡読み、record と実際に読む層が食い違う列を作れなかった。凍結前レビューは主担当と同じ Anthropic 系なので独立の再レビューには数えず、別の系列の読みは C'（Grok）で受ける。
 - A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。§5.1 の各巡の採否案と §2.8 の U3〜U7 は、owner（root）が 2026-11-18 に推奨どおりと決めた。凍結は未了（owner の外部レビューの後）。
 
 ## 6. Phase B 実装結果
