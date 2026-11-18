@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `B`（2026-11-18 の判定 C が NO-GO（欠陥、AC8）で B へ差し戻した。§7.1）
+- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。次は C'）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `16dbc387`（§6 の進行役の入口のレビューの修正を含む。§7.1 の判定 C の対象）
@@ -20,16 +20,15 @@
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。判定 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-18、判定 C から Phase B へ差し戻し）:
-  - 凍結した Phase A: revision 1（A3 凍結版）。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head はレビュー対象の `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
-  - 次の Phase・役割: Phase B（差し戻し 1 巡目）。対象は §7.1 の JC-1（AC8 の不成立: 全 EditMode 回帰の XML で、base から変わっていない `BuildContentCoordinator.cs:101` の `Directory.Move` の access denied による failed 2）。AC1〜AC7・AC5b・ATTR は成立している。
-  - 読む範囲: 既定（§0〜§8）。§7.1 を先に読む。
-  - B の制約: coordinator は変えない（AC8・§1 の対象外）。coordinator の変更が要ると判断したら、§4 により Phase A へ送る（owner に返す）。AC1〜AC4 のために印や harness の期待値を変えない。
-  - 必要な権限: Unity の実行（sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`）。Editor を閉じ、他の Unity を止めて実行する。harness は `CleanBuildCache()` で実行した PC の build cache を捨てる。
-  - 停止規則: §2.5。差し戻し後の GO 候補 head で、§5 の判定必須 1〜3 をやり直す（§7.1 の結果は流用しない。review-evidence「判定後の head 変更」）。
-  - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle は未生成。
-  - 引き渡さないもの: なし。
-  - 未決: JC-1 は、変えてはいけない coordinator の中の Windows の I/O の失敗で、§2.7 の中の B の修正では直す手段が無い見込み。原因が環境（スキャナ等）なら、環境を直してから同じ head で判定必須をやり直すかを owner が決める（§7.1 の後の owner への報告）。
+- 引継ぎ票（2026-11-18、判定 C から C' へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版）と §2.6 の DR-1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head はレビュー対象の `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。C' は PR と可変な HANDOFF を読まず、進行役が渡す blind bundle だけを読む。
+  - 読む範囲: C' は blind bundle だけ。Phase D の担当は既定（§0〜§9）。
+  - 必要な権限: なし（同じテストの再実行は必須にしない）。
+  - 停止規則: phase-c-prime.md と §2.5。
+  - Evidence: 判定の evidence bundle と C' の blind bundle は進行役が同じ head・同じ判定の証拠から作り、ローカルに固定する（§0 の各欄）。
+  - 引き渡さないもの: 発見 C・判定 C の所見と、§7 の記録（blind 入力の規則）。
+  - 未決: なし。
 
 ## 1. 目的と対象外
 
@@ -128,7 +127,12 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 ### 2.6 A3 後の例外承認・決定記録
 
 - A3 後の例外承認: なし
-- 決定記録: なし
+- 決定記録:
+  - **DR-1（2026-11-18、owner（root）の判断、この session の会話での指示）: AC8 の 2 件の failed を無視する。**
+    - 対象: §7.1 の判定 C の全 EditMode 回帰で failed になった 2 件（`BuildContentDirectoryIntegrationTests.ScenePrefabTextureAndTwoRepresentationsBuildAndMoveAsOneDirectory`、`PurposeBuildIndexIntegrationTests.PublishedIndexMatchesTheRegisteredDirectory_AndLocalAndHttpInstallsSelectTheSame`）。
+    - 理由: 例外は、本スライスで変えてはいけない（AC8・§1 の対象外）coordinator の `Directory.Move`（`BuildContentCoordinator.cs:101`）の Windows の access denied で、印の撤去の差分に帰属しない。
+    - 決定の内容: AC8 の「XML の failed 0 と root result `Passed`」の判定から、この 2 件だけを除く。残りの AC8 の条件（他の全件の結果、差分の範囲）と AC1〜AC7・AC5b・ATTR は、§7.1 の証拠のまま判定に使う。判定必須の再実行は求めない。
+    - 範囲: この 2 件の、この例外による failed だけ。他の test の failed、別の例外、inconclusive の扱いは変えない。coordinator の失敗の扱いは後続スライスの入力 DC-1 のまま。
 
 ### 2.7 本文へ転記した実装制約
 
@@ -305,7 +309,14 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
   - coordinator の変更が要ると分かった時点で、§4 により Phase A へ送る。この判定はその変更が要るとはしていない。
   - C' は起動しない。
 - evidence bundle: 未生成（GO でないので C' の入力を作らない。§2.5 の「答えとして owner に返す」経路にも当たらない）。判断の入力にした packet・record・XML・log はローカルの `TestResults/` に残っている（git 管理外、未保存）。
-- 差し戻しの巡数: B と発見 C の間で 1 巡目（§2.5 の判定 C からの差し戻し）。
+- 差し戻しの巡数: 1 巡目の判定 C の時点では、B と発見 C の間の 1 巡目（判定 C からの差し戻し）になる予定だった。DR-1 の後の再判定で差し戻しは取り消され、B へは戻していない。
+
+### 7.2 DR-1 を当てた判定 C（2026-11-18）
+
+- owner が §2.6 の DR-1 を決め、B への差し戻しの代わりに、同じ head `16dbc387` と §7.1 の証拠で判定をやり直すと指示した。判定必須は再実行していない。
+- 判断担当（§7.1 と同じ Grok 系）は、全 EditMode の XML の Failed の test-case が DR-1 の名指しした 2 件だけで、例外がどちらも `BuildContentCoordinator.cs:101` の `Directory.Move` の access denied であると照合した。他の Failed は無く、Inconclusive 25（VFX）と Skipped 2（Explicit の harness）は §7.1 と同じ。
+- 結論: AC1〜AC8・AC5b・ATTR が成立し（AC8 は DR-1 の適用の後）、**GO**（§2.5）。JC-1 は DR-1 で閉じた。DC-1 は後続スライスの入力のまま。高コスト証拠は無いので、判定 C はこの head で完了し、C' に進む。
+- 診断の再実行（強制終了で取った結果）は判定に使っていない。
 
 ## 8. Phase C'
 
