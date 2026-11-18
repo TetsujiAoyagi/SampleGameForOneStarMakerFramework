@@ -278,7 +278,7 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 - 未実行: `pwsh tools/run-tests.ps1`（全 EditMode 回帰と `UnityContentDirectoryAdapterTests`）、harness の第 1・第 2 process、Unity の build を伴う全て（AC1〜AC6・AC8 の実行は Phase C）。
 - implementation head commit: この票を含む commit（実装と票を 1 つの commit で切った）。
 - Phase B 担当・モデル・ベンダー: 本 session（Anthropic、Sonnet 系）。
-- Phase C の進行役による入口のレビュー（2026-11-18、owner の指示。`e16567ea` を対象、B 適応の範囲）: adapter・`UnityContentDirectoryAdapterTests`・harness 4 file・18 章・13 章を読み、ロジックの誤りは無かった（片付けの段、`ContentPath` が identity ごとの final directory であること、ATTR の前後比較、AC8 の範囲を確認）。直したのは 2 点: (1) 判定の process に `model-identifier` の行を足した（model の識別値 `ModelOnlyV1` / `ModelOnlyV2` が各回の `SModel` の `.cf` に出たか、`observable` で一度でも出たか）。AC1・ATTR の判定は変えない。どの回にも出なければ観測経路の不成立で、B 適応で別の model の編集を選ぶ（§5・上の B 適応）。(2) test の header comment の「使用中の .meta」を「`userData` が空でない .meta」に直した。`pwsh tools/contract-audit.ps1` は違反なし。Unity の compile は未確認（判定必須 1 の実行で確かめる）。implementation head はこの修正の commit に移る。
+- `e16567ea` の後の変更（2026-11-18、commit `16dbc387`、B 適応の範囲。implementation head はこの commit）: (1) 判定の process に `model-identifier` の行を足した（model の識別値 `ModelOnlyV1` / `ModelOnlyV2` が各回の `SModel` の `.cf` に出たか、`observable` で一度でも出たか）。AC1・ATTR の判定は変えない。どの回にも出なければ観測経路の不成立で、B 適応で別の model の編集を選ぶ（§5・上の B 適応）。(2) test の header comment の「使用中の .meta」を「`userData` が空でない .meta」に直した。変更の経緯は §7.1。
 
 ## 7. Phase C
 
@@ -287,6 +287,7 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 - 対象: implementation base `4aef3dd4`、implementation head `16dbc387`（Phase B の `e16567ea` に、進行役の入口のレビューの修正（§6）を足した commit）。
 - 担当: 進行役は Anthropic（Opus 系）。判断はしない。実行担当は claude CLI（Anthropic、Opus 系）で、凍結済みのコマンドだけを実行した。判断担当は発見 C・判定 C とも cursor-agent の Grok 系（xAI）で、Phase B（Anthropic）と別の系列。
 - 機械検査: `pwsh tools/contract-audit.ps1`（head の tree）errors 0・warnings 0。
+- 進行役の入口のレビュー（owner の指示、`e16567ea` を対象）: adapter・`UnityContentDirectoryAdapterTests`・harness 4 file・18 章・13 章を読み、ロジックの誤りは見つからなかった（片付けの段、`ContentPath` が identity ごとの final directory であること、ATTR の前後比較、AC8 の範囲を確認）。重点確認の観測を record の 1 行で読めるようにする変更と comment の修正を `16dbc387` に入れた（§6）。この評価は以前 §6 に書いていたが、C' の blind 入力に混ざった（§8 の CP-1）ので、ここへ移した。
 - 発見 C:
   - 限定実行（§5）として harness の第 1・第 2 process を各 1 回実行した。
     - run 1（`20261117T230016Z`）は B3 で coordinator の `Directory.Move`（`BuildContentCoordinator.cs:101`、staging から final への移動）が `IOException`（access denied）になり、B3o 以降を観測していない。
@@ -320,7 +321,16 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 
 ## 8. Phase C'
 
-（未着手）
+### 8.1 1 巡目（2026-11-18、無効）
+
+- 担当: Codex CLI（OpenAI、GPT 系）。Phase B・C には関与していない。Phase A の外部計画レビューに OpenAI 系列が関与したので `独立性制約あり`（§5）。
+- 入力: 判定 C と同じ head `16dbc387` の blind bundle（ローカル固定）と、head の source の `git archive`、規則の写し。
+- 結論: BLOCKED、blocker 1 件。
+  - **CP-1（blocker、監査の成立条件）:** blind bundle の Phase B 結果（§6 の写し）に、進行役の入口のレビューの評価（「ロジックの誤りは無かった」と確認の観点）が入っていた（review-evidence「Phase C' の blind audit bundle」、phase-c-prime.md）。製品の欠陥ではない。Unity の再実行は要らない。
+  - 技術面では、AC1〜AC8（AC8 は DR-1 の適用の後）・ATTR の成立を支持し、他の blocker は無い。
+  - 残存リスクとして挙げた `step.json` の `logHash` と `unity.log` の sha256 の不一致は、進行役が確かめた。`logHash` は `results.xml` と `unity.log` の sha256 を `|` で連ねた文字列の sha256（`tools/Harness/Adapters/UnityTestOutput.psm1:74`）で、計算し直すと一致した。
+- 対処: §6 から評価を外して §7.1 に移し、その §6 から blind bundle を作り直して、この bundle を読んでいない新しい担当で 2 巡目を行う。1 巡目の session は盲検の監査として数えない。
+
 
 ## 9. Phase D
 
