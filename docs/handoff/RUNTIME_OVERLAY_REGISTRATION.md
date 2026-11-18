@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `C`（発見 C の 1 回目を 2026-11-19 に行った。構造・契約の読みは済み、Unity のテストは未実行。§7）
+- status: `B`（発見 C の続きで Unity のテストを実行し、失敗 1 件（test の検査の誤り）で B へ差し戻した。差し戻しの 1 巡目。§7）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 9638a4af4df65b0c3ca2f91574d925983d74e936
@@ -20,12 +20,12 @@
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。発見 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-19、発見 C の 1 回目から発見 C の続きへ）:
-  - 次の Phase・役割: 発見 C の続き（動作確認の対象は無い。§5「検証経路」が `対象なし`）。構造・契約の読みと AC1〜AC8 の code の突き合わせは §7 で済んでいる（阻害する欠陥なし、阻害しない指摘 C-1・C-2）。残りは Unity のテストの実行: §5 の起点 filter と AC1〜AC5 の新しい class（§6 の 9）を 1 process、AC6 の実機の test を別 process で実行し、XML の件数と結果を §7 に足す。あわせて `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` を実行する。テストに失敗があれば B へ戻し、C-1・C-2 も同じ巡で B に直させる。失敗が無ければ、C-1・C-2 を B に直させて GO 候補 head を作るか、そのまま判定 C へ進むかを §7 に書いて次へ渡す。
-  - 読む範囲: 既定（SKILL.md の表の発見 C の行。HANDOFF は §0〜§8）。§7 の発見 C の 1 回目を先に読み、構造レビューをやり直さない（差分は変わっていない）。
+- 引継ぎ票（2026-11-19、発見 C の続きから Phase B の差し戻し 1 巡目へ）:
+  - 次の Phase・役割: Phase B（発見 C からの差し戻し。B と発見 C の往復の 1 巡目）。§7「発見 C（続き）」の C-3（`ContentOverlaySessionTests.SessionAndLayers_HaveNoMemberToAddOrRemoveALayer` の失敗）を直し、同じ巡で C-1・C-2 を直す。3 件とも B 適応で、製品の code の契約と責務配置は変えない。直したら Editor で compile を確かめ、新しい implementation head を切って発見 C へ返す。
+  - 読む範囲: 既定（SKILL.md の表の Phase B の行。差し戻しなので HANDOFF は §0〜§8）。§7 の発見 C の 1 回目と続きを先に読む。
   - 凍結した Phase A: revision 1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示（PR がある間は状態ブロックの `引き継ぐ commit`）で渡す。implementation head・base は上の欄。
-  - 必要な権限: Unity の実行（sandbox 外の承認済み経路で `pwsh tools/run-tests.ps1`。1 回目は承認が得られず未実行）、pwsh の起動（audit の 2 つ）、`gh` の読み（PR の有無と timeline の確認）。Editor を閉じ、他の Unity を止め、active build target を StandaloneWindows64 の Player にする。AC6 は Content Directory の build を 2 回伴う（§5「統合・Unity テスト」の既知の終了 stall と staging の `Directory.Move` の不安定を先に読む）。
-  - 停止規則: §2.6。AC6 で上書きの版が出ない、または解除の順で base の物が壊れる時は §2.6 NO-GO (i) で owner へ返す（何がどの段で違ったかを記録する）。それ以外の不成立は B へ戻す。新しい事実は先に [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) に分ける。public の名前は §2.4 のとおりで、変えるなら Phase A へ戻す。
+  - 必要な権限: Editor の起動（compile の確認）。Unity のバッチテストは B が走らせず、次の発見 C が行う。
+  - 停止規則: §2.6。直すのに §2.4 の public の名前、§3 の責務・置き場、I-2 の再試行の方式（process に 1 つの static な保留）を変える必要が出れば、[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) で A 再開に当たるかを先に判断する。C-3 を `_pendingRollback` を readonly にして直さない（I-2 と §3 が書き換える保留として定めた field で、直す対象は test の検査の範囲）。
   - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle は判定 C が生成する。
   - 引き渡さないもの: C' に §7 の所見を渡さない。
 
@@ -486,6 +486,23 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 - 未実行（承認が得られなかった）: `pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1`（pwsh の起動の承認）、`pwsh tools/run-tests.ps1` の全て（sandbox 外の実行の承認。phase-c の規則に従いテスト未実行として止めた。Unity は起動していない）。このため、起点 filter・AC1〜AC5 の新しい class・AC6・`RegisteredDirectoryRouteIntegrationTests` は B・C のどちらも一度も走らせていない。
 - 判定必須のうち未実行: 全て（Unity のテスト一式と全 EditMode 回帰）。
 - 担当・モデル: AI（Claude Code、Anthropic）。B と同じモデルで行った（`独立性制約あり`。owner の方針で、独立性のためにモデルを替えない）。
+
+### 発見 C（続き、2026-11-19。Unity のテストを実行し、B へ差し戻した）
+
+- 種別: 発見 C の続き。GO 判定はしない。C' は起動しない。構造レビューはやり直していない（差分は 1 回目と同じ）。
+- 対象と開始時の照合: implementation base `b0bc9997`、implementation head `9638a4af`。起動指示の引き継ぐ commit `a7631e5b` が HEAD と一致し、作業ツリーは clean、`9638a4af` は HEAD の祖先で、`git diff --stat 9638a4af HEAD` は本書だけだった。PR #200 は open（base `develop`）で、remote の head は A3 凍結の `7d626349` のまま（B と発見 C の commit は未 push）、凍結の後の review・comment の新着は無い。**状態ブロックの `引き継ぐ commit` は `9638a4af`（B の出口の値）で、起動指示の `a7631e5b` と一致しなかった。** 1 回目の発見 C が `gh` の承認を得られず状態ブロックを更新しなかったためで、`9638a4af` は `a7631e5b` の親、その間の差分は本書だけなので、引き継ぎの連鎖は壊れていないと読み、止めずに進めた。状態ブロックは更新していない（PR の本文の更新は owner に確かめる）。
+- 実行の条件: この worktree、Unity 6000.6.9f1、Editor を閉じ他の Unity が無い状態（Hub と Licensing Client だけ）、active build target は B が確かめた StandaloneWindows64 の Player（`EditorUserBuildSettings.asset` は 11-17 から変わっていない）。`pwsh tools/run-tests.ps1` を sandbox 外で起動し、両 process ともライセンスは `LicenseClient-void-1.19.0` に接続した。
+- 起点 filter の変更（受け入れ条件の追加ではない）: §5 の起点 filter と AC1〜AC5 の新しい 4 class に、B が AC7 の例外 (1)(2) で変えた既存の `ContentOverlaySelectionTests` と `BuildContentProjectionTests` を足した（変えた test が今も通ることを見るため）。
+- process 1（起点 filter と AC1〜AC5。12 class を `;` で並べた 1 つの `-Filter`）: XML の root は `Failed(Child)`、total 171、passed 170、failed 1、skipped 0。class ごとの件数（total / failed）: `BuildContentOverlayBaseTests` 15/0、`ContentRevisionGateTests` 7/0、`ContentRequestLoaderTests` 15/0（`OneStarMaker.Tests.ContentResolution` の名前空間で当たったのはこの class だけ）、`BuildContentFullModeTests` 25/0、`BuildContentProjectionTests` 4/0、`ContentDirectorySessionTests` 21/0、`ContentOverlaySelectionTests` 13/0、`ContentOverlaySessionTests` 26/1、`OverlayDirectoryProviderTests` 13/0、`OverlayRootRecordTests` 5/0、`RegisteredDirectoryProviderTests` 23/0、`UnityContentDirectoryAdapterTests` 4/0。step は `failed`（exit 1）、Unity の exit code は 2（test の失敗）で自然に終わった。`error CS` は 0 件。
+- process 2（AC6。`OverlayRegistrationIntegrationTests` だけ）: XML の root は `Passed`、total 1、passed 1、所要 73.8 秒。step は `passed`（exit 0）、Unity の exit code 0 で自然に終わり、終了 stall も staging の `Directory.Move` の失敗も無かった。test の出力: `Moved scene id before move: 2196e4152bccf8a4a9604904b18166c6, after move: 2196e4152bccf8a4a9604904b18166c6 (same)`（A3 の測定と同じ。記録の対象は C-2）。log の build の段に Pipeline の設定の Warning（`No RuntimePipelineConfig asset found`）が build ごとに出た（A1 の測り直しと同じ）。§2.6 NO-GO (i) に当たる観測は無い。
+  - 差し戻しが決まった後に AC6 を走らせた理由: 票が AC6 を別 process で走らせることを求めており、AC6 は B・C のどちらも一度も走らせていない唯一の実機の test で、NO-GO (i) を見られるのはこれだけだから。失敗すれば同じ巡で B に直させられる。判定必須の残り（`RegisteredDirectoryRouteIntegrationTests` と全 EditMode 回帰）は走らせていない。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors=0、warnings=0。`pwsh tools/docs-audit.ps1` は errors=0、warnings=1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の時期で、B の記録と同じ。本書と無関係）。
+- 現在の問いを阻害する欠陥:
+  - **C-3**（中、test の欠陥、unique）: `ContentOverlaySessionTests.SessionAndLayers_HaveNoMemberToAddOrRemoveALayer` が失敗する（`ContentDirectoryLayers._pendingRollback`、Expected: True But was: False。`ContentOverlaySessionTests.cs` 242 行）。test は型が `ContentDirectoryLayers` / `ContentDirectoryLayers.Layer[]` の field を static を含めて全て `IsInitOnly` と求めるが、`ContentDirectoryLayers.cs` 34 行の `private static ContentDirectoryLayers? _pendingRollback` は、I-2 の塞ぎ方と §3 が「process に 1 つだけ保留できる、層の列ごとの巻き戻しの再試行」として書き換える field と定めたもので、製品の code は契約どおり。違反の根拠は AC1 の「session は層を足す・外す member を持たない（code の検査）」が通らないこと（§2.6 GO は AC1〜AC8 が全て成り立つことを要求する）。直す先は test の検査の範囲（例: instance の field に限る、または保留の field を名前で除き、その理由を comment に書く）。分類は B 適応（契約・責務配置を変えない）。同じ test の中の動詞の検査（`Add`・`Remove` など）は両方の型で通った（失敗した field の検査は動詞の検査の後にある）。
+- 阻害しない指摘: 1 回目の C-1・C-2 はそのまま有効。差し戻しの巡ができたので、同じ巡で B に直させる。
+- 差し戻しの後の発見 C で走らせる範囲（案）: `ContentOverlaySessionTests`（C-3 の確認）と、C-1 が触れる `ContentDirectoryIndex` を使う `OverlayDirectoryProviderTests`・`RegisteredDirectoryProviderTests`。C-2 は AC6 の test の記録だけを変えるので、AC6 は判定 C で GO 候補 head とまとめて走らせてよい（発見 C で走らせるかは次の担当が根拠を書いて決める）。
+- 後続スライスの入力: なし。
+- 担当・モデル: AI（Claude Code、Anthropic）。B と同じ系列（`独立性制約あり`。owner の方針）。
 
 ## 8. Phase C'
 
