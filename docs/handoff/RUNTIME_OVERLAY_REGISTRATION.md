@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 3 巡（Anthropic 系 1、OpenAI 系 2）の採否案を §5.1 に記録した。owner の採否・凍結の前。未凍結）
+- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 3 巡（Anthropic 系 1、OpenAI 系 2）の採否を §5.1 に記録し、§2.8 の U3〜U7 と §5.1 の採否案を owner が 2026-11-18 に推奨どおりと決めた。owner の外部レビューと凍結の前。未凍結）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: A3（外部計画レビュー、owner の採否、凍結）。凍結の後に Phase B。
-  - 次の作業: 外部計画レビュー 3 巡（Anthropic 系 1、OpenAI 系 2）の反映が済んだ。owner が §2.8 の U3〜U7 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。
+  - 次の作業: 外部計画レビュー 3 巡（Anthropic 系 1、OpenAI 系 2）の反映と、owner の U3〜U7・採否の決定が済んだ。owner がもう 1 巡外部レビューを行う。owner が §2.8 の U3〜U7 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
   - 引き渡さないもの: なし。
@@ -252,15 +252,15 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 
 ### 2.8 owner の判断を求める点（未決事項）
 
-担当の推奨を付ける。U1・U2 は決定済み。U3 以降は A3 で owner が決める。
+担当の推奨を付ける。全て決定済み（U1・U2 は A2 の前、U3〜U7 は A3 で owner（root）が 2026-11-18 に推奨どおりと決めた）。
 
 - **U1 目的と利用者の文言（§1）。** 決定: 承認（owner、2026-11-18）。
 - **U2 分割（§2.5）。** 決定: S3-4 に分ける（owner、2026-11-18）。
-- **U3 上書きの由来を core に足す（§2.4 K1 と上書きの分岐）。** 推奨: K1。`ContentSourceKind` と `ContentAcceptanceBasis` に 1 値ずつ、`ContentCompatibilityFactKeys` に base の 4 欄の予約 key を足す（S0-a・S1 で凍結した core の契約の追加）。
-- **U4 Player の build を判定必須にしない。** 推奨: しない。上書きは Player で使わず、Player の起動経路は変えない。session と gate の 1 層の挙動は既存の test が変更なしで通ることで見る（AC7）。program の S3 の gate「Player の非退行」の実機は S4（`LOCAL_LAN_PROVIDER`。要求の時点の install と登録で Player の起動経路に触れうる最初の行）が引き取り、S3-1 の配線と本書の session・gate の層の化を含めて確かめる（program §8 の S4 の行に書いた）。S4 までの間、Player は層の列を通る 1 層の経路を実機で確かめないまま develop に載る。この期間を受け入れるかが U4 の判断である。
-- **U5 上書きの記録を root に書く（§2.4 C1）。** 推奨: C1。root の直列化に任意の欄を足す。root の schema の版は上げない（記録の無い root は今までどおり読める。publish は上書きを拒むので、記録を知らない古い runtime が記録つきの root を単独の directory として読む経路も無い）。古い上書き（記録が無い）は作り直す。
-- **U6 新しい失敗の値。** 推奨: `ContentDirectoryFailureCode`（public の enum、`Runtime/AssetBuildContracts/`）に `OverlayBaseMismatch` と `OverlayBaseMissing` を足す（目的レビューの「理由を区別して返す」。`InvalidConfiguration` と message にすると、S3-4 の「縮退せずに理由を示す」が message の解釈に依る）。互換の規則の値は `OverlayBaseFactMissing` の 1 つだけ足し、他は既存の値を使う（§2.4 の表）。
-- **U7 13 章の「logical key の解決」の粒度（§2.4 G2）。** 推奨: 「同じ key・kind・実効の表現」に書き改める。13 章の文は S2-2 で定めた設計上の規則で、実測に依らない。
+- **U3 上書きの由来を core に足す（§2.4 K1 と上書きの分岐）。** 決定: 推奨どおり（owner、2026-11-18）。推奨: K1。`ContentSourceKind` と `ContentAcceptanceBasis` に 1 値ずつ、`ContentCompatibilityFactKeys` に base の 4 欄の予約 key を足す（S0-a・S1 で凍結した core の契約の追加）。
+- **U4 Player の build を判定必須にしない。** 決定: 推奨どおり（owner、2026-11-18）。推奨: しない。上書きは Player で使わず、Player の起動経路は変えない。session と gate の 1 層の挙動は既存の test が変更なしで通ることで見る（AC7）。program の S3 の gate「Player の非退行」の実機は S4（`LOCAL_LAN_PROVIDER`。要求の時点の install と登録で Player の起動経路に触れうる最初の行）が引き取り、S3-1 の配線と本書の session・gate の層の化を含めて確かめる（program §8 の S4 の行に書いた）。S4 までの間、Player は層の列を通る 1 層の経路を実機で確かめないまま develop に載る。owner はこの期間を受け入れた（2026-11-18）。
+- **U5 上書きの記録を root に書く（§2.4 C1）。** 決定: 推奨どおり（owner、2026-11-18）。推奨: C1。root の直列化に任意の欄を足す。root の schema の版は上げない（記録の無い root は今までどおり読める。publish は上書きを拒むので、記録を知らない古い runtime が記録つきの root を単独の directory として読む経路も無い）。古い上書き（記録が無い）は作り直す。
+- **U6 新しい失敗の値。** 決定: 推奨どおり（owner、2026-11-18）。推奨: `ContentDirectoryFailureCode`（public の enum、`Runtime/AssetBuildContracts/`）に `OverlayBaseMismatch` と `OverlayBaseMissing` を足す（目的レビューの「理由を区別して返す」。`InvalidConfiguration` と message にすると、S3-4 の「縮退せずに理由を示す」が message の解釈に依る）。互換の規則の値は `OverlayBaseFactMissing` の 1 つだけ足し、他は既存の値を使う（§2.4 の表）。
+- **U7 13 章の「logical key の解決」の粒度（§2.4 G2）。** 決定: 推奨どおり（owner、2026-11-18）。推奨: 「同じ key・kind・実効の表現」に書き改める。13 章の文は S2-2 で定めた設計上の規則で、実測に依らない。
 
 ## 3. 責務マップ
 
@@ -398,7 +398,7 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 
 - 独立性: A1、A2 の 4 件、外部計画レビュー 1 巡目は Anthropic 系、2・3 巡目は OpenAI 系（Codex。2 巡目と 3 巡目は同じ系列の別のモデル）である。A2 の後に G2・K1 の分岐・失敗の値・digest の定義が入り、A2 の再レビューは行っていない。2 巡目で I-2 と K1 の分岐を別の系列に見せた。C' は Phase A〜C に関与していない xAI（Grok、cursor-agent）に予約する。
 - A2 の再レビューの要否: 行わない。解決の粒度（G2）、上書きの分岐の比較項目、失敗の値、digest の定義は、A2 の指摘に沿って曖昧さを決めたもので、新しい辺は増えていない。Draft PR の外部計画レビューで見てもらう。
-- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner の採否と凍結は未了。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。§5.1 の各巡の採否案と §2.8 の U3〜U7 は、owner（root）が 2026-11-18 に推奨どおりと決めた。凍結は未了（owner の外部レビューの後）。
 
 ## 6. Phase B 実装結果
 
