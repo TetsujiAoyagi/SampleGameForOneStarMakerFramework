@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。C' 2 巡目の C'-B1 を owner が DR-2 で退け、C' 完了（§8.2）。次は Phase D。owner の外部レビューの後に着手する）
+- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。C' 2 巡目の C'-B1 を owner が DR-2 で退け、C' 完了（§8.2）。Phase D（§9））
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `16dbc387`（§6 の進行役の入口のレビューの修正を含む。§7.1 の判定 C の対象）
@@ -351,4 +351,12 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
 
 ## 9. Phase D
 
-（未着手）
+- 担当: 進行役（Anthropic、Opus 系）。2026-11-18、owner が PR #199 の外部レビューの後に、Phase D・merge・後始末を指示した。
+- C / C' の突合: 判定 C（§7.2、DR-1 の後に GO）と C' 2 巡目（§8.2）は、構造、I1〜I3、S1〜S3、AC1〜AC7・AC5b・ATTR の成立で一致した。違いは AC8 だけで、C' は DR-1 を決定記録の範囲の外として blocker にし、owner が DR-2 で退けた。AC8 は元の文言（failed 0・root `Passed`）では成立しておらず、2 件を除く owner の判断で受け入れた。後続の入力は両方とも DC-1（coordinator の `Directory.Move` の access denied）を挙げた。
+- 外部レビュー（PR #199、2026-11-18）: cursor の Grok 系のコードレビューと owner の外部レビューは、どちらも B に戻す欠陥は無く Phase D に進んでよい、とした。merge 前の作業として、事実の文書の更新、program §8 の S2-2c の行、HANDOFF と harness の削除を挙げた。完了の記述で「元の AC8 が無条件に成立した」と書かないこと、を求めた（上の突合と program の行はその形で書いた）。
+- マージ判断: owner が merge を指示した。base は `develop`。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 判定の evidence bundle、C' の blind bundle（作り直した版）、C' の所見（1・2 巡目の出力と、結論の無い中断の記録）の 3 つをローカルに固定した（未昇格）。判定の bundle と C' の所見は、別 process の fetch で取得し、XML と出力を開けることを確かめた。C' の blind bundle は C' の前に同じ確認をした。日次清掃の job は `passed`。
+- 取得案内の引渡し確認: 3 つの取得案内は repository の外のローカル（worktree の外）に置いた。
+- harvest: [実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) に「6000.6.9f1 で印を外した製品の build 経路」の節を足し、6000.6.0f1 の節は書き換えずに残した。program §8 の S2-2c の行を完了にし、S2-2b の行の 18 章の節名の参照を直した。`UnityContentDirectoryAdapterTests` の header comment が指していた HANDOFF を、18 章と事実の文書に替えた。
+- 削除確認: この HANDOFF と harness `Tests/Editor/Spikes/NoStamp/`（と、base に無かった `Spikes.meta`）を削除する。harness は commit `16dbc387` に残る（事実の文書の測り直し）。
+- 通常の task 終了・後始末の状態と未完了事項: merge の後に `workflow-task.ps1 end` を記録し、branch とローカルの作業領域を片付ける。未完了の後続の入力は DC-1 と §8.2 の後続の入力。

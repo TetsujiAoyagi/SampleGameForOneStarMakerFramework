@@ -19,8 +19,9 @@ namespace OneStarMaker.Tests.Editor.Build
     /// <summary>
     /// adapter が利用者の source（Scene の file と .meta）を書かず、開いている未保存の Scene と、読み取り専用の .meta・`userData` が空でない .meta、
     /// Unity の build の失敗・例外のどれでも build の前後で source が変わらず生成 folder が残らないこと
-    /// （HANDOFF CONTENT_PREFAB_STAMP_REMOVAL の AC6 (a)〜(c)）。Unity の Content Directory build は adapter の継ぎ目で差し替える
-    /// （成功は workspace に manifest の pointer だけを書く）。実 build の確認は別の実行用 harness が担う。
+    /// （契約は 18 章 §4「Scene に焼き込む prefab と model の編集」）。Unity の Content Directory build は adapter の継ぎ目で差し替える
+    /// （成功は workspace に manifest の pointer だけを書く）。実 build の確認は git に残した harness が担う
+    /// （docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md「6000.6.9f1 で印を外した製品の build 経路」の測り直し）。
     /// </summary>
     public sealed class UnityContentDirectoryAdapterTests
     {
