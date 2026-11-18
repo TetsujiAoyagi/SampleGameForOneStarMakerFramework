@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `B`（Phase A revision 1 を凍結した。次は Phase B の実装）
+- status: `C`（Phase B を 2026-11-19 に完了した。次は発見 C）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: owner（root）、2026-11-19、Phase A revision 1。根拠: A2 の 4 件、外部計画レビュー 3 巡、設計レビュー 3 件、凍結前レビューの採否（§5.1）と §2.8 の U1〜U7 の決定を owner が確かめ、凍結前レビューの「設計は収束していて凍結してよい」を受けて凍結を決めた。program §5.3 の「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」も同じ時に確定した
 - risk: `high`（program の行の値。所有者・寿命（native の登録と解除の順）、`ContentRevisionGate` の登録の基数、public の enum の値、BuildContentRoot の直列化の形を変える）
 - owner: root（依頼者）
@@ -17,16 +17,16 @@
 - harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（見出しの「Runtime の強制は未実装」を「強制は internal の登録の口にあり、入口は未配線（S3-4）」に改め、強制を確かめた設定（Domain Reload 無効、同じ PC と `Library`、loader の経路）と測り直しの結果を書く。「logical key の解決」の粒度（§2.8 U7）と、「測った設定」の Domain Reload 有効の送り先を直す。`RecordedBaseMatch` の保証の境界と 3 つの輪（§2.4）を書く。「logical key の解決」の項に id による影（上書きの root にある native の id を持つ base の entry は base から引けない）を書き、理由の句「移動・rename で id が変わった Scene のため」を A3 の測定（移動では id は変わらない）に合わせて直す。上書きのために足す public の値と面（§2.4「public の名前」）は、program §8 の S3-4 の縦断の実証まで暫定であり、方式を見直す時は外す、と書く）と「要求時の Content 解決」（上書きの供給元、record）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（root の上書きの印）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 の測り直し、移動した Scene の実測と「Scene の id は path から作られ」の訂正、native の登録と domain reload）、program §8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§4.1、§4.4、§5.3、§6、§8 の S3-2 と S3-1 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（使わない。発見 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §3・§4 の範囲を実装し、§5 の単体テスト・offline の test・AC6 の実機の test を書く（Unity のバッチテストは走らせない）。実装を終えたら `pwsh tools/contract-audit.ps1` を通し、§6 に結果・HANDOFF との差・未実行を書き、implementation head を固定して出口の票を書く。動作確認の対象は無い（§5「検証経路」が `対象なし`）ので、次の担当は発見 C。
-  - 読む範囲: 既定（SKILL.md の表の Phase B の行。HANDOFF は §0〜§5）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR 状態ブロックで渡す）。implementation head 欄は `未固定` で、Phase A の出口である。
-  - 必要な権限: Unity Editor の起動とコンパイル確認（`tools/unity-editor.cmd`。`.agents/skills/osm-unity-editor/SKILL.md` に従う）。Unity のバッチテストと Content Directory の build は Phase C が行う。
-  - 停止規則: §4「Phase B から Phase A へ差し戻す条件」のどれかに当たれば実装を止めて返す。新しい事実は先に [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) に分ける。public の名前は §2.4 のとおりで、変えるなら Phase A へ戻す。
+- 引継ぎ票（2026-11-19、Phase B から発見 C へ）:
+  - 次の Phase・役割: 発見 C（動作確認の対象は無い。§5「検証経路」が `対象なし`）。作業は §5 の起点 filter・offline の test・AC6 の実機の test の実行と、AC1〜AC8 の突き合わせ。Phase B は Unity のバッチテストと Content Directory の build をしていない（§6 の未実行）。
+  - 読む範囲: 既定（SKILL.md の表の発見 C の行。HANDOFF は §0〜§8）。§6 の「HANDOFF との差」「B 適応」と、新しい test の class の名前を先に読む。
+  - 凍結した Phase A: revision 1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示と PR 状態ブロックの `引き継ぐ commit` で渡す。implementation head は上の欄（実装と票を 1 つの commit で切った）。implementation base は `b0bc9997`。
+  - 必要な権限: Unity の実行（承認済み経路で `pwsh tools/run-tests.ps1`）。Editor を閉じ、他の Unity を止め、active build target を StandaloneWindows64 の Player にする。AC6 は Content Directory の build を 2 回伴う（§5「統合・Unity テスト」の既知の終了 stall と staging の `Directory.Move` の不安定を先に読む）。
+  - 停止規則: §2.6。AC6 で上書きの版が出ない、または解除の順で base の物が壊れる時は §2.6 NO-GO (i) で owner へ返す（何がどの段で違ったかを記録する）。それ以外の不成立は B へ戻す。新しい事実は先に [新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類) に分ける。public の名前は §2.4 のとおりで、変えるなら Phase A へ戻す。
+  - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle は C が生成する。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -434,7 +434,28 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（§4 の順。行数は base `b0bc9997` → この head）:
+  1. 記録と照合: `Runtime/BuildContent/BuildContentOverlayBase.cs`（新規 106 行）。public の `[Serializable]` の型で、base の 5 欄・上書きの contentSet・Unity の版を持ち、必須の欄が空なら `IsRecorded` が偽（記録無し）。constructor は digest を小文字 16 進 64 字（`IsManifestSha256`）に限る。照合は internal の純粋な関数 `FindMismatch`（`VerifiedInstalledRevision` と base の root の宣言の名前、または 5 つの値を受け、違う最初の欄の名前を返す）。`BuildContentRoot`（97 → 108）に `OverlayBase` と `Initialize` の任意引数 `overlayBase`。`ContentDirectoryFailureCode` に `OverlayBaseMismatch`・`OverlayBaseMissing` を末尾に足した。
+  2. Editor の build: `IContentDirectoryAdapter.Build` に `ContentOverlayBaseIdentity? overlayBase, string contentSet` を足した。`UnityContentDirectoryAdapter`（245 → 261）が Editor の型から Runtime の記録へ変換し（`Application.unityVersion`）、読み戻した root の記録を全欄比べる。`BuildContentCoordinator`（215 → 221）は request の base と contentSet を adapter へ渡し、`ValidateOverlay` の最後に digest の書式を検査する。`ContentOverlayBaseIdentity` の `manifestDigest` の doc を transport manifest の SHA-256 に改めた（235 → 238）。
+  3. 層の列: `Runtime/BuildContent/ContentDirectoryLayers.cs`（新規 276 行）。層ごとの path・identity・native・root・索引、予約、`Register`（保留中の再試行 → 層 2 つの予約 → 予約の中の再検証 → base → 上書きの native の登録・root・索引 → 記録を持つ base の root の拒否 → 上書きの記録の有無と照合 → id による影の計算。失敗は `TryUnregisterAll` で巻き戻し、巻き戻しの失敗は `DeferRollback`）、I-3 の解決 `Resolve`（`LayerResolution` に選んだ層・entry・「要求の表現の base の entry を影で除いた」を返す）、逆順の解除 `TryUnregisterAll`（層ごとの解除済みと予約の返却を保持し、失敗した層で止める）、process に 1 つの保留 `_pendingRollback`（層の列ごと）、cache の前置き。
+  4. session: `ContentDirectorySession`（498 → 501）は token・処理・後始末の数え方と load の入口に留め、native の登録・解除は層の列へ移した。上書きを重ねた登録の口 `RegisterVerifiedWithOverlay(VerifiedInstalledRevision, string overlayPath, string overlayIdentity)` と、test が natives を注入する overload。load は層の解決が選んだ層の native で行い、token は載せた層の native を持つ。解除の 3 経路（`CloseNow`、`CloseNowForPlayStop`、登録の巻き戻し）は `TryUnregisterAll` を呼ぶだけ。
+  5. gate: `ContentRevisionGate`（212 → 303）。internal の `Reserve(IReadOnlyList<ContentRevisionLayer>)` を足し、既存の `Reserve(identity, target, path)` は層 1 つで委ねる。層どうしの path か revision の重複は予約の前に `InvalidConfiguration`。OS の lease は層ごとに取り、途中の失敗では取れた分を逆順に返す。登録の台帳はどれかの層に当たれば当たったとし、拒否の値は「どれかの層と path が同じで revision が違えば `PathInUse`、それ以外は `RevisionBusy`」。
+  6. 索引: `ContentDirectoryIndex`（159 → 189）に完全一致で引く `TryGetExact`、全 entry の一覧（影の計算用）、前置きを受ける `CacheKey(prefix, entry)`、上書きの層の前置き `OverlayLayerPrefix`（session の共通の前置きの後に `~overlay:` と path・identity。`~` は Base64 の字に無いので base の entry の key と衝突しない）。
+  7. core: `ContentSourceKind.ContentOverlay = 4`、`ContentAcceptanceBasis.RecordedBaseMatch = 3`（doc に保証の境界と 3 つの輪）、`ContentCompatibilityFactKeys.OverlayBase*` の 4 つ、`ContentCompatibilityMismatch.OverlayBaseFactMissing = 14`、`ContentSetMismatch`・`RevisionMismatch`・`TargetMismatch` の doc に 1 句。`ContentResolver.RequiredBasis` と `ContentCompatibilityRule.EvaluateGeneric` に上書きの組を同時に足し、規則は §2.4 の上書きの分岐の表の順に判定し（engine と schema の判定は directory と共有の private method に括り出した）、host の述語を上書きにも当てる。採った時の理由は `compat:Compatible:ContentOverlay`。
+  8. 供給元と route: `RegisteredDirectoryProvider`（130 → 190）に `OverlayId = "registered-content-overlay"` と層を指定する constructor `(session, bool overlay, string id)`（既存の `(session, id = DefaultId)` は base の層のまま）。候補は session の層の解決が自分の層を選んだ時だけ返し、base の供給元は上書きの層が選ばれた要求に `NotFound`（影なら理由に shadowed）。照合は由来・受け入れ根拠・identity まで比べる。`RegisteredDirectoryRoute`（102 → 121）は上書きを持つ session に供給元 2 つ（上書き → base）の policy を作り、`Provider` は base のまま、上書きの供給元は `OverlayProvider`。
+  9. test（新しい class の名前）: `OneStarMaker.Tests.Editor.Build.ContentOverlaySessionTests`（AC1・AC3。共通の組み立ては同じ folder の `OverlayRegistrationFixture`）、`OneStarMaker.Tests.BuildContent.BuildContentOverlayBaseTests`（AC1 の照合の純粋な関数）、`OneStarMaker.Tests.Editor.Build.OverlayRootRecordTests`（AC2）、`OneStarMaker.Tests.BuildContent.ContentRevisionGateTests` に 3 件追記（AC4）、`OneStarMaker.Tests.Editor.Build.OverlayDirectoryProviderTests`（AC5）、offline の `OverlayTests.cs`（O1〜O8。`Program.cs` に `RunOverlayTests()` を 1 行足した）、実機の `OneStarMaker.Tests.Editor.Build.OverlayRegistrationIntegrationTests`（AC6。`SampleGame/Tests/Editor/Build/`、`[Timeout(720000)]`）。既存の test の変更は AC7 の例外 (1)(2) だけ（fake の adapter 3 つの `Build` の署名、`digest-1` を `ContentOverlaySelectionTests.BaseDigest`（SHA-256 の形の定数）に替えた）。
+- internal の名前（§3 の仮の名前を B が決めた物）: `ContentDirectoryLayers`（`Layer`・`LayerResolution`・`Register`・`Resolve`・`TryUnregisterAll`・`DeferRollback`・`HasPendingRollback`・`CachePrefix`・`CacheKey`）、`ContentDirectorySession.RegisterVerifiedWithOverlay`・`OverlayLayer`・`ResolveEntry`・`IsClosed`、`ContentRevisionLayer`、`BuildContentOverlayBase.FindMismatch`・`IsManifestSha256`（後者は public。adapter の assembly が coordinator の検査に使う）、`RegisteredDirectoryProvider.OverlayId`、`RegisteredDirectoryRoute.OverlayProvider`。
+- B 適応（凍結した契約と責務配置の範囲。Phase A は再開しない）:
+  - **content 入口の影の扱い。** AC5 は、base に `(K, Whitebox)`・上書きに同じ native id の `(K, Full)` がある時、`LoadContentAssetAsync(K, Whitebox)` / `LoadContentSceneAsync(K, Whitebox)` の直接の呼び出しを `EntryMissing` と定める。一方 I-3 の解決の規則をそのまま content 入口に当てると、影で base の `Whitebox` を除いた後に上書きの `Full` へ fallback する。両方を満たすため、層の解決は規則どおりに上書きの `Full` を選び（供給元は上書きの `Full` の候補を返し、fallback を明示した要求で採られる）、content 入口（`ResolveForLoad`）だけが「要求の表現の base の entry を影で除いた上で、別の表現の entry を選んだ」時に `EntryMissing` で拒む。loader は採った候補の表現（`Full`）で content 入口を呼ぶので、loader の経路は変わらない。上書きを重ねない登録では影が無く、挙動は変わらない。
+  - test の entry の native id は、`LoadableSceneId`・`LoadableObjectId` の非公開の field を reflection で設定して作った（`OverlayRegistrationFixture.SceneId`・`ObjectId`）。`LoadableSceneId` の constructor は internal で、層の解決と影の単体には任意の id の組（同じ・違う）が要り、Framework の test に Scene の asset を足さないため。native は fake なので id を読まない。Unity が field の名前を変えると fixture が `NullReferenceException` で落ちる（製品の code は依存しない）。
+  - `ContentRevisionGate` の読みの台帳の要素の型を、登録の層の型（`Registration.Layer`。参照で外す class）にした。読みの調停の値と順は変えていない。
+  - 予約の返却（`IDisposable.Dispose`）が投げた時、今までの 1 層の code は session を closed にしてから例外を close の失敗として返したが、層の列は予約を返すまで closed にせず、close の再試行で予約の返却だけをやり直す。最初の close が返す値（`OperationFailed`）は同じで、予約の返却は process 内の台帳と OS の file handle の解放なので実際には投げない。
+- 行数の判断: `ContentDirectorySession.cs` は 501 行で 500 行を超えた。**非分割妥当**: 残っている責務は token・発行済みの処理・失敗した後始末の数え方と、それに従う load の入口という 1 つの変更理由で、層の列の責務（解決・cache の key・登録と逆順の解除・巻き戻しの再試行）は `ContentDirectoryLayers.cs` に移した。超過は test が途中の状態を見る `IsClosed` の 3 行で、§3 が置き場を今決めると定めた。`ContentRevisionGate.cs` は 212 → 303 行（+43%。見込みは 250）。層の型・lease の合成・拒否の値の優先を足した分で、責務は登録・読み・削除の調停のまま。
+- HANDOFF との差: なし（§3 の file と test の folder の外、asmdef の `references`、`AssemblyInfo.cs`、`SceneState`、`tools/Artifacts`、SampleGame の製品 code、`IAssetManagement`・`AssetManagement` と `AssetManagement.ContentDirectory.cs`・`IContentDirectoryBackend`・`UnityContentDirectoryBackend`・`ContentRequestLoader.cs`・`AbstractApplicationInitializer`・`PlayerContentConfiguration`・`Distribution/` は変えていない）。
+- 実施した確認: Editor（6000.6.9f1、この worktree、StandaloneWindows64 Player）を起動して compile（`compilationFailed:false`、console の error は Pipeline の eval の timeout の 1 件だけで compile の error は 0。変更・新規の file の warning は 0）。`dotnet run --project tools/ContentResolutionOfflineTests`（72 passed、0 failed、exit 0。うち上書きの O1〜O8 は 8 件）。`pwsh tools/contract-audit.ps1`（errors=0 warnings=0）。`pwsh tools/docs-audit.ps1`（errors=0。警告 1 件は `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest 時期で本スライスと無関係）。AC7 の 3 つの `grep`（`Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` と `ContentRequestLoader.cs` → `BuildContent`・`UnityEngine`、`Runtime/BuildContent/` → `ContentResolution`）は全て一致なし。AC7・AC8 の変えない file は `git diff --stat b0bc9997` に出ない。起動した Editor は未保存の Scene が無いことを確かめて正常終了させた。
+- 未実行: `pwsh tools/run-tests.ps1` の全て（起点 filter、AC1〜AC5 の新しい class、AC6 の実機の test、`RegisteredDirectoryRouteIntegrationTests`、全 EditMode 回帰）と Content Directory の build。Unity のバッチテストは Phase C が行う。新しい test は compile しただけで、一度も走らせていない。
+- implementation head commit: この票を含む commit（実装と票を 1 つの commit で切った）。
+- Phase B 担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
 
 ## 7. Phase C
 

@@ -55,6 +55,7 @@ namespace OneStarMaker.ContentResolutionOfflineTests
             Run(nameof(UnmetPin_ThenFault_IsIntegrityRejected), UnmetPin_ThenFault_IsIntegrityRejected);
             RunCompatibilityTests();
             RunFallbackTests();
+            RunOverlayTests();
             Console.WriteLine($"ContentResolution offline: {_passed} passed, {_failed} failed, {_passed + _failed} executed");
             return _failed == 0 && _passed > 0 ? 0 : 1;
         }

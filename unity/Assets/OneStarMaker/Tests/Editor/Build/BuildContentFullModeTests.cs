@@ -272,7 +272,7 @@ namespace OneStarMaker.Tests.Editor.Build
             var t = ContentOverlaySelectionTests.Topology.Create();
             var selection = ContentOverlaySelection.Select(t.Plan, t.Snapshot, new[] { ContentOverlaySelectionTests.EditedTex });
             var request = new BuildContentRequest(selection,
-                new ContentOverlayBaseIdentity("base_a", "rev-1", "Android-Player", "digest-1", null), "overlay_a", root, null, null);
+                new ContentOverlayBaseIdentity("base_a", "rev-1", "Android-Player", ContentOverlaySelectionTests.BaseDigest, null), "overlay_a", root, null, null);
             var adapter = new ContentOverlaySelectionTests.ManifestAdapter();
             Assert.Throws<ArgumentException>(() => new BuildContentCoordinator(adapter).Build(request));
             Assert.That(adapter.Calls, Is.Zero);
@@ -380,7 +380,7 @@ namespace OneStarMaker.Tests.Editor.Build
             public bool SawSentinel { get; private set; }
             public void ValidateTarget() { }
             public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
-                BuildPurposeDeclaration? declaration)
+                BuildPurposeDeclaration? declaration, ContentOverlayBaseIdentity? overlayBase, string contentSet)
             {
                 Calls++;
                 SawSentinel = File.Exists(Path.Combine(workspace, Sentinel));

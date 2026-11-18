@@ -23,8 +23,10 @@ namespace OneStarMaker.Editor.Build.Content
     {
         void ValidateTarget();
         // declaration は root に写す宣言。無ければ root は宣言無しで作る（合成 fixture・旧経路）。
+        // overlayBase は上書きの build の時だけ渡す base の記録で、root に上書きの印として写す（contentSet は上書き自身の値）。
+        // 上書きでない build では null で、root は記録無しで作る。
         ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
-            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration);
+            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration, ContentOverlayBaseIdentity? overlayBase, string contentSet);
     }
 
     // 1回の build の所有者。入力検証、preflight、Unity build、公開、outcome の順序を固定する。
@@ -81,7 +83,7 @@ namespace OneStarMaker.Editor.Build.Content
                 // 作成より先に検査し、途中の segment がリンクなら CreateDirectory でリンク先に書かない。
                 if (request.Mode == BuildContentMode.Full) ClearWorkspace(boundary, workspace);
                 Directory.CreateDirectory(workspace);
-                var built = _adapter.Build(projection, identity, workspace, request.Declaration);
+                var built = _adapter.Build(projection, identity, workspace, request.Declaration, request.Overlay?.BaseIdentity, request.ContentSet);
                 // Unity report が成功でも、manifest と metadata が所定 workspace に無ければ公開しない。
                 // adapter から返る path の包含も調べ、別の directory を誤って配布しない。
                 if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
@@ -131,6 +133,8 @@ namespace OneStarMaker.Editor.Build.Content
         //     大文字小文字だけ違う名前も同じ folder になる（ValidateSegment は両方を通す）ので、大小を無視して比べる。
         // (2) 宣言の名前と target が base の記録と違う上書きは、登録契約 C6 で重ねられない物になるので作らない。
         //     宣言付きの base に宣言なしの上書き（その逆も）も名前の不一致として拒む。
+        // (3) base の digest が transport manifest の SHA-256 の形（小文字 16 進 64 字）でない上書きは、root に写しても
+        //     登録の照合（install した base の receipt の値と ordinal 比較）で必ず落ちるので作らない。
         private static void ValidateOverlay(BuildContentRequest request)
         {
             var b = request.Overlay!.BaseIdentity;
@@ -141,6 +145,8 @@ namespace OneStarMaker.Editor.Build.Content
                                             "' does not match the base declaration '" + (b.DeclarationName ?? "(none)") + "'.");
             if (!string.Equals(b.Target, TargetName, StringComparison.Ordinal))
                 throw new ArgumentException("The base target '" + b.Target + "' does not match the build target '" + TargetName + "'.");
+            if (!OneStarMaker.Runtime.BuildContent.BuildContentOverlayBase.IsManifestSha256(b.ManifestDigest))
+                throw new ArgumentException("The base manifest digest must be the SHA-256 of the transport manifest bytes (64 lowercase hexadecimal characters).");
         }
 
         // workspace の中身だけを消す。字句上の包含（Child）だけでは、途中の segment や中の directory が

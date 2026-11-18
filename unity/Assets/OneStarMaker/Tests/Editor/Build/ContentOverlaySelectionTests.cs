@@ -221,7 +221,7 @@ namespace OneStarMaker.Tests.Editor.Build
                 Assert.That(preflight.overlayBase.contentSet, Is.EqualTo("base_a"));
                 Assert.That(preflight.overlayBase.revision, Is.EqualTo("rev-1"));
                 Assert.That(preflight.overlayBase.target, Is.EqualTo(BuildContentCoordinator.TargetName));
-                Assert.That(preflight.overlayBase.manifestDigest, Is.EqualTo("digest-1"));
+                Assert.That(preflight.overlayBase.manifestDigest, Is.EqualTo(BaseDigest));
                 Assert.That(preflight.overlayBase.declarationName, Is.Empty);
                 Assert.That(preflight.overlayEdits, Is.EqualTo(Edits.OrderBy(x => x, StringComparer.Ordinal)));
                 Assert.That(preflight.overlayRoots.Select(x => x.stableKey + "/" + x.logicalKey + "=" + string.Join(";", x.edits)), Is.EqualTo(new[]
@@ -245,8 +245,11 @@ namespace OneStarMaker.Tests.Editor.Build
             }
         }
 
+        // base の transport manifest の SHA-256 の形の値（上書きの build が digest の形を検査する）。
+        internal const string BaseDigest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
         internal static ContentOverlayBaseIdentity BaseIdentity(string? declarationName = null) =>
-            new ContentOverlayBaseIdentity("base_a", "rev-1", BuildContentCoordinator.TargetName, "digest-1", declarationName);
+            new ContentOverlayBaseIdentity("base_a", "rev-1", BuildContentCoordinator.TargetName, BaseDigest, declarationName);
 
         private static IEnumerable<string> Reasons(ContentOverlaySelectionResult result) =>
             result.Roots.Select(x => x.Root.StableKey + "=" + string.Join(";", x.Edits));
@@ -305,7 +308,7 @@ namespace OneStarMaker.Tests.Editor.Build
             public int Calls { get; private set; }
             public void ValidateTarget() { }
             public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
-                BuildPurposeDeclaration? declaration)
+                BuildPurposeDeclaration? declaration, ContentOverlayBaseIdentity? overlayBase, string contentSet)
             {
                 Calls++;
                 Declaration = declaration;

@@ -25,5 +25,17 @@ namespace OneStarMaker.Runtime.ContentResolution
         /// 候補の root schema の version。ASCII の <c>1</c>〜<c>9</c> で始まる 9 桁以内の 10 進表記だけを受け付ける。
         /// </summary>
         public const string RootSchemaVersion = ReservedPrefix + "rootSchemaVersion";
+
+        /// <summary>上書きの候補が重なる base の contentSet（上書きの root の記録）。互換の基準の contentSet と比べる。</summary>
+        public const string OverlayBaseContentSet = ReservedPrefix + "overlayBaseContentSet";
+
+        /// <summary>上書きの候補が重なる base の revision（上書きの root の記録）。基準が revision を固定した時だけ比べる。</summary>
+        public const string OverlayBaseRevision = ReservedPrefix + "overlayBaseRevision";
+
+        /// <summary>上書きの候補が重なる base の target（上書きの root の記録）。互換の基準の target と比べる。</summary>
+        public const string OverlayBaseTarget = ReservedPrefix + "overlayBaseTarget";
+
+        /// <summary>上書きの候補が重なる base の transport manifest の SHA-256（上書きの root の記録）。規則は有無だけを見る。</summary>
+        public const string OverlayBaseManifestSha256 = ReservedPrefix + "overlayBaseManifestSha256";
     }
 }

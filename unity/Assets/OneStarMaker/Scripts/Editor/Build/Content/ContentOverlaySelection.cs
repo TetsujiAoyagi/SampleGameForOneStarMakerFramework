@@ -55,7 +55,10 @@ namespace OneStarMaker.Editor.Build.Content
         /// <param name="contentSet">base の contentSet（workspace の名前）。</param>
         /// <param name="revision">base の revision（publish した transport manifest の revision。base の build identity）。</param>
         /// <param name="target">base の target（transport manifest の target）。</param>
-        /// <param name="manifestDigest">base の transport manifest の digest（呼び手が決めた hash の文字列）。</param>
+        /// <param name="manifestDigest">
+        /// base の transport manifest の bytes の SHA-256（小文字 16 進 64 字。install の receipt の manifestSha256 と同じ値）。
+        /// 形の検査は上書きの build が report の前に行う。登録はこの値を install した base の値と ordinal で比べる。
+        /// </param>
         /// <param name="declarationName">base の宣言の名前。宣言を持たない base では null（空文字は受け付けない）。</param>
         public ContentOverlayBaseIdentity(string contentSet, string revision, string target, string manifestDigest, string? declarationName)
         {

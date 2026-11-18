@@ -22,5 +22,11 @@ namespace OneStarMaker.Runtime.ContentResolution
 
         /// <summary>Addressables。受け入れ根拠が未定義なので、現在の resolver は採用しない。</summary>
         Addressables = 3,
+
+        /// <summary>
+        /// 検証済みの base に重ねて登録した上書きの Content Directory（Editor の Play だけ）。identity は上書き自身の値で、
+        /// digest は持たない（上書きは install も publish もされない）。重ねた base の記録は互換の事実で運ぶ。
+        /// </summary>
+        ContentOverlay = 4,
     }
 }

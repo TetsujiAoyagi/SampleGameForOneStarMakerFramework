@@ -7,7 +7,8 @@ using OneStarMaker.Runtime.BuildContent.Distribution;
 namespace OneStarMaker.Runtime.ContentResolution
 {
     /// <summary>
-    /// 登録した 1 つの directory の session と AssetManagement から、要求時解決の供給元・互換の基準・policy・loader を組み立てる。
+    /// 登録した session（1 つの directory、または base に上書きを 1 つ重ねた層の列）と AssetManagement から、
+    /// 要求時解決の供給元・互換の基準・policy・loader を組み立てる。
     /// 起動の配線と test が同じ組み立てを使う（起動側に組み立ての判断を置かない）。
     /// </summary>
     /// <remarks>
@@ -23,6 +24,11 @@ namespace OneStarMaker.Runtime.ContentResolution
     /// 候補の事実は manifest の値から作るので（<see cref="RegisteredDirectoryProvider"/>）、基準と事実は別の出所になる。
     /// </para>
     /// <para>
+    /// 上書きを重ねた session では供給元を 2 つ（上書き → base の順、id は別）作る。<see cref="Provider"/> は今までどおり base の層の供給元で、
+    /// 上書きの層の供給元は <see cref="OverlayProvider"/> にある（起動の log と既存の利用者が読む <see cref="Provider"/> の意味を変えない）。
+    /// 互換の基準は base の検証済みの値のまま（上書きの候補は記録した base の値を基準と比べる）。
+    /// </para>
+    /// <para>
     /// 状態を持たず、session の token を取らない。route を捨てても close の順序は変わらない。
     /// </para>
     /// </remarks>
@@ -30,17 +36,23 @@ namespace OneStarMaker.Runtime.ContentResolution
     {
         private RegisteredDirectoryRoute(
             RegisteredDirectoryProvider provider,
+            RegisteredDirectoryProvider? overlayProvider,
             ContentCompatibilityEnvelope envelope,
             ResolutionPolicy policy,
             ContentRequestLoader loader)
         {
             Provider = provider;
+            OverlayProvider = overlayProvider;
             Envelope = envelope;
             Policy = policy;
             Loader = loader;
         }
 
+        /// <summary>base の層（1 directory の登録ではその directory）の供給元。</summary>
         internal RegisteredDirectoryProvider Provider { get; }
+
+        /// <summary>上書きの層の供給元。上書きを重ねない登録では null。</summary>
+        internal RegisteredDirectoryProvider? OverlayProvider { get; }
 
         internal ContentCompatibilityEnvelope Envelope { get; }
 
@@ -87,14 +99,21 @@ namespace OneStarMaker.Runtime.ContentResolution
                 throw new InvalidOperationException("The content directory session is no longer accepting loads.");
 
             var provider = new RegisteredDirectoryProvider(session);
+            var overlayProvider = session.OverlayLayer == null
+                ? null
+                : new RegisteredDirectoryProvider(session, true, RegisteredDirectoryProvider.OverlayId);
             var envelope = new ContentCompatibilityEnvelope(
                 verified.ContentSet,
                 verified.Target,
                 ContentManifestValidation.SupportedUnityVersion,
                 ContentManifestValidation.SupportedRootSchemaVersion,
                 revision: null);
-            var policy = new ResolutionPolicy(new IContentProvider[] { provider }, new ContentCompatibilityRule(envelope));
-            route = new RegisteredDirectoryRoute(provider, envelope, policy, new ContentRequestLoader(assetManagement, policy));
+            // 上書き → base の順。上書きの層が選ばれた要求は base の供給元が NotFound を返すので、順は採用の結果を変えず、probe の経緯を決める。
+            var providers = overlayProvider == null
+                ? new IContentProvider[] { provider }
+                : new IContentProvider[] { overlayProvider, provider };
+            var policy = new ResolutionPolicy(providers, new ContentCompatibilityRule(envelope));
+            route = new RegisteredDirectoryRoute(provider, overlayProvider, envelope, policy, new ContentRequestLoader(assetManagement, policy));
             notCreatedReason = string.Empty;
             return true;
         }

@@ -12,7 +12,7 @@ namespace OneStarMaker.Runtime.BuildContent
         private static readonly object Sync = new();
         private static Registration? _registration;
         private static readonly List<Deletion> Deletions = new();
-        private static readonly List<Registration> Reads = new();
+        private static readonly List<Registration.Layer> Reads = new();
 
         internal static IDisposable AcquireRead(string buildIdentity, string target, string absolutePath)
         {
@@ -26,7 +26,8 @@ namespace OneStarMaker.Runtime.BuildContent
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
                         "A content deletion is in progress.", buildIdentity, target);
                 var process = AcquireProcessRead(buildIdentity, target, path, "read");
-                var value = new Registration(buildIdentity, target, path);
+                // 読みの lease は登録とは別の台帳。参照の同一で外すので、同じ revision の読みが重なっても数が合う。
+                var value = new Registration.Layer(buildIdentity, target, path);
                 Reads.Add(value);
                 return new CompositeLease(process, () =>
                 {
@@ -46,11 +47,9 @@ namespace OneStarMaker.Runtime.BuildContent
                 if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
                     buildIdentity, target, path)))
                 { rejection = ContentDirectoryFailureCode.DeletionInProgress; return false; }
-                if (_registration != null && SameRevisionOrPath(_registration.Identity, _registration.Target,
-                    _registration.Path, buildIdentity, target, path))
+                if (_registration != null && _registration.Overlaps(buildIdentity, target, path))
                 {
-                    rejection = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
-                        ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
+                    rejection = _registration.RejectionFor(buildIdentity, target, path);
                     return false;
                 }
                 if (Reads.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
@@ -76,25 +75,64 @@ namespace OneStarMaker.Runtime.BuildContent
         }
 
         internal static IDisposable Reserve(string buildIdentity, string target, string absolutePath)
+            => Reserve(new[] { new ContentRevisionLayer(buildIdentity, target, absolutePath) });
+
+        /// <summary>
+        /// 層（base と任意の上書き）を 1 つの登録として予約する。どの層の (identity, path) への削除の許可も、予約を返すまで拒まれる。
+        /// 層ごとに OS の lease を取って合成し、途中で取れなければ取れた分を返して予約 0 件で終える。
+        /// 登録の基数は今までどおり process に 1 件で、層を持つ登録の後の別の登録も拒む。
+        /// </summary>
+        /// <exception cref="ContentDirectoryException">
+        /// 入力が不正、または層どうしで path か revision が同じ（<see cref="ContentDirectoryFailureCode.InvalidConfiguration"/>。予約の前に拒む）。
+        /// 削除中、既に登録がある、OS の lease が取れない時は単層と同じ値。
+        /// </exception>
+        internal static IDisposable Reserve(IReadOnlyList<ContentRevisionLayer> layers)
         {
-            if (!TryNormalize(buildIdentity, target, absolutePath, out var path))
-                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory registration input is invalid.", buildIdentity, target);
+            if (layers == null || layers.Count == 0) throw new ArgumentException("At least one layer is required.", nameof(layers));
+            var normalized = new Registration.Layer[layers.Count];
+            for (var i = 0; i < layers.Count; i++)
+            {
+                var layer = layers[i];
+                if (!TryNormalize(layer.BuildIdentity, layer.Target, layer.AbsolutePath, out var path))
+                    throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Content directory registration input is invalid.", layer.BuildIdentity, layer.Target);
+                normalized[i] = new Registration.Layer(layer.BuildIdentity, layer.Target, path);
+            }
+            // 同じ path か同じ revision を 2 層に持つ登録は、層ごとの照合と解除の順の前提（層は別の directory）を崩す。
+            for (var i = 0; i < normalized.Length; i++)
+                for (var j = i + 1; j < normalized.Length; j++)
+                    if (SameRevisionOrPath(normalized[i].Identity, normalized[i].Target, normalized[i].Path,
+                            normalized[j].Identity, normalized[j].Target, normalized[j].Path))
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                            "Layers of one content directory registration must not share a path or a revision.", normalized[j].Identity, normalized[j].Target);
             lock (Sync)
             {
-                if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
-                    buildIdentity, target, path)))
-                    throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
-                        "A content directory deletion is in progress.", buildIdentity, target);
+                foreach (var layer in normalized)
+                    if (Deletions.Exists(value => SameRevisionOrPath(value.Identity, value.Target, value.Path,
+                        layer.Identity, layer.Target, layer.Path)))
+                        throw new ContentDirectoryException(ContentDirectoryFailureCode.DeletionInProgress,
+                            "A content directory deletion is in progress.", layer.Identity, layer.Target);
                 if (_registration != null)
                 {
-                    var code = _registration.Path == path && (_registration.Identity != buildIdentity || _registration.Target != target)
-                        ? ContentDirectoryFailureCode.PathInUse : ContentDirectoryFailureCode.RevisionBusy;
-                    throw new ContentDirectoryException(code, "A content directory is already registered in this process.", buildIdentity, target);
+                    var code = ContentDirectoryFailureCode.RevisionBusy;
+                    foreach (var layer in normalized)
+                        if (_registration.RejectionFor(layer.Identity, layer.Target, layer.Path) == ContentDirectoryFailureCode.PathInUse)
+                            code = ContentDirectoryFailureCode.PathInUse;
+                    throw new ContentDirectoryException(code, "A content directory is already registered in this process.", normalized[0].Identity, normalized[0].Target);
                 }
-                var registration = new Registration(buildIdentity, target, path);
-                var process = AcquireProcessRead(buildIdentity, target, path, "registration");
+                var registration = new Registration(normalized);
+                var processes = new List<IDisposable>(normalized.Length);
+                try
+                {
+                    foreach (var layer in normalized)
+                        processes.Add(AcquireProcessRead(layer.Identity, layer.Target, layer.Path, "registration"));
+                }
+                catch
+                {
+                    for (var i = processes.Count - 1; i >= 0; i--) processes[i].Dispose();
+                    throw;
+                }
                 _registration = registration;
-                return new CompositeLease(process, new RegistrationLease(registration).Dispose);
+                return new CompositeLease(new LeaseSet(processes), new RegistrationLease(registration).Dispose);
             }
         }
 
@@ -154,13 +192,36 @@ namespace OneStarMaker.Runtime.BuildContent
             string otherIdentity, string otherTarget, string otherPath)
             => (identity == otherIdentity && target == otherTarget) || path == otherPath;
 
+        // 1 件の登録。層（base と任意の上書き）の (identity, target, path) を全て持ち、利用・削除の調停はどれかの層に当たれば当たったとする。
         private sealed class Registration
         {
-            internal Registration(string identity, string target, string path)
-            { Identity = identity; Target = target; Path = path; }
-            internal string Identity { get; }
-            internal string Target { get; }
-            internal string Path { get; }
+            private readonly Layer[] _layers;
+            internal Registration(Layer[] layers) => _layers = layers;
+
+            internal bool Overlaps(string identity, string target, string path)
+            {
+                foreach (var layer in _layers)
+                    if (SameRevisionOrPath(layer.Identity, layer.Target, layer.Path, identity, target, path)) return true;
+                return false;
+            }
+
+            // 拒否の値の優先: どれかの層と path が同じで revision が違えば PathInUse（別 revision で同じ path を削る抜け道）、それ以外は RevisionBusy。
+            internal ContentDirectoryFailureCode RejectionFor(string identity, string target, string path)
+            {
+                foreach (var layer in _layers)
+                    if (layer.Path == path && (layer.Identity != identity || layer.Target != target))
+                        return ContentDirectoryFailureCode.PathInUse;
+                return ContentDirectoryFailureCode.RevisionBusy;
+            }
+
+            internal sealed class Layer
+            {
+                internal Layer(string identity, string target, string path)
+                { Identity = identity; Target = target; Path = path; }
+                internal string Identity { get; }
+                internal string Target { get; }
+                internal string Path { get; }
+            }
         }
 
         internal sealed class Deletion
@@ -186,6 +247,26 @@ namespace OneStarMaker.Runtime.BuildContent
             }
         }
 
+        // 層ごとの OS の lease を逆順に返す。1 つの Dispose の例外で残りを返し損ねない。
+        private sealed class LeaseSet : IDisposable
+        {
+            private List<IDisposable>? _leases;
+            internal LeaseSet(List<IDisposable> leases) => _leases = leases;
+            public void Dispose()
+            {
+                var leases = _leases;
+                _leases = null;
+                if (leases == null) return;
+                Exception? failure = null;
+                for (var i = leases.Count - 1; i >= 0; i--)
+                {
+                    try { leases[i].Dispose(); }
+                    catch (Exception ex) { failure ??= ex; }
+                }
+                if (failure != null) throw failure;
+            }
+        }
+
         private sealed class CompositeLease : IDisposable
         {
             private IDisposable? _inner;
@@ -200,6 +281,16 @@ namespace OneStarMaker.Runtime.BuildContent
                 finally { _inner?.Dispose(); _inner = null; }
             }
         }
+    }
+
+    /// <summary>登録の予約の 1 層（base か上書き）の入力。</summary>
+    internal readonly struct ContentRevisionLayer
+    {
+        internal ContentRevisionLayer(string buildIdentity, string target, string absolutePath)
+        { BuildIdentity = buildIdentity; Target = target; AbsolutePath = absolutePath; }
+        internal string BuildIdentity { get; }
+        internal string Target { get; }
+        internal string AbsolutePath { get; }
     }
 
     /// <summary>物理削除そのものは行わず、DIST が finally まで保持する process 内 delete lease。</summary>

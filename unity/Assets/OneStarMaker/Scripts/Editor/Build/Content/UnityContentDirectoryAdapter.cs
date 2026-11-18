@@ -72,7 +72,7 @@ namespace OneStarMaker.Editor.Build.Content
         }
 
         public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
-            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration)
+            OneStarMaker.Build.Selection.BuildPurposeDeclaration? declaration, ContentOverlayBaseIdentity? overlayBase, string contentSet)
         {
             ValidateTarget();
             // 前回の異常終了で残った所有物だけを掃除する。marker のない folder は触れない。
@@ -126,7 +126,12 @@ namespace OneStarMaker.Editor.Build.Content
                 // Runtime は起動設定との不一致を Warning にするだけで、値の意味は解釈しない。
                 var rootDeclaration = declaration == null ? null
                     : new BuildContentDeclaration(declaration.Name, declaration.Representation.Primary, declaration.RuntimeDefaults);
-                root.Initialize(identity, BuildContentCoordinator.TargetName, entries, rootDeclaration);
+                // 上書きの印。Editor の base の識別から Runtime の記録への変換はここだけで行う。Unity の版は build した Editor の値。
+                // 登録はこの記録と base の検証済みの値を照合し、記録の無い directory を上書きとして重ねない。
+                var rootOverlayBase = overlayBase == null ? null
+                    : new BuildContentOverlayBase(overlayBase.ContentSet, overlayBase.Revision, overlayBase.Target, overlayBase.ManifestDigest,
+                        overlayBase.DeclarationName, contentSet, Application.unityVersion);
+                root.Initialize(identity, BuildContentCoordinator.TargetName, entries, rootDeclaration, rootOverlayBase);
                 var rootPath = folder + "/BuildContentRoot.asset";
                 AssetDatabase.CreateAsset(root, rootPath);
                 EditorUtility.SetDirty(root);
@@ -135,7 +140,8 @@ namespace OneStarMaker.Editor.Build.Content
                 var loaded = AssetDatabase.LoadAssetAtPath<BuildContentRoot>(rootPath);
                 if (loaded == null || loaded.BuildIdentity != identity || loaded.Entries.Count != entries.Count
                     || (rootDeclaration != null) != (loaded.Declaration != null)
-                    || (rootDeclaration != null && loaded.Declaration!.Name != rootDeclaration.Name))
+                    || (rootDeclaration != null && loaded.Declaration!.Name != rootDeclaration.Name)
+                    || !SameOverlayBase(rootOverlayBase, loaded.OverlayBase))
                     throw new InvalidOperationException("Generated root did not retain its serialized identities.");
                 var parameters = new BuildContentDirectoryParameters {
                     // rootAssetPaths は生成 root のみ。そこから参照される Scene/Object を Unity が収集する。
@@ -185,6 +191,16 @@ namespace OneStarMaker.Editor.Build.Content
                         new AggregateException(failure, cleanup.SourceException));
                 }
             }
+        }
+
+        // 読み戻した root が上書きの記録を全欄そのまま持つか（記録無しは記録無しのまま）。
+        private static bool SameOverlayBase(BuildContentOverlayBase? written, BuildContentOverlayBase? loaded)
+        {
+            if (written == null || loaded == null) return written == null && loaded == null;
+            return written.BaseContentSet == loaded.BaseContentSet && written.BaseRevision == loaded.BaseRevision
+                && written.BaseTarget == loaded.BaseTarget && written.BaseManifestSha256 == loaded.BaseManifestSha256
+                && written.BaseDeclarationName == loaded.BaseDeclarationName && written.OverlayContentSet == loaded.OverlayContentSet
+                && written.UnityVersion == loaded.UnityVersion;
         }
 
         // 既定の Unity の build の呼び出し。BuildReport の成否と要約だけを返す。
