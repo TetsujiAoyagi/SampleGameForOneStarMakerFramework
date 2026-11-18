@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `A`（A3 の統合案。A2 の 4 件と担当の採否を §5.1 に記録した。外部計画レビューと owner の採否・凍結の前。未凍結）
+- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 1 巡（同じ系列）の採否案を §5.1 に記録した。owner の採否・凍結の前。未凍結）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
@@ -14,7 +14,7 @@
 - owner: root（依頼者）
 - created: 2026-11-18
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
-- harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（「Runtime の強制は未実装」を外し、強制する所と測り直しの結果を書く）と「要求時の Content 解決」（上書きの供給元、record）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（root の上書きの印）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 の測り直し、移動した Scene の実測）、program §8・§10
+- harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（見出しの「Runtime の強制は未実装」を「強制は internal の登録の口にあり、入口は未配線（S3-4）」に改め、強制を確かめた設定（Domain Reload 無効、同じ PC と `Library`、loader の経路）と測り直しの結果を書く。「logical key の解決」の粒度（§2.8 U7）と、「測った設定」の Domain Reload 有効の送り先を直す）と「要求時の Content 解決」（上書きの供給元、record）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（root の上書きの印）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 の測り直し、移動した Scene の実測と「Scene の id は path から作られ」の訂正、native の登録と domain reload）、program §8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§4.1、§4.4、§5.3、§6、§8 の S3-2 と S3-1 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: A3（外部計画レビュー、owner の採否、凍結）。凍結の後に Phase B。
-  - 次の作業: Draft PR で外部計画レビューを行い、指摘は 1 巡につき 1 commit で反映する。owner が §2.8 の U3〜U7 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。
+  - 次の作業: 必要なら別の系列で外部計画レビューをもう 1 巡行い（§5.1 の独立性）、指摘は 1 巡につき 1 commit で反映する。owner が §2.8 の U3〜U7 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
   - 引き渡さないもの: なし。
@@ -81,6 +81,11 @@
   - harness の `verdict` の行は `UNDECIDED` だった。理由は対照の順の `AC6-class` を上書きの版が出る前提で読む補助の判定 code の既知の誤り（事実の文書の「測り直し」の末尾が予告している）で、観測の値は上のとおり 6000.6.0f1 と同じである。
 - **同じ file を持つ 2 つの directory の登録（commit `444651ed` の harness、3 process）:** `RegistrationVerdictTests`・`RegistrationBuilds.FirstProcess`・`RegistrationRounds.SecondProcess` が exit 0。harness の判定は `GO` で、答えは 6000.6.0f1 の事実の節と全て一致した: `Loadable` からは prefab・material・texture とも実体 1（両方の順、2 回の繰り返し）。Scene の直接参照からは material と texture が 2 つずつで、`A` の root の prefab の material は登録の順 `A`→`B` で `A` の Scene と別の実体、`B`→`A` で同じ実体。解除の 7 case のうち、後から登録した側を解除した `U3`・`U4`・`U6` は先に登録した側から `Loadable` で載せた物が壊れ（Error の log なし）、`U1`・`U2`・`U5`・`U7` は無傷。Error / Exception の log は 0 件。
   - 第 1 process（`RegistrationBuilds.FirstProcess`）は、XML（`Passed`、1 件）と record の `process-end` を 16:58 に書いた後、Unity が終わらなかった（[Harness README](../../tools/Harness/README.md) の既知の終了 stall と同じ症状）。停止規則に従って原因は調べず、この測り直しのために起動したその Unity process だけを約 4 時間後に強制終了した。強制終了した process の終了は成功の証拠にせず、測り直しの答えは XML と record の終了行で読んだ。
+- **A3 の追加の測定（2026-11-18、外部計画レビューの勧め）:** 同じ worktree・同じ設定で、製品 code を無改変のまま一時の EditMode の test（`SampleGame/Tests/Editor/Build/` に置き、測った後に消した。commit しない）を 3 つ、別々の Unity process で 1 回ずつ実行した。record は `TestResults/` の下（git 管理外）。
+  - **移動した Scene（`Moved`）:** S3-1 の統合 test と同じ組み立てで、Scene 2 つ（`Stay`・`Moved`）の目的を製品の coordinator で `Full` build した後、`AssetDatabase.MoveAsset` で `Moved` を下の folder へ移し、中の物の名前を変えて保存し、移動後の path を編集の集合にして `ContentOverlaySelection.Select` → 上書きの build を行った。逆引きは `Moved` だけを選び、上書きの build は成功した。`LoadableSceneIdEditorUtility.CreateLoadableSceneId` の値は移動の前後で同じで、Scene の GUID と同じ文字列だった。base と上書きの root の `Moved` の entry の Scene の id も等しかった。base → 上書きの順に native で登録すると、上書きの entry から読んでも base の entry から読んでも上書きの版（中の物の名前が編集後）が載った。解除の後の登録の一覧は 0 件。**実測の事実の「Scene の id は path から作られ」（6000.6.0f1 の harness の注）は、この測定と合わない**（harvest で直す）。
+  - **domain reload と native の登録（Domain Reload 無効の Play）:** 上書きの harness の base と上書きの directory を Play の中で native に 2 つ登録し、解除せずに Play を終えると、一覧に 2 件残った。続けて script の reload（`EditorUtility.RequestScriptReload`）を起こすと、reload の後の一覧は 0 件だった。
+  - **Domain Reload 有効の Enter Play Mode:** 設定を一時に Domain Reload 有効にし、Play の中で 2 つ登録して解除せずに Play を終えると、一覧に 2 件残った。unity.log では、domain reload は Play に入る時に起き、Play を終える時には起きていなかった。残った 2 件は、一覧から取った handle の `UnregisterContentDirectory` で解除でき、一覧は 0 件になった。設定は測定の後に git の版へ戻した。
+  - 測っていないもの: Play に入る時の domain reload が、前の Play で残った native の登録を消すか（script の reload が消すことだけを見た）。reload で static が消えた後の OS の lease の file handle の扱い。
 - **結論:** 13 章「base と上書きの登録契約」が依拠する実測（登録の順、同じ id の物、解除の順で壊れること、実体の重複）は、6000.6.9f1 で変わっていない。契約の行は直さない。harvest で [実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の 2 つの節に「6000.6.9f1 で測り直して同じ」と書き、補助の判定 code の既知の誤りの注記はそのまま残す。
 
 ## 2. 意思決定と受け入れ境界
@@ -89,7 +94,7 @@
 - 誤って YES を出す道（各 AC はこれを塞ぐ形にする）:
   - (a) fake の native directory だけで確かめ、Unity が後から登録した側の版を出すことと、後から登録した側の解除が先の側の物を壊すことを見ない。→ 製品の build 経路で作った base と上書きを実機で登録して読む（AC6）。
   - (b) 照合を、呼び手が申告した base の値と比べるだけにする。→ 照合は上書きの directory の root が持つ記録と、base の検証済みの値の比較にする（AC1・AC2）。照合が保証するのは「記録した base 以外に重ねない」ことで、上書きがその base の内容から作られたことではない（記録は上書きの build の呼び手が渡した値の写し）。
-  - (c) 上書きの root にある key だけを試し、base だけにある key、上書きにだけある key、移動して id が変わった Scene、表現が片方の層にだけある key を試さない。→ AC5・AC6 に全てを入れる。
+  - (c) 上書きの root にある key だけを試し、base だけにある key、上書きにだけある key、移動した Scene、表現が片方の層にだけある key を試さない。→ AC5・AC6 に全てを入れる。
   - (d) 成功の経路だけ見て、解除の順と、片方の解除・巻き戻しの失敗の後を見ない。→ AC1・AC3・AC6。
   - (e) record が `SourceBindingVerified` を true で返すことだけを見て、どちらの root の entry かを見ない。→ AC5・AC6 で record の由来と identity を key ごとに見る。
   - (f) base の版を pin した要求が、上書きの登録中に base の候補で成功する（実際には上書きの版が出る）。→ AC5 の失敗経路。
@@ -106,10 +111,10 @@
 - **I-2 base → 上書きの順に登録し、上書き → base の順に解除する。上書きの解除が成功する前に base を解除しない。** native の登録は base が先で、上書きの登録と照合が成功するまで load を受け付けない。native の解除は層の列の逆順で、ある層の解除が失敗したらそれより前の層を解除しない。各層の成功した解除は高々 1 回。明示 close と自動の解除（受付停止後に token と処理が 0 になった時）では、どちらの層から載せた token・発行済みの処理・失敗した後始末が 1 つでも残る間は、どちらの層も解除しない。**Play 停止（`CompletePlayStop`）は例外:** Unity が Play mode ごと解体するので、今までどおり token も失敗した後始末も待たずに解除する。その場合も順（上書き → base）と「上書きの解除が失敗したら base を解除しない」は守る。
   - 経路: (1) 層ごとに token を数え、上書きの token が 0 になった時点で上書きを自動で解除する。(2) Play 停止が層ごとに unregister を呼ぶ順。(3) 上書きの解除の失敗の後に base を解除する。(4) 登録の途中の失敗（上書きの native の登録、root、索引、照合の失敗）の巻き戻しで base を先に解除する。(5) 巻き戻しの失敗の再試行（static の `_pendingRollback` は 1 つの処理しか持てない）。(6) 同期終了（`BeginSynchronousShutdown`）。(7) 明示 close が `ResourcesInUse` で止まった後の再試行。(8) gate の予約を層ごとに返し、base の予約が上書きより先に外れる。(9) Play 停止の解除の失敗の後に、止まっていた明示 close が再開して同じ層を 2 回解除する（A2 の反証。今の 1 層の code でも `_closed` が false のまま `CloseNow` へ進みうる）。
   - 塞ぎ方: 1 つの session が層（base と、任意の上書き）を順のある列で所有し、token・発行済みの処理・失敗した後始末を session 全体で 1 組数える（L1）。「列の逆順に 1 層ずつ解除し、失敗したらそこで止め、どの層まで解除したかを保持し、全ての層を解除したら予約を返す」操作は層の列（`ContentDirectoryLayers`）の 1 つの method にし、session の解除の 3 経路（`CloseNow`、Play 停止、登録の巻き戻し）と巻き戻しの再試行は、その method を呼ぶだけにする。巻き戻しの再試行（static）は層の列ごと 1 つの処理として持ち、解除済みの層を再び呼ばない。gate の予約は session の全ての層を 1 つの登録として持つ。
-  - 探索した境界: `ContentDirectorySession` の全ての解除の経路（`CloseAsync`、`CloseNow`、`CompletePlayStop` / `CloseNowForPlayStop`、`BeginSynchronousShutdown`、`ReleaseToken`、`CompleteOperation`、登録の巻き戻し）、`AssetManagement.CloseContentDirectoryAsync` / `CompleteContentDirectoryPlayStop` と `ReleaseAll` からの呼び出しの順、`ContentRevisionGate` の予約と削除の許可。未確認: Unity が Play 停止の時に native の登録を自分で解除する順（session が先に unregister する前提で、Unity 自身の解体順は測っていない）。
+  - 探索した境界: `ContentDirectorySession` の全ての解除の経路（`CloseAsync`、`CloseNow`、`CompletePlayStop` / `CloseNowForPlayStop`、`BeginSynchronousShutdown`、`ReleaseToken`、`CompleteOperation`、登録の巻き戻し）、`AssetManagement.CloseContentDirectoryAsync` / `CompleteContentDirectoryPlayStop` と `ReleaseAll` からの呼び出しの順、`ContentRevisionGate` の予約と削除の許可。実測（§1「A3 の追加の測定」）: native の登録は Play を終えても Unity が自分では解除しない（Domain Reload の有無によらない）。script の reload の後は一覧が 0 件になる。このため、巻き戻しの再試行（static）が reload で消えても、その時点で native の登録は残っておらず、再試行は static のままでよい。Domain Reload 有効の Play は Play を終える時に reload しないので、Play 停止の解除の失敗の後も static の再試行は次の Play に入るまで残る。未確認: Play に入る時の reload が前の Play の残りを消すか、reload の後の OS の lease の file handle。前者が消さないと分かった場合は、再試行の方式（登録の前に native の残りを一覧で見て片付けるか、残りがあれば拒むか）を Phase A の新しい revision で決め直す（§2.3）。
 - **I-3 record は、読んだ entry の root の directory を指す。** 層の解決は (logical key, kind, 実効の表現) の単位で行う: 要求の表現 R について、上書きの root に R の entry があれば上書き、無ければ base の root の R の entry、どちらにも無く要求が R を指定していれば上書きの `Full`、無ければ base の `Full`（表現の指定が無い要求は `Full` だけを同じ順で引く。空の表現の entry は `Full`）。loader が成功として返す record の候補は、この解決が選んだ層を由来・provider の id・identity で言う。上書きの登録中に base の候補として成功する要求は、上書きの root に同じ (key, kind, 実効の表現) が無い要求だけである。上書きの候補は検証済みの digest を受け入れ根拠と言わない。
   - 経路: (1) 両方の root を同じ供給元が引き、どちらから引いたかを record に残さない。(2) base の供給元が、上書きの root にもある (key, kind, 表現) に候補を返す（Unity は上書きの版を出すので、record が base を言い、pin した base の版の要求が成功する）。(3) 解決を key だけの単位にすると、上書きの root に `K` の `Whitebox` だけがある時、編集と関係の無い base の `K` の `Full` の要求が失敗し、逆向きでも fallback なしの要求が失敗する（A2 の反証。1 directory の時に読めた要求が上書きで後退する）。(4) 上書きの候補を `ContentDirectory` + `VerifiedDigest` で申告する。(5) 照合（`IsLoadedBy`）が層を見ず、base の供給元の候補に上書きの層を合格させる。(6) resident cache の key が層を区別しない、または退避が片方の層に届かない。(7) Scene の台帳（identity ごとに 1 つ）が、上書きの登録より前に載った同じ identity の Scene を再利用する。
-  - 塞ぎ方: 層の解決は層の列の 1 か所（上の規則）で決め、load の入口・2 つの供給元・照合が共有する。供給元は層ごとに 1 つで id は別（base は今の `registered-content-directory`、上書きは `registered-content-overlay`）、policy の順は上書き → base。各供給元は解決が自分の層を選んだ時だけ候補を返し、base の供給元は上書きの層が選ばれた時に `NotFound`（理由で上書きを指す）を返す。上書きの候補は新しい由来・受け入れ根拠の組（§2.4 K1）で申告する。照合は層まで比べる。cache の key は session に共通の前置き（今の base の `CachePrefix`）の後に層の部分（上書きは path・identity）を続ける形にし、`AssetManagement` の `EvictByPrefix` 1 回で両方の層が消える。(7) は、上書きは session の作成の時に base と一緒に登録し、後から足す口を作らない（I-4）ことで、上書きより前に載った Scene が無い。
+  - 塞ぎ方: 層の解決は層の列の 1 か所（上の規則）で決め、load の入口・2 つの供給元・照合が共有する。供給元は層ごとに 1 つで id は別（base は今の `registered-content-directory`、上書きは `registered-content-overlay`）、policy の順は上書き → base。各供給元は解決が自分の層を選んだ時だけ候補を返し、base の供給元は上書きの層が選ばれた時に `NotFound`（理由で上書きを指す）を返す。上書きの候補は新しい由来・受け入れ根拠の組（§2.4 K1）で申告し、load の経路は base と同じ `ContentLoadPath.ContentDirectory` にする（loader はこの経路の候補だけを content 入口に渡すので、loader を変えずに済む）。照合は層まで比べる。cache の key は session に共通の前置き（今の base の `CachePrefix`）の後に層の部分（上書きは path・identity）を続ける形にし、`AssetManagement` の `EvictByPrefix` 1 回で両方の層が消える。(7) は、上書きは session の作成の時に base と一緒に登録し、後から足す口を作らない（I-4）ことで、上書きより前に載った Scene が無い。
   - 13 章との関係: 13 章「logical key の解決」の「同じ key が両方にあれば上書きの entry を採る」を、harvest で「同じ key・kind・実効の表現」と書き改める（設計上の規則の粒度の確定で、実測には依らない。§2.8 U7）。
   - 探索した境界: `ContentDirectorySession.TryFindEntry` / `GetObjectKey` / `ResolveObject` / `ResolveScene`、`ContentDirectoryIndex` の解決と cache の key、`ContentEntryTable`、`RegisteredDirectoryProvider`、`RegisteredDirectoryRoute`、`ContentRequestLoader`、`ResolutionPolicy`（id の重複を拒む）、`ContentResolver` の固定表、`ContentCompatibilityRule`、`AssetManagement.LoadContentSceneAsync` / `LoadContentAssetAsync` / `EvictContentDirectoryCache`。未確認・既知の制約: 上書きの root に無い base の entry の依存のうち、上書きの directory に同じ id の file があるもの（base の root の entry から読んでも、依存は上書きの版になる。13 章が「上書きにある id の物の base の版を選べない」として受け入れた制約で、record は依存の由来を言わない）。上書きの層の load の失敗の例外は、session の `BuildIdentity`（base）を載せ、層は message で区別する（`IContentDirectoryBackend` の identity は 1 組のまま）。
 - **I-4 上書きは最初の load より前に揃い、個数は 0 か 1 で、途中で増減しない。** session が load を 1 つでも受け付けた後に層を足す・外す口は無い。上書きを 2 つ以上、base を 2 つ持つ session は作れない。
@@ -122,7 +127,7 @@
 **成立条件（起きなければならないこと）**
 
 - **S-1** 製品の build 経路で作った base（build → publish → install → 検証）と、その base を記録した上書き（逆引き → 上書きの build）を登録の口に渡すと、1 つの session が base → 上書きの順に登録し、`AssetManagement` に install できる。
-- **S-2** その session で loader が、上書きの root にある (key, kind, 表現) は上書きの版を読んで上書きを指す record を返し、base の root にだけある物は base の entry を読んで base を指す record を返し、上書きの root にだけある key（新しい root）と、移動で id が変わった Scene の key も上書きから読める。
+- **S-2** その session で loader が、上書きの root にある (key, kind, 表現) は上書きの版を読んで上書きを指す record を返し、base の root にだけある物は base の entry を読んで base を指す record を返し、上書きの root にだけある key（新しい root）と、移動した Scene の key も上書きから読める。
 - **S-3** 全ての物を既存の API で離した後、`CloseContentDirectoryAsync` が上書き → base の順に解除し、登録が 0 件になり、gate の予約が返る。Play 停止の経路も同じ順で解除する。
 
 ### 2.2 受け入れ条件
@@ -135,9 +140,9 @@ fixture は SampleGame を使わない合成（program D10）。実機は S3-1 �
 | AC2 | I-1 | 単体（Editor、adapter の test）。上書きの build は `BuildContentRoot` に base の記録（5 欄）・上書きの contentSet・Unity の版を書き、`AssetDatabase` で読み戻した root で同じ値が読め、Editor の `ContentOverlayBaseIdentity` からの変換が往復で一致する。上書きでない build の root は、読み戻しても「記録なし」と読める（Unity の直列化は class の欄を null にしないので、宣言の `IsDeclared` と同じく必須の欄が空なら記録なしと読む property で見る）。coordinator は書式の違う digest の上書きの build を report の前に拒む。記録を持たない既存の root の索引の作成は変わらない |
 | AC3 | I-2・S-3 | 単体（層 2 つの session、AC1 の fake）。全ての token を返して `CloseAsync` すると、log は `[base 登録, 上書き登録, 上書き解除, base 解除]` で、gate の予約は最後に 1 回返る。**失敗経路:** 上書きの層の token だけ 0 にして受付を止めても、base の層の token が残る間はどちらも解除しない（逆も同じ）。上書きの解除が失敗すると base は解除されず、予約は残り、close の再試行で上書き → base の順に解除される。base の解除が失敗すると上書きは解除済みのまま、再試行で base だけ解除される。`CompletePlayStop` は token が残っていても上書き → base の順に解除し、上書きの解除が失敗すると base を解除せず、次の登録の前の巻き戻しの再試行で上書き → base の順に解除する。Play 停止の後に止まっていた close が再開しても、各層の成功した解除は 1 回だけ。`BeginSynchronousShutdown` も同じ順 |
 | AC4 | I-2・I-4・I-5 | 単体（`ContentRevisionGateTests` に追記）。層 2 つの登録は 1 件の登録として予約され（OS の lease は層ごとに取って合成する）、2 つの path と identity のどちらへの削除の許可も拒まれ、予約を返した後は両方とも許可される。拒否の値の優先: いずれかの層と path が同じで identity が違えば `PathInUse`、それ以外で当たれば `RevisionBusy`。層 2 つの登録の後の別の登録は今までどおり拒まれる。**失敗経路:** 上書きの path か identity が base と同じ組は予約の前に拒まれる。2 つ目の path の OS の lease の取得に失敗すると、1 つ目を返して予約 0 件で終わる。1 件の登録の既存の test は変更なしで通る |
-| AC5 | I-3 | 単体（層 2 つの session と実物の `AssetManagement`、fake の native、route）。route は層 2 つの session から供給元 2 つ（上書き → base の順、id は別）の policy を作り、`Provider` は base の供給元のまま。I-3 の解決の規則どおりに次が採られる: 上書きにある (key, kind, 表現) は上書きの候補（由来・根拠は K1、identity は上書きの contentSet・build identity・target・空の digest、事実に base の記録 4 欄・Unity の版・root schema）、base にだけある物は base の候補（S3-1 と同じ値）。表現の 2 方向: 上書きに `K` の `Full` だけ・base に `K` の `Whitebox` と `Full` → `Whitebox` の要求は base の `Whitebox`、`Full` の要求は上書き。上書きに `K` の `Whitebox` だけ・base に `K` の `Full` → `Full` の要求は base、`Whitebox` の要求は上書き。record の `SourceBindingVerified` は true、probe に上書きの `NotFound` → base の採用の経緯が残る。cache: 両方の層から Object を載せて解放し cache に入れた後、実物の `AssetManagement` の close の退避（`EvictByPrefix` 1 回）で両方の層の entry が消える。**失敗経路:** 上書きにある物を base の expected identity で pin した要求は採られない（上書きの候補は pin に合わず、base の供給元は `NotFound`）。base の供給元の候補を上書きの層の照合に、上書きの候補を base の照合に渡すと偽。上書きの候補は `ContentCompatibilityRule` で、記録の contentSet・target が基準と違う、上書きの target が基準と違う、Unity の版・root schema が基準と違う、記録の欄が欠ける、host の述語が偽、のそれぞれで採られない（offline の test を含む）。1 層の session の route は今までどおり供給元 1 つ（S3-1 の test が変更なしで通る） |
-| AC6 | S-1・S-2・S-3・I-2・I-3 | 実機（Content Directory の build を伴う EditMode の `[UnityTest]`。Play mode に入って読む）。合成の目的: Scene `Entry`（`Full` と `Whitebox` の両方の Scene が、Read/Write を有効にした texture `Tex` を material で直接参照）、Scene `Stay`（`Full`、`Tex` を参照しない）、Scene `Moved`、Object `Prop`（`Tex` を参照する material を持つ prefab）。手順: 登録の一覧が 0 件であることを見る → base を build・publish・install・検証する → fixture を残したまま `Tex` の pixel を変え、`Moved` を別の folder へ移し（`AssetDatabase.MoveAsset`）、新しい Scene `Added` を root に足し、編集の集合（`Tex`、`Moved` の新しい path、`Added`）で逆引きして上書きを build する → 登録の口で層 2 つを登録し、route の loader で読む。`Entry` の `Whitebox`・`Prop`・`Moved`・`Added` は上書きの版（`Tex` の pixel は編集後）で載り、record は上書きを指す。`Moved` の上書きの entry の Scene の id は base の entry の id と違う（internal の `TryFindEntry` で比べる）。`Stay` は base を指す record で載る。全ての record の identity は、base なら install した manifest の値と digest、上書きなら上書きの build の identity と等しく、`SourceBindingVerified` は true。全てを離した後 `CloseContentDirectoryAsync` が `ResourcesInUse` を出さずに完了し、`ContentLoadManager.GetContentDirectories` が 0 件になる。観測窓（登録から close まで）の Error / Exception は 0 件。照合の失敗経路は AC1 が持つ（root の記録は製品の API で書き換えられないため） |
-| AC7 | I-5 | 既存の test と検査。`IAssetManagement`・`AssetManagement` の public の member と `AssetManagement.ContentDirectory.cs`、`IContentDirectoryBackend`、`ContentRequestLoader.cs`、`AbstractApplicationInitializer`、`PlayerContentConfiguration` は変わらない（diff）。次の参照が無い（`grep` と C の構造レビュー）: `Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` と `ContentRequestLoader.cs` → `BuildContent`、`Runtime/BuildContent/` → `ContentResolution`（root の記録を互換の事実に変える処理は `Directory/` の供給元に置く）。既存の `ContentDirectorySessionTests`・`ContentRevisionGateTests`・`RegisteredDirectoryProviderTests`・`ContentRequestLoaderTests`・`RegisteredDirectoryRouteIntegrationTests`・`PurposeBuildIndexIntegrationTests`・`UnityContentDirectoryAdapterTests`・offline の test は変更なしで通る。例外は `BuildContentFullModeTests` の上書きの test が使う digest の文字列（`digest-1`）で、書式の検査（AC2）に合わせて SHA-256 の形の値に替える（期待する結果は変えない） |
+| AC5 | I-3 | 単体（層 2 つの session と実物の `AssetManagement`、fake の native、route）。route は層 2 つの session から供給元 2 つ（上書き → base の順、id は別）の policy を作り、`Provider` は base の供給元のまま。I-3 の解決の規則どおりに次が採られる: 上書きにある (key, kind, 表現) は上書きの候補（由来・根拠は K1、identity は上書きの contentSet・build identity・target・空の digest、事実に base の記録 4 欄・Unity の版・root schema）、base にだけある物は base の候補（S3-1 と同じ値）。表現の 2 方向: 上書きに `K` の `Full` だけ・base に `K` の `Whitebox` と `Full` → `Whitebox` の要求は base の `Whitebox`、`Full` の要求は上書き。上書きに `K` の `Whitebox` だけ・base に `K` の `Full` → `Full` の要求は base、`Whitebox` の要求は上書き。record の `SourceBindingVerified` は true、probe に上書きの `NotFound` → base の採用の経緯が残る。cache: 両方の層から Object を載せて解放し cache に入れた後、実物の `AssetManagement` の close の退避（`EvictByPrefix` 1 回）で両方の層の entry が消える。**失敗経路:** 上書きにある物を base の expected identity で pin した要求は採られない（上書きの候補は pin に合わず、base の供給元は `NotFound`）。base の供給元の候補を上書きの層の照合に、上書きの候補を base の照合に渡すと偽。上書きの候補は `ContentCompatibilityRule` で、§2.4 の上書きの分岐の表の各行に当たる事実・基準を 1 つずつ崩すと、その行の `ContentCompatibilityMismatch` の値で採られない（期待値は値で書く。offline の test を含む）。採った時の理由は `compat:Compatible:ContentOverlay`。1 層の session の route は今までどおり供給元 1 つ（S3-1 の test が変更なしで通る） |
+| AC6 | S-1・S-2・S-3・I-2・I-3 | 実機（Content Directory の build を伴う EditMode の `[UnityTest]`。Play mode に入って読む）。合成の目的: Scene `Entry`（`Full` と `Whitebox` の両方の Scene が、Read/Write を有効にした texture `Tex` を material で直接参照）、Scene `Stay`（`Full`、`Tex` を参照しない）、Scene `Moved`、Object `Prop`（`Tex` を参照する material を持つ prefab）。手順: 登録の一覧が 0 件であることを見る → base を build・publish・install・検証する → fixture を残したまま `Tex` の pixel を変え、`Moved` を別の folder へ移し（`AssetDatabase.MoveAsset`）、新しい Scene `Added` を root に足し、編集の集合（`Tex`、`Moved` の新しい path、`Added`）で逆引きして上書きを build する → 登録の口で層 2 つを登録し、route の loader で読む。`Entry` の `Whitebox`・`Prop`・`Moved`・`Added` は上書きの版（`Tex` の pixel は編集後）で載り、record は上書きを指す。`Moved` の上書きと base の entry の Scene の id は比べて記録するが合否にしない（A3 の測定では移動の前後で同じ。同じなら「同じ id は上書きの版」、違えば「key で上書きの entry を採る」で、どちらも契約の内）。`Stay` は base を指す record で載る。全ての record の identity は、base なら install した manifest の値と digest、上書きなら上書きの build の identity と等しく、`SourceBindingVerified` は true。全てを離した後 `CloseContentDirectoryAsync` が `ResourcesInUse` を出さずに完了し、`ContentLoadManager.GetContentDirectories` が 0 件になる。観測窓（登録から close まで）の Error / Exception は 0 件。test の `Timeout` は build 2 回分にする（S3-1 の 360 秒を超えてよい）。照合の失敗経路は AC1 が持つ（root の記録は製品の API で書き換えられないため） |
+| AC7 | I-5 | 既存の test と検査。`IAssetManagement`・`AssetManagement` の public の member と `AssetManagement.ContentDirectory.cs`、`IContentDirectoryBackend`、`ContentRequestLoader.cs`、`AbstractApplicationInitializer`、`PlayerContentConfiguration` は変わらない（diff）。次の参照が無い（`grep` と C の構造レビュー）: `Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` と `ContentRequestLoader.cs` → `BuildContent`、`Runtime/BuildContent/` → `ContentResolution`（root の記録を互換の事実に変える処理は `Directory/` の供給元に置く）。既存の `ContentDirectorySessionTests`・`ContentRevisionGateTests`・`RegisteredDirectoryProviderTests`・`ContentRequestLoaderTests`・`RegisteredDirectoryRouteIntegrationTests`・`PurposeBuildIndexIntegrationTests`・`UnityContentDirectoryAdapterTests`・offline の test は変更なしで通る。例外は次だけで、どれも期待する結果を変えない: (1) `IContentDirectoryAdapter` を実装する test の fake 3 つ（`BuildContentFullModeTests.WritingAdapter`・`BuildContentProjectionTests.FailingAdapter`・`ContentOverlaySelectionTests.ManifestAdapter`）の `Build` の署名。(2) 上書きの test が使う digest の文字列（`BuildContentFullModeTests` の `digest-1` と `ContentOverlaySelectionTests.BaseIdentity`）を、書式の検査（AC2）に合わせて SHA-256 の形の値に替える。既存の internal の `ContentRevisionGate.Reserve(identity, target, path)` と `RegisteredDirectoryProvider(session)` の constructor は、今の署名と意味のまま残し（層 2 つの予約と層の指定は別の overload）、それらを呼ぶ既存の test は変えない。offline の C17（由来と根拠の表の一致）は変えず、上書きの組を含む表の一致は新しい test で見る |
 | AC8 | 範囲 | Phase B の commit が変える file は、§3 の file とその `.meta`、§3 の test の folder の file、`docs/handoff/` の文書だけで、asmdef の `references`、`AssemblyInfo.cs` の friend、`SceneState`、`tools/Artifacts`、SampleGame の製品 code に変更が無い |
 
 ### 2.3 ここでは答えない問いと所有する後続
@@ -148,13 +153,14 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 |---|---|
 | base → 上書きの登録の順・個数・時点・解除の順、重ねてよい組の登録時の照合、両方の root からの key の解決（S2-1・S2-2、13 章） | **本書**（I-1〜I-4、AC1〜AC6） |
 | directory が 2 つの時に record がどちらを指すか（S3-1） | **本書**（I-3、AC5・AC6） |
-| 移動・rename で id が変わった Scene の key の解決の実測（13 章「logical key の解決」） | **本書**（AC6 の `Moved`） |
+| 移動・rename で id が変わった Scene の key の解決の実測（13 章「logical key の解決」） | **本書**（AC6 の `Moved`。A3 の測定で、移動では Scene の id は変わらなかった。rename は測っていない） |
+| Domain Reload 有効の Play（S2-1・S2-2・S3-1 から移送） | **本書の A3**（§1 の測定。native の登録は Play を終えても残り、script の reload で消える）。Play の入口から Domain Reload 有効で Play する確認は S3-4。Play に入る時の reload が前の Play の残りを消さないと分かれば、再試行の方式を本書の Phase A の新しい revision で決め直す |
 | resident cache の key の全経路（S3-1 の未確認） | **本書**（I-3 の経路 (6)、AC5）。A1 で `CacheKey` / `CachePrefix` の呼び出し元を `grep` で全て読んだ（`ContentDirectorySession.GetObjectKey`・`CachePrefix` と `AssetManagement.EvictContentDirectoryCache` だけ）。cache の内部（`AssetResidentCache`）は key を不透明な文字列として扱う |
 | 13 章の登録契約が依拠する実測の 6000.6.9f1 での測り直し（Unity 更新） | **本書の A1**（§1「測り直しの結果」） |
 | 上書きの base の選択に索引を使う接続（S2-3） | S4（base の目的 build を選ぶのは供給元が候補の一覧を持つ時で、本書は呼び手が渡す base を照合するだけ） |
 | Editor の Play の結論を Player で確かめ直すか（S2-0b・S2-1） | 不要（上書きは Editor の Play だけ。13 章の契約）。Player の 1 directory の経路の非退行は §2.8 U4 |
-| 上書きを Play に載せる入口、起動の設定の key と配線、照合の失敗を base だけの Play に縮退しないこと、Domain Reload 有効の Play、実 Editor の Play での確認、上書きの build の呼び手が `ContentOverlayBaseIdentity` に install した base の値（receipt の `manifestSha256`）を渡すこと | S3-4（§2.5、§2.8 U2） |
-| S3 の gate「Player の非退行」 | 本書は Player の起動経路を変えないが、session と gate の内部を変える。§2.8 U4 |
+| 上書きを Play に載せる入口、起動の設定の key と配線、照合の失敗を base だけの Play に縮退しないこと、上書きを重ねた時の SceneDirector の経路、実 Editor の Play での確認、上書きの build の呼び手が `ContentOverlayBaseIdentity` に install した base の値（receipt の `manifestSha256`）を渡すこと | S3-4（§2.5、§2.8 U2） |
+| S3 の gate「Player の非退行」（S3-1 の配線と本書の session・gate の層の化を含む） | S4（§2.8 U4。program §8 の S4 の行の gate に足した） |
 | 共有 asset の実体の重複を減らすこと | 対象外（program §5.3 の当面の方針） |
 | 片方の directory の file が disk から消えた時、どちらの file を読むか（S2-0b） | S4（program の割り当てのまま） |
 
@@ -184,7 +190,24 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 | K2 | 上書きの候補を `ContentDirectory` + `VerifiedDigest` と base の identity で申告し、事実に上書きを書く | core を変えない。record の主な欄が「digest で検証した base」と言い、上書きの版の内容と食い違う（道 (e)） | 採らない |
 | K3 | 上書きを供給元にせず、base の供給元が層を区別しない | record がどちらを読んだかを言えない | 採らない |
 
-**K1 の互換の規則（上書きの分岐）:** 由来と根拠の組が `ContentOverlay` + `RecordedBaseMatch` の候補について、規則は順に次を見る。(1) 要求の expected identity があれば 4 欄比べる（上書きの digest は空なので、pin した要求には採られない）。(2) 事実の base の contentSet・target が基準の contentSet・target と一致する（基準の revision を固定した時は base の revision も）。(3) 候補の identity の target が基準の target と一致する。(4) 事実の Unity の版（上書きの root に build した Editor が書いた値）が基準の engine（`ContentManifestValidation` の定数）と一致する。(5) 事実の root schema（上書きの root の `SchemaVersion`）が基準と一致する。(6) host の述語を当てる（`ContentDirectory` と同じ。宣言の不一致を見る host の判定が上書きで素通りしないため）。digest と identity の完全さは要求しない。事実の予約 key（base の 4 欄）は `ContentCompatibilityFactKeys` に public の定数として足す。事実は `Directory/` の供給元が root の記録から作る。
+**K1 の互換の規則（上書きの分岐）:** 由来と根拠の組が `ContentOverlay` + `RecordedBaseMatch` の候補について、規則は表の上から順に見て、最初に当たった値を返す。digest と identity の完全さは要求しない（`IncompleteIdentity` は上書きの候補に返さない。digest が空なのが正常）。事実は `Directory/` の供給元が root の記録から作る。
+
+| 順 | 上書きの分岐の検査 | 返す値 |
+|---|---|---|
+| 1 | 由来と根拠の組が表に無い | `UnsupportedSource`（既存） |
+| 2 | 要求の expected identity と 4 欄が一致しない（上書きの digest は空なので、pin した要求は採られない） | `ExpectedIdentityMismatch`（既存） |
+| 3 | base の記録の事実（下の 4 つの key のどれか）が無い・空白だけ | **`OverlayBaseFactMissing`（新規）**。欠けた key を理由の文に書く |
+| 4 | 事実の base の contentSet が基準と違う | `ContentSetMismatch`（既存） |
+| 5 | 基準が revision を固定していて、事実の base の revision が違う | `RevisionMismatch`（既存） |
+| 6 | 事実の base の target、または候補の identity の target が基準と違う | `TargetMismatch`（既存。どちらかを理由の文に書く） |
+| 7 | 事実の Unity の版（上書きの root に build した Editor が書いた値）が無い・基準（`ContentManifestValidation` の定数）と違う | `EngineVersionMissing` / `EngineVersionMismatch`（既存） |
+| 8 | 事実の root schema（上書きの root の `SchemaVersion`）が無い・壊れている・基準と違う | `SchemaVersionMissing` / `SchemaVersionMalformed` / `SchemaVersionMismatch`（既存） |
+| 9 | host の述語が偽（`ContentDirectory` と同じく当てる。宣言の不一致を見る host の判定が上書きで素通りしないため） | `HostPredicateRejected`（既存） |
+
+- 採った時の理由は `compat:Compatible:ContentOverlay`（今の `nameof` の形）。
+- `ContentSetMismatch`・`RevisionMismatch`・`TargetMismatch` の doc に「上書きの候補では記録した base の値を比べる」を 1 句足す（意味を広げるのはこの 3 値）。
+
+**public の名前（契約。変えるなら Phase A へ戻す）:** `ContentSourceKind.ContentOverlay = 4`、`ContentAcceptanceBasis.RecordedBaseMatch = 3`、`ContentCompatibilityMismatch.OverlayBaseFactMissing`、`ContentCompatibilityFactKeys.OverlayBaseContentSet` / `OverlayBaseRevision` / `OverlayBaseTarget` / `OverlayBaseManifestSha256`（値は `osm.compat.overlayBaseContentSet` などの既存の形）、`ContentDirectoryFailureCode.OverlayBaseMismatch` / `OverlayBaseMissing`、`BuildContentRoot.OverlayBase`（型 `BuildContentOverlayBase`。`Declaration` / `BuildContentDeclaration` と同じ並び）、供給元の id `registered-content-overlay`。どの enum も既存の値を動かさず末尾に足す。internal の型・member の名前は B が決めて §6 に記録する。
 
 **層の解決の粒度**
 
@@ -234,14 +257,14 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 - **U1 目的と利用者の文言（§1）。** 決定: 承認（owner、2026-11-18）。
 - **U2 分割（§2.5）。** 決定: S3-4 に分ける（owner、2026-11-18）。
 - **U3 上書きの由来を core に足す（§2.4 K1 と上書きの分岐）。** 推奨: K1。`ContentSourceKind` と `ContentAcceptanceBasis` に 1 値ずつ、`ContentCompatibilityFactKeys` に base の 4 欄の予約 key を足す（S0-a・S1 で凍結した core の契約の追加）。
-- **U4 Player の build を判定必須にしない。** 推奨: しない。上書きは Player で使わず、Player の起動経路は変えない。session と gate の 1 層の挙動は既存の test が変更なしで通ることで見る（AC7）。program の S3 の gate「Player の非退行」の実機は、Player の経路を変えるスライスか、次に Player の証拠を取るスライスに送る。
-- **U5 上書きの記録を root に書く（§2.4 C1）。** 推奨: C1。root の直列化に任意の欄を足す。root の schema の版は上げない（記録の無い root は今までどおり読める）。古い上書き（記録が無い）は作り直す。
-- **U6 新しい失敗の値。** 推奨: `ContentDirectoryFailureCode`（public の enum、`Runtime/AssetBuildContracts/`）に `OverlayBaseMismatch` と `OverlayBaseMissing` を足す（目的レビューの「理由を区別して返す」）。足さないなら既存の `InvalidConfiguration` と message で区別する。
+- **U4 Player の build を判定必須にしない。** 推奨: しない。上書きは Player で使わず、Player の起動経路は変えない。session と gate の 1 層の挙動は既存の test が変更なしで通ることで見る（AC7）。program の S3 の gate「Player の非退行」の実機は S4（`LOCAL_LAN_PROVIDER`。要求の時点の install と登録で Player の起動経路に触れうる最初の行）が引き取り、S3-1 の配線と本書の session・gate の層の化を含めて確かめる（program §8 の S4 の行に書いた）。S4 までの間、Player は層の列を通る 1 層の経路を実機で確かめないまま develop に載る。この期間を受け入れるかが U4 の判断である。
+- **U5 上書きの記録を root に書く（§2.4 C1）。** 推奨: C1。root の直列化に任意の欄を足す。root の schema の版は上げない（記録の無い root は今までどおり読める。publish は上書きを拒むので、記録を知らない古い runtime が記録つきの root を単独の directory として読む経路も無い）。古い上書き（記録が無い）は作り直す。
+- **U6 新しい失敗の値。** 推奨: `ContentDirectoryFailureCode`（public の enum、`Runtime/AssetBuildContracts/`）に `OverlayBaseMismatch` と `OverlayBaseMissing` を足す（目的レビューの「理由を区別して返す」。`InvalidConfiguration` と message にすると、S3-4 の「縮退せずに理由を示す」が message の解釈に依る）。互換の規則の値は `OverlayBaseFactMissing` の 1 つだけ足し、他は既存の値を使う（§2.4 の表）。
 - **U7 13 章の「logical key の解決」の粒度（§2.4 G2）。** 推奨: 「同じ key・kind・実効の表現」に書き改める。13 章の文は S2-2 で定めた設計上の規則で、実測に依らない。
 
 ## 3. 責務マップ
 
-行数は base `b0bc9997` の `wc -l`。増分は見込み。型の名前は仮で、B が決めて §6 に記録する（責務・置き場・file は変えない）。
+行数は base `b0bc9997` の `wc -l`。増分は見込み。public の名前は §2.4 のとおりで、変えるなら Phase A へ戻す。internal の型・member の名前は仮で、B が決めて §6 に記録する（責務・置き場・file は変えない）。
 
 | file | 責務 | 変更理由 | 所有者・寿命 | 依存 | 公開面 | テスト境界 | 現在行数 → 予想 |
 |---|---|---|---|---|---|---|---|
@@ -249,19 +272,19 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 | `Runtime/BuildContent/BuildContentOverlayBase.cs`（新規） | 上書きの記録の値（base の 5 欄、上書きの contentSet、Unity の版）と、base の検証済みの値との照合の純粋な関数 | 新しい値と照合の規則 | 値 | `VerifiedInstalledRevision`（値の比較だけ） | public の `[Serializable]` の型（root が public なので）。照合は internal | AC1（Unity なし）・AC2 | 0 → 90 |
 | `Runtime/AssetBuildContracts/ContentDirectoryException.cs` | 失敗の値 | `OverlayBaseMismatch`・`OverlayBaseMissing`（§2.8 U6） | enum | なし | public の enum の値の追加 | AC1 | 既存 + 2 |
 | `Editor/Build/Content/UnityContentDirectoryAdapter.cs`、`BuildContentCoordinator.cs`、`ContentOverlaySelection.cs` | 上書きの build | adapter が root に記録を書く（Editor の型からの変換はここだけ）。coordinator は request の上書きの base を adapter へ渡し（internal の `IContentDirectoryAdapter.Build` の引数。test の fake の実装も直す）、`ValidateOverlay` で digest の書式を検査する。`ContentOverlayBaseIdentity` の doc を「transport manifest の SHA-256」に改める | 既存 | 既存 | internal と doc | AC2 | 245 → 260、既存 + 8、235 → 236 |
-| `Runtime/BuildContent/ContentDirectoryLayers.cs`（新規） | session が所有する層の列: 層ごとの path・identity・native の handle・索引、I-3 の解決の規則、層の部分を持つ cache の key、登録の順と、逆順の解除（どこまで解除したかを保持する 1 つの method）、巻き戻しの再試行の単位 | 新しい責務（順のある層の列の寿命） | session と同じ寿命 | `ContentDirectoryIndex`、`IContentNativeDirectory`、`BuildContentOverlayBase` | internal | AC1・AC3・AC5 | 0 → 220 |
+| `Runtime/BuildContent/ContentDirectoryLayers.cs`（新規） | session が所有する層の列: 層ごとの path・identity・native の handle・索引、I-3 の解決の規則、層の部分を持つ cache の key、登録の順と、逆順の解除（どこまで解除したかを保持する 1 つの method）、巻き戻しの再試行（今の session の static の `_pendingRollback` をここへ移し、層の列ごと 1 つの処理として持つ） | 新しい責務（順のある層の列の寿命） | session と同じ寿命 | `ContentDirectoryIndex`、`IContentNativeDirectory`、`BuildContentOverlayBase` | internal | AC1・AC3・AC5 | 0 → 220 |
 | `Runtime/BuildContent/ContentDirectorySession.cs` | 登録した directory の token・発行済みの処理・後始末 | 層の列を使う。上書きを重ねた登録の口を足す。記録を持つ root の単独の登録を拒む。解除の 3 経路は層の列の method を呼ぶだけにする | 既存 | 上の層の列 | internal のまま | AC1・AC3・AC7 | 498 → 480 |
-| `Runtime/BuildContent/ContentRevisionGate.cs` | 登録・読み・削除の調停 | 1 件の登録が層 2 つの (identity, path) と OS の lease を持てる。削除の許可の拒否の値の優先 | static | 既存 | public の面は変えない（internal の `Reserve` の引数） | AC4 | 212 → 250 |
+| `Runtime/BuildContent/ContentRevisionGate.cs` | 登録・読み・削除の調停 | 1 件の登録が層 2 つの (identity, path) と OS の lease を持てる。削除の許可の拒否の値の優先 | static | 既存 | public の面は変えない（層 2 つの予約は internal の overload。既存の `Reserve(identity, target, path)` は残す） | AC4 | 212 → 250 |
 | `Runtime/BuildContent/ContentDirectoryIndex.cs` | root の索引 | 層の解決に要る「表現を完全一致で引く」口と、層の部分を持つ cache の key | 既存 | 既存 | internal | AC5 | 159 → 175 |
 | `Runtime/ContentResolution/Core/ContentSourceKind.cs`、`ContentAcceptanceBasis.cs`、`ContentCompatibilityFactKeys.cs` | 由来・受け入れ根拠・事実の予約 key | 上書きの値と base の 4 欄の key（§2.4 K1） | enum・定数 | なし | public の enum の値と定数の追加 | AC5 | 26 → 32、22 → 28、既存 + 12 |
-| `Runtime/ContentResolution/Core/ContentResolver.cs`、`ContentCompatibilityRule.cs` | 固定表と互換の判定 | 上書きの組と、§2.4 の上書きの分岐 | static な処理 | なし | 変えない | AC5（offline を含む） | 325 → 330、228 → 275 |
-| `Runtime/ContentResolution/Directory/RegisteredDirectoryProvider.cs` | 層 1 つの供給元 | 層と id を受け、解決が自分の層を選んだ時だけ候補を返す。上書きの候補の値と、root の記録から作る事実。照合で層を比べる | session と同じ | 既存 | internal | AC5 | 130 → 200 |
+| `Runtime/ContentResolution/Core/ContentResolver.cs`、`ContentCompatibilityRule.cs`、`ContentCompatibilityMismatch.cs` | 固定表と互換の判定 | 上書きの組と、§2.4 の上書きの分岐。`OverlayBaseFactMissing` を足し、3 値の doc に 1 句足す | static な処理・enum | なし | public の enum の値 1 つの追加 | AC5（offline を含む） | 325 → 330、228 → 275、既存 + 4 |
+| `Runtime/ContentResolution/Directory/RegisteredDirectoryProvider.cs` | 層 1 つの供給元 | 層と id を受ける（既存の `(session)` の constructor は base の層・既定の id のまま残す）。解決が自分の層を選んだ時だけ候補を返す。上書きの候補の値と、root の記録から作る事実。照合で層を比べる | session と同じ | 既存 | internal | AC5 | 130 → 200 |
 | `Runtime/ContentResolution/Directory/RegisteredDirectoryRoute.cs` | 供給元・基準・policy・loader の組み立て | 層 2 つの session には供給元 2 つ（上書き → base）の policy。`Provider` は base の意味のまま、上書きの供給元は別の property | static | 既存 | internal | AC5 | 102 → 130 |
 | test（単体は `OneStarMaker/Tests/Editor/Build/`・`OneStarMaker/Tests/BuildContent/`・`OneStarMaker/Tests/ContentResolution/`、offline は `tools/ContentResolutionOfflineTests/`、実機は `SampleGame/Tests/Editor/Build/`） | — | — | — | — | — | AC1〜AC6 | 新規と追記 |
 
 - 変えない file: `IAssetManagement.cs`、`AssetManagement.ContentDirectory.cs`（`IsInstalledContentDirectory` は session の参照で答え、退避は session の共通の前置き 1 つで両方の層に届く）、`Internal/IContentDirectoryBackend.cs`、`UnityContentDirectoryBackend.cs`、`ContentRequestLoader.cs`（供給元の id が別なので照合の相手を取り違えない）、`Bootstrap/AbstractApplicationInitializer.cs`（route の `Provider` が base の意味のまま）、`BuildContent/PlayerContentConfiguration.cs`、`Distribution/` の全て、SceneSystem、SampleGame の製品 code。
 - 行数の警報:
-  - `ContentDirectorySession.cs` は既に 498 行。層の列の責務（解決・cache の key・登録と逆順の解除・巻き戻しの単位）を `ContentDirectoryLayers.cs` に移し、session は token と処理の数え方と既存の load の入口に留める。partial には分けない（行数を減らすための分割にしない。移送で 500 行未満に収まる見込みで、収まらなければ寿命の違う巻き戻しの static の状態を独立の型に出す。どちらにしたかと理由を B が §6 に書く）。
+  - `ContentDirectorySession.cs` は既に 498 行。層の列の責務（解決・cache の key・登録と逆順の解除・巻き戻しの再試行）を `ContentDirectoryLayers.cs` に移し、session は token と処理の数え方と既存の load の入口に留める。partial にも別の型にも分けない（置き場は今決める。行数で置き場を変えない）。上書きの登録の口、記録を持つ root の拒否、選ばれた層の native への振り分けを足して 500 行を超えたら、B は §6 に `非分割妥当` と根拠（token と処理の数え方という 1 つの変更理由）を書く。
   - `ContentDirectoryLayers.cs` は 1 つの責務（順のある層の列の寿命）で 220 行の見込み。照合の規則は I/O が要らず変わる理由が違うので、記録の型の file に置く。
 - 配置の理由:
   - 層は native の登録と root を所有する BuildSystem の Runtime（`Runtime/BuildContent/`）に置く。登録・解除の順は native の handle の寿命の問題で、session と同じ所有者が持つ。`AssetManagement` は session 1 つを install するまま（L1）。
@@ -284,13 +307,13 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 - 全 EditMode 回帰の適用除外: なし。**Player の build は判定必須にしない**（§2.8 U4。代替証拠は AC7）。
 - 統合・Unity テスト: AC6 は Content Directory の build を 2 回（base と上書き）伴う。他の Unity が同時に動くと build を伴う test が失敗した既知の事例がある（program §8）ので、判定 C は他の Unity を止めて走らせる。build を伴う batch の後の Unity の終了 stall は既知（`tools/Harness/README.md`。本書の A1 の測り直しでも 1 回起きた）で、XML の完成で判定する。coordinator の staging の `Directory.Move` が access denied で失敗する既知の不安定（program §8）に当たった時は、同じ head で走らせ直してよく、その事実を §7 に記録する。
 - 操作・実行時・目視条件の検証経路: 対象なし（起動・Play の入口を変えない。実機の確認は AC6 の `[UnityTest]` で閉じる）。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: AC6 の build・publish・install・Play mode の読みは、S3-1 の `RegisteredDirectoryRouteIntegrationTests` と S2-3 の `PurposeBuildIndexIntegrationTests` で成立した経路で、上書きの build は S2-2 の製品の経路である。A2 の反証が、上書きの記録の値（install した値と `ContentDeliveryFiles.Sha256(manifest)`）、`Added` の逆引き、`ContentLoadManager.GetContentDirectories` の読みが製品の API で作れることを code で確かめた。**未確認。初回確認は Phase C:** EditMode の `[UnityTest]` の中で fixture の Scene を移動（`AssetDatabase.MoveAsset`）した後の逆引きと上書きの build（S2-2 の test は移動を試していない）。成り立たなければ、`Moved` を AC6 から外して後続へ送るかを owner に返す（他の key の判定は変えない）。
+- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: AC6 の build・publish・install・Play mode の読みは、S3-1 の `RegisteredDirectoryRouteIntegrationTests` と S2-3 の `PurposeBuildIndexIntegrationTests` で成立した経路で、上書きの build は S2-2 の製品の経路である。A2 の反証が、上書きの記録の値（install した値と `ContentDeliveryFiles.Sha256(manifest)`）、`Added` の逆引き、`ContentLoadManager.GetContentDirectories` の読みが製品の API で作れることを code で確かめた。EditMode の `[UnityTest]` の中で fixture の Scene を移動（`AssetDatabase.MoveAsset`）した後の逆引きと上書きの build は、A3 の測定（§1）で成り立った。
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方: なし。
 - 高コスト証拠: なし。
 - 判定 C の照合 script の方式: なし（test の XML を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC7 の 3 つの `grep`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: Phase A〜C に関与しない系列。A2 は Anthropic 系だけで行った。外部計画レビューの系列は owner が決めるので、A3 でその系列を記録し、残った系列（OpenAI の Codex か xAI の Grok）を C' に予約する。
+- C' 用に予約した担当・モデル・ベンダー: Phase A〜C に関与しない系列。A2 と外部計画レビュー 1 巡目は Anthropic 系だけで行った。別の系列で外部計画レビューを行うなら、その系列を A3 で記録し、残った系列（OpenAI の Codex か xAI の Grok）を C' に予約する。
 - 独立性の強化条件を満たせない場合の理由: A3 で記録する。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -330,6 +353,30 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
   | 代替構成 | 記録に上書きの contentSet と Unity の版・root schema を事実に | 採用 | §2.4 の上書きの分岐 |
   | 代替構成の検証 | 解除の順の逆転と、pin による由来の嘘を最小の test で見る | 採用 | AC3、AC5 の失敗経路 |
 
+- 外部計画レビュー 1 巡目（2026-11-18、Draft PR #200 の review と行コメント。担当は Claude（Anthropic 系の最上位のモデル。owner が依頼）。A1・A2 と同じ系列なので、系列の独立したレビューには数えない）。対象は統合案の commit。結論は、設計の本体（L1・C1・K1・G2、I-1〜I-5、AC1〜AC5）に破れは見つからず、凍結の前に直すのは GO が何を言うかの境界、というもの。採否（担当の案。owner の承認待ち）:
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | PR 状態ブロックの `引き継ぐ commit` が実在しない SHA | 採用（担当の誤り） | 状態ブロックを実在の head の SHA に直した |
+  | I-2 の再試行は static で domain reload で消える。Domain Reload 有効が S3-4 へ束ねて送られている。推奨は凍結前に 1 回測る | 採用 | §1「A3 の追加の測定」で測った。I-2 の探索した境界に結果と、static の再試行でよい理由と未確認を書いた。§2.3 で独立の行にした |
+  | 上書きの分岐が返す `ContentCompatibilityMismatch` の値が未定。AC5 の失敗経路を値で書く | 採用 | §2.4 の表（新しい値は `OverlayBaseFactMissing` の 1 つ）、§3 に file、AC5 |
+  | `Moved` は未測定の事実（移動で id が変わるか）を合否に入れている。不成立の扱いが凍結されない。推奨は凍結前に 1 回測る | 採用 | §1 で測った（id は変わらず、逆引きと上書きの build は成り立った）。id の異同は合否にしない（AC6）。§5 の「初回確認は Phase C」を消した |
+  | Player の非退行の送り先に名前が無い。推奨は S4 | 採用 | §2.3、U4、program §8 の S4 の行 |
+  | SceneDirector の経路が受け入れ条件にも移送にも無い | 採用 | §2.3 の S3-4 の行に明記 |
+  | harvest の文言（強制は internal の口で入口は未配線、確かめた設定、送り先の訂正） | 採用 | §0 の harvest to |
+  | public の名前を A3 で決める | 採用 | §2.4「public の名前」、§3 の冒頭 |
+  | static の置き場を行数で決めない | 採用 | §3（`ContentDirectoryLayers` に置く。500 行を超えたら `非分割妥当` と根拠） |
+  | U5 の理由に「publish が上書きを拒むので古い runtime が読む経路が無い」 | 採用 | U5 |
+  | U6 の理由（message の解釈に依らない） | 採用 | U6 |
+  | 凍結の前に別の系列で I-2 と K1 の分岐を見せる | 保留（owner が決める） | 下の「独立性」 |
+
+- 担当の見直し（外部計画レビューの後、Phase C で突っ込まれうる点を code と突き合わせた）:
+  - AC7 の「既存の test は変更なしで通る」は、`IContentDirectoryAdapter` の署名を変えると fake 3 つ、digest の書式を検査すると上書きの test の値 2 か所が変わる。例外として列挙した（AC7）。gate の `Reserve` と供給元の constructor は、既存の署名を残すと書いた（AC7・§3）。
+  - 上書きの候補の load の経路を `ContentDirectory` と明記した（loader は他の経路の候補を `LoadPathUnsupported` で拒むので、書かないと loader を変える実装になりうる。I-3）。
+  - 上書きの root に書く Unity の版は `Application.unityVersion`、基準は `ContentManifestValidation.SupportedUnityVersion`（今は `6000.6.9f1` で一致する）。両者が食い違う Editor では AC6 の上書きの候補が `EngineVersionMismatch` になる。これは規則の意図どおりで、Unity の版を上げる PR が literal を揃える既存の運用に従う。
+  - AC6 は build 2 回を伴うので、test の `Timeout` を S3-1 の 360 秒より長くしてよいと書いた。
+  - 実測の事実の「Scene の id は path から作られ」の訂正を harvest に入れた。
+- 独立性: A1、A2 の 4 件、外部計画レビュー 1 巡目が全て Anthropic 系である。A2 の後に G2・K1 の分岐・失敗の値・digest の定義が入り、A2 の再レビューは行っていない。担当の推奨: 凍結の前に、OpenAI（Codex）か xAI（Grok）のどちらか 1 系列で外部計画レビューを 1 巡行い（I-2 と K1 の分岐を必ず見せる）、もう一方の系列を C' に予約する。owner が行わないと決めた場合は、凍結記録に `独立性制約あり` と書く。
 - A2 の再レビューの要否: 行わない。解決の粒度（G2）、上書きの分岐の比較項目、失敗の値、digest の定義は、A2 の指摘に沿って曖昧さを決めたもので、新しい辺は増えていない。Draft PR の外部計画レビューで見てもらう。
 - A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner の採否と凍結は未了。
 
