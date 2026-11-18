@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。C' 2 巡目は BLOCKED（C'-B1: DR-1 が AC8 の凍結した合否基準を変える、§8.2）。owner の判断待ち）
+- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。C' 2 巡目の C'-B1 を owner が DR-2 で退け、C' 完了（§8.2）。次は Phase D。owner の外部レビューの後に着手する）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `16dbc387`（§6 の進行役の入口のレビューの修正を含む。§7.1 の判定 C の対象）
@@ -20,14 +20,13 @@
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。判定 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の証拠と発見 C・判定 C の所見を収録（head `16dbc387`）。取得案内は進行役が repository の外のローカルに保持し、Phase D の担当へ渡す
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C と同じ head・同じ判定の証拠から作り、所見を含まない。別 process の fetch で取得を確認済み。取得案内は進行役が repository の外のローカルに保持し、C' の packet に渡した
-- 引継ぎ票（2026-11-18、判定 C から C' へ）:
-  - 凍結した Phase A: revision 1（A3 凍結版）と §2.6 の DR-1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head はレビュー対象の `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
-  - 次の Phase・役割: C'（独立監査、1 巡目）。C' は PR と可変な HANDOFF を読まず、進行役が渡す blind bundle だけを読む。
-  - 読む範囲: C' は blind bundle だけ。Phase D の担当は既定（§0〜§9）。
-  - 必要な権限: なし（同じテストの再実行は必須にしない）。
-  - 停止規則: phase-c-prime.md と §2.5。
-  - Evidence: 判定の evidence bundle と C' の blind bundle は進行役が同じ head・同じ判定の証拠から作り、ローカルに固定する（§0 の各欄）。
-  - 引き渡さないもの: 発見 C・判定 C の所見と、§7 の記録（blind 入力の規則）。
+- 引継ぎ票（2026-11-18、C' から Phase D へ）:
+  - 凍結した Phase A: revision 1（A3 凍結版）と §2.6 の DR-1・DR-2。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head は `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
+  - 次の Phase・役割: Phase D（harvest、HANDOFF と harness の削除、evidence の扱いの確認、タスクの終了）。owner の外部レビューの後に着手する。
+  - 読む範囲: 既定（§0〜§9）。
+  - 必要な権限: なし。
+  - 停止規則: 外部レビューで新しい所見が出たら、Phase D に入らず owner に返す。
+  - Evidence: 判定の evidence bundle と C' の blind bundle はローカル固定済み（未昇格）。取得案内は進行役が repository の外に保持し、Phase D の担当へ渡す。
   - 未決: なし。
 
 ## 1. 目的と対象外
@@ -133,6 +132,11 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
     - 理由: 例外は、本スライスで変えてはいけない（AC8・§1 の対象外）coordinator の `Directory.Move`（`BuildContentCoordinator.cs:101`）の Windows の access denied で、印の撤去の差分に帰属しない。
     - 決定の内容: AC8 の「XML の failed 0 と root result `Passed`」の判定から、この 2 件だけを除く。残りの AC8 の条件（他の全件の結果、差分の範囲）と AC1〜AC7・AC5b・ATTR は、§7.1 の証拠のまま判定に使う。判定必須の再実行は求めない。
     - 範囲: この 2 件の、この例外による failed だけ。他の test の failed、別の例外、inconclusive の扱いは変えない。coordinator の失敗の扱いは後続スライスの入力 DC-1 のまま。
+  - **DR-2（2026-11-18、owner（root）の判断、この session の会話での指示）: C' の C'-B1 を退け、DR-1 を当てた AC8 で C' を完了とする。**
+    - 対象: §8.2 の C'-B1（DR-1 は AC8 の凍結した合否基準を変え、決定記録の範囲を超える、という指摘）。
+    - 理由: 中身（構造、I1〜I3、S1〜S3、AC1〜AC7・AC5b・ATTR）は判定 C と C' の双方が成立とし、AC8 の 2 件は差分に帰属しない coordinator の失敗で、ほかの保証がある。完了の形を整えるためだけの再実行や Phase A の改訂はしない。
+    - 決定の内容: 決定記録の規則（凍結条件の合否を変えない）の例外として、owner の権限で DR-1 をそのまま有効とする。C'-B1 は blocker として扱わない。全 EditMode の再実行、Phase A の新 revision、C' の 3 巡目は行わない。
+    - 範囲: このスライスの AC8 の 2 件だけ。決定記録の規則と、他のスライスでの AC の扱いは変えない。
 
 ### 2.7 本文へ転記した実装制約
 
@@ -341,7 +345,8 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
   - 技術面では、構造、I1〜I3、S1〜S3、AC1〜AC7・AC5b・ATTR に blocker は無いとした（`model-identifier` の `observable=true` を含む）。
   - 後続スライスの入力: override を持つ instance・unpack 済み instance・実データ、Player build・別 PC・別 `Library`・CI をまたぐ cache、6000.6.3f1 より前の cache、対話型 Editor の dirty Scene の実 build、印の残った `.meta` の実環境での回復、AC8 の 2 件の access denied の根本修正（DC-1）。
   - 監査できなかった範囲: zip 内の inventory・`BuildContentTEP.json`・`ContentLayout.json` の各行は個別に再展開していない（executor note の原記録行・verdict record・verdict の実装・build-facts の構造は照合した）。
-- 行き先: C'-B1 は製品・harness の欠陥ではなく、凍結条件の扱いの問題なので、B には戻さない。owner の判断待ち（§0）。
+- 行き先: C'-B1 は製品・harness の欠陥ではなく、凍結条件の扱いの問題なので、B には戻さない。
+- owner の裁定: DR-2（§2.6）で C'-B1 を退けた。C' はこの 2 巡目で完了。C' からの差し戻しは 0 回。
 
 
 ## 9. Phase D
