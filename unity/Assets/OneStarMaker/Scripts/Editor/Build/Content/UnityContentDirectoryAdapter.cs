@@ -46,23 +46,21 @@ namespace OneStarMaker.Editor.Build.Content
 
     // Unity Editor API に依存する唯一の BS2b build adapter。
     // 一時的な BuildContentRoot asset を作って Content Directory に含め、build 後は生成元だけを消す。
-    // Scene に焼き込む prefab の版の印（ScenePrefabStamp）も、build の間だけここで書いて戻す。
+    // 利用者の source（Scene の file と .meta を含む）は書かない。Scene に焼き込まれる prefab・model の編集が
+    // 同じ Library の差分 build に入ることは Unity（6000.6.3f1 以降）に依拠する（契約は 18 章 §4）。
     internal sealed class UnityContentDirectoryAdapter : IContentDirectoryAdapter
     {
         // この subtree は adapter が所有する一時 asset。既存の Game/Framework asset は消さない。
         private const string GeneratedRoot = "Assets/OneStarMakerGenerated/BS2b";
         private const string Marker = "bs2b-owner.marker";
         private readonly Func<BuildContentDirectoryParameters, UnityContentBuildResult> _build;
-        private readonly string? _stampRecordDirectory;
 
-        public UnityContentDirectoryAdapter() : this(BuildWithUnity, null) { }
+        public UnityContentDirectoryAdapter() : this(BuildWithUnity) { }
 
-        // test の継ぎ目: Unity の build の呼び出し（成功・失敗・例外を返せる）と、印の記録の置き場。
-        internal UnityContentDirectoryAdapter(Func<BuildContentDirectoryParameters, UnityContentBuildResult> build,
-            string? stampRecordDirectory)
+        // test の継ぎ目: Unity の build の呼び出し（成功・失敗・例外を返せる）。
+        internal UnityContentDirectoryAdapter(Func<BuildContentDirectoryParameters, UnityContentBuildResult> build)
         {
             _build = build ?? throw new ArgumentNullException(nameof(build));
-            _stampRecordDirectory = stampRecordDirectory;
         }
 
         public void ValidateTarget()
@@ -79,29 +77,17 @@ namespace OneStarMaker.Editor.Build.Content
             ValidateTarget();
             // 前回の異常終了で残った所有物だけを掃除する。marker のない folder は触れない。
             CleanupOrphans();
-            // 印を書く前の検査。今回書く全ての .meta を調べ、止める理由があればどの file も書かずにここで止まる。
-            var stamp = new ScenePrefabStamp(null, _stampRecordDirectory);
-            stamp.Prepare(projection.Roots);
             var folder = GeneratedRoot + "/" + identity;
             var markerPath = folder + "/" + Marker;
             var markerDisk = Path.Combine(Application.dataPath, "OneStarMakerGenerated", "BS2b", identity, Marker);
             Exception? failure = null;
-            var autoRefreshDisallowed = false;
-            // この try は 1 つ目の .meta を書く前に始め、生成 folder の作成・製品の Refresh・root の作成・build を囲む。
-            // どこで例外が出ても、finally が印を戻し生成物を消す。
+            // この try は生成 folder の作成の前から始め、製品の Refresh・root の作成・build を囲む。
+            // どこで例外が出ても、finally が生成物を消す。
             try
             {
-                // 検査の後から製品の Refresh までは、開いている Editor の自動 refresh が書いた .meta を先に import しないようにする。
-                AssetDatabase.DisallowAutoRefresh();
-                autoRefreshDisallowed = true;
-                stamp.Apply();
                 EnsureFolder(folder);
                 File.WriteAllText(markerDisk, identity);
-                // 印を Unity に読ませるのはこの製品の Refresh だけで、印のための Refresh を別に呼ばない
-                // （印の上乗せを小さく保つ条件。HANDOFF CONTENT_PREFAB_STAMP §2.1 S4）。
                 AssetDatabase.Refresh();
-                AssetDatabase.AllowAutoRefresh();
-                autoRefreshDisallowed = false;
                 var entries = new List<BuildContentEntry>();
                 foreach (var item in projection.Roots)
                 {
@@ -178,22 +164,20 @@ namespace OneStarMaker.Editor.Build.Content
             }
             finally
             {
-                // 成否にかかわらず、印を戻し、この実行で生成した asset と空の親 folder だけを削除する。
+                // 成否にかかわらず、この実行で生成した asset と空の親 folder だけを削除する。
                 // published directory は Assets 外にあり、ここでは触れない。
-                // 片付けの段は互いに止めない。1 段の例外で印の戻しや生成物の削除を飛ばすと、source に build の物が残る。
+                // 片付けの段は互いに止めない。1 段の例外で残りの削除を飛ばすと、source に build の物が残る。
                 ExceptionDispatchInfo? cleanup = null;
                 void Step(Action action)
                 {
                     try { action(); }
                     catch (Exception ex) { cleanup ??= ExceptionDispatchInfo.Capture(ex); }
                 }
-                Step(() => { if (autoRefreshDisallowed) AssetDatabase.AllowAutoRefresh(); });
-                Step(stamp.Dispose);
                 Step(() => { if (File.Exists(markerDisk)) AssetDatabase.DeleteAsset(markerPath); });
                 Step(() => AssetDatabase.DeleteAsset(folder));
                 Step(() => DeleteIfEmpty(GeneratedRoot));
                 Step(() => DeleteIfEmpty("Assets/OneStarMakerGenerated"));
-                // build の失敗を片付けの失敗で隠さない。片付けだけが失敗した build は、source が戻ったと言えないので失敗にする。
+                // build の失敗を片付けの失敗で隠さない。片付けだけが失敗した build は、生成物が消えたと言えないので失敗にする。
                 if (cleanup != null)
                 {
                     if (failure == null) cleanup.Throw();

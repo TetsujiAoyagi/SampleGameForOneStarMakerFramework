@@ -72,10 +72,10 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **成り立たなかったこと:** Scene に置いた prefab の instance と、入れ子の prefab の instance は、上書きから読んでも v1 だった。上書きの directory の中で、その Scene の file は base と同じ sha256 で、v2 の値（子の位置の float 列）はどの file にも無かった。
 - **原因（同じ `Library` の build cache）:** 次の 3 つの観察で切り分けた。base を build した process と別の Editor process で上書きを build しても v1。同じ `Library` で base を `Full` で build し直しても v1。`BuildPipeline.CleanBuildCache()` の後に上書きを build すると v2。Unity が `Library/BuildHistory/<build>/BuildContentTEP.json` に残す trace（`SerializeBuildInstructions` の `changedCount` / `unchangedCount`）では、prefab を編集した後の build で Scene の build metadata は作り直されたが、Scene の build instruction は変わらず、前回書いた serialized file が再利用された。build した Scene には prefab の instance が展開されて焼き込まれる（実行時の Scene は prefab を参照しない）ので、差分 build の判定が Scene の file だけを見ていると、prefab の編集を取りこぼす。上書きに限らず、prefab を編集した後に同じ `Library` で行う Content Directory の build 全般に起きる。build は成功し、Warning も出ない。
 - **OSM を含まない最小の再現:** package を持たない project で、prefab（子の位置 (1,2,3)）の instance を置いた Scene を build → prefab を (4,5,6) にして build → `CleanBuildCache()` の後に build、の 3 回で、2 回目は (1,2,3) のまま（build instruction 4 個中、変更 0）、3 回目で (4,5,6) になった。
-- **Unity の修正と 6000.6.9f1 での確認（2026-11-17）:** Unity は 6000.6.3f1 の release note に、Content Directory の build で、Scene が使う prefab だけを編集した後の差分 build がその Scene を作り直さない不具合の修正を載せている（Build System、UUM-151103。<https://unity.com/releases/editor/whats-new/6000.6.3f1>）。同じ形の OSM を含まない最小の再現 project を 6000.6.9f1 で開き、`CleanBuildCache()` を挟まずに 2 回 build した。prefab の子 Probe の位置を (3,4,5) に変えた 2 回目の出力に (3,4,5) が入った。確かめた範囲は、入れ子でない prefab 1 つ、Editor の build、`CleanBuildCache()` なしの 2 回の build だけで、入れ子の prefab、model、製品の build 経路（印を外した状態）、Player の build は確かめていない。この節と下の 2 節（印の形と検知の鍵、製品の build 経路での印）の実測は 6000.6.0f1 のもので、書き換えない。6000.6.9f1 で印が要らなくなったとはまだ言えない。製品に入れた印（S2-2b）を外すかどうかは、program §8 の S2-2c が測って決める。
+- **Unity の修正と 6000.6.9f1 での確認（2026-11-17）:** Unity は 6000.6.3f1 の release note に、Content Directory の build で、Scene が使う prefab だけを編集した後の差分 build がその Scene を作り直さない不具合の修正を載せている（Build System、UUM-151103。<https://unity.com/releases/editor/whats-new/6000.6.3f1>）。同じ形の OSM を含まない最小の再現 project を 6000.6.9f1 で開き、`CleanBuildCache()` を挟まずに 2 回 build した。prefab の子 Probe の位置を (3,4,5) に変えた 2 回目の出力に (3,4,5) が入った。確かめた範囲は、入れ子でない prefab 1 つ、Editor の build、`CleanBuildCache()` なしの 2 回の build だけで、入れ子の prefab、model、製品の build 経路（印を外した状態）、Player の build は確かめていない。この節と下の 2 節（印の形と検知の鍵、製品の build 経路での印）の実測は 6000.6.0f1 のもので、書き換えない。入れ子・共有・variant・model と製品の build 経路は、下の「6000.6.9f1 で印を外した製品の build 経路」で測り、印を製品から外した（S2-2c、PR #199）。
 - **Scene に意味のない変更を入れた時:** 値を 1 つ変える、空の GameObject を足す、のどちらでも、その build は新しい版になったが、Scene を元のバイトに戻して build すると古い版に戻った。cache の鍵は Scene の file のバイトで、prefab の状態は鍵に入らない。
 - **回避（最小の再現の project で成立）:** Scene に `EditorOnly` tag の GameObject を印の置き場として 1 つ置き、build の直前にその名前を、Scene が焼き込む prefab（`GetDependencies(scene, true)` の `.prefab`）の中身のハッシュに書き換え、build の後に Scene を元のバイトに戻す。prefab を v1 → v2 → v2 → v1 → v2 と進めて戻した 5 回の build で、全て正しい版が出た。2 回目は Scene の 1 個だけを作り直し、3〜5 回目は作り直し 0 で、v1 に戻した build は 1 回目と同じ出力を再利用した。印の名前は出力に無く、全 build の後の Scene は元のバイトと一致した。build のたびに印の object を新しく足す形は、object の fileID が毎回変わって Scene のバイトが毎回違い、正しいが cache が当たらなかった。
-- **含意:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要がある。印を source に残さない形と、prefab の file を読まない検知の鍵は、下の「印の形と検知の鍵」で測り、製品の build 経路に実装した（S2-2b、PR #193。下の「製品の build 経路での印」、契約は [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) §4）。
+- **含意（6000.6.0f1）:** Scene に prefab の instance を置く project で差分 build の正しさを保つには、Scene のバイトを焼き込む prefab の版に結び付ける必要があった。印を source に残さない形と、prefab の file を読まない検知の鍵は、下の「印の形と検知の鍵」で測り、製品の build 経路に実装した（S2-2b、PR #193。下の「製品の build 経路での印」）。6000.6.9f1 では Unity の差分 build が自分で拾うので、印は外した（下の「6000.6.9f1 で印を外した製品の build 経路」、契約は [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) §4）。
 
 ### 印の形と検知の鍵
 
@@ -96,7 +96,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 ### 製品の build 経路での印
 
-M と `GetAssetDependencyHash` の組を製品の `UnityContentDirectoryAdapter` に実装し、製品の `BuildContentCoordinator` で測った（2026-11-15、S2-2b、PR #193、Unity 6000.6.0f1、batch）。印の計算と書き込みは製品の snapshot の閉包をそのまま使い、製品の `Refresh` の前に書いてその `Refresh` で読ませる（印のための `Refresh` は無い）。fixture は合成 1 つで、入れ子の prefab（`Inner` を nest した `Outer`）の instance を置いた Scene、共有の prefab `Shared` の instance を置いた Scene 2 つ、prefab を置かない対照の Scene。同じ `Library` で 7 回 build した: B1 全て v1 で `Full`、B2 `Inner` だけ v2 で `Incremental`、B3 変更なしで `Incremental`、B4 `Inner` を v1 に戻して `Incremental`、B5 全て v2 で `Full`、B6 `Outer` だけ v1 に戻した source から逆引きした root を上書きとして build、B5' `CleanBuildCache()` の後に B5 と同じ source で `Full`。版は子の位置の float 列を出力の `.cf` で探して読んだ。
+M と `GetAssetDependencyHash` の組を製品の `UnityContentDirectoryAdapter` に実装し、製品の `BuildContentCoordinator` で測った（2026-11-15、S2-2b、PR #193、Unity 6000.6.0f1、batch）。この印は S2-2c（PR #199）で製品から外した。この節は 6000.6.0f1 での記録として残す。印の計算と書き込みは製品の snapshot の閉包をそのまま使い、製品の `Refresh` の前に書いてその `Refresh` で読ませる（印のための `Refresh` は無い）。fixture は合成 1 つで、入れ子の prefab（`Inner` を nest した `Outer`）の instance を置いた Scene、共有の prefab `Shared` の instance を置いた Scene 2 つ、prefab を置かない対照の Scene。同じ `Library` で 7 回 build した: B1 全て v1 で `Full`、B2 `Inner` だけ v2 で `Incremental`、B3 変更なしで `Incremental`、B4 `Inner` を v1 に戻して `Incremental`、B5 全て v2 で `Full`、B6 `Outer` だけ v1 に戻した source から逆引きした root を上書きとして build、B5' `CleanBuildCache()` の後に B5 と同じ source で `Full`。版は子の位置の float 列を出力の `.cf` で探して読んだ。
 
 - **入れ子と共有の prefab の編集が入った:** 7 回とも、出力の各 Scene はその回の手元の版の列だけを持った。B2 で、内側の prefab を外側の prefab 経由でだけ焼き込む Scene が (`Inner` v2, `Outer` v1) になった（印の無い時は v1 のままだった経路）。上書き（B6）の Scene も (`Inner` v2, `Outer` v1) で、Scene の file は B2 と同じ ContentHash だった。
 - **差分 build の再利用が残った:** `Incremental` の回の `BuildPipeline::WriteSerializedFile` の event で、B2 は印の値が変わった Scene だけを書き、B3 は Scene を 1 つも書かなかった（書いたのは毎回新しい生成 root だけ）。B4 の 4 Scene の ContentHash は B1 と同じだった。
@@ -113,6 +113,30 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PrefabStamp.Pr
 
 ```bash
 pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PrefabStamp.PrefabStampVerdictProcess.Verdict
+```
+
+### 6000.6.9f1 で印を外した製品の build 経路
+
+印を外した製品の `UnityContentDirectoryAdapter` と `BuildContentCoordinator` で、同じ `Library` の差分 build を測った（2026-11-17、S2-2c、PR #199、Unity 6000.6.9f1、batch、active build target は StandaloneWindows64 の Player）。fixture は合成 1 つで、上の S2-2b の fixture に、`Shared` の variant `SharedVariant`（override なし）と `.obj` の model `Model` を足した: `SOuter`（`Inner` を nest した `Outer`）、`SShared1`・`SShared2`（`Shared`）、`SVariant`（`SharedVariant`）、`SModel`（`Model`）、対照の `SPlain`。同じ `Library` で 9 回 build した: B1 全て v1 で `Full`、B2 `Inner` だけ v2 で `Incremental`、B3 変更なしで `Incremental`（Scene を開かない）、B3o B3 の後に `SShared1` を開いて root の名前を変えた未保存の状態で `Incremental`、B4 `Inner` を v1 に戻して `Incremental`、B4b `Shared` と `Model` を v2 にして `Incremental`、B5 全て v2 で `Full`、B6 `Outer` だけ v1 に戻した source から逆引きした root を上書きとして build、B5' `CleanBuildCache()` の後に B5 と同じ source で `Full`。prefab の版は子の位置の float 列、model の版は版だけが持つ group の名前（`.obj` を `g` の行で分けると、子の GameObject がその名前で Scene に焼き込まれる。`o` の行で分けると importer が名前を捨てて子が `default` 1 つになる）を、出力の `.cf` で探して読んだ。
+
+- **入れ子・共有・variant・model の編集が入った:** 9 回とも、出力の各 Scene はその Scene が焼き込む prefab・model の、その回の手元の版の識別値だけを持ち、他の版の識別値を持たなかった。B2 で `SOuter` が (`Inner` v2, `Outer` v1) になった（6000.6.0f1 で印なしに v1 のままだった経路）。B4b で `SShared1`・`SShared2`・`SVariant` が `Shared` v2、`SModel` が `Model` v2 になった。`SPlain` はどの識別値も持たなかった。
+- **上書きにも入った:** B6 の逆引きの root は `SOuter` だけで、上書きの `SOuter` は (`Inner` v2, `Outer` v1) の列を持ち、file の sha256 は B2 の `SOuter` と一致した。
+- **差分 build の再利用が残った:** `BuildContentTEP.json` の `BuildPipeline::WriteSerializedFile` の event で、B2 は Scene のうち `SOuter` だけを、B4b は `SShared1`・`SShared2`・`SVariant`・`SModel` の 4 つだけを書き、B3 は Scene を 1 つも書かなかった。B4 は Scene を書かず、各 Scene の file の sha256 は B1 と一致した。数え方の対象外だが、B3o・B6 も Scene を書かず、B5（`Full`）は `SOuter` だけを書いた（`Full` でも workspace の外の build cache は再利用される）。
+- **clean な build と同じ:** B5 と B5' の各 Scene の file は同じ sha256 だった（Scene 以外の file の差は「build をまたぐ同じ file」のとおりで、判定に使っていない）。
+- **source を書かなかった:** 9 回とも、`coordinator.Build` が戻った直後に `Assets/` と `ProjectSettings/` の全 file が build の前と同じ sha256 で、fixture の各 Scene の file と `.meta` の更新時刻は変わらず、生成 folder は残らなかった。`Library/OneStarMaker/ScenePrefabStamp/` は run の始めと同じ状態で、どの出力にも `osm-prefab-stamp-` は無かった。
+- **開いている未保存の Scene（batch）:** B3o の build は成功し、`SShared1` の file と `.meta` は build の前と同じ sha256、build の後も開かれたまま `isDirty` で変更が残り、出力の `SShared1` は変えた名前を持たなかった（disk の版を焼き込む）。対話の Editor（batch でない）での実 build は確かめていない。
+- **編集の帰属:** 各回で書いた asset の file の sha256 は harness が書いたバイトと一致し、その asset の `GetAssetDependencyHash` は直前の回と違い、書いていない file の sha256 は変わらなかった。
+- **失敗経路（EditMode test、build の呼び出しを差し替えて）:** 開いて未保存の変更を持つ Scene の `.meta` を読み取り専用にした時、`userData` が空でない `.meta` の時も build は成功し、Scene の file と `.meta` は変わらず、未保存の変更は残った。build の失敗と例外では build が失敗し、生成 folder は残らず、source は変わらなかった。
+- **別に観察したこと:** 同じ PC の別の回で、coordinator が staging の directory を final へ移す `Directory.Move` が Windows の access denied で失敗したことがある（harness の 1 回と、全 EditMode 回帰の既存の統合 test 2 件。同じ test を実行し直すと通った）。印の撤去と無関係な coordinator の publish の失敗で、原因は切り分けていない。
+- **測っていないもの（結果を変えうる）:** Player の build、別の PC・`Library`・CI の agent をまたぐ cache、6000.6.3f1 より前の Unity で build したことのある `Library`（印の無い `.meta` を鍵にした古い Scene cache を持つことがあり、印を外すとその鍵に戻る。当たると build は成功したまま古い Scene を出す。回復はその `Library` で `CleanBuildCache()` を 1 回）、override を持つ instance・unpack した prefab・2 段以上の入れ子、model の Transform の編集、実データ（SampleGame）、対話の Editor での実 build、印が残った `.meta` の実環境での戻し。
+- **測り直し:** harness は製品に残さず、git の commit `16dbc387` の `unity/Assets/OneStarMaker/Tests/Editor/Spikes/NoStamp/` にある（PR #199）。その commit を別の worktree に取り出し、Editor を閉じ、active build target を StandaloneWindows64 の Player にして、次の 2 つを順に別々の Unity process で実行する。record は `TestResults/nst/<run id>/` に書かれ、第 2 process が record と写した build の履歴から判定の行（`ac`、`model-identifier`）を計算し直す。B5' の `CleanBuildCache()` は、その PC の `Library` の build cache を全て捨てる。process の自然終了を待たず、XML と record の終了行で完了を読む（[Harness README](../../tools/Harness/README.md) の既知の終了 stall）。
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.NoStamp.NoStampBuildProcess.Build
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.NoStamp.NoStampVerdictProcess.Verdict
 ```
 
 ## 同じ `Library` での再 build の所要
@@ -141,7 +165,7 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PrefabStamp.Pr
 - 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読み、Scene の `.meta` のバイトも鍵に入ることを「印の形と検知の鍵」で観察した。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
 - 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（中身が同じ file では見分けられず、上の節の推測を実測で確かめていない。中身が違う file では、後から登録した側の版が出た。「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」）。
-- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data、prefab variant（Scene に置いた prefab instance と nested prefab は、上の節で焼き込みと差分 build の取りこぼしを測った）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
+- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data（Scene に置いた prefab instance・nested prefab・prefab variant・`.obj` の model は、上の節で焼き込みと差分 build を測った）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
 - 実データ（SampleGame）での重複の量。
 
 ## 測り直し
