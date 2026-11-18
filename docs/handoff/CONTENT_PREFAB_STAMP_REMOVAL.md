@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S2-2c）
-- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。次は C'）
+- status: `C'`（2026-11-18 の判定 C は、owner の DR-1 を当てた後に GO（§7.2）。C' 2 巡目は BLOCKED（C'-B1: DR-1 が AC8 の凍結した合否基準を変える、§8.2）。owner の判断待ち）
 - branch: `claude/content-prefab-stamp-removal`（PR の base は `develop`）
 - implementation base commit: `4aef3dd4`（`develop` の head、2026-11-17。Unity 6000.6.9f1 への更新（PR #198）を含む）
 - implementation head commit: `16dbc387`（§6 の進行役の入口のレビューの修正を含む。§7.1 の判定 C の対象）
@@ -330,6 +330,18 @@ AC1〜AC5b は §5 の harness（印を外した head の製品の coordinator�
   - 技術面では、AC1〜AC8（AC8 は DR-1 の適用の後）・ATTR の成立を支持し、他の blocker は無い。
   - 残存リスクとして挙げた `step.json` の `logHash` と `unity.log` の sha256 の不一致は、進行役が確かめた。`logHash` は `results.xml` と `unity.log` の sha256 を `|` で連ねた文字列の sha256（`tools/Harness/Adapters/UnityTestOutput.psm1:74`）で、計算し直すと一致した。
 - 対処: §6 から評価を外して §7.1 に移し、その §6 から blind bundle を作り直して、この bundle を読んでいない新しい担当で 2 巡目を行う。1 巡目の session は盲検の監査として数えない。
+
+### 8.2 2 巡目（2026-11-18）
+
+- 担当: cursor-agent、GPT-5.6 Luna（`gpt-5.6-luna-medium`、OpenAI）。1 巡目の session とは別の新しい session で、1 巡目の出力を読んでいない。Phase A に OpenAI 系列が関与したので `独立性制約あり`。cursor-agent で Grok 系以外を使うのは AGENTS.md の常時契約の例外で、owner（root）がこの session の会話で OpenAI 系の使用を許可した（この回の指示）。
+- 先立つ試行（結論なし）: Codex CLI の既定（gpt-6-astra、effort high）で始めた session は利用上限で中断し、続いて cursor-agent の Codex 5.3 で始めた session は owner の指示（Phase C 系の OpenAI は Luna）で止めた。どちらも結論を出していない。
+- 入力: 作り直した blind bundle（head `16dbc387`、§6 に評価を含まない）、head の source の `git archive`、規則の写し。
+- 結論: BLOCKED、blocker 1 件。
+  - **C'-B1（blocker）:** DR-1 は AC8 の凍結した合否基準（XML の failed 0 と root result `Passed`）を変えており、決定記録で許される範囲（凍結条件の意味・合否を変えない裁定）を超える（phases-and-handoff「決定記録」）。2 件を除いても XML の root result は `Failed(Child)` のまま。担当の示した道は、Phase A の新しい revision か、凍結条件を変えない形の再検証。
+  - 技術面では、構造、I1〜I3、S1〜S3、AC1〜AC7・AC5b・ATTR に blocker は無いとした（`model-identifier` の `observable=true` を含む）。
+  - 後続スライスの入力: override を持つ instance・unpack 済み instance・実データ、Player build・別 PC・別 `Library`・CI をまたぐ cache、6000.6.3f1 より前の cache、対話型 Editor の dirty Scene の実 build、印の残った `.meta` の実環境での回復、AC8 の 2 件の access denied の根本修正（DC-1）。
+  - 監査できなかった範囲: zip 内の inventory・`BuildContentTEP.json`・`ContentLayout.json` の各行は個別に再展開していない（executor note の原記録行・verdict record・verdict の実装・build-facts の構造は照合した）。
+- 行き先: C'-B1 は製品・harness の欠陥ではなく、凍結条件の扱いの問題なので、B には戻さない。owner の判断待ち（§0）。
 
 
 ## 9. Phase D
