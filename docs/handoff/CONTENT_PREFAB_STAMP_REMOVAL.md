@@ -18,8 +18,8 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§5.3、§8 の S2-2b・S2-2c の行、§8 の「Unity 6000.6.9f1 への更新から移送した入力」）。印を入れたスライスの HANDOFF は commit `88e9d8d9^` の `docs/handoff/CONTENT_PREFAB_STAMP.md`、harness は commit `2bc0c108` の `unity/Assets/OneStarMaker/Tests/Editor/Spikes/PrefabStamp/`（PR #193）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script を持たない。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。判定 C は commit で固定した差分を読む）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の証拠と発見 C・判定 C の所見を収録（head `16dbc387`）。取得案内は進行役が repository の外のローカルに保持し、Phase D の担当へ渡す
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C と同じ head・同じ判定の証拠から作り、所見を含まない。別 process の fetch で取得を確認済み。取得案内は進行役が repository の外のローカルに保持し、C' の packet に渡した
 - 引継ぎ票（2026-11-18、判定 C から C' へ）:
   - 凍結した Phase A: revision 1（A3 凍結版）と §2.6 の DR-1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示で渡す。implementation head はレビュー対象の `16dbc387`（この票を含む記録の commit ではない）。implementation base は `4aef3dd4`。
   - 次の Phase・役割: C'（独立監査、1 巡目）。C' は PR と可変な HANDOFF を読まず、進行役が渡す blind bundle だけを読む。
