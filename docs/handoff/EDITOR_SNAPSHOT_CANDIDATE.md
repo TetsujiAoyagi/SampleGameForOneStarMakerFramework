@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `B`（Phase B 完了。実装・Editor の compile・動作確認（Play A〜D と O-2）を終えた。次は発見 C。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `C`（発見 C の 1 巡目が阻害する指摘なしで終わった（§7）。次は判定 C。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `ec92c1ff5f8d872bc7fdef8f65214511a3d397b5`
@@ -22,8 +22,8 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: なし（§6 の D1 は revision 2 の AC2 に取り込んだ。経緯として §6 に残す）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の発見 C。凍結した Phase A は revision 2。動作確認は revision 1 の票の指示で B の出口に行い、§6 に記録した（未実施なし）。
-  - 次の作業: implementation head の差分（base `a629f9c1` から）を、§3 の責務マップ・§2.1 の不変条件・§2.2 の受け入れ条件（revision 2）と照らし、§5 の起点 filter と判定必須テストを走らせる。AC5 の新しい test は 1 度も実行していない（compile だけ）。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
+  - 次の Phase・役割: Phase C の判定 C（GO 候補 head は implementation head）。凍結した Phase A は revision 2。発見 C は 1 巡目で阻害する指摘なし（§7）。動作確認は B の出口に行い §6 に記録した（未実施なし。B の観測は判定の入力にしない）。
+  - 次の作業: §5 の判定必須テストを走らせる。順は AC5・`RegisteredDirectoryRouteIntegrationTests`・`OverlayRegistrationIntegrationTests` の 1 プロセス（他の Unity を止める）→ 全 EditMode 回帰（空 filter）。起点 filter と offline の test は発見 C の結果（§7）と同じ head だが、判定の bundle では GO 候補 head の結果として扱う。AC6 は実行担当が §6 の `eval` で取り直す。AC5 は 1 度も実行していない。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
   - 読む範囲: 既定のとおり（§0〜§8）。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
   - Phase C の進行（owner、2026-11-20）: 進行役が発見 C → 判定 C → C' を順に回し、B への差し戻しがあればその修正も起こす。owner は Remote Control から指示するので、subagent と別 session の起動（`start_session`）は使わない。各担当は CLI で新しい文脈として起こす: 発見 C・判定 C の判断担当と B の修正は `claude -p`（Anthropic。B と同じ系列なので「独立性制約あり（owner 受容）」と §7 に書く。高コストのモデルへ上げない）、C' は cursor-agent の Grok 系（モデルを明示。`.agents/skills/osm-workflow/references/cursor-agent.md`）。Codex（OpenAI）は使えない。Unity の batch test・Content build・AC6 の Editor 操作は進行役が実行担当として凍結済みのコマンドで行い、生の結果を判断担当に渡す（解釈を添えない）。判定 C・C' を起こす直前に PR の timeline の新着を見る。
@@ -677,7 +677,25 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 
 ## 7. Phase C
 
-未着手
+### 発見 C（1 巡目、2026-11-20）
+
+- 種別: 発見 C。対象 implementation base `a629f9c1` / head `ec92c1ff`（commit 固定。stage は使っていない）。evidence は進行役が固定 diff（full.patch・stat・name-status）と下の機械検査・起点 filter の生出力をローカルに置いた（未保存。判定 C の bundle は判定 C の head で作る）。
+- 担当: 判断担当は `claude -p` の新しい文脈（Anthropic、Claude Opus 5.5。B と同じモデルなので **独立性制約あり（owner 受容）**）。実行担当は進行役（Claude Code、Anthropic）で、凍結済みのコマンドを実行し、生の出力だけを判断担当に渡した。
+- 機械検査（worktree `osm-s4d5`、HEAD `7e870d7d`、dirty なし。製品の tree は head と同じ）: `pwsh tools/contract-audit.ps1` 違反なし（exit 0）、`pwsh tools/docs-audit.ps1` 違反なし（警告 1: program HANDOFF の harvest 時期）、offline の test 72 passed / 0 failed、AC7 の `grep` は `EditorSnapshot/` の doc comment の 1 行（「Bootstrap の型を参照しない」という文）だけで参照は 0（判断担当の判断）、変えない file の diff 0。
+- 起点 filter の Unity batch: `pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.ContentResolution;SceneDirectorContentLoaderTests;SceneVariantForwardingTests;EditorPlaySnapshotIntakeTests;SceneSnapshotWriterTests;PlayEntryRecordTests;PlayEntryTransactionTests;PlayEntryDecisionTests;AdoptedSceneTests;EditorPlaySnapshotStartupPlanTests'`（Unity 6000.6.9f1、EditMode、`-nographics`）。step `passed` / exit 0、XML total 187・passed 187・failed 0・skipped 0・inconclusive 0、root `Passed`、`error CS` 0、Unity は自然終了。AC1〜AC4 の新しい test（`AdoptedSceneTests` 13、`EditorSnapshotLoaderTests` 10、`EditorSnapshotProviderTests` 7、`EditorPlaySnapshotStartupPlanTests` 11、`SceneDirectorContentLoaderTests` の追記 4 件を含む 17）は初めて実行した。判断担当が XML で各 class の収録を確かめた。
+- 結論: **阻害する指摘なし。判定 C へ進む。**（GO 判定ではない）
+- 構造適合: file・置き場・依存の向き・公開面は §3 のとおり。計画との差は §6 の internal の 2 点（`SessionKey`、`InstallBridgeFromSession`）。行数のトリガー（`AbstractApplicationInitializer.cs` 1305、`AssetManagement.cs` 507、`SceneDirector.Loading.cs` 747、`EditorPlaySnapshotIntake.cs` の 50% 超、`EditorSnapshotSceneSource.cs` 309）はどれも非分割妥当、A 再開は不要。
+- 後続スライスの入力（違反根拠なし）:
+  - F1: `AbstractApplicationInitializer.cs` の増加（段の並びと配線だけ）→ `RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の分割の入力。
+  - F2: `EditorSnapshotSceneSource.cs` に宣言の値・load 済みの値・照合・I/O の port と実物・預け元が同居（§3 の割当の範囲内）→ S3-4 / S5 で I/O を分けるか判断。
+  - F3: 宣言にある identity で payload の無い論理 node は `(true, 空)` を返す（§6 の B 適応）。AC4 の「payload の無い論理 node の分岐は今と同じ」は判定の順のことと読める。合否は変わらない（読み方の決定記録の候補）。
+  - F4: `request-snapshot-scenes` の失敗時、要求済みの Scene の台帳の entry と `SceneDirector` の組は `ReleaseAll` まで残る（I-3 (11) の凍結した塞ぎ方）→ 13 章に書く。
+  - F5: 宣言が空・identity の重複は配線の段の `ArgumentException` になる（fail-closed は保たれ、文と段が変わった）→ S5 の観測。
+  - F6: AC5 の test の `Shader.Find(..) ?? ..`（破棄されうる object ではないので契約違反ではない）と `AssertUnrequested` の同期待ち → test の手入れ。
+  - F7: §6 の N1 → S3-4、program I11。
+- 判定 C への意見（判断担当）: 起点 filter は変えない。AC5・`RegisteredDirectoryRouteIntegrationTests`・`OverlayRegistrationIntegrationTests` を 1 プロセスで全 EditMode 回帰より先に走らせる（§5 の未知の経路 (ii) の不成立を先に知るため）。AC5 の XML は 1 件実行・Passed（Ignore でない）と log の `[S3-3 O-1]` を見る。
+- 未確認: AC5 と §5 の (ii)、AC6 の判定用の観測（判定 C が取る）。AC1〜AC4 の test の assert の全文は読んでいない。SampleGame の `Awake` の `SceneManager` 直呼びと、lifecycle 前の `AssetOwner.Scene` の取得は grep していない。
+- 差し戻しの巡: 0（最初のレビュー）。
 
 ## 8. Phase C'
 
