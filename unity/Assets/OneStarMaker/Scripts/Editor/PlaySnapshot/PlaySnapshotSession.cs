@@ -25,6 +25,7 @@ namespace OneStarMaker.Editor.PlaySnapshot
             WasDirty = entry.wasDirty;
             Sha256 = entry.sha256;
             IsActive = entry.isActive;
+            RequestAtStartup = entry.requestAtStartup;
         }
 
         /// <summary>論理 identity（Scene 名）。</summary>
@@ -37,6 +38,8 @@ namespace OneStarMaker.Editor.PlaySnapshot
         /// <summary>複製の bytes の SHA-256（小文字の 16 進）。</summary>
         public string Sha256 { get; }
         public bool IsActive { get; }
+        /// <summary>起動時に OSM の lifecycle へ要求する Scene なら真（<see cref="PlaySnapshotSession.Prepare"/> に渡した入口の規則の結果）。</summary>
+        public bool RequestAtStartup { get; }
     }
 
     /// <summary>
@@ -64,12 +67,13 @@ namespace OneStarMaker.Editor.PlaySnapshot
         /// <summary>置き場に作る空の開始 Scene の名前。開いている Scene に同名があれば複製しない。</summary>
         public const string StartSceneName = "OsmPlaySnapshotStart";
 
-        private const string SessionKey = "OSM.PlaySnapshot.Session.v1";
+        internal const string SessionKey = "OSM.PlaySnapshot.Session.v1";
         private const string LogPrefix = "[PlaySnapshot] ";
 
         /// <summary>
-        /// 宣言の identity と同じ名前の Scene が、複製以外の path で load された（起動の後に unload され、別の供給元から読み直された）。
-        /// 引数は identity と load された Scene の path。Play の間だけ、load のたびに出す（回数の整理は受け手が行う）。
+        /// 宣言の identity と同じ名前の Scene が、複製以外の path で load された。どの供給元から読まれたかは言わない
+        /// （由来の正本は Runtime の要求時解決の record）。引数は identity と load された Scene の path。Play の間だけ、load のたびに出す
+        /// （回数の整理は受け手が行う）。
         /// </summary>
         public static event Action<string, string>? SourceChanged;
 
@@ -87,10 +91,10 @@ namespace OneStarMaker.Editor.PlaySnapshot
             EditorApplication.update += OnUpdate;
             SceneManager.sceneLoaded += OnSceneLoaded;
 
-            if (Load() is { } document && (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode))
+            if (Load() != null && (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode))
             {
                 // Domain Reload が有効な Play。BeforeSceneLoad より前にここが走るので、起動の取り込みの段が読む口を置き直す。
-                InstallBridge(document);
+                InstallBridgeFromSession();
             }
             else if (!Application.isBatchMode)
             {
@@ -132,8 +136,14 @@ namespace OneStarMaker.Editor.PlaySnapshot
         /// 開いている loaded の Scene を全て複製し、空の開始 Scene を <c>playModeStartScene</c> にし、宣言を置く。失敗したら作った物を全て戻して
         /// <see cref="PlaySnapshotException"/> を投げる。Play 中・移行中には呼ばない。<c>playModeStartScene</c> が既に設定されていれば上書きせず拒否する。
         /// </summary>
-        public static void Prepare()
+        /// <param name="requestAtStartup">
+        /// 複製ごとの「起動時に OSM の lifecycle へ要求する」の規則（Scene 名 → 真偽）。host の Play の入口が決め、必須である。
+        /// 偽の複製は物理的に load されるが、host の code が後から要求するまで lifecycle に入らない。
+        /// Framework は既定（全て要求する・何も要求しない）を持たないので、規則を渡さない形は無い。
+        /// </param>
+        public static void Prepare(Func<string, bool> requestAtStartup)
         {
+            if (requestAtStartup == null) throw new ArgumentNullException(nameof(requestAtStartup));
             if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
                 throw new InvalidOperationException("A play snapshot cannot be prepared during Play.");
             if (Load() != null) Release();
@@ -163,6 +173,7 @@ namespace OneStarMaker.Editor.PlaySnapshot
                     if (scene.isLoaded) scenes.Add(scene);
                 }
                 document.scenes = SceneSnapshotWriter.Write(scenes, active, folderAssetPath, new[] { StartSceneName }).ToArray();
+                foreach (var entry in document.scenes) entry.requestAtStartup = requestAtStartup(entry.identity);
                 Save(document);
 
                 WriteEmptyStartScene(document.startScenePath, active);
@@ -220,9 +231,23 @@ namespace OneStarMaker.Editor.PlaySnapshot
             SourceChanged?.Invoke(declared.identity, scene.path);
         }
 
+        /// <summary>
+        /// SessionState の宣言から bridge を置き直す（Domain Reload の後）。宣言が無ければ何もせず偽。
+        /// 起動時の要求の印と record の事実も SessionState から運ぶので、置き直しで印が落ちたり全て真になったりしない。
+        /// </summary>
+        internal static bool InstallBridgeFromSession()
+        {
+            var document = Load();
+            if (document == null) return false;
+            InstallBridge(document);
+            return true;
+        }
+
         private static void InstallBridge(Document document)
         {
-            var declaration = document.scenes.Select(x => new EditorPlaySnapshotScene(x.identity, x.copyPath, x.isActive)).ToArray();
+            // 起動時の要求の印と record の事実も SessionState の宣言から運ぶ（Domain Reload の後の置き直しで印が落ちない）。
+            var declaration = document.scenes.Select(x => new EditorPlaySnapshotScene(
+                x.identity, x.copyPath, x.isActive, x.requestAtStartup, x.sourcePath, x.wasDirty, x.sha256)).ToArray();
             // file の無い複製は Unity に渡さず null を返す。起動の失敗の最初の 1 行を「snapshot が読めない」にするため
             // （渡すと Unity 自身の path の Error が先に出る）。
             EditorPlaySnapshotBridge.Set(declaration,
@@ -298,7 +323,7 @@ namespace OneStarMaker.Editor.PlaySnapshot
         }
 
         private static string Describe(Document document) =>
-            string.Join(", ", document.scenes.Select(x => x.identity + (x.isActive ? "*" : "") + (x.wasDirty ? " (dirty)" : "") +
+            string.Join(", ", document.scenes.Select(x => x.identity + (x.isActive ? "*" : "") + (x.requestAtStartup ? " (requested)" : "") + (x.wasDirty ? " (dirty)" : "") +
                                                           " sha256=" + (x.sha256.Length >= 12 ? x.sha256.Substring(0, 12) : x.sha256)));
 
         private static Document? Load()

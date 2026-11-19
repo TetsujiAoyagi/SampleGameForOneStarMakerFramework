@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `A`（A3 凍結済み。Phase A revision 1。次は Phase B。A2 の 4 件、目的レビューのやり直し、外部計画レビュー 2 巡の採否は §5.1、未決事項の決定は §2.8）
+- status: `B`（Phase B 完了。実装・Editor の compile・動作確認（Play A〜D と O-2）を終えた。次は発見 C。Phase A revision 1 の採否は §5.1、未決事項の決定は §2.8、A3 後の決定記録は §6 の D1）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者 owner（root）、2026-11-20、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件、目的レビューのやり直し、外部計画レビュー 2 巡の採否を §5.1 に記録し、§2.8 の U1〜U12 を決め、2 巡目に blocker と差し戻しの要求が無いことを確かめたうえで、owner が会話で「blocker 無しだから凍結して」と指示した。§2.6 の NO-GO (i) の前提である読み直しの疎通は、凍結の前に空の Scene の複製で成立した（§5）
 - risk: `high`（program の行の値。Scene の所有者と寿命（Scene の台帳に 3 つ目の種別を足す）、起動の段の順序、`SceneDirector` の load の分岐、Editor の public の引数を変える）
 - owner: root（依頼者）
@@ -17,14 +17,16 @@
 - harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「要求時の Content 解決」（snapshot の供給元、既ロードの経路、record、「まだ保証しないこと」）と「Scene 解放の役割分担」、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6（取り込みの段、起動時の明示の要求、key と mode の組）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（経路 Built + open scenes の行）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §2.2（連携部分が使う `AssetManagement` の internal の口の棚卸しに、預かる口と預け元の port を足す）、program §8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§5.2、§6、§8 の S3-3 と S0-b・S0-d・S1・S3-1 からの移送、§9 の G12・G21・G23）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結版は、A3 凍結版の commit の本書 §0〜§5）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（stage は使っていない。発見 C は implementation head の commit を入力にする）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
+- A3 後の決定記録: §6 の「決定記録」（D1、2026-11-20。AC2 の失敗経路の例外の型の読み）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。凍結した Phase A は revision 1。
-  - 次の作業: §3 の責務マップを §4 の順序の (1) から実装する（(0) の疎通は取得済みで、取り直さない）。出口は、Editor での compile の確認、§5 の検証経路の動作確認を 1 回（Play A〜D と観測 O-2。Play B の Scene の名前、O-2 の asset、使った `eval` を §6 に固定する）、§6 の記録、実装の commit と票の更新。Unity の batch test と Content Directory の build を伴う test（AC5）の実行・判定は Phase C。
-  - 必要な権限: Unity Editor（この worktree の `unity/` を `unity open` で開き、`tools/unity-editor.cmd` で操作する）。動作確認の準備の installed の候補と、Editor を開いた時に付く追跡 file の差の扱いは、§5 の「疎通 (i) の記録」にある。
-  - 停止規則: §2.6 と、§4 の「Phase B から Phase A へ差し戻す条件」。push は owner に聞く。
+  - 次の Phase・役割: Phase C の発見 C。凍結した Phase A は revision 1。動作確認は §0 の前の票の指示で B の出口に行い、§6 に記録した（未実施なし）。
+  - 次の作業: implementation head の差分（base `a629f9c1` から）を、§3 の責務マップ・§2.1 の不変条件・§2.2 の受け入れ条件（AC2 は §6 の D1 の読み）と照らし、§5 の起点 filter と判定必須テストを走らせる。AC5 の新しい test は 1 度も実行していない（compile だけ）。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
+  - 読む範囲: 既定のとおり（§0〜§8）。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
+  - 停止規則: §2.6。push は owner に聞く。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -483,7 +485,191 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（§3 の file ごと。型と member の名前は B が決めた。path は §1 の現況と同じ起点）:
+  - `Runtime/AssetManagement/Internal/IAdoptedSceneSource.cs`: 預け元の port `IAdoptedSceneSource`（`ReservedIdentities`、`AcquireAsync(identity)`、`UnloadAsync(IBackendScene)`）。
+  - `Runtime/AssetManagement/AssetManagement.AdoptedScene.cs`: `InstallAdoptedSceneSource`（予約。台帳に同じ identity があれば `InvalidOperationException`）、`IsAdoptedSceneSource`、`AdoptSceneAsync(identity, options, ct)`（`_contentSceneLoadGate` の中で受付中の確認・台帳の検査・取得・登録。取得の後に取消を見たら unload してから取消）、台帳の entry `AdoptedScene`、予約の検査 `RejectReservedContentScene`、`DetachAdoptedSceneSource`。
+  - `AssetManagement.cs`: `UnloadSceneAsync` に預かった Scene の分岐（token と else の前。load 済みでない Scene は預け元を呼ばずに unload 済みとする）、`ReleaseAll` で預け元を外す。`AssetManagement.ContentDirectory.cs`: `LoadContentSceneAsync` が gate の中・台帳の検査の前で予約を拒む。
+  - `Runtime/ContentResolution/EditorSnapshot/EditorSnapshotSceneSource.cs`: 宣言の値 `EditorSnapshotDeclaredScene`、load 済みの Scene の値 `EditorSnapshotLoadedScene`、1 Scene の照合 `EditorSnapshotSceneMatch.Verify`、Unity の I/O の port `IEditorSnapshotSceneIo` と実物 `UnityEditorSnapshotSceneIo`（load は bridge の delegate）、預け元 `EditorSnapshotSceneSource`。
+  - `EditorSnapshotProvider.cs`: 供給元（id `editor-play-snapshot`）。record の事実の key は `osm.editorSnapshot.sourcePath` / `copyPath` / `wasDirty` / `sha256`。
+  - `Runtime/ContentResolution/IContentSceneLoadBinding.cs`（`Declares`、`IsLoadedBy`、`LoadSceneAsync`）。`ContentRequestLoader.cs`: 経路 `AlreadyLoadedScene` の分岐 `LoadAlreadyLoadedSceneAsync` と問い合わせ `DeclaresAlreadyLoadedScene`（どちらも `#if UNITY_EDITOR`）。directory の経路の「照合と content 入口の間に `await` を置かない」は変えていない。
+  - `RegisteredDirectoryRoute.cs`: 先頭の供給元を受ける `TryCreate` の多重定義（`#if UNITY_EDITOR`）。既存の `TryCreate` の形は変えていない。
+  - `SceneDirector.Loading.cs`: 組を作る時点の印と、論理 node の判定の後・名前の再利用の前の loader の分岐。`SceneDirector.cs`: `ScenePair.BackendSceneLoaded` の doc comment。
+  - `Runtime/Bootstrap/`: bridge の 1 件に `RequestAtStartup`・`SourcePath`・`WasDirty`・`Sha256`。intake に起動の計画 `PlanStartup`（結果は `EditorPlaySnapshotStartupPlan`）、`ToDeclaredScenes`、`FormatIntakeLog`・`FormatRequestLog`。initializer は配線で預け元と供給元を作って据え、stage `plan-editor-snapshots` → `intake-editor-snapshots` → `request-snapshot-scenes`（snapshot の Play）か `register-loaded-scenes`（それ以外）。
+  - `Core/` の 3 file の doc comment（§2.8 U11）。`Editor/PlaySnapshot/`: `Prepare(Func<string, bool> requestAtStartup)`、`PlaySnapshotScene.RequestAtStartup`、`SceneSnapshotEntry.requestAtStartup`、`SourceChanged` の説明。SampleGame: 入口は印の規則（SceneResourceMap の名前）を閉包で渡し、由来の label は `snapshot->other`（定数 `OriginSnapshotThenOther`）。
+  - test（新規・追記）: AC1 `OneStarMaker/Tests/ContentResolution/EditorSnapshotProviderTests.cs`、AC2 `EditorSnapshotLoaderTests.cs`（同じ file に test 用の `FakeSceneIo`・`FakeSnapshotScene`・`CountingDirectoryPort` を internal で置き、AC3 と SceneDirector の test も使う）、AC3 `OneStarMaker/Tests/AssetManagement/AdoptedSceneTests.cs`、AC4 `OneStarMaker/Tests/Editor/PlaySnapshot/EditorPlaySnapshotStartupPlanTests.cs` と `SceneDirectorContentLoaderTests` への 4 件の追記、AC5 `SampleGame/Tests/Editor/Build/EditorSnapshotCandidateIntegrationTests.cs`（friend と asmdef の参照を足さずに組めた）、`PlayEntryRecordTests` の label。
+- HANDOFF との差（B 適応。設計判断・依存・所有者・公開 API は増やしていない）:
+  - AC2 の失敗経路の例外の型: 下の決定記録 D1。
+  - 取り込みの行の ` requested=` は新しい関数 `FormatIntakeLog` が足す。既存の `FormatLoadedLog` は変えない（`EditorPlaySnapshotIntakeTests` が行の全文を比べていて、AC7 はその test を変更なしで通すことを求める）。
+  - bridge の 1 件の 3 引数の constructor（既存の test が使う）は残し、起動時の要求は偽・事実は空にした。session は 7 引数の形で全ての欄を渡す。
+  - AC4 の Editor の単体のために、`PlaySnapshotSession.SessionKey` を internal にし、SessionState の宣言から bridge を置き直す `InstallBridgeFromSession()`（internal）を足した。static constructor の Domain Reload の置き直しもこれを使う。public の面は §3 のとおり（`Prepare` の引数と `PlaySnapshotScene` の property 1 つ）。
+  - SampleGame の入口は map の名前を自分で読む（`ReadSceneResourceMapNames`）。`VerifyPlayLauncher` に共通の関数を足すと §3 の外の file を変えるため（AC8）。
+  - `AdoptSceneAsync` は activation の保留を `ContentDirectoryException`（`InvalidConfiguration`）で拒む（`LoadContentSceneAsync` と同じ）。
+  - 宣言にある identity で SceneResource の payload が空の時、`PerformUnitySceneLoad` は組の印を台帳経由のまま返す（`(true, 空)`。台帳に無いので unload は何もしない）。名前の unload に戻すと未要求の複製を離しうる。
+  - 行数の見込みとの差（分割はしていない。責務は §3 のとおり）: `EditorSnapshotSceneSource.cs` 309（見込み 150。宣言の値・load 済みの値・照合・I/O の port と実物を同じ file に置いた）、`AbstractApplicationInitializer.cs` 1305（1245）、`AssetManagement.cs` 507（502）、`EditorPlaySnapshotIntake.cs` 168（135）、`ContentRequestLoader.cs` 189（180）、`SceneDirector.Loading.cs` 747（745）。他は見込みの範囲。
+  - AC5 の test は fixture の folder を Play の後まで残す（S3-1 の test は Play の前に消していた）。複製が fixture の material を参照し、O-1 がその手元の版を読むため。対話の Test Runner では SampleGame の入口が開いている Scene を見て Play を止めうるので、合否は batch で読む（test の remarks に書いた）。
+- 新しい事実（分類つき）:
+  - **N1（後続スライス: S3-4 と program I11 の入力）:** `EditorSceneManager.SaveScene(scene, path, saveAsCopy: true)` は、その時点の Dirty の asset を file に書く。O-2 の観測の後に `git status` が変わり（`DefaultOutGameBackgroundDefinition.asset` の `_tint` が in-memory の赤で保存されていた）、Edit Mode で同じ形の複製を untracked の folder に作って確かめた（asset の file が変わり、Dirty が倒れた）。つまり snapshot の準備（S0-d の `SceneSnapshotWriter`。本書は変えていない）は、保存していない asset の編集を file に書く。program I11 が守る「元の Scene の file と Dirty」は変わらない（Title の SHA-256 と Dirty は全ての Play で前と同じ）ので、凍結済みの条件には違反しない。複製の機構を変えることは対象外（§1）なので、本書では直さない。どちらも `git checkout` で追跡の内容へ戻した。
+  - **N2（判定 C の手順の注意）:** O-2 の手順の最後の「`git status --short` が準備の時と同じ」は N1 のために成り立たない。判定 C は O-2 の後に `git checkout -- unity/Assets/SampleGame/OutGame/Background/DefaultOutGameBackgroundDefinition.asset` で戻し、その事実を §7 に書く。
+  - **N3（判定 C の手順の注意）:** Play の開始・停止の移行中に送った `eval` は捨てられ、Pipeline が Console に `Failed to handle /api/exec request: Main thread operation timed out after 5000ms` の Error を出す。観測窓の Error の件数に入る。Play A ではこれが 2 件出た（停止の直後に状態を短い間隔で読み続けたため）。Play B 以降は、menu の実行・停止の後に 25〜40 秒待ってから読み、0 件だった。
+  - **N4:** Play A の停止の後に、AppDomain に置いた collector が消えていた（停止で domain の reload が起きた。原因は未確認。Play B・D の停止では残った）。消えた時は Console の件数（`LogEntries.GetCountsByType`）と入口の record の `errorCount` / `exceptionCount` で読んだ。
+- 実行した確認: Editor の compile（test の assembly を含めてエラー 0。`-ignorecompilererrors` 付きで開き、Pipeline の `recompile`）、`pwsh tools/contract-audit.ps1`（errors 0、warnings 0）、offline の test（`dotnet run -c Release --project tools/ContentResolutionOfflineTests/...`。72 passed、0 failed）、AC7 の `grep`（`Runtime/AssetManagement/` → `ContentResolution`、`Core/` と `ContentRequestLoader.cs` → `BuildContent`、`EditorSnapshot/` → `Bootstrap`・`BuildContent` はどれも 0 件）と変えない file の diff（0）、`pwsh tools/docs-audit.ps1`。
+- 未実行: Unity の batch test の全て（AC1〜AC5 の新しい test、AC4 の追記、AC7 の既存の test、全 EditMode 回帰）と Content Directory の build は Phase C。新しい test は 1 度も実行していない（compile だけ）。§5 の未知の操作経路 (ii)（EditMode の `[UnityTest]` で `Prepare` の後に Play に入って複製を読む）は未確認のまま。(iii) は下の Play C で成立した。
+- implementation head commit: §0 の欄（この票を含む commit）。
+- Phase B 担当・ベンダー: AI（Claude Code、Anthropic）。
+
+### 決定記録
+
+- **D1（2026-11-20、owner（root）、会話）: AC2 の失敗経路の例外は、照合・load の失敗では `InvalidOperationException` で素通しする。** AC2 は「照合の不一致、load が null、load しても Scene が無効、のそれぞれで `ContentResolutionException` になり、例外の文が Scene の identity と採れない理由を言い」と書くが、`ContentResolutionException` は `Core/` の型で、constructor は `(result, rejection)` の 1 つ、文は固定（provider と rejection だけ）である。`Core/` の型・member・値を変えない（§2.7、AC7）ので、型と文の両方は満たせない。owner は担当の推奨のとおり次を選んだ: 預け元が採れない時は Scene の identity と理由を文に持つ `InvalidOperationException` を投げ、loader は包まずに通す（`ContentResolutionException` の既存の説明「AssetManagement のロード失敗はこの例外で包まない」と同じ扱い）。load の前の拒否（口を持たない供給元の候補 = `LoadPathUnsupported`、預け元を据えていない AssetManagement = `SourceBindingMismatch`）は今までどおり `ContentResolutionException`。AC2 の残りの句（文が identity と理由を言う、読んだ Scene の unload、台帳に入らない、directory の content 入口を呼ばない）は変わらない。C はこの句をこの読みで判定する。注: workflow の規則では、受け入れ条件の合否の読みを変える裁定は Phase A の新しい revision で行う。owner がそれを望む時は、revision 2 で AC2 のこの句を書き換える。
+
+### 動作確認
+
+- 対象: 本 commit の実装（動作確認は commit の前の作業ツリーで行い、その後に変えたのはこの HANDOFF だけ）。Unity 6000.6.9f1、この worktree の `unity/` の Editor（担当が `unity open` で開き、終わりに `EditorApplication.Exit(0)` で正常終了）。installed の候補は Phase A の revision `20261119T154403156Z-dfbf…`（入口が「最新を使う」と Warning を出した。Verify Play は実行していない）。Variant profile の選択は無し。経路の保存値は未設定（空）で、`BuiltWithOpenScenes` にして、終わりに未設定へ戻した。`git status --short` の基準は準備の時に採り、Editor を開いた時の追跡 file の差は今回は出なかった。
+- 実行担当・環境・操作: 担当（B）。`eval` は下の C# を UTF-8 の Base64 にして `tools/unity-editor.cmd eval <base64>` に渡した。Play は `EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play")` で始め、`EditorApplication.ExitPlaymode()` で止めた。
+- 選んだ物（判定 C は同じ物を使う）: Play B の Scene は `ConfirmDialog`（`Assets/SampleGame/OutGame/ConfirmDialog/ConfirmDialog.unity`、親は `HpGauge`）。O-2 の asset は `Assets/SampleGame/OutGame/Background/DefaultOutGameBackgroundDefinition.asset`（`Title` の `TitleView._backgroundDefinition` が直接参照する。他の Scene は参照しない）、読む欄は `_tint`（Color）、元の値は `RGBA(1, 1, 1, 1)`、変えた値は `RGBA(1, 0, 0, 1)`。
+- 生の観測（Title の複製の folder 名は Play ごとに変わる。下は `<copy>` と書く）:
+  - 準備: `Title.unity` の SHA-256 `3eeb386c88e42201d6bf2e0489a90932f46840b1672a5a9cc302136d688dd1c4`、Dirty false、`playModeStartScene` null、`enterPlayModeOptions=DisableDomainReload`。
+  - Play A（`Title` だけ）: 入口の record `EnteredPlay`、`rule=SnapshotRoute`。log の行: `[AppInit] Content resolution: wired=true provider=registered-content-directory contentSet=spring-full revision=20261119T154403156Z-dfbfee56eb1746c58fe4eaa5644792b0 target=StandaloneWindows64-Player manifestSha256=500d1237…bd2f`、`[AppInit] Content resolution: snapshot provider=editor-play-snapshot scenes=1 requested=1`、`[AppInit] Editor play snapshot intake: scene=Title copy=<copy>/Title.unity active=true requested=true`、`[AppInit] Editor play snapshot request: scene=Title stable=true`。`Title` の record: `source=EditorSnapshot basis=OpenSceneSnapshot path=AlreadyLoadedScene verified=True provider=editor-play-snapshot repr=Full identity=///`、事実は元の path・複製の path・`wasDirty=false`・準備の SHA-256。load 済みの Scene: `OsmPlaySnapshotStart`（置き場）、`UIScene`、`Title`（`<copy>/Title.unity`）、`OutGameScene`。(3) unload の後 `Title` は 0 個・record null、再要求の後 1 個・path `<copy>/Title.unity`・`source=EditorSnapshot verified=True stable=True`、入口の record の由来は `snapshot` のまま。(4) `ConfirmDialog` は 1 個・`source=ContentDirectory`・identity は wired の行と同じ 4 欄、親 `HpGauge` も `ContentDirectory`。unload の後 0 個。collector の Error は停止まで 0。停止の後: `isPlaying` / `isPlayingOrWillChangePlaymode` false、置き場の folder 無し、`playModeStartScene` null、`Title.unity` の SHA-256 は準備と同じ、`Title` は開いていて Dirty false、`git status --short` は基準と同じ、record `copiesRemoved=yes`。Console の Error は 2 件（どちらも N3 の Pipeline の timeout）。collector は停止の後に消えていた（N4）。
+  - Play B（`ConfirmDialog` だけ）: `EnteredPlay`、`SnapshotRoute`。`snapshot provider=editor-play-snapshot scenes=1 requested=1`、intake の行 `scene=ConfirmDialog … active=true requested=true`、要求の行 `scene=ConfirmDialog stable=true`。`ConfirmDialog` の record は `EditorSnapshot`（path `<copy>/ConfirmDialog.unity`）、`HpGauge` は `ContentDirectory`（`Assets/SampleGame/OutGame/HpGauge/HpGauge.unity`）、どちらも 1 個。停止の後は Play A と同じ観測で、Error 0（collector と Console）。
+  - Play C（`enterPlayModeOptions=None` = Domain Reload 有効、`Title` だけ）: `EnteredPlay`、`errorCount 0`・`exceptionCount 0`、`intake=[Title]`。log の 4 行と `Title` の record は Play A と同じ（bridge は配線の時点で置き直されていた。§5 の (iii)）。(3) も Play A と同じ（unload で 0 個、再要求で 1 個・複製の path・`EditorSnapshot`）。停止の後は Play A と同じで、Console の Error 0。`enterPlayModeOptions` を `DisableDomainReload` に戻した。Unity が `EditorSettings.asset` に serialize の差（`m_SerializeInlineMappingsOnOneLine` の削除、`m_UseLegacyHierarchy` の追加）を残したので `git checkout` で戻した。
+  - Play D（`Title` だけ、失敗経路）: unload の後に `<copy>/Title.unity` を `File.Delete`（存在 false）。`AddScene("Title")` は `System.InvalidOperationException: Scene 'Title' cannot be loaded from the play snapshot: Unity did not accept <copy>/Title.unity (the copy file may be missing).` で失敗。その後 `Title` は load 済みに 0 個、`GetLoadedScene("Title")` は null。Error 0。停止の後は Play A と同じで Error 0。
+  - O-2（別の Play、`Title` だけ）: `_tint` を `ApplyModifiedPropertiesWithoutUndo` で赤にした（保存しない。Dirty true）。Play の中で、`Title` の複製（`<copy>/Title.unity`）の `TitleView._backgroundDefinition._tint` は `RGBA(1, 0, 0, 1)`（変えた値）で、`_backgroundDefinition` は Editor の asset と同じ instance。directory から載った Scene にこの asset を参照する object は無かった。停止の後に `_tint` を白へ戻して `EditorUtility.ClearDirty` した。`git status --short` は基準と違い、asset の file が赤で保存されていた（N1）。`git checkout` で戻した。
+- 期待と違う観測と B への差し戻し: (1) Play A の観測窓の Console の Error 2 件（N3。観測の `eval` が停止の移行中に届いた Pipeline の timeout で、製品の code の log ではない）。(2) O-2 の最後の `git status` の差（N1。S0-d の複製の機構の振る舞いで、本書の変更ではない）。どちらも B への差し戻しにしない。合否は判定 C が §5 の読み方で決める。
+- `未実施` の条件: なし（Play A〜D と O-2 を各 1 回）。
+- 使った `eval`（判定 C はこれを使う。`<…>` は手で埋める）:
+
+  ```csharp
+  // 準備と Play の開始（Play A・B・D・O-2 で使う。__SCENE__ は開く Scene の path）。経路の元の値は先に GetConfigValue で記録する。
+  UnityEditor.EditorUserSettings.SetConfigValue("OSM.PlayEntry.Route", "BuiltWithOpenScenes");
+  var errors = System.AppDomain.CurrentDomain.GetData("S33.errors") as System.Collections.Generic.List<string>;
+  if (errors == null)
+  {
+      errors = new System.Collections.Generic.List<string>();
+      System.AppDomain.CurrentDomain.SetData("S33.errors", errors);
+      UnityEngine.Application.logMessageReceivedThreaded += (c, st, t) =>
+      {
+          if (t == UnityEngine.LogType.Error || t == UnityEngine.LogType.Exception || t == UnityEngine.LogType.Assert)
+              lock (errors) errors.Add(System.DateTime.Now.ToString("HH:mm:ss.fff") + " " + t + ": " + c);
+      };
+  }
+  lock (errors) errors.Clear();
+  var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene("__SCENE__", UnityEditor.SceneManagement.OpenSceneMode.Single);
+  var ok = UnityEditor.EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play");
+  return "opened " + scene.name + " dirty=" + scene.isDirty + " menu=" + ok;
+  ```
+
+  ```csharp
+  // 入口の record と collector を読む（menu の実行から 30〜40 秒待ってから。N3）。
+  var errors = System.AppDomain.CurrentDomain.GetData("S33.errors") as System.Collections.Generic.List<string>;
+  string e = "(collector lost: domain reload)";
+  if (errors != null) lock (errors) e = string.Join(" | ", errors);
+  return "isPlaying=" + UnityEditor.EditorApplication.isPlaying + " willChange=" + UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode
+    + " errors=[" + e + "] record=" + UnityEditor.SessionState.GetString("OSM.PlayEntry.Record.v1", "");
+  ```
+
+  ```csharp
+  // 観測 (1)(2): §3 の log の行、SceneDirector の record、load 済みの Scene（Play B では Title の代わりに ConfirmDialog と HpGauge を読む）。
+  var sb = new System.Text.StringBuilder();
+  var asm = typeof(UnityEditor.Editor).Assembly;
+  var le = asm.GetType("UnityEditor.LogEntries");
+  var entryType = asm.GetType("UnityEditor.LogEntry");
+  var count = (int)le.GetMethod("StartGettingEntries").Invoke(null, null);
+  try
+  {
+      var entry = System.Activator.CreateInstance(entryType);
+      var msg = entryType.GetField("message");
+      var get = le.GetMethod("GetEntryInternal");
+      for (var i = 0; i < count; i++)
+      {
+          get.Invoke(null, new object[] { i, entry });
+          var m = ((string)msg.GetValue(entry)).Split('\n')[0];
+          if (m.StartsWith("[AppInit] Content resolution") || m.StartsWith("[AppInit] Editor play snapshot") || m.StartsWith("[AppInit] AfterSceneLoad failed"))
+              sb.Append("LOG ").Append(m).Append('\n');
+      }
+  }
+  finally { le.GetMethod("EndGettingEntries").Invoke(null, null); }
+  var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+  var appType = System.AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetType("SampleGame.DependOnAll.AppInitializer")).First(t => t != null);
+  var app = appType.GetField("s_instance", flags).GetValue(null);
+  var director = (OneStarMaker.Runtime.SceneSystem.SceneDirector)typeof(OneStarMaker.Runtime.AbstractApplicationInitializer)
+      .GetField("_sceneDirector", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(app);
+  System.AppDomain.CurrentDomain.SetData("S33.director", director);
+  foreach (var id in new[] { "Title", "ConfirmDialog", "HpGauge" })
+  {
+      var r = director.GetContentLoadRecord(id);
+      if (r == null) { sb.Append("RECORD ").Append(id).Append(": null\n"); continue; }
+      var c = r.Candidate;
+      sb.Append("RECORD ").Append(id).Append(": source=").Append(c.SourceKind).Append(" basis=").Append(c.AcceptanceBasis).Append(" path=").Append(c.LoadPath)
+        .Append(" verified=").Append(r.SourceBindingVerified).Append(" identity=").Append(c.Identity).Append(" facts={");
+      foreach (var f in c.Facts) sb.Append(f.Key).Append('=').Append(f.Value).Append("; ");
+      sb.Append("} stable=").Append(director.IsSceneStable(id)).Append('\n');
+  }
+  for (var i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+  {
+      var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+      sb.Append("SCENE ").Append(s.name).Append('|').Append(s.path).Append('|').Append(s.isLoaded).Append('\n');
+  }
+  return sb.ToString();
+  ```
+
+  ```csharp
+  // 観測 (3)（Play A・C）。(4) は同じ形で AddScene("ConfirmDialog") → record を読む → UnloadScene("ConfirmDialog")。
+  // Play D は UnloadScene の後に PlaySnapshotSession.Declaration の Title の CopyPath を File.Delete し、AddScene の例外を記録する。
+  var director = (OneStarMaker.Runtime.SceneSystem.SceneDirector)System.AppDomain.CurrentDomain.GetData("S33.director");
+  var log = new System.Collections.Generic.List<string>();
+  System.AppDomain.CurrentDomain.SetData("S33.reload", log);
+  System.Func<int> titles = () => { var n = 0; for (var i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++) { var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i); if (s.isLoaded && s.name == "Title") n++; } return n; };
+  System.Func<System.Threading.Tasks.Task> run = async () =>
+  {
+      try
+      {
+          await Cysharp.Threading.Tasks.UniTaskExtensions.AsTask(director.UnloadScene("Title"));
+          lock (log) log.Add("after unload: titles=" + titles() + " record=" + (director.GetContentLoadRecord("Title") == null ? "null" : "present"));
+          await Cysharp.Threading.Tasks.UniTaskExtensions.AsTask(director.AddScene("Title", null, System.Threading.CancellationToken.None));
+          var r = director.GetContentLoadRecord("Title");
+          lock (log) log.Add("after re-add: titles=" + titles() + " path=" + UnityEngine.SceneManagement.SceneManager.GetSceneByName("Title").path
+              + " source=" + r?.Candidate.SourceKind + " verified=" + r?.SourceBindingVerified + " stable=" + director.IsSceneStable("Title"));
+      }
+      catch (System.Exception ex) { lock (log) log.Add("EXCEPTION " + ex); }
+      lock (log) log.Add("DONE");
+  };
+  System.AppDomain.CurrentDomain.SetData("S33.reloadTask", run());
+  return "started";
+  // 後の eval で読む: return string.Join("\n", (System.Collections.Generic.List<string>)System.AppDomain.CurrentDomain.GetData("S33.reload"));
+  ```
+
+  ```csharp
+  // 停止は UnityEditor.EditorApplication.ExitPlaymode();。25〜30 秒待ってから停止の後の状態を読む（観測 (5)）。
+  var sb = new System.Text.StringBuilder();
+  sb.Append("isPlaying=").Append(UnityEditor.EditorApplication.isPlaying).Append(" willChange=").Append(UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode);
+  sb.Append(" snapshotFolderExists=").Append(System.IO.Directory.Exists("Assets/OsmPlaySnapshot"));
+  sb.Append(" playModeStartScene=").Append(UnityEditor.SceneManagement.EditorSceneManager.playModeStartScene == null ? "null" : "set");
+  using (var sha = System.Security.Cryptography.SHA256.Create())
+      sb.Append(" titleSha256=").Append(System.BitConverter.ToString(sha.ComputeHash(System.IO.File.ReadAllBytes("Assets/SampleGame/OutGame/Title/Title.unity"))).Replace("-", "").ToLowerInvariant());
+  var title = UnityEngine.SceneManagement.SceneManager.GetSceneByPath("Assets/SampleGame/OutGame/Title/Title.unity");
+  sb.Append(" titleOpen=").Append(title.IsValid() && title.isLoaded).Append(" titleDirty=").Append(title.isDirty);
+  var args = new object[] { 0, 0, 0 };
+  typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.LogEntries").GetMethod("GetCountsByType").Invoke(null, args);
+  sb.Append(" consoleCounts(error,warning,log)=").Append(args[0]).Append(',').Append(args[1]).Append(',').Append(args[2]);
+  return sb.ToString();
+  ```
+
+  ```csharp
+  // Play C の開始（終わりに enterPlayModeOptions を DisableDomainReload に戻し、EditorSettings.asset の serialize の差を git checkout で戻す）。
+  UnityEditor.EditorSettings.enterPlayModeOptions = UnityEditor.EnterPlayModeOptions.None;
+  UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/SampleGame/OutGame/Title/Title.unity", UnityEditor.SceneManagement.OpenSceneMode.Single);
+  return "menu=" + UnityEditor.EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play");
+  ```
+
+  ```csharp
+  // O-2: Edit Mode で値を変えて Play に入る（保存しない）。Play の中では TitleView の _backgroundDefinition を reflection で取り、_tint を読む。
+  // 停止の後に同じ形で RGBA(1, 1, 1, 1) へ戻し、UnityEditor.EditorUtility.ClearDirty(asset) を呼ぶ。asset の file は N2 のとおり git checkout で戻す。
+  var asset = UnityEditor.AssetDatabase.LoadMainAssetAtPath("Assets/SampleGame/OutGame/Background/DefaultOutGameBackgroundDefinition.asset");
+  var so = new UnityEditor.SerializedObject(asset);
+  so.FindProperty("_tint").colorValue = new UnityEngine.Color(1f, 0f, 0f, 1f);
+  so.ApplyModifiedPropertiesWithoutUndo();
+  UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/SampleGame/OutGame/Title/Title.unity", UnityEditor.SceneManagement.OpenSceneMode.Single);
+  return "menu=" + UnityEditor.EditorApplication.ExecuteMenuItem("Edit/Play Mode/Play");
+  ```
 
 ## 7. Phase C
 

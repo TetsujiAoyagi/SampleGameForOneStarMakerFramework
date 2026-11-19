@@ -60,7 +60,12 @@ namespace OneStarMaker.Runtime.ContentResolution
             if (request.Kind != ContentKind.Scene)
                 throw new ArgumentException("LoadSceneAsync accepts only Scene requests.", nameof(request));
 
-            var result = await ResolveAdoptedAsync(request, ct);
+            var result = await ResolveAsync(request, ct);
+#if UNITY_EDITOR
+            if (result.Candidate!.LoadPath == ContentLoadPath.AlreadyLoadedScene)
+                return await LoadAlreadyLoadedSceneAsync(request, result, options, ct);
+#endif
+            RequireDirectoryPath(result);
             // ここから content 入口の呼び出しまで await を置かない（照合した directory から読むため）。
             var record = BindBeforeLoad(request, result, AssetOwner.Scene(request.LogicalKey).ToString());
             var handle = await _assetManagement.LoadContentSceneAsync(request.LogicalKey, record.Candidate.Representation, options, ct);
@@ -79,27 +84,76 @@ namespace OneStarMaker.Runtime.ContentResolution
             if (request.Kind != ContentKind.Object)
                 throw new ArgumentException("LoadAssetAsync accepts only Object requests.", nameof(request));
 
-            var result = await ResolveAdoptedAsync(request, ct);
+            var result = await ResolveAsync(request, ct);
+            RequireDirectoryPath(result);
             // ここから content 入口の呼び出しまで await を置かない（照合した directory から読むため）。
             var record = BindBeforeLoad(request, result, owner.ToString());
             var handle = await _assetManagement.LoadContentAssetAsync<T>(request.LogicalKey, record.Candidate.Representation, owner, ct);
             return new AssetLoadOutcome<T>(handle, record);
         }
 
-        /// <summary>解決し、採用した候補のロード経路を確かめる。照合はここに置かない（呼び手が await の後に同期で行う）。</summary>
-        private async UniTask<ContentResolutionResult> ResolveAdoptedAsync(ContentRequest request, CancellationToken ct)
+        /// <summary>解決する。経路の確認と照合はここに置かない（呼び手が await の後に同期で行う）。</summary>
+        private async UniTask<ContentResolutionResult> ResolveAsync(ContentRequest request, CancellationToken ct)
         {
             var result = await _resolver.ResolveAsync(request, _policy, ct);
             if (!result.IsResolved)
                 throw new ContentResolutionException(result, ContentLoadRejection.None);
-
-            // 由来ではなく経路で弾く。snapshot 由来でも一時 directory 経由の候補は読めるが、
-            // 既ロード Scene や Addressables の候補を directory から読むと記録の由来が虚偽になる。
-            if (result.Candidate!.LoadPath != ContentLoadPath.ContentDirectory)
-                throw new ContentResolutionException(result, ContentLoadRejection.LoadPathUnsupported);
-
             return result;
         }
+
+        /// <summary>
+        /// 採用した候補が content 入口で読む経路かを確かめる。同期で終わる。由来ではなく経路で弾く。snapshot 由来でも一時 directory 経由の候補は読めるが、
+        /// 既ロード Scene や Addressables の候補を directory から読むと記録の由来が虚偽になる。
+        /// </summary>
+        private static void RequireDirectoryPath(ContentResolutionResult result)
+        {
+            if (result.Candidate!.LoadPath != ContentLoadPath.ContentDirectory)
+                throw new ContentResolutionException(result, ContentLoadRejection.LoadPathUnsupported);
+        }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// 既ロードの経路の候補を、候補を返した供給元の内部の口（<see cref="IContentSceneLoadBinding"/>）で読む。
+        /// 口を持たない供給元の候補は今までどおり <see cref="ContentLoadRejection.LoadPathUnsupported"/>、供給元が「自分の候補でない、
+        /// またはこの AssetManagement に預け元を据えていない」と答えれば <see cref="ContentLoadRejection.SourceBindingMismatch"/> で、どちらも読まない。
+        /// </summary>
+        /// <remarks>
+        /// 供給元の load の失敗（複製が採れない、照合が合わない）は包まずに通す。content 入口の load の失敗と同じ扱いで、例外の文が
+        /// Scene の identity と理由を言う（<see cref="ContentResolutionException"/> の文は固定で、それを言えない）。directory の content 入口で読み直さない。
+        /// 記録は load の前に作り、load が照合を通って成功した時だけ返す（返した record の SourceBindingVerified は常に true）。
+        /// </remarks>
+        private async UniTask<SceneLoadOutcome> LoadAlreadyLoadedSceneAsync(
+            ContentRequest request, ContentResolutionResult result, SceneLoadOptions options, CancellationToken ct)
+        {
+            var candidate = result.Candidate!;
+            if (!(FindProvider(candidate.ProviderId) is IContentSceneLoadBinding binding))
+                throw new ContentResolutionException(result, ContentLoadRejection.LoadPathUnsupported);
+            if (!binding.IsLoadedBy(candidate, _assetManagement))
+                throw new ContentResolutionException(result, ContentLoadRejection.SourceBindingMismatch);
+
+            var record = new ContentLoadRecord(request, candidate, result.Probes, AssetOwner.Scene(request.LogicalKey).ToString(),
+                ContentTraceability.Traceable, sourceBindingVerified: true);
+            var handle = await binding.LoadSceneAsync(candidate, _assetManagement, options, ct);
+            return new SceneLoadOutcome(handle, record);
+        }
+
+        /// <summary>
+        /// policy に、<paramref name="sceneIdentity"/> を宣言する既ロードの口の供給元があるか。SceneDirector は真の identity に限り、
+        /// load 済みの同名の Scene を名前で再利用する前にこの loader で読む（宣言に無い identity の順は変えない）。
+        /// </summary>
+        internal bool DeclaresAlreadyLoadedScene(string sceneIdentity)
+        {
+            if (string.IsNullOrEmpty(sceneIdentity))
+                return false;
+            foreach (var provider in _policy.Providers)
+            {
+                if (provider is IContentSceneLoadBinding binding && binding.Declares(sceneIdentity))
+                    return true;
+            }
+
+            return false;
+        }
+#endif
 
         /// <summary>
         /// 採用した候補の供給元に、候補が今の AssetManagement が読む directory の物かを尋ね、真なら記録を作る。同期で終わる。

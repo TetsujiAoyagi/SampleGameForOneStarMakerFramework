@@ -121,6 +121,9 @@ namespace OneStarMaker.Runtime.AssetManagement
             try
             {
                 directory.EnsureAccepting();
+#if UNITY_EDITOR
+                RejectReservedContentScene(directory, sceneIdentity, representation);
+#endif
                 if (_registry.TryGetScene(sceneIdentity, out var existing) && !existing.IsUnloaded)
                 {
                     // Scene 台帳は identity 単位。異なる表現を同じ Scene と偽って返さない。

@@ -24,6 +24,11 @@ namespace OneStarMaker.Editor.PlaySnapshot
         /// <summary>複製の bytes の SHA-256（小文字の 16 進）。Dirty の Scene では in-memory の内容になる。</summary>
         public string sha256 = "";
         public bool isActive;
+        /// <summary>
+        /// 起動時に OSM の lifecycle へ要求する Scene なら真。書き出しの後に session が入口の規則で決める（writer は決めない）。
+        /// SessionState に残るので、Domain Reload の後の bridge の置き直しでも同じ値になる。
+        /// </summary>
+        public bool requestAtStartup;
     }
 
     /// <summary>複製を作れない理由（新規未保存、同名 2 つ、書き込み先が既にある、書き出しの失敗）。利用者に出す文言を持つ。</summary>

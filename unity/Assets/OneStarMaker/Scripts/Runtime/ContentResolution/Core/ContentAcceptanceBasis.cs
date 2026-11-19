@@ -16,7 +16,7 @@ namespace OneStarMaker.Runtime.ContentResolution
         /// <summary>manifest と digest の検証を通した正規コピー。</summary>
         VerifiedDigest = 1,
 
-        /// <summary>Editor で開いている Scene の複製。意味の詳細は snapshot 機構を決める後続の作業が定める。</summary>
+        /// <summary>Editor で開いている Scene の Play の前の複製。digest で検証した物ではなく、採る理由は利用者が開いている Scene であること。</summary>
         OpenSceneSnapshot = 2,
 
         /// <summary>

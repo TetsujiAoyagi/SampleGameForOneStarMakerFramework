@@ -28,7 +28,11 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>起動の取り込みの段の成功の log（Runtime の EditorPlaySnapshotIntake.LogPrefix と同じ文字列）。</summary>
         internal const string IntakeLogMarker = "[AppInit] Editor play snapshot intake: ";
         internal const string OriginSnapshot = "snapshot";
-        internal const string OriginSnapshotThenDirectory = "snapshot->directory";
+        /// <summary>
+        /// 起動の後に、宣言の Scene と同名の Scene が複製以外の path から読まれた。どの供給元からかは言わない（由来の正本は Runtime の
+        /// 要求時解決の record）。
+        /// </summary>
+        internal const string OriginSnapshotThenOther = "snapshot->other";
         /// <summary>解放の担当。Scene の unload は SceneDirector（map に無い Scene は Play の終了）、複製の file は Play 入口。</summary>
         internal const string ReleaseOwners = "scenes: SceneDirector (unmapped scenes: end of Play); copy files: Play entry";
 
@@ -86,7 +90,7 @@ namespace SampleGame.DependOnAll.Editor.Build
             public bool observing;
             /// <summary>起動の取り込みの段が log に出した Scene 名（宣言とは別の欄）。</summary>
             public string[] intake = Array.Empty<string>();
-            /// <summary>Scene ごとの由来。取り込みで snapshot、起動の後に同名が別の path から読まれたら snapshot->directory。</summary>
+            /// <summary>Scene ごとの由来。取り込みで snapshot、起動の後に同名が複製以外の path から読まれたら snapshot->other。</summary>
             public SceneOrigin[] origins = Array.Empty<SceneOrigin>();
             /// <summary>Play の後に複製の file が残っていないか（yes / no）。snapshot の無い Play と、まだ Play 中の時は空。</summary>
             public string copiesRemoved = "";
@@ -177,7 +181,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         /// <summary>
-        /// 宣言の Scene が、起動の後に複製以外の path で load された。由来を snapshot->directory にし、Warning を 1 回の Play で identity ごとに
+        /// 宣言の Scene が、起動の後に複製以外の path で load された。由来を snapshot->other にし、Warning を 1 回の Play で identity ごとに
         /// 1 回だけ出す（黙って切り替わらない。2 回目以降は path だけを更新する）。宣言に無い identity と、観測していない時は無視する。
         /// </summary>
         internal static void MarkSourceChanged(string identity, string path)
@@ -186,12 +190,12 @@ namespace SampleGame.DependOnAll.Editor.Build
             if (document == null || !document.record.observing) return;
             if (!document.policy.snapshot.Any(x => string.Equals(x.identity, identity, StringComparison.Ordinal))) return;
             var first = !document.record.origins.Any(x => string.Equals(x.identity, identity, StringComparison.Ordinal)
-                                                          && x.origin == OriginSnapshotThenDirectory);
-            SetOrigin(document, identity, OriginSnapshotThenDirectory, path);
+                                                          && x.origin == OriginSnapshotThenOther);
+            SetOrigin(document, identity, OriginSnapshotThenOther, path);
             Save(document);
             if (first)
                 Debug.LogWarning(LogPrefix + "Scene '" + identity + "' was loaded again from " + path +
-                                 " instead of the play snapshot; it now runs the built content, not the scene you were editing.");
+                                 ", not from the play snapshot; it no longer runs the scene you were editing.");
         }
 
         /// <summary>snapshot のある Play の後、複製の file が残っていないかを書く。snapshot の無い Play では何もしない。</summary>
