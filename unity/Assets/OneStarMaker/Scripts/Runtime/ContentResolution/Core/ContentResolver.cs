@@ -18,7 +18,7 @@ namespace OneStarMaker.Runtime.ContentResolution
     ///    要求が明示した fallback の表現）が要求と一致し、
     ///    pin があれば identity が pin と全欄一致すること。
     /// 2. 受け入れ根拠: 由来ごとの固定表（ContentDirectory → VerifiedDigest、EditorSnapshot → OpenSceneSnapshot、
-    ///    Addressables → 定めない＝採用しない）に合うこと。identity 付きの Rejected の後は VerifiedDigest だけ。
+    ///    ContentOverlay → RecordedBaseMatch、Addressables → 定めない＝採用しない）に合うこと。identity 付きの Rejected の後は VerifiedDigest だけ。
     /// 3. 互換の規則。
     /// 探索を止めるのは、採用・identity の無い Rejected・pin の食い違い・fault・取消の 5 つだけで、
     /// それ以外の不採用は記録して次の供給元へ進む。修復が供給元の並び順に依存しないよう、
@@ -226,6 +226,8 @@ namespace OneStarMaker.Runtime.ContentResolution
                     return ContentAcceptanceBasis.VerifiedDigest;
                 case ContentSourceKind.EditorSnapshot:
                     return ContentAcceptanceBasis.OpenSceneSnapshot;
+                case ContentSourceKind.ContentOverlay:
+                    return ContentAcceptanceBasis.RecordedBaseMatch;
                 default:
                     return ContentAcceptanceBasis.None;
             }

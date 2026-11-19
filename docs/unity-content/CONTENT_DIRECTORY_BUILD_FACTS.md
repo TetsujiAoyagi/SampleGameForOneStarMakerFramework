@@ -4,7 +4,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 **範囲:** Unity 6000.6.0f1、StandaloneWindows64、loose file（`BuildCompression.Uncompressed`、`BuildContentOptions.None`。`CleanBuildCache` を付けた build を含む）、1 台の PC と 1 つの `Library`、SampleGame を使わない小さな fixture。登録と load の事実は、さらに Editor の Play（Domain Reload 無効）に限る。Unity の版を上げたら、下の「測り直し」で確かめ直すか、この文書を直すか消す。
 
-**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書は Player を測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。
+**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書は Player を測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。「同じ file を持つ 2 つの directory の登録」と「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の 2 節は、2026-11-18 に 6000.6.9f1 で測り直して同じだった（下の「6000.6.9f1 での上書きと登録の測り直し」）。
 
 ## 出力の形
 
@@ -53,7 +53,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 取得した build（以下 base）に、手元で build した上書きを後から登録する形を模した（2026-11-13〜14）。fixture の source を v1 で build した directory を base、source を v2 に変えた後に root の一部（Scene `SceneEdit` と texture `EditedTex`）だけを build した directory を上書きとした。両方を同じ `Library` で build し、製品の `UnityContentDirectoryBackend` を無改変で 2 つ持って両方を登録してから load した。component の script には、base だけが使う物、上書きだけが使う物、両方が使う物の 3 つの `MonoBehaviour`（probe）を置き、base と上書きで使う script の顔ぶれを違えた。各観測は、それが Unity process の最初の Play になる回から採り（Domain Reload 無効の Play では、前の Play が読んだ物が残りうるため）、同じ観測を 5 つの process で照合して一致した。「実体の数」の意味は上の節と同じ。
 
 - **build の出力:** script をまとめた file は、base と上書きで同じ id・違う sha256 だった。その file の layout の `SourceAssets` は、その build が使う script だけを持った（base は `BuildContentRoot`・base だけの probe・両方の probe、上書きは `BuildContentRoot`・両方の probe・上書きだけの probe）。編集した Scene と texture の file は同じ id・違う sha256 だった。編集していない共通の texture・material・自作 shader と、編集した texture を参照する material の file は、同じ名前・同じ sha256 だった。
-- **読まれる側（登録の順が base → 上書き）:** `SceneEdit` を、base の root から引いた id で要求しても上書きの root から引いた id で要求しても、上書きの版（v2）が出た。`EditedTex` も、両方の root の `Loadable` から load して v2 で、実体は 1 つだった。2 つの root の Scene の id も `LoadableObjectId` も等しかった（Scene の id は path から作られ、load は handle を取らない）。したがって、上書きを登録している間、要求する側は base の版を選べない。
+- **読まれる側（登録の順が base → 上書き）:** `SceneEdit` を、base の root から引いた id で要求しても上書きの root から引いた id で要求しても、上書きの版（v2）が出た。`EditedTex` も、両方の root の `Loadable` から load して v2 で、実体は 1 つだった。2 つの root の Scene の id も `LoadableObjectId` も等しかった（load は handle を取らない。Scene の id は Scene の GUID と同じ文字列で、Scene を別の folder へ移しても変わらなかった。下の「6000.6.9f1 での上書きと登録の測り直し」）。したがって、上書きを登録している間、要求する側は base の版を選べない。
 - **class:** base だけにある Scene、上書きの Scene、base の root から `Loadable` で load した prefab の component は、`GetComponents` の位置ごとに正しい class の完全名と値になり、Missing は 0 だった。base の Scene と prefab の component は、上書きの script の一覧に無い script（base だけの probe）でも正しく解決された。
 - **Scene の直接参照:** base だけにある Scene の Renderer が直接参照する material の `mainTexture`（編集した texture）は、base の版（v1）のままだった。共通の asset を編集した時、それを直接参照する Scene も上書きに入れないと、同じ Play の中で古い版と新しい版が混ざる。
 - **実体の数:** base だけにある Scene と上書きの Scene を両方載せ、base の prefab と上書きの texture を `Loadable` で保持した時、両方の directory にある共通の texture・material・shader と、編集した texture・material は 2 つずつ、base だけにある prefab と texture は 1 つずつだった。base の Scene を先に載せた時と上書きの Scene を先に載せた時の 2 つの時点で同じ数だったが、Scene を load する順の効果は確かめていない。
@@ -160,12 +160,23 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.NoStamp.NoStam
 - **読み方の限界:** `CleanBuildCache` の build 自体が 336 秒と 437 秒で 3 割違い、1 割単位の差は読めない。番 0 と番 1 の間は約 7 時間空いており、番 1 が他の変更なしの番より長い理由は切り分けていない。番 1 の出力と番 0 の出力の file の比較は取っていない。所要が短いことは「作り直していない」ことの証明ではない（時間から仕組みは読めない）。この PC・合成 fixture の範囲の数値で、実 project の絶対時間、別の PC、CI の agent をまたぐ cache は言えない。全ての番で、結果を書いた後に Unity を強制終了した（[Harness README](../../tools/Harness/README.md) の既知の native 終了 stall を待たないため）。
 - **測り直し:** harness は git に残していない。上の条件と fixture で、EditMode の `[Explicit]` の test 1 件を 1 番として `pwsh tools/run-tests.ps1 -Filter <test の完全名>` で順に実行し、呼び出しの前後を stopwatch で測り、出力の file の sha256 を番ごとに控える。番 0 が 60 秒に満たない fixture では差が固定費に埋もれる。build 中に Burst の Error log が出ることがあり、test の枠組みに失敗と数えさせない設定が要る。
 
+## 6000.6.9f1 での上書きと登録の測り直し
+
+2026-11-18、Unity 6000.6.9f1、Active Build Target は StandaloneWindows64 の Player、Enter Play Mode は Domain Reload 無効で、上の 2 節の harness（下の「測り直し」）を git の commit から取り出して、各 filter を別々の Unity process で 1 回ずつ実行した（上書きの登録は 7 process、同じ file の登録は 3 process）。製品の code は変えていない。
+
+- **上書きの登録:** record の観測の行は 5 つの観測の process で同じ値になり、6000.6.0f1 の節と全て一致した（登録の順が base → 上書きなら、どちらの root の id でも上書きの版。逆の順なら base の版。class は全て正しく Missing は 0。実体の数、寿命の 5 つの checkpoint での破損 0、build の出力で id が同じで中身が違う file が 3 つ）。Error / Exception の log は 0 件（build の段に Pipeline の設定の Warning が 2 件）。harness の `verdict` の行は `UNDECIDED` で、理由は下の「測り直し」が予告する補助の判定 code の既知の誤り（対照の順の class を上書きの版が出る前提で読む）。観測の値は上のとおり変わっていない。
+- **同じ file を持つ 2 つの directory の登録:** harness の判定は `GO` で、答えは 6000.6.0f1 の節と全て一致した（`Loadable` からは実体 1、Scene の直接参照からは 2 つずつ、後から登録した側の解除が先に登録した側から `Loadable` で載せた物を Error なしに壊す）。第 1 process は XML と record の終了行を書いた後に終わらなかった（[Harness README](../../tools/Harness/README.md) の既知の終了 stall）ので、その process だけを強制終了し、答えは XML と record で読んだ。
+- **移動した Scene:** 製品の coordinator で Scene 2 つの目的を `Full` build した後、`AssetDatabase.MoveAsset` で 1 つを下の folder へ移し、中の物の名前を変えて保存し、移動後の path を編集の集合にして製品の逆引きと上書きの build を行った。逆引きは移した Scene だけを選び、上書きの build は成功した。`LoadableSceneIdEditorUtility.CreateLoadableSceneId` の値は移動の前後で同じで、Scene の GUID と同じ文字列だった。base と上書きの root のその Scene の entry の id も等しく、base → 上書きの順に登録するとどちらの entry から読んでも上書きの版が載った。製品の登録の口（S3-2）の実機の test でも、移した Scene の base と上書きの root の id は等しかった。rename は測っていない。
+- **native の登録と Play の終わり:** Play の中で native に 2 つ登録し、解除せずに Play を終えると、一覧（`ContentLoadManager.GetContentDirectories`）に 2 件残った。Domain Reload 無効でも有効でも同じだった。続けて script の reload（`EditorUtility.RequestScriptReload`）を起こすと、reload の後の一覧は 0 件だった。Domain Reload 有効では、domain reload は Play に入る時に起き、Play を終える時には起きなかった。残った 2 件は、一覧から取った handle の `UnregisterContentDirectory` で解除できた。
+
+測っていないもの（結果を変えうる）: Play に入る時の domain reload が、前の Play で残った native の登録を消すか（script の reload が消すことだけを見た）。reload で static が消えた後の OS の file handle の扱い。Scene の rename、Scene 以外の asset の移動。Player、別の PC・`Library`。
+
 ## 確かめていないこと
 
 - 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読み、Scene の `.meta` のバイトも鍵に入ることを「印の形と検知の鍵」で観察した。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。
 - 別の PC・`Library`・Unity の版・target の間、archive（`UseArchive`、圧縮）。
 - 同じ file を持つ 2 つの directory を両方登録した時に、どちらの directory の file を読んでいるか（中身が同じ file では見分けられず、上の節の推測を実測で確かめていない。中身が違う file では、後から登録した側の版が出た。「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」）。
-- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data（Scene に置いた prefab instance・nested prefab・prefab variant・`.obj` の model は、上の節で焼き込みと差分 build を測った）、asset の rename と移動、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
+- 測っていないもの（結果を変えうる）: sprite atlas、共通物と固有物をまたぐ循環参照（6.6 は 1 file に合併する）、lightmap と lighting data（Scene に置いた prefab instance・nested prefab・prefab variant・`.obj` の model は、上の節で焼き込みと差分 build を測った）、asset の rename と Scene 以外の asset の移動（Scene の移動は上の節で測った）、script の code の変更、mesh・audio・FBX の sub-asset、import 設定と Graphics / URP の stripping 設定の違い。
 - 実データ（SampleGame）での重複の量。
 
 ## 測り直し

@@ -105,7 +105,7 @@ namespace OneStarMaker.Tests.Editor.Build
         {
             public void ValidateTarget() { }
             public ContentDirectoryBuild Build(BuildContentProjectionResult projection, string identity, string workspace,
-                BuildPurposeDeclaration? declaration) =>
+                BuildPurposeDeclaration? declaration, ContentOverlayBaseIdentity? overlayBase, string contentSet) =>
                 throw new IOException("fixture failure");
         }
     }

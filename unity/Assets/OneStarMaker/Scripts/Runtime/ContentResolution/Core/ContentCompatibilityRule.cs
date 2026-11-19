@@ -12,7 +12,7 @@ namespace OneStarMaker.Runtime.ContentResolution
     /// </summary>
     /// <remarks>
     /// 判定順（理由はこの順で最初に当たった 1 つ）:
-    /// 1. 由来と受け入れ根拠の組が ContentDirectory + VerifiedDigest か EditorSnapshot + OpenSceneSnapshot であること。
+    /// 1. 由来と受け入れ根拠の組が ContentDirectory + VerifiedDigest、EditorSnapshot + OpenSceneSnapshot、ContentOverlay + RecordedBaseMatch であること。
     ///    resolver も同じ表を先に見るが、規則を単独で呼ぶ利用者に表の外の組を採らせないため、ここでも見る。
     ///    表は resolver の private な表の複製で、由来を足すときは両方を直す（offline テストが一致を確かめる）。
     /// 2. 要求に expected identity があれば、由来に関係なく全欄一致すること（resolver の pin と同じ答え）。
@@ -20,7 +20,10 @@ namespace OneStarMaker.Runtime.ContentResolution
     ///    利用者が開いている Scene を最優先にする方針をホストの述語で崩さないため、述語も当てない。
     /// 4. ContentDirectory は identity の完全さ、content set、revision（基準が固定した時だけ）、target、engine、schema を比べる。
     ///    文字列は ordinal の完全一致で、正規化・大文字小文字の同一視をしない。事実が欠けた・形が壊れた候補は採らない。
-    /// 5. ホストの述語を登録順に評価し、最初に採らないと答えた述語で止める（後の述語は呼ばない）。
+    ///    ContentOverlay は identity の完全さを要求せず（digest が空なのが正常）、重なる base の記録の事実（4 つ）の有無、
+    ///    記録の base の content set、revision（基準が固定した時だけ）、記録の base の target と候補の target、engine、schema を比べる。
+    ///    記録した base と実際に登録した base の一致そのものはここでは確かめない（<see cref="ContentAcceptanceBasis.RecordedBaseMatch"/> の保証の境界）。
+    /// 5. ホストの述語を登録順に評価し、最初に採らないと答えた述語で止める（後の述語は呼ばない）。directory と上書きの候補に当てる。
     /// 6. 全て通れば採る。
     /// 規則の不採用は false を返すだけで例外にしない。例外にすると resolver が fault として探索を止め、下位の互換な候補へ進めないためである。
     /// 一方、ホストの述語が投げた例外は捕まえず包み直さずにそのまま伝える。握りつぶすと壊れた述語で全候補が静かに落ち、
@@ -31,6 +34,15 @@ namespace OneStarMaker.Runtime.ContentResolution
     {
         private const string ReasonPrefix = "compat:";
         private const int MaxSchemaDigits = 9;
+
+        // 上書きの候補が持たなければならない、重なる base の記録の事実。欠けた key を理由に書くので、この順で見る。
+        private static readonly string[] OverlayBaseFactKeys =
+        {
+            ContentCompatibilityFactKeys.OverlayBaseContentSet,
+            ContentCompatibilityFactKeys.OverlayBaseRevision,
+            ContentCompatibilityFactKeys.OverlayBaseTarget,
+            ContentCompatibilityFactKeys.OverlayBaseManifestSha256,
+        };
 
         private readonly ContentCompatibilityEnvelope _envelope;
         private readonly IContentCompatibilityRule[] _hostPredicates;
@@ -89,7 +101,9 @@ namespace OneStarMaker.Runtime.ContentResolution
             }
 
             var generic = EvaluateGeneric(request, candidate, out reason);
-            if (generic != ContentCompatibilityMismatch.Compatible || candidate.SourceKind != ContentSourceKind.ContentDirectory)
+            // 上書きの候補にも述語を当てる。宣言の不一致を見るホストの判定が、上書きで素通りしないため。
+            if (generic != ContentCompatibilityMismatch.Compatible
+                || (candidate.SourceKind != ContentSourceKind.ContentDirectory && candidate.SourceKind != ContentSourceKind.ContentOverlay))
             {
                 return generic;
             }
@@ -104,9 +118,11 @@ namespace OneStarMaker.Runtime.ContentResolution
                               && candidate.AcceptanceBasis == ContentAcceptanceBasis.VerifiedDigest;
             var isSnapshot = candidate.SourceKind == ContentSourceKind.EditorSnapshot
                              && candidate.AcceptanceBasis == ContentAcceptanceBasis.OpenSceneSnapshot;
+            var isOverlay = candidate.SourceKind == ContentSourceKind.ContentOverlay
+                            && candidate.AcceptanceBasis == ContentAcceptanceBasis.RecordedBaseMatch;
 
             // 既定の分岐は「採らない」。由来や根拠の値が将来足されても、ここで判定できない組は素通りさせない。
-            if (!isDirectory && !isSnapshot)
+            if (!isDirectory && !isSnapshot && !isOverlay)
             {
                 return Reject(ContentCompatibilityMismatch.UnsupportedSource, $"source {candidate.SourceKind} with basis {candidate.AcceptanceBasis} is not judged by this rule.", out reason);
             }
@@ -121,6 +137,11 @@ namespace OneStarMaker.Runtime.ContentResolution
                 // この理由に digest の検証を主張する語を入れない（snapshot の受け入れ理由は digest ではない）。
                 reason = ReasonPrefix + nameof(ContentCompatibilityMismatch.Compatible) + ":" + nameof(ContentSourceKind.EditorSnapshot);
                 return ContentCompatibilityMismatch.Compatible;
+            }
+
+            if (isOverlay)
+            {
+                return EvaluateOverlay(candidate, out reason);
             }
 
             var identity = candidate.Identity;
@@ -144,6 +165,53 @@ namespace OneStarMaker.Runtime.ContentResolution
                 return Reject(ContentCompatibilityMismatch.TargetMismatch, $"target '{identity.Target}' is not '{_envelope.Target}'.", out reason);
             }
 
+            return EvaluateEngineAndSchema(candidate, out reason);
+        }
+
+        /// <summary>
+        /// 上書きの候補の分岐（判定順の 4 の上書きの部分）。digest と identity の完全さは要求しない（上書きは digest を持たない）。
+        /// 順: 記録の事実の有無 → 記録の base の content set → revision（基準が固定した時だけ）→ 記録の base の target、候補の target → engine → schema。
+        /// </summary>
+        private ContentCompatibilityMismatch EvaluateOverlay(ContentCandidate candidate, out string reason)
+        {
+            var facts = candidate.Facts;
+            foreach (var key in OverlayBaseFactKeys)
+            {
+                if (!facts.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+                {
+                    return Reject(ContentCompatibilityMismatch.OverlayBaseFactMissing, $"fact '{key}' is missing or blank.", out reason);
+                }
+            }
+
+            var baseContentSet = facts[ContentCompatibilityFactKeys.OverlayBaseContentSet];
+            if (!string.Equals(baseContentSet, _envelope.ContentSet, StringComparison.Ordinal))
+            {
+                return Reject(ContentCompatibilityMismatch.ContentSetMismatch, $"overlay base content set '{baseContentSet}' is not '{_envelope.ContentSet}'.", out reason);
+            }
+
+            var baseRevision = facts[ContentCompatibilityFactKeys.OverlayBaseRevision];
+            if (_envelope.Revision != null && !string.Equals(baseRevision, _envelope.Revision, StringComparison.Ordinal))
+            {
+                return Reject(ContentCompatibilityMismatch.RevisionMismatch, $"overlay base revision '{baseRevision}' is not the fixed '{_envelope.Revision}'.", out reason);
+            }
+
+            var baseTarget = facts[ContentCompatibilityFactKeys.OverlayBaseTarget];
+            if (!string.Equals(baseTarget, _envelope.Target, StringComparison.Ordinal))
+            {
+                return Reject(ContentCompatibilityMismatch.TargetMismatch, $"overlay base target '{baseTarget}' is not '{_envelope.Target}'.", out reason);
+            }
+
+            if (!string.Equals(candidate.Identity.Target, _envelope.Target, StringComparison.Ordinal))
+            {
+                return Reject(ContentCompatibilityMismatch.TargetMismatch, $"overlay target '{candidate.Identity.Target}' is not '{_envelope.Target}'.", out reason);
+            }
+
+            return EvaluateEngineAndSchema(candidate, out reason);
+        }
+
+        /// <summary>directory と上書きの候補に共通の、engine と root schema の事実の判定。</summary>
+        private ContentCompatibilityMismatch EvaluateEngineAndSchema(ContentCandidate candidate, out string reason)
+        {
             // 欠けた事実を「比べられないので一致」と扱わない。CopyFacts は null の値を空文字にするので、null もここで落ちる。
             if (!candidate.Facts.TryGetValue(ContentCompatibilityFactKeys.EngineVersion, out var engine) || string.IsNullOrWhiteSpace(engine))
             {
@@ -187,7 +255,8 @@ namespace OneStarMaker.Runtime.ContentResolution
             }
 
             // 述語の理由は連結しない。採用理由は由来だけを示し、述語の文言で受け入れ理由を偽らせない。
-            reason = ReasonPrefix + nameof(ContentCompatibilityMismatch.Compatible) + ":" + nameof(ContentSourceKind.ContentDirectory);
+            reason = ReasonPrefix + nameof(ContentCompatibilityMismatch.Compatible) + ":"
+                     + (candidate.SourceKind == ContentSourceKind.ContentOverlay ? nameof(ContentSourceKind.ContentOverlay) : nameof(ContentSourceKind.ContentDirectory));
             return ContentCompatibilityMismatch.Compatible;
         }
 

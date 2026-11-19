@@ -28,13 +28,13 @@ namespace OneStarMaker.Runtime.ContentResolution
         /// <summary>directory の候補の identity の 4 欄のどれかが空（空白だけを含む）。</summary>
         IncompleteIdentity = 4,
 
-        /// <summary>互換の基準の content set と一致しない。</summary>
+        /// <summary>互換の基準の content set と一致しない。上書きの候補では記録した base の content set を比べる。</summary>
         ContentSetMismatch = 5,
 
-        /// <summary>互換の基準が revision を固定していて、それと一致しない。</summary>
+        /// <summary>互換の基準が revision を固定していて、それと一致しない。上書きの候補では記録した base の revision を比べる。</summary>
         RevisionMismatch = 6,
 
-        /// <summary>互換の基準の target と一致しない。</summary>
+        /// <summary>互換の基準の target と一致しない。上書きの候補では記録した base の target と候補の target を比べる。</summary>
         TargetMismatch = 7,
 
         /// <summary>engine の version の事実が無い、または空・空白だけ。</summary>
@@ -54,5 +54,8 @@ namespace OneStarMaker.Runtime.ContentResolution
 
         /// <summary>汎用の判定は通ったが、ホストが登録した述語のどれかが採らないと答えた。</summary>
         HostPredicateRejected = 13,
+
+        /// <summary>上書きの候補に、重なる base の記録の事実（4 つの予約 key のどれか）が無い、または空・空白だけ。</summary>
+        OverlayBaseFactMissing = 14,
     }
 }

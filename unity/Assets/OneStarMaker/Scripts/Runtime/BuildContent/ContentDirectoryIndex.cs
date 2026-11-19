@@ -25,8 +25,13 @@ namespace OneStarMaker.Runtime.BuildContent
     internal sealed class ContentDirectoryIndex
     {
         private readonly ContentEntryTable<BuildContentEntry> _entries;
+        private readonly BuildContentEntry[] _all;
 
-        private ContentDirectoryIndex(ContentEntryTable<BuildContentEntry> entries) => _entries = entries;
+        private ContentDirectoryIndex(ContentEntryTable<BuildContentEntry> entries, BuildContentEntry[] all)
+        { _entries = entries; _all = all; }
+
+        /// <summary>索引に入れた全ての entry（root の並びのまま）。上書きの層の id による影を作る時に読む。</summary>
+        internal IReadOnlyList<BuildContentEntry> Entries => _all;
 
         internal static bool TryCreate(BuildContentRoot? root, string expectedIdentity, string expectedTarget,
             out ContentDirectoryIndex? index, out ContentDirectoryIssue issue)
@@ -42,6 +47,7 @@ namespace OneStarMaker.Runtime.BuildContent
             { issue = new(ContentDirectoryFailureCode.TargetMismatch, "Content root target does not match the requested directory."); return false; }
 
             var entries = new ContentEntryTable<BuildContentEntry>();
+            var all = new List<BuildContentEntry>();
             var stable = new HashSet<string>(StringComparer.Ordinal);
             foreach (var entry in root.Entries)
             {
@@ -73,8 +79,9 @@ namespace OneStarMaker.Runtime.BuildContent
 
                 if (!entries.TryAdd(entry.LogicalKey, entry.Representation, entry.Kind, entry))
                 { issue = new(ContentDirectoryFailureCode.EntryAmbiguous, "Content root contains duplicate logical entries.", entry.LogicalKey, entry.Representation); return false; }
+                all.Add(entry);
             }
-            index = new ContentDirectoryIndex(entries);
+            index = new ContentDirectoryIndex(entries, all.ToArray());
             issue = default;
             return true;
         }
@@ -85,6 +92,17 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal bool TryResolveScene(string logicalKey, string representation, out BuildContentEntry? entry, out ContentDirectoryIssue issue)
             => TryResolve(logicalKey, representation, BuildContentKind.Scene, out entry, out issue);
+
+        /// <summary>
+        /// 実効の表現が完全に一致する entry だけを引く（Full への fallback をしない）。上書きを重ねた登録の層の解決は、
+        /// 要求の表現を両層で引いてから Full を両層で引くので、1 層の中の fallback を先に効かせない。
+        /// </summary>
+        internal bool TryGetExact(string logicalKey, string representation, BuildContentKind kind, out BuildContentEntry? entry)
+        {
+            if (_entries.TryGetExact(logicalKey, representation, kind, out var found)) { entry = found; return true; }
+            entry = null;
+            return false;
+        }
 
         private bool TryResolve(string logicalKey, string representation, BuildContentKind kind,
             out BuildContentEntry? entry, out ContentDirectoryIssue issue)
@@ -97,13 +115,22 @@ namespace OneStarMaker.Runtime.BuildContent
         }
 
         internal static string CacheKey(string path, string identity, string target, BuildContentEntry entry)
-            => string.Concat(CachePrefix(path, identity, target), Part(entry.LogicalKey), ":",
+            => CacheKey(CachePrefix(path, identity, target), entry);
+
+        // prefix は directory（上書きを重ねた登録では base の前置きの後に層の部分を続けた物）。entry の部分は層によらず同じ形。
+        internal static string CacheKey(string prefix, BuildContentEntry entry)
+            => string.Concat(prefix, Part(entry.LogicalKey), ":",
                 Part(ContentEntryMatch.EffectiveRepresentation(entry.Representation)), ":", entry.Kind, ":",
                 Part(entry.FileGuid), ":", entry.LocalFileId, ":",
                 Part(entry.Object?.LoadableObjectId.ToString() ?? string.Empty));
 
         internal static string CachePrefix(string path, string identity, string target)
             => string.Concat("directory:", Part(path), ":", Part(identity), ":", Part(target), ":");
+
+        // 上書きの層の cache の前置き。session に共通の前置き（base）の後に続けるので、close の退避（前置き 1 つ）が両方の層に届く。
+        // "~" は Base64 の字に無いので、base の entry の部分（Base64 で始まる）と衝突しない。
+        internal static string OverlayLayerPrefix(string sessionPrefix, string path, string identity)
+            => string.Concat(sessionPrefix, "~overlay:", Part(path), ":", Part(identity), ":");
 
         private static bool IsCanonicalGuid(string value)
         {
@@ -141,6 +168,11 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal bool TryAdd(string logicalKey, string? representation, BuildContentKind kind, T value)
             => _entries.TryAdd(ContentEntryMatch.Key(logicalKey, representation, kind), value);
+
+        // 実効表現の完全一致だけを引き、Full へ fallback しない。上書きを重ねた session の層の解決は、
+        // 要求の表現を両方の層で引いてから Full を両方の層で引くので、fallback を層ごとに行うと順が崩れる。
+        internal bool TryGetExact(string logicalKey, string? representation, BuildContentKind kind, [MaybeNullWhen(false)] out T value)
+            => _entries.TryGetValue(ContentEntryMatch.Key(logicalKey, representation, kind), out value);
 
         // 要求した表現の entry が無いときだけ Full の entry へ fallback する（Scene も Object も同じ）。
         // Object も fallback するのは、付随 asset（VFX の source、共有 material）は Full だけを宣言するのが普通で、

@@ -18,5 +18,18 @@ namespace OneStarMaker.Runtime.ContentResolution
 
         /// <summary>Editor で開いている Scene の複製。意味の詳細は snapshot 機構を決める後続の作業が定める。</summary>
         OpenSceneSnapshot = 2,
+
+        /// <summary>
+        /// 上書きの directory の root が記録した base と、同じ時に登録した base の検証済みの値が一致した（上書きの登録が照合した）。
+        /// </summary>
+        /// <remarks>
+        /// 保証の境界: 互換の規則は記録の事実があることと基準との整合だけを見て、記録した base と実際に登録した base の一致そのものは
+        /// 確かめない（基準に base の digest は無く、事実は供給元の申告である。<see cref="VerifiedDigest"/> でも core は digest を検証しないのと同じ契約）。
+        /// 一致を保証するのは次の 3 つの輪である。(1) 登録の口が、上書きの root の記録と base の検証済みの値を照合する。
+        /// (2) 上書きの供給元は、照合を通った登録からしか作られない（供給元も組み立ても internal）。
+        /// (3) loader は、internal の照合（<c>IContentSourceBinding</c>）を答える供給元の候補だけを読み、外部の供給元の候補は読まない。
+        /// 記録は上書きの build の呼び手が渡した base の値の写しで、上書きがその base の内容から作られたことは保証しない。
+        /// </remarks>
+        RecordedBaseMatch = 3,
     }
 }

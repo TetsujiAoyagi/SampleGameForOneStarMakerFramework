@@ -67,6 +67,9 @@ namespace OneStarMaker.Runtime.BuildContent
         [SerializeField] private BuildContentEntry[] _entries = Array.Empty<BuildContentEntry>();
         // 任意の宣言。schema version は据え置き（宣言の無い旧 root は従来どおり受理する）。
         [SerializeField] private BuildContentDeclaration? _declaration;
+        // 任意の上書きの記録。schema version は据え置き（記録の無い root は今までどおり読める。publish は上書きを拒むので、
+        // 記録を知らない古い runtime が記録つきの root を単独の directory として読む経路も無い）。
+        [SerializeField] private BuildContentOverlayBase? _overlayBase;
 
         public int SchemaVersion => _schemaVersion;
         public string BuildIdentity => _buildIdentity;
@@ -76,10 +79,17 @@ namespace OneStarMaker.Runtime.BuildContent
         /// <summary>この directory を作った宣言。宣言を持たない root（旧 build、合成 fixture）では null。</summary>
         public BuildContentDeclaration? Declaration => _declaration != null && _declaration.IsDeclared ? _declaration : null;
 
+        /// <summary>
+        /// この directory が上書きとして重なる base の記録。上書きでない root（全ての base、旧 build、合成 fixture）では null。
+        /// 記録を持つ root は上書きの層としてだけ登録でき、単独の directory・base としての登録は拒まれる。
+        /// </summary>
+        public BuildContentOverlayBase? OverlayBase => _overlayBase != null && _overlayBase.IsRecorded ? _overlayBase : null;
+
         public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries)
             => Initialize(buildIdentity, target, entries, null);
 
-        public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries, BuildContentDeclaration? declaration)
+        public void Initialize(string buildIdentity, string target, IReadOnlyList<BuildContentEntry> entries, BuildContentDeclaration? declaration,
+            BuildContentOverlayBase? overlayBase = null)
         {
             // Editor adapter が asset 化する直前に呼ぶ。配列を複写して呼出側の collection 変更を切り離す。
             // identity は OSM report と Unity build name に一致させ、移設後にも照合可能にする。
@@ -92,6 +102,7 @@ namespace OneStarMaker.Runtime.BuildContent
             for (var i = 0; i < entries.Count; i++)
                 _entries[i] = entries[i] ?? throw new ArgumentException("Null content entry.", nameof(entries));
             _declaration = declaration;
+            _overlayBase = overlayBase;
         }
     }
 }
