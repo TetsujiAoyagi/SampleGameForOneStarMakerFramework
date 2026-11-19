@@ -53,7 +53,7 @@
   - **snapshot の Play で走査が拾うのは複製だけである。** 取り込みの後に load 済みなのは、空の開始 Scene、bootstrap が directory から読んだ `UIScene`（SceneResourceMap に無い）、複製である。走査が `AddScene` するのは map にある複製だけになる。
   - **取り込みの段は directory mode の時だけ走る。** key が真でも directory mode でなければ段を飛ばす（入口は directory の値と key を同じ ledger で置くので、今の入口からは到達しない）。検証済みでない directory（loader を配線しない）でも段は走る。
   - **入口の宣言。** 経路 Built + open scenes は、`PlayEntryTransaction`（127 行）が `PlaySnapshotSession.Prepare()` を呼び、開いている全ての load 済みの Scene を複製する。1 回の Play の環境から `content:firstScene` を外し、`editor:playSnapshotExpected=true` を置く（`PurposeLaunchSettings.SnapshotPlay`）。新規未保存・UICommon・同名 2 つの Scene は入口が拒む（`PlayEntryDecision.OpenSceneProblems`）。SceneResourceMap の Scene 名は `VerifyPlayLauncher.FindReusableLoadedScenes` が asset から読んでいる。宣言の 1 件（Runtime の `EditorPlaySnapshotScene`）は identity（= Scene 名 = 複製の file 名）・複製の path・active の印だけを持つ。Editor 側の `PlaySnapshotScene` は元の path・GUID・Dirty・SHA-256 も持つ。
-  - **未測定:** 同じ Play の中で、unload した複製の path を `EditorSceneManager.LoadSceneAsyncInPlayMode` でもう一度読めるか（S0-d の比較表は「同じ複製の file から読み直せる」と書くが、実測の記録は無い。§5 の未知の操作経路）。
+  - **測定済み（Phase A の疎通、2026-11-20）:** 同じ Play の中で、unload した複製の path を `EditorSceneManager.LoadSceneAsyncInPlayMode` でもう一度読める（lifecycle の外に居る空の Scene の複製で 2 回。§5 の未知の操作経路 (i) の記録。S0-d の比較表の「同じ複製の file から読み直せる」には実測の記録が無かった）。
 - UC ごとの利用者の入力:
 
   **UC-1 開いている Scene を編集して Play で確認する**（利用者 (a)）: 新しい入力なし。選ぶのは今までどおり RunPurpose と経路（`EditorUserSettings` に残る）だけである。どの Scene が複製か、起動時にどれを要求するか、供給元の順、再要求の読み先、record は機械が決める。
@@ -213,8 +213,8 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 
 ### 2.5 スライス分割の判断
 
-- 契機: 独立して失敗しうる未知が 2 つある。(1) 複製を loader の経路で採り、台帳に預け、同じ Play の中で読み直すこと（Unity が同じ複製の path を読み直せるかは未測定）。(2) 起動時の要求を宣言の印から出すこと（stage の差し替えと Editor の session）。
-- 判断: **分けない。** (2) だけでは、複製は今までどおり名前で再利用され、record も再要求の読み直しも無いので、問いの (1)(3)(4) に答えない。(1) だけでは、走査が全ての複製を要求し続け、未要求の Scene の扱い（問いの (2)）を確かめる場面が作れない。2 つは同じ宣言と同じ stage の列を触る。単体で閉じる部分（AC1〜AC4）、実機（AC5）、実 Editor（AC6）は別々に判定する。(1) の未測定が不成立の時は §2.6 の NO-GO で owner に返す。
+- 契機: 独立して失敗しうる未知が 2 つある。(1) 複製を loader の経路で採り、台帳に預け、同じ Play の中で読み直すこと（Unity が同じ複製の path を読み直せることは、Phase A の疎通で空の Scene について確かめた。§5）。(2) 起動時の要求を宣言の印から出すこと（stage の差し替えと Editor の session）。
+- 判断: **分けない。** (2) だけでは、複製は今までどおり名前で再利用され、record も再要求の読み直しも無いので、問いの (1)(3)(4) に答えない。(1) だけでは、走査が全ての複製を要求し続け、未要求の Scene の扱い（問いの (2)）を確かめる場面が作れない。2 つは同じ宣言と同じ stage の列を触る。単体で閉じる部分（AC1〜AC4）、実機（AC5）、実 Editor（AC6）は別々に判定する。(1) が実装の後の AC5・AC6 で不成立の時は §2.6 の NO-GO で owner に返す。
 - owner の確認: 未了（§2.8 U2）。
 
 ### 2.6 判定定義と停止規則
@@ -304,7 +304,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 ## 4. 実装計画
 
 - 変更対象: §3 の表。
-- 順序: (0) **製品の code を変える前に、Unity の読み直しの疎通を取る**（§5 の未知の操作経路 (i) の手順。不成立なら何も実装せず、§2.6 の NO-GO (i) で owner へ返す）。(1) 預け元の port、預け元を据える口（予約）、台帳の預かる口、`LoadContentSceneAsync` の予約の検査（AC3）。(2) 1 Scene の照合、預け元、供給元、loader の分岐（AC1・AC2）。(3) route の引数と `SceneDirector` の分岐と印（AC4 の `SceneDirectorContentLoaderTests`）。(4) 宣言の印、起動の計画、Editor の session（AC4）。(5) initializer の配線と stage、SampleGame の入口（AC6 の準備）。(6) 実機の test（AC5）。(7) `Core/` と `ScenePair` の doc comment。(8) 動作確認（§5 の検証経路）。
+- 順序: (0) 製品の code を変える前の、Unity の読み直しの疎通は、Phase A で取って成立した（2026-11-20。§5 の未知の操作経路 (i) の記録）。B は取り直さずに (1) から始める。(1) 預け元の port、預け元を据える口（予約）、台帳の預かる口、`LoadContentSceneAsync` の予約の検査（AC3）。(2) 1 Scene の照合、預け元、供給元、loader の分岐（AC1・AC2）。(3) route の引数と `SceneDirector` の分岐と印（AC4 の `SceneDirectorContentLoaderTests`）。(4) 宣言の印、起動の計画、Editor の session（AC4）。(5) initializer の配線と stage、SampleGame の入口（AC6 の準備）。(6) 実機の test（AC5）。(7) `Core/` と `ScenePair` の doc comment。(8) 動作確認（§5 の検証経路）。
 - Phase B から Phase A へ差し戻す条件: asmdef の参照か friend が要る。`IAssetManagement` か `Core/` の型・member・値を変える必要がある。§3 に無い public の型・member が要る。`AssetRegistry`、`SceneDirector.Unloading.cs`、`SceneDirector.FailedLoadCleanup.cs` を変える必要がある（組の印だけでは I-3 を満たせない）。Unity が同じ Play の中で複製を読み直せない（§2.6 NO-GO (i)）。snapshot の無い Play か、宣言に無い identity の分岐を変えないと I-1〜I-4 を満たせない。AC5 を、friend と asmdef の参照を足さずに組めない。
 - 対象外を維持する方法: `Core/` の code の行、`BuildContent/`、`PlayEntryDecision.cs`、`SnapshotRoot.cs` を変えない。Object の要求に snapshot の供給元は `NotFound` を返す。入口の判定表の行と拒否の条件を変えない。bootstrap の読み込みを loader に通さない。
 
@@ -327,7 +327,85 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   - 観測窓: Play ごとに、Play の menu の実行から、停止の後に `isPlaying` と `isPlayingOrWillChangePlaymode` が偽になり、置き場の folder が消える（session の解除が終わる）まで。停止の途中の Error も数える。
   - 合否の読み方: (1) の配線の行が `wired=true` でない、snapshot の行の `requested` が 1 でない、取り込みの行（`requested=true`）と要求の行（`scene=Title`）が無い。(2)(3) で `Title` が 1 つでない、path が置き場の下でない、record が読めない、由来が `EditorSnapshot` でない、`SourceBindingVerified` が false。(3) の後に入口の record の由来が `snapshot` 以外になる。(4) の record が directory でない、identity が (1) の行と違う。(5) のどれかが Play の前と違う。Play B で開いた Scene の record が `EditorSnapshot` でない、親の record が directory でない。Play D で directory の `Title` が載る、または task が成功する。Play A〜C の観測窓の Error / Exception が 1 件以上。どれか 1 つで不合格。
   - 証拠: 条件ごとの観測と、実際に動いた `eval` を 1 file にして evidence bundle へ収録する。B が動作確認で使った `eval` を §6 に残し、判定 C はそれを使う。C / C' は bundle の file を読む。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: `eval` での Play の開始と停止、入口の record の読み取り、reflection での `SceneDirector` の取得と `AddScene` / `UnloadScene` は、S0-d（PR #176）の AC7・AC11 と S3-1（PR #197）の AC7 で成立した経路である。AC5 の build・publish・install・Play mode の読みは `RegisteredDirectoryRouteIntegrationTests` で成立した経路である。**未確認。初回確認は Phase B の最初の手順（§4 の (0)）:** (i) 同じ Play の中で、unload した複製の path を `EditorSceneManager.LoadSceneAsyncInPlayMode` でもう一度読めること。Phase A では Unity を動かしていない。手順: base の製品 code のまま、§5 の検証経路の準備をし、`Title` と、map に無い保存済みの空の Scene（実行担当が untracked の folder に作り、最後に消す。S0-d の AC9 と同じ形）を additive に開いて経路 Built + open scenes で Play に入る。Play の中で `eval` から、空の Scene の複製（lifecycle に入っていない）を `SceneManager.GetSceneByPath(複製の path)` の handle で unload し、bridge の delegate（`EditorPlaySnapshotBridge.LoadScene`。reflection で取る）で同じ path を load し、完了の後に、その path の Scene が有効で `isLoaded` であること、名前が元と同じこと、同名の load 済みの Scene が 1 つであることを読む。これを同じ Play の中で 2 回繰り返し、観測窓の Error / Exception を数える。観測と `eval` を §6 に残す。どれかが成り立たなければ §2.6 の NO-GO (i) で owner に返す。成り立った後の厳密な証拠は AC5 の (4) と AC6 の (3) が持つ。**未確認。初回確認は Phase B の動作確認と Phase C:**(ii) EditMode の `[UnityTest]` の中で `PlaySnapshotSession.Prepare`（`playModeStartScene` を空の開始 Scene にする）を呼んでから `EnterPlayMode` に入り、Play mode の中で bridge の delegate（`LoadSceneAsyncInPlayMode`）で fixture の複製を読めること、Play を出た後に session が置き場と `playModeStartScene` を戻すこと（AC5。既存の実機の test は Play の前に fixture の Scene を閉じていて、開いたまま Play に入る形は初めてである。成り立たなければ、AC5 を実 Editor の `eval` の観測へ移すかを Phase A へ戻す）。(iii) Domain Reload 有効の Play で、配線の時点（`SceneDirector` を作る前）に bridge の宣言が置き直されていること（S0-d の AC12 は取り込みの段の時点で確かめた。AC6 の Play C）。
+- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: `eval` での Play の開始と停止、入口の record の読み取り、reflection での `SceneDirector` の取得と `AddScene` / `UnloadScene` は、S0-d（PR #176）の AC7・AC11 と S3-1（PR #197）の AC7 で成立した経路である。AC5 の build・publish・install・Play mode の読みは `RegisteredDirectoryRouteIntegrationTests` で成立した経路である。**確認済み（Phase A の疎通、2026-11-20。記録はこの項の下）:** (i) 同じ Play の中で、unload した複製の path を `EditorSceneManager.LoadSceneAsyncInPlayMode` でもう一度読めること。手順: base の製品 code のまま、§5 の検証経路の準備をし、`Title` と、map に無い保存済みの空の Scene（実行担当が untracked の folder に作り、最後に消す。S0-d の AC9 と同じ形）を additive に開いて経路 Built + open scenes で Play に入る。Play の中で `eval` から、空の Scene の複製（lifecycle に入っていない）を `SceneManager.GetSceneByPath(複製の path)` の handle で unload し、bridge の delegate（`EditorPlaySnapshotBridge.LoadScene`。reflection で取る）で同じ path を load し、完了の後に、その path の Scene が有効で `isLoaded` であること、名前が元と同じこと、同名の load 済みの Scene が 1 つであることを読む。これを同じ Play の中で 2 回繰り返し、観測窓の Error / Exception を数える。**結果は成立**（2 回とも）。確かめたのは lifecycle の外に居る空の Scene の複製である。lifecycle に入った中身のある Scene（`Title`）の読み直しと、台帳・`SceneDirector` を通した経路の証拠は AC5 の (4) と AC6 の (3) が持ち、そこで不成立なら §2.6 の NO-GO (i) で owner に返す。**未確認。初回確認は Phase B の動作確認と Phase C:**(ii) EditMode の `[UnityTest]` の中で `PlaySnapshotSession.Prepare`（`playModeStartScene` を空の開始 Scene にする）を呼んでから `EnterPlayMode` に入り、Play mode の中で bridge の delegate（`LoadSceneAsyncInPlayMode`）で fixture の複製を読めること、Play を出た後に session が置き場と `playModeStartScene` を戻すこと（AC5。既存の実機の test は Play の前に fixture の Scene を閉じていて、開いたまま Play に入る形は初めてである。成り立たなければ、AC5 を実 Editor の `eval` の観測へ移すかを Phase A へ戻す）。(iii) Domain Reload 有効の Play で、配線の時点（`SceneDirector` を作る前）に bridge の宣言が置き直されていること（S0-d の AC12 は取り込みの段の時点で確かめた。AC6 の Play C）。
+  - 疎通 (i) の記録（2026-11-20。担当が Phase A で取った観測で、判定 C の入力にはしない）:
+    - 環境: Unity 6000.6.9f1、この worktree の `unity/` の Editor（担当が `unity open` で起動し、終わりに正常終了した。Library は新規）。製品の code は base `a629f9c1` と同じ（HEAD `c0fb1d52` は文書だけの差）。Domain Reload は無効（project の設定）。
+    - 準備で分かったこと: S0-d・S3-1 が使った installed の `spring-full` の 2 revision（Unity 6000.6.0f1 の build）は、今の Editor では「`Manifest is not compatible with this runtime.`」で検証を通らない（manifest の `unityVersion` の照合）。`Verify Play` `spring-full` を非対話で 1 回実行し（新しい Library で約 4 分）、cache root の既定（repo の外）に revision `20261119T154403156Z-dfbf…` を作った。この PC の Phase B・C は、Editor の版が同じ間はこの revision を使える。Variant profile の選択は無く、経路の保存値は未設定（既定 `Source`）だった。経路を `BuiltWithOpenScenes` にし、終わりに未設定へ戻した。
+    - Editor を開いた時点で、Unity が `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` に serialize の差を残した（疎通の操作より前）。終わりに `git checkout` で追跡の内容へ戻した。`git status --short` の基準を採る担当は、これを準備で戻す。
+    - 操作: `Title` と空の Scene `S33Probe`（`Assets/OsmS33Probe/`。確認の後に削除）を additive に開き、`Edit/Play Mode/Play`。入口の record は `EnteredPlay`、`rule=SnapshotRoute`、`intake=[Title, S33Probe]`、由来はどちらも `snapshot`。
+    - 観測（2 回とも同じ）: unload の前は、`S33Probe` の複製が有効で load 済み、同名の load 済みの Scene は 1。unload の完了で、その path の Scene は無効、同名は 0、複製の file は残る。bridge の delegate で同じ path を load し、完了で、その path の Scene が有効で `isLoaded`、名前は `S33Probe`、path は複製の path、同名の load 済みの Scene は 1。`Title` の複製、`UIScene`、`OutGameScene`、空の開始 Scene は変わらない。
+    - 観測窓（Play の menu の実行から、停止の後に置き場が消えるまで）の Error / Exception / Assert は 0。停止の後: `playModeStartScene` は null、置き場は無い、record は `copiesRemoved=yes`、`Title.unity` の SHA-256 は前と同じ、`git status --short` は基準と同じ。
+    - 使った `eval`（Play の中で実行する。結果は `AppDomain` の data に貯め、後の `eval` で読む）:
+
+      ```csharp
+      var log = new System.Collections.Generic.List<string>();
+      System.AppDomain.CurrentDomain.SetData("S33.probe", log);
+      var sflags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+      var iflags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+      var bridge = typeof(OneStarMaker.Runtime.AbstractApplicationInitializer).Assembly.GetType("OneStarMaker.Runtime.EditorPlaySnapshotBridge");
+      if (bridge == null) return "bridge type not found";
+      var declaration = bridge.GetProperty("Declaration", sflags).GetValue(null) as System.Collections.IEnumerable;
+      var load = bridge.GetProperty("LoadScene", sflags).GetValue(null) as System.Func<string, UnityEngine.AsyncOperation>;
+      if (declaration == null || load == null) return "bridge is not set: declaration=" + (declaration != null) + " load=" + (load != null);
+      string copyPath = null;
+      var declared = new System.Text.StringBuilder();
+      foreach (var item in declaration)
+      {
+          var identity = (string)item.GetType().GetProperty("Identity", iflags).GetValue(item);
+          var path = (string)item.GetType().GetProperty("CopyPath", iflags).GetValue(item);
+          declared.Append(identity).Append('=').Append(path).Append("; ");
+          if (identity == "S33Probe") copyPath = path;
+      }
+      if (copyPath == null) return "S33Probe is not declared: " + declared;
+      System.Func<string> snap = () =>
+      {
+          var sb = new System.Text.StringBuilder();
+          for (var i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+          {
+              var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+              sb.Append(s.name).Append('|').Append(s.path).Append('|').Append(s.isLoaded).Append("; ");
+          }
+          return sb.ToString();
+      };
+      System.Func<int> sameName = () =>
+      {
+          var n = 0;
+          for (var i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+          {
+              var s = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+              if (s.isLoaded && s.name == "S33Probe") n++;
+          }
+          return n;
+      };
+      System.Func<string> now = () => System.DateTime.Now.ToString("HH:mm:ss.fff");
+      System.Action<int> cycle = null;
+      cycle = n =>
+      {
+          var before = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(copyPath);
+          lock (log) log.Add(now() + " cycle " + n + " before: valid=" + before.IsValid() + " isLoaded=" + before.isLoaded + " name=" + before.name + " sameNameLoaded=" + sameName() + " scenes=[" + snap() + "]");
+          if (!before.IsValid()) { lock (log) log.Add("STOP: the copy is not loaded before unload"); return; }
+          var unload = UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(before);
+          if (unload == null) { lock (log) log.Add("STOP: UnloadSceneAsync returned null"); return; }
+          unload.completed += _ =>
+          {
+              var gone = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(copyPath);
+              lock (log) log.Add(now() + " cycle " + n + " unloaded: valid=" + gone.IsValid() + " sameNameLoaded=" + sameName() + " fileExists=" + System.IO.File.Exists(copyPath) + " scenes=[" + snap() + "]");
+              UnityEngine.AsyncOperation op;
+              try { op = load(copyPath); }
+              catch (System.Exception ex) { lock (log) log.Add("STOP: load threw " + ex); return; }
+              if (op == null) { lock (log) log.Add("STOP: the bridge delegate returned null"); return; }
+              op.completed += __ =>
+              {
+                  var again = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(copyPath);
+                  lock (log) log.Add(now() + " cycle " + n + " reloaded: valid=" + again.IsValid() + " isLoaded=" + again.isLoaded + " name=" + again.name + " path=" + again.path + " sameNameLoaded=" + sameName() + " scenes=[" + snap() + "]");
+                  if (n < 2) cycle(n + 1);
+                  else lock (log) log.Add("DONE");
+              };
+          };
+      };
+      cycle(1);
+      return "started copy=" + copyPath + " declared=[" + declared + "]";
+      ```
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方: なし。
 - 高コスト証拠: なし（準備の Content Directory の build は Phase C の通常の Build として 1 回行う）。
 - 判定 C の照合 script の方式: なし（test の XML と、AC6 の観測 file を判定 C の担当が読む）。
@@ -386,7 +464,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | 指摘 | 分類 | 反映 |
   |---|---|---|
   | Minor（訂正の後。初めは Major）: I-2 の「未要求の Scene は `AssetOwner.Scene` の所有に現れない」は、未要求の複製の `Awake` / `Start` を止めない E1 と、そのままでは両立しない（`AssetRegistry` は owner の Scene の登録を検査しない）。host の規約「lifecycle に明示的に入る前に `AssetOwner.Scene` で asset を取ってはならない」を一文足せば足りる。Framework の強制と E1 の変更は求めない | 採用 | I-2 の主張を「Framework は所有を作らない」に改め、host の規約と経路 (7) を足した。AC5 の (2) に、fixture が規約に従うことと、見ている範囲を書いた。code で `Acquire` / `TrackOwner` が検査しないことを確かめた |
-  | Risk / sequencing: NO-GO の条件である「同じ Play の中の複製の読み直し」を、預かる口から入口まで実装した後に初めて確かめる順になっている。Phase B の最初に、既存の snapshot の作成と bridge で最小の疎通を取る | 採用 | §4 の順序に (0) を足し、§5 の未知の操作経路 (i) に手順を書いた（製品の code を変える前。不成立なら NO-GO (i)）。AC5・AC6 の証拠はそのまま |
+  | Risk / sequencing: NO-GO の条件である「同じ Play の中の複製の読み直し」を、預かる口から入口まで実装した後に初めて確かめる順になっている。Phase B の最初に、既存の snapshot の作成と bridge で最小の疎通を取る | 採用 | §4 の順序に (0) を足し、§5 の未知の操作経路 (i) に手順を書いた（製品の code を変える前。不成立なら NO-GO (i)）。AC5・AC6 の証拠はそのまま。その後、owner（root）の指示（2026-11-20）で、凍結の前に Phase A のうちにこの疎通を取り、成立した（§5 の記録）。§4 の (0) は取得済みと書き改めた |
   | I-1 の、供給元の探索の停止に加えて `LoadContentSceneAsync` の予約まで含める形は妥当 | 記録 | — |
 
 - A2 の再レビューの要否: 行わない案とする（owner の判断）。blocker への直し（組を作る時点の印）、予約、gate の共有は、A2 の指摘に沿って所有と後始末の穴を塞いだもので、新しい供給元・状態の種別・依存の辺は増えていない。増えたのは `AssetManagement.ContentDirectory.cs` の Editor の build だけの検査 1 つで、Draft PR の外部計画レビューで見てもらう。
