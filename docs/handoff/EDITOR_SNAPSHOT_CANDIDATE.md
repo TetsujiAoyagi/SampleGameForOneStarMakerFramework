@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `A`（A3 の統合案。A2 の 4 件と担当の採否を §5.1 に記録した。外部計画レビューと owner の採否・凍結の前。未凍結）
+- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 1 巡目の採否、§2.8 の未決事項は、owner が 2026-11-20 に担当の推奨のとおり決めた。外部計画レビューの 2 巡目と凍結の前。未凍結）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
@@ -21,8 +21,8 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: A3（外部計画レビュー、owner の採否、凍結）。凍結の後に Phase B。
-  - 次の作業: Draft PR で外部計画レビューを行い、指摘は 1 巡につき 1 commit で反映する。owner が §2.8 の U2〜U11 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。目的・利用者の 2 欄を変えた時は、凍結の前に目的レビューをやり直す。
+  - 次の Phase・役割: A3（外部計画レビューの 2 巡目、凍結）。凍結の後に Phase B。
+  - 次の作業: Draft PR で外部計画レビューの 2 巡目を行い、指摘は 1 巡につき 1 commit で反映する（採否は owner）。その後、owner の凍結判断を上の凍結記録に書いて凍結版を commit する。§2.8 と §5.1 の採否は決定済みで、2 巡目の指摘で変える時だけ書き直す。目的・利用者の 2 欄は変えない（目的レビューのやり直しは 1 回を使い切った）。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
   - 引き渡さないもの: なし。
@@ -215,7 +215,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 
 - 契機: 独立して失敗しうる未知が 2 つある。(1) 複製を loader の経路で採り、台帳に預け、同じ Play の中で読み直すこと（Unity が同じ複製の path を読み直せることは、Phase A の疎通で空の Scene について確かめた。§5）。(2) 起動時の要求を宣言の印から出すこと（stage の差し替えと Editor の session）。
 - 判断: **分けない。** (2) だけでは、複製は今までどおり名前で再利用され、record も再要求の読み直しも無いので、問いの (1)(3)(4) に答えない。(1) だけでは、走査が全ての複製を要求し続け、未要求の Scene の扱い（問いの (2)）を確かめる場面が作れない。2 つは同じ宣言と同じ stage の列を触る。単体で閉じる部分（AC1〜AC4）、実機（AC5）、実 Editor（AC6）は別々に判定する。(1) が実装の後の AC5・AC6 で不成立の時は §2.6 の NO-GO で owner に返す。
-- owner の確認: 未了（§2.8 U2）。
+- owner の確認: 分けない（owner、2026-11-20。§2.8 U2）。
 
 ### 2.6 判定定義と停止規則
 
@@ -248,21 +248,21 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 
 ### 2.8 owner の判断を求める点（未決事項）
 
-担当の推奨を付ける。U1 と U12 は決定済み。他は A3 の凍結の時に owner が確定する。
+未決は無い。U1〜U12 は全て決定済みである（U2〜U11 は owner が 2026-11-20 に、担当の推奨のとおりと決めた。代案は採らない）。外部計画レビューの 2 巡目の指摘で変える時は、owner の裁定とともにここを書き直す。
 
-- **owner の意向（2026-11-19、会話）:** U2〜U11 は概ね推奨どおり。項目ごとの確定は凍結の時に記録する。
-- **U1 目的と利用者の文言（§1）。** 決定: 結果を先に書く形に改める（owner、2026-11-19。§1 の経緯）。改めた文言で目的レビューをやり直した（§5.1）。最終の文言の確認は凍結の時。
+- **owner の決定（2026-11-20、会話）:** U2〜U11 と、§5.1 の保留・裁定待ちの項目は、全て担当の推奨のとおりにする（2026-11-19 の意向「概ね推奨どおり」を確定した）。
+- **U1 目的と利用者の文言（§1）。** 決定: 結果を先に書く形に改める（owner、2026-11-19。§1 の経緯）。改めた文言で目的レビューをやり直した（§5.1）。やり直しで出た文言への指摘 9 件では 2 欄を変えず、今の文言で凍結する（owner、2026-11-20）。
 - **U12 複製が参照する asset の版の観測（§2.2 の O-1・O-2）。** 決定: AC5 の fixture（O-1）と、動作確認・AC6 の実 Editor の Play（O-2）で観測を取り、合否に使わず S3-4 への入力にする（owner、2026-11-19）。
-- **U2 分割しない（§2.5）。** 推奨: 分けない。
-- **U3 起動時に要求する Scene の規則（§2.4 R2）。** 推奨: Framework は印のある Scene だけを要求し、SampleGame の入口は「開いている Scene のうち SceneResourceMap にある物は全て要求する」（今の動きと同じで、利用者の新しい入力が無い）。代案: SampleGame は active の Scene だけを要求する（additive に開いた他の map の Scene は、load 済みのまま lifecycle の外に居る）。
-- **U4 複製の Scene を Scene の台帳に預ける（§2.4 O1）。** 推奨: O1。S0-d の A3 の「snapshot は `IAssetManagement` を通らない別の口から読む」は、読む口については保つ。台帳が複製の Scene を預かる点は S0-d の比較表（「Scene は `SceneDirector` が `SceneManager` で unload」）から変わる。
-- **U5 複製の候補の表現（§2.4 P1）。** 推奨: P1（要求の表現をそのまま申告し、13 章に限界を書く）。
-- **U6 snapshot の無い配線済みの Play の既ロードの Scene（§2.4 S1 / S2）。** 推奨: S1（本書では変えない）。Runtime が拒む形（S2）は S5 の入口の統合で決める。
-- **U7 `PlaySnapshotSession.Prepare` の引数（§3）。** 推奨: 印の規則（Scene 名 → 真偽）を必須の引数にし、引数なしの形を残さない（残すと「全て要求」か「何も要求しない」を黙って選ぶ既定が Framework に生まれる）。Editor の assembly の public の形が変わる（呼び手は SampleGame の入口だけ。入口は `Action` の port を閉包で包むので `PlayEntryTransaction` は変わらない）。代案（A2 の代替構成）: 引数なしの形を残し、「active の Scene だけを要求する」と定める（目的レビューも、宣言が無い時の既定が書かれていないと指摘した）。
-- **U8 Player の build と実クリックを判定必須にしない。** 推奨: しない。Player の compile の結果は変わらず（AC7）、Play ボタンの実クリックの経路は S0-d の AC15 で確かめた物を変えない（Play は menu の実行で始める。S3-1 と同じ）。
-- **U9 `Rejected` の使い方（I-1 の (3)）。** 推奨: 宣言にある identity を pin した要求を、snapshot の供給元の identity の無い `Rejected` で止める。core は変えないが、`Rejected` の今の説明（供給元が申告と bytes の食い違いを検出した）より広い使い方になるので、13 章に書く。代案: 止めずに directory へ進ませ、13 章の既知の制約のままにする（U10 の予約を採るなら、directory の content 入口が `EntryAmbiguous` で拒むので、どちらでも directory の版は載らない。違いは失敗の理由の出方だけになる）。
-- **U10 宣言の identity を `AssetManagement` に予約する（§2.4 D1）。** 推奨: D1。resolver を通さない `LoadContentSceneAsync` の直接の呼び出しも、snapshot の Play の間は宣言にある identity を directory から読めなくなる（利用者 (c) のうち、直接の入口を使う code に見える変化）。`AssetManagement.ContentDirectory.cs` に Editor の build だけの検査が入る。
-- **U11 `Core/` の doc comment を直す（§3）。** 推奨: 直す。`ContentLoadPath.AlreadyLoadedScene`（「Play 前に既にロードされている Scene をそのまま使う」）と `ContentAcceptanceBasis.OpenSceneSnapshot`（「意味の詳細は後続の作業が定める」）の説明が本書で古くなる。program が「次に Core を触るスライスで直す」とした `IContentCompatibilityRule` の XML doc の古い 1 文（S1 の U-S1-5）も一緒に直す。型・member・値は変えない。
+- **U2 分割しない（§2.5）。** 決定（owner、2026-11-20。推奨のとおり）: 分けない。
+- **U3 起動時に要求する Scene の規則（§2.4 R2）。** 決定（owner、2026-11-20。推奨のとおり）: Framework は印のある Scene だけを要求し、SampleGame の入口は「開いている Scene のうち SceneResourceMap にある物は全て要求する」（今の動きと同じで、利用者の新しい入力が無い）。採らなかった代案: SampleGame は active の Scene だけを要求する（additive に開いた他の map の Scene は、load 済みのまま lifecycle の外に居る）。
+- **U4 複製の Scene を Scene の台帳に預ける（§2.4 O1）。** 決定（owner、2026-11-20。推奨のとおり）: O1。S0-d の A3 の「snapshot は `IAssetManagement` を通らない別の口から読む」は、読む口については保つ。台帳が複製の Scene を預かる点は S0-d の比較表（「Scene は `SceneDirector` が `SceneManager` で unload」）から変わる。
+- **U5 複製の候補の表現（§2.4 P1）。** 決定（owner、2026-11-20。推奨のとおり）: P1（要求の表現をそのまま申告し、13 章に限界を書く）。
+- **U6 snapshot の無い配線済みの Play の既ロードの Scene（§2.4 S1 / S2）。** 決定（owner、2026-11-20。推奨のとおり）: S1（本書では変えない）。Runtime が拒む形（S2）は S5 の入口の統合で決める。
+- **U7 `PlaySnapshotSession.Prepare` の引数（§3）。** 決定（owner、2026-11-20。推奨のとおり）: 印の規則（Scene 名 → 真偽）を必須の引数にし、引数なしの形を残さない（残すと「全て要求」か「何も要求しない」を黙って選ぶ既定が Framework に生まれる）。Editor の assembly の public の形が変わる（呼び手は SampleGame の入口だけ。入口は `Action` の port を閉包で包むので `PlayEntryTransaction` は変わらない）。採らなかった代案（A2 の代替構成）: 引数なしの形を残し、「active の Scene だけを要求する」と定める（目的レビューも、宣言が無い時の既定が書かれていないと指摘した）。
+- **U8 Player の build と実クリックを判定必須にしない。** 決定（owner、2026-11-20。推奨のとおり）: しない。Player の compile の結果は変わらず（AC7）、Play ボタンの実クリックの経路は S0-d の AC15 で確かめた物を変えない（Play は menu の実行で始める。S3-1 と同じ）。
+- **U9 `Rejected` の使い方（I-1 の (3)）。** 決定（owner、2026-11-20。推奨のとおり）: 宣言にある identity を pin した要求を、snapshot の供給元の identity の無い `Rejected` で止める。core は変えないが、`Rejected` の今の説明（供給元が申告と bytes の食い違いを検出した）より広い使い方になるので、13 章に書く。採らなかった代案: 止めずに directory へ進ませ、13 章の既知の制約のままにする（U10 の予約を採るなら、directory の content 入口が `EntryAmbiguous` で拒むので、どちらでも directory の版は載らない。違いは失敗の理由の出方だけになる）。
+- **U10 宣言の identity を `AssetManagement` に予約する（§2.4 D1）。** 決定（owner、2026-11-20。推奨のとおり）: D1。resolver を通さない `LoadContentSceneAsync` の直接の呼び出しも、snapshot の Play の間は宣言にある identity を directory から読めなくなる（利用者 (c) のうち、直接の入口を使う code に見える変化）。`AssetManagement.ContentDirectory.cs` に Editor の build だけの検査が入る。
+- **U11 `Core/` の doc comment を直す（§3）。** 決定（owner、2026-11-20。推奨のとおり）: 直す。`ContentLoadPath.AlreadyLoadedScene`（「Play 前に既にロードされている Scene をそのまま使う」）と `ContentAcceptanceBasis.OpenSceneSnapshot`（「意味の詳細は後続の作業が定める」）の説明が本書で古くなる。program が「次に Core を触るスライスで直す」とした `IContentCompatibilityRule` の XML doc の古い 1 文（S1 の U-S1-5）も一緒に直す。型・member・値は変えない。
 
 ## 3. 責務マップ
 
@@ -422,7 +422,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   - 目的レビュー: §1 の目的と利用者の本文だけを渡した別の担当（道具を使わない）。入力の sha256 `110a9eb6ac1e69b5950b8a6d76290b89261311683fc3f15031b0e8f83b0b589b`。
   - A0 だけからの代替構成（risk `high` の追加分）: 目的レビューの回答を記録した後、同じ担当に A0 の packet（sha256 `59829f30a05ef6b1f34513ac2d1ee2d8a17408302fde50103ef5030cc3b0c641`。目的、利用者、対象外、現況、問い、誤って YES を出す道、実装制約）と固定 base を渡して続けた。初稿は読ませていない。目的レビューのやり直しに使える未関与の担当は残してある。
   - 目的レビューのやり直し（2026-11-19。A3 で目的・利用者の 2 欄を改めたため。1 回まで）: 改めた 2 欄の本文だけを渡した、目的・利用者以外の欄も初稿も読んでいない別の担当（Claude Code の subagent、Anthropic 系。道具を使わない）。入力の sha256 `cdae5daae15266ceeaaa303447632a3995ee96263100369552254a72f83d5fac`。
-- A3 の分類（担当の案。owner の承認待ち）:
+- A3 の分類（担当の案を、owner が 2026-11-20 にそのまま承認した）:
 
   | 出所 | 指摘 | 分類 | 反映 |
   |---|---|---|---|
@@ -446,7 +446,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | 反証 (g) | 照合の不一致を実機で起こす条件が無い | 記録（変えない） | 不一致の網羅は単体（AC2）が持つ。実機と実 Editor は複製の file の削除で「採れない時に directory へ進まない」を見る（AC5 の (8)、AC6 の Play D） |
   | 反証・ゲートの未確認 | UICommon が map にあるか（あれば走査の停止で登録されなくなる） | 解消 | bootstrap の `UIScene` は SceneResourceMap に無い（ゲートが確認。入口も UICommon を名前と path で別に扱う。§1 の現況） |
   | 代替構成 | 預け元を据えて identity を予約し、直接の content 入口を拒む | 採用 | §2.4 D1 |
-  | 代替構成 | 引数なしの `Prepare()` を残し、active の Scene だけを要求する | 保留（owner） | §2.8 U7 の代案 |
+  | 代替構成 | 引数なしの `Prepare()` を残し、active の Scene だけを要求する | 不採用（owner、2026-11-20） | §2.8 U7 は推奨のとおり、印の規則を必須の引数にする |
   | 代替構成 | 不達（bridge が無い、file が無い）を identity の無い `Rejected` で返す | 不採用 | 宣言は 1 回の Play の間変わらないので、供給元は常に `Available` を返し、採れないことは load の口の例外で言う（どちらも directory へ進まない。失敗の理由が load の段に 1 か所で出る） |
   | 代替構成 | key が真で配線しない Play は今の動きを残して log を出す | 不採用 | 起動の失敗にする（AC4、§2.3）。複製の経路を 1 つにする |
   | 代替構成 | 組に「何も取得していない」の印を足す | 不採用 | §2.4 L3 |
@@ -457,9 +457,9 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | 目的レビュー | 文言への指摘 8 件（Scene を何で同定するか、「1 つだけ実行」の主語、宣言と明示の要求の関係、load 済みの実体を使うか別の instance を作るか、「Play 前」の時点と未保存の変更、複製が検証の対象に読めること、宣言が無い時の既定、record の型の範囲） | 採用（owner、2026-11-19） | 2 欄を、結果を先に書き手段を後に並べる形に改め、8 件のそれぞれの答え（Scene の同定は Scene 名、「1 つだけ」は同じ Scene を 2 つ load しないこと、起動時の宣言と Runtime の要求の関係、load 済みの複製を採ること、Play 前の時点と未保存の変更、複製は検証の対象でないこと、Framework は既定を持たないこと、record の型を変えないこと）を文言に入れた（§1 の経緯、§2.8 U1）。改めた 2 欄で目的レビューをやり直した（下の 3 行） |
   | 目的レビューのやり直し | 保証すべきこと 10 件 | 初稿にある・1 件採用 | 版の対応が Play の終わりまで変わらない・複製は Play に入る時の 1 回の写し・複製を常に採る・build の版へ続けない・再要求も同じ・同じ契約と同じ record の型・directory の検証を変えない・load だけでは lifecycle に入らない・規則を渡さない入口は始められない・元の Scene と directory を変えない、は I-1〜I-5、AC4、S0-d の session の既存の契約。「採れない時の失敗の理由が、どの Scene の複製がなぜ採れないかを言う」を AC2 に足した |
   | 目的レビューのやり直し | 作らないべきもの 9 件 | 初稿と一致 | 開発者の設定・Framework の既定・build の版への fallback・新しい record の型や load の API・複製の digest の検証・Play の中の作り直し・複製の永続化・衝突を選ばせる UI・後続の本体は作らない（複製の SHA-256 は S0-d からある出所の手掛かりで、検証には使わない） |
-  | 目的レビューのやり直し | 文言への指摘 9 件（同名で path の違う Scene の取り違え、複製を作る範囲、Play 全体として何が検証済みか、複製を保持する責任、規則の最小の形、開発者への知らせ方、「起動の後」の境目、元の Scene を保存しないこと、利用者 (d) の位置づけ） | 保留（owner の裁定。やり直しは 1 回までなので、これ以上は owner が文言を裁定して凍結する） | 答えは本文にある: 同名 2 つは入口が拒む（§1 の現況）。複製は開いている全ての Scene（§2.4 E1）。検証済みと言えるのは directory の Scene だけで、record が Scene ごとに言う（I-4）。複製の保持は Editor の session（S0-d）。印が 0 件の規則も許す（AC4）。何が要求されたかは起動の log の `requested=` に出て、表示は S5。「起動の後」は起動の stage の後の全ての要求。元の Scene の file と Dirty を変えない（I-5、AC6）。(d) は入力を持たない |
+  | 目的レビューのやり直し | 文言への指摘 9 件（同名で path の違う Scene の取り違え、複製を作る範囲、Play 全体として何が検証済みか、複製を保持する責任、規則の最小の形、開発者への知らせ方、「起動の後」の境目、元の Scene を保存しないこと、利用者 (d) の位置づけ） | 文言は変えない（owner、2026-11-20。担当の推奨のとおり。やり直しは 1 回までで、2 欄を変えると更にやり直しが要る） | 9 件とも答えは本文にあり、2 欄に足さない: 同名 2 つは入口が拒む（§1 の現況）。複製は開いている全ての Scene（§2.4 E1）。検証済みと言えるのは directory の Scene だけで、record が Scene ごとに言う（I-4）。複製の保持は Editor の session（S0-d）。印が 0 件の規則も許す（AC4）。何が要求されたかは起動の log の `requested=` に出て、表示は S5。「起動の後」は起動の stage の後の全ての要求。元の Scene の file と Dirty を変えない（I-5、AC6）。(d) は入力を持たない |
 
-- 外部計画レビュー 1 巡目（2026-11-19、Draft PR #201、対象は commit `e3fff18a`。owner のアカウントの計画レビューと、同じ担当による第 1 指摘の訂正のコメント。系列は担当が確かめていない）。採否は担当の案で、owner の裁定待ち:
+- 外部計画レビュー 1 巡目（2026-11-19、Draft PR #201、対象は commit `e3fff18a`。owner のアカウントの計画レビューと、同じ担当による第 1 指摘の訂正のコメント。系列は担当が確かめていない）。採否は担当の案を、owner が 2026-11-20 にそのまま採った:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -467,8 +467,8 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | Risk / sequencing: NO-GO の条件である「同じ Play の中の複製の読み直し」を、預かる口から入口まで実装した後に初めて確かめる順になっている。Phase B の最初に、既存の snapshot の作成と bridge で最小の疎通を取る | 採用 | §4 の順序に (0) を足し、§5 の未知の操作経路 (i) に手順を書いた（製品の code を変える前。不成立なら NO-GO (i)）。AC5・AC6 の証拠はそのまま。その後、owner（root）の指示（2026-11-20）で、凍結の前に Phase A のうちにこの疎通を取り、成立した（§5 の記録）。§4 の (0) は取得済みと書き改めた |
   | I-1 の、供給元の探索の停止に加えて `LoadContentSceneAsync` の予約まで含める形は妥当 | 記録 | — |
 
-- A2 の再レビューの要否: 行わない案とする（owner の判断）。blocker への直し（組を作る時点の印）、予約、gate の共有は、A2 の指摘に沿って所有と後始末の穴を塞いだもので、新しい供給元・状態の種別・依存の辺は増えていない。増えたのは `AssetManagement.ContentDirectory.cs` の Editor の build だけの検査 1 つで、Draft PR の外部計画レビューで見てもらう。
-- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner の採否と凍結は未了。
+- A2 の再レビューの要否: 行わない（owner、2026-11-20）。blocker への直し（組を作る時点の印）、予約、gate の共有は、A2 の指摘に沿って所有と後始末の穴を塞いだもので、新しい供給元・状態の種別・依存の辺は増えていない。増えたのは `AssetManagement.ContentDirectory.cs` の Editor の build だけの検査 1 つで、Draft PR の外部計画レビューで見てもらう。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。採否は owner（root）が 2026-11-20 に、全て担当の推奨のとおりと決めた。凍結は未了で、外部計画レビューの 2 巡目の後に owner が判断する。
 
 ## 6. Phase B 実装結果
 
