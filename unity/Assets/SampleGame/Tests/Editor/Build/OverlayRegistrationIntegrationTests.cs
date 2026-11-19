@@ -86,7 +86,6 @@ namespace OneStarMaker.Tests.Editor.Build
                 var stay = CreateScene("Stay", "StayRoot", null);
                 var moved = CreateScene("Moved", "MovedRoot", null);
                 var prop = CreatePrefab("Prop", material);
-                var movedIdBefore = LoadableSceneIdEditorUtility.CreateLoadableSceneId(moved).ToString();
                 baseBuilt = new BuildContentCoordinator().Build(Plain(BaseSet, artifacts, Selection(
                     ("s32-entry", "Entry", entry, "Full"), ("s32-entry-wb", "Entry", entryWhitebox, "Whitebox"),
                     ("s32-stay", "Stay", stay, "Full"), ("s32-moved", "Moved", moved, "Full"), ("s32-prop", "Prop", prop, "Full"))));
@@ -101,10 +100,6 @@ namespace OneStarMaker.Tests.Editor.Build
                 var movedPath = _folder + "/Sub/Moved.unity";
                 Assert.That(AssetDatabase.MoveAsset(moved, movedPath), Is.Empty);
                 RenameRoot(movedPath, "MovedRoot", "MovedEdited");
-                var movedIdAfter = LoadableSceneIdEditorUtility.CreateLoadableSceneId(movedPath).ToString();
-                // 移動の前後の Scene の id は記録するが合否にしない（同じなら「同じ id は上書きの版」、違えば「key で上書きの entry を採る」で、どちらも契約の内）。
-                TestContext.WriteLine("[S32 overlay] Moved scene id before move: " + movedIdBefore + ", after move: " + movedIdAfter
-                                      + (movedIdBefore == movedIdAfter ? " (same)" : " (different)"));
                 var added = CreateScene("Added", "AddedRoot", null);
 
                 // ─── 上書き（製品の逆引きと上書きの build）───
@@ -170,6 +165,7 @@ namespace OneStarMaker.Tests.Editor.Build
             try
             {
                 Assert.That(ContentLoadManager.GetContentDirectories().Length, Is.EqualTo(2), "base と上書きの 2 件");
+                LogMovedSceneIds(session);
                 Assert.That(RegisteredDirectoryRoute.TryCreate(session, assets, out var route, out var reason), Is.True, reason);
                 var loader = route!.Loader;
 
@@ -216,6 +212,23 @@ namespace OneStarMaker.Tests.Editor.Build
                     catch (Exception cleanup) { Debug.LogWarning("[S32 overlay test] cleanup after failure: " + cleanup.Message); }
                 }
             }
+        }
+
+        // base と上書きの root の Moved の entry の Scene の id を比べて記録するが、合否にしない
+        // （同じなら「同じ id は上書きの版」、違えば「key で上書きの entry を採る」で、どちらも契約の内）。
+        private static void LogMovedSceneIds(ContentDirectorySession session)
+        {
+            // Stay は base の root にだけあるので、その解決が返す層が base の層。
+            var baseLayer = session.ResolveEntry("Stay", BuildContentKind.Scene, "Full").Layer;
+            var overlayLayer = session.OverlayLayer;
+            Assert.That(baseLayer != null && !baseLayer.IsOverlay, Is.True, "Stay は base の層で解決する");
+            Assert.That(overlayLayer, Is.Not.Null);
+            Assert.That(baseLayer!.Index!.TryGetExact("Moved", "Full", BuildContentKind.Scene, out var baseMoved), Is.True, "base の root に Moved がある");
+            Assert.That(overlayLayer!.Index!.TryGetExact("Moved", "Full", BuildContentKind.Scene, out var overlayMoved), Is.True, "上書きの root に Moved がある");
+            var baseId = baseMoved!.SceneId.ToString();
+            var overlayId = overlayMoved!.SceneId.ToString();
+            TestContext.WriteLine("[S32 overlay] Moved entry scene id in base root: " + baseId + ", in overlay root: " + overlayId
+                                  + (baseId == overlayId ? " (same)" : " (different)"));
         }
 
         private static void AssertRecord(ContentLoadRecord record, ContentIdentity expected, ContentSourceKind source, string representation)

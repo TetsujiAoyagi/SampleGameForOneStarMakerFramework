@@ -169,13 +169,15 @@ namespace OneStarMaker.Runtime.BuildContent
         internal bool TryAdd(string logicalKey, string? representation, BuildContentKind kind, T value)
             => _entries.TryAdd(ContentEntryMatch.Key(logicalKey, representation, kind), value);
 
+        // 実効表現の完全一致だけを引き、Full へ fallback しない。上書きを重ねた session の層の解決は、
+        // 要求の表現を両方の層で引いてから Full を両方の層で引くので、fallback を層ごとに行うと順が崩れる。
+        internal bool TryGetExact(string logicalKey, string? representation, BuildContentKind kind, [MaybeNullWhen(false)] out T value)
+            => _entries.TryGetValue(ContentEntryMatch.Key(logicalKey, representation, kind), out value);
+
         // 要求した表現の entry が無いときだけ Full の entry へ fallback する（Scene も Object も同じ）。
         // Object も fallback するのは、付随 asset（VFX の source、共有 material）は Full だけを宣言するのが普通で、
         // Whitebox の Play で読めなければ Scene は載るのに演出だけが欠けるため。
         // 表現を指定しない要求は Full だけに当たり、Whitebox だけの entry には当たらない。
-        internal bool TryGetExact(string logicalKey, string? representation, BuildContentKind kind, [MaybeNullWhen(false)] out T value)
-            => _entries.TryGetValue(ContentEntryMatch.Key(logicalKey, representation, kind), out value);
-
         internal bool TryResolve(string logicalKey, string? representation, BuildContentKind kind, [MaybeNullWhen(false)] out T value)
         {
             var requested = ContentEntryMatch.EffectiveRepresentation(representation);

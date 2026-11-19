@@ -237,8 +237,12 @@ namespace OneStarMaker.Tests.Editor.Build
                 foreach (var verb in new[] { "Add", "Remove", "Attach", "Detach", "Push", "Pop", "Insert", "Append" })
                     Assert.That(names.Where(x => x.StartsWith(verb, StringComparison.Ordinal) || x.Contains(verb + "Layer") || x.Contains(verb + "Overlay")),
                         Is.Empty, type.Name + " has a member that changes the layers: " + verb);
-                // 層の列は constructor でだけ決まる（配列の field は readonly）。
-                foreach (var field in type.GetFields(flags).Where(x => x.FieldType == typeof(ContentDirectoryLayers) || x.FieldType == typeof(ContentDirectoryLayers.Layer[])))
+                // session の層の列は constructor でだけ決まる（instance の field は readonly）。
+                // static の field は見ない: ContentDirectoryLayers._pendingRollback は、巻き戻しに失敗した層の列を
+                // process に 1 つだけ保留して次の登録の前に再試行するための書き換える field で（I-2）、
+                // どの session の層の列にも層を足さないため。
+                var instanceFields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+                foreach (var field in type.GetFields(instanceFields).Where(x => x.FieldType == typeof(ContentDirectoryLayers) || x.FieldType == typeof(ContentDirectoryLayers.Layer[])))
                     Assert.That(field.IsInitOnly, Is.True, type.Name + "." + field.Name);
             }
         }
