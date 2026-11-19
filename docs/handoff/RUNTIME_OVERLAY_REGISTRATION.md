@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `C'`（判定 C は GO 候補 head で GO と判定した。§7「判定 C」。次は C'）
+- status: `D`（判定 C は GO（§7「判定 C」）、C' 1 巡目は PASS で阻害する指摘なし（§8）。次は Phase D）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 266e36bb2959eac4dd10aa63440af9ad8cf7e322
@@ -19,15 +19,15 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。発見 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。判定 C が head `266e36bb` で生成し、task `runtime-overlay-registration` に `evidence stage` した（判定用）。取得案内は判定 C の担当が進行役へ渡した（git の外。`evidence inspect --task runtime-overlay-registration` でも引ける）。受け取り側の別 session の fetch・閲覧の確認は未実施
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。同じ head・同じ生結果から、可変な HANDOFF を除いた diff、A3 凍結 commit の HANDOFF と program、所見を含まない Phase B の実装結果（Phase B の commit の §6 の原文）で生成し、同じ task に `evidence stage` した。判定用とは別の取得案内を、判定 C の担当が進行役へ渡した。受け取り側の fetch・閲覧の確認は C' の起動前に行う
-- 引継ぎ票（2026-11-19、判定 C から C' へ）:
-  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った head（上の implementation head）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行う。高コスト証拠は無いので、この C' が最終 C' である。
-  - 読む範囲: C' は HANDOFF を読まず、C' blind bundle（凍結した Phase A、所見を含まない Phase B の実装結果、完全 diff、生結果、機械検査）だけを読む。C' 用の決定記録は無い。
-  - 凍結した Phase A: revision 1（A3 凍結 commit `7d626349`）。引き継ぐ commit はこの票を含む commit で、その SHA は進行役が起動指示（PR がある間は状態ブロックの `引き継ぐ commit`）で渡す。implementation head・base は上の欄。
-  - 必要な権限: `pwsh tools/artifacts.ps1 fetch`（sandbox 外。Artifacts の Release build がある worktree）。監査の担当の CLI の起動。
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。同じ head・同じ生結果から、可変な HANDOFF を除いた diff、A3 凍結 commit の HANDOFF と program、所見を含まない Phase B の実装結果（Phase B の commit の §6 の原文）で生成し、同じ task に `evidence stage` した。判定用とは別の取得案内を、判定 C の担当が進行役へ渡した。受け取り側の fetch・閲覧は、C' の起動前に進行役が別 process の `fetch` で確かめた（2026-11-19、`passed`、packageSha256 一致）
+- 引継ぎ票（2026-11-19、C' から Phase D へ）:
+  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。判定 C は GO、C' 1 巡目（最終 C'）は阻害する指摘なしで、C' の後続の入力 2 件と残存リスクは §8 の転記のとおり。Phase D へ進むかと後続の入力の扱いは owner が決める。
+  - 読む範囲: 既定（SKILL.md の表の Phase D の行）。§7「判定 C」と §8 を先に読む。
+  - 凍結した Phase A: revision 1（A3 凍結 commit `7d626349`）。引き継ぐ commit はこの票を含む commit で、その SHA は進行役が起動指示と PR 状態ブロックの `引き継ぐ commit` で渡す。implementation head・base は上の欄。
+  - 必要な権限: Evidence の保存・引渡しの確認（`pwsh tools/artifacts.ps1 evidence`、`pwsh tools/workflow-task.ps1`）。
   - 停止規則: §2.6。
-  - Evidence: C' blind bundle（上の欄）。evidence bundle（判定用）は C' に渡さない。
-  - 引き渡さないもの: C' に §6 の差し戻しの小節、§7 の発見 C・判定 C の所見と結論、判定用の evidence bundle を渡さない。
+  - Evidence: evidence bundle（判定用）と C' blind bundle（上の欄。いずれもローカル固定済み・未昇格）。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -570,7 +570,49 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 
 ## 8. Phase C'
 
-未着手
+- 1 巡目（2026-11-19、最終 C'）。担当・モデル・ベンダー: AI（cursor-agent、`grok-4.7-high`、xAI）。§5 の予約どおり Phase A〜C に関与していない。独立性制約なし。
+- 入力: C' blind bundle（task `runtime-overlay-registration`）を進行役が別 process の `pwsh tools/artifacts.ps1 fetch` で取得し（`passed`、packageSha256 一致）、file を加工せず packet に写した。fetch 直後の `発見 C|判定 C|J[0-9]|指摘` の grep の当たりは、凍結した Phase A の文書と program の他スライスの履歴だけで、本スライスの所見の混入は無かった。source は head `266e36bb` の `git archive`（本書と `artifacts/` を除く）。指示書は英語で、shell の実行はさせていない。
+- 出力: 下は C' の出力（`out/C-PRIME.md`、sha256 `\3db3e3ecf3d69f2c3b08b6d816139decf3ec78cc25cedc0e3d6535addafcaff`。最終メッセージと同文）を、要約も書き換えもせずに転記した。
+
+````markdown
+# C' round 1 — S3-2
+Verdict: PASS (no blocking findings)
+
+The slice question holds. A verified installed base and one overlay whose root record matches that base are registered by one session, base then overlay, resolved so the record names the root that was read, and unregistered overlay then base. AC1–AC8 hold in the code at `266e36bb`, in the tests that name those conditions, and in the raw run-2 results.
+
+Registration (`ContentDirectoryLayers.Register` / `RegisterNative`) re-verifies inside the gate lease, registers base then overlay, rejects a recorded root used as a base or as a lone directory with `InvalidRoot`, rejects a missing overlay record with `OverlayBaseMissing`, and rejects a five-field ordinal mismatch (including a one-sided declaration) with `OverlayBaseMismatch`. Failure rolls back through `TryUnregisterAll` (overlay then base, stop on the first failed layer). A failed rollback is one process-wide pending retry, run before the next native register. Tokens, in-flight work, and failed cleanups stay one session-wide count, so one layer reaching zero tokens does not unregister either layer. Play stop does not wait for tokens, still uses that method, and defers a failed unregister. A later close or the next register skips layers already unmarked. `ContentRevisionGate.Reserve(IReadOnlyList<ContentRevisionLayer>)` keeps one registration, takes one OS lease per layer, returns the first lease if the second fails, and prefers `PathInUse` when any layer shares a path with a different revision. Resolution is `(key, kind, effective representation)` with overlay-then-base `Full` fallback, and base entries whose native id appears on any overlay root entry are removed from the base layer. Providers are two ids (`registered-content-overlay` then `registered-content-directory`); `Provider` stays the base provider. Overlay candidates use `ContentOverlay` + `RecordedBaseMatch`, an empty digest, load path `ContentDirectory`, and facts copied from the root record. The compatibility branch follows the frozen row order, including `OverlayBaseFactMissing` and the host predicate. The direct content entry returns `EntryMissing` with zero native loads when the requested base representation was shadowed and a different representation was selected.
+
+Those paths are what the tests assert, not only what they are named. `ContentOverlaySessionTests` checks register order, each mismatch field, missing record, native/root/index failure codes, rollback when overlay unregister fails and when only base unregister fails, a failed pending retry that refuses the next register before native registration, lone registration of a recorded root, close and synchronous shutdown order, token hold across layers, play-stop order with a live token, and a resumed close after a failed play-stop unregister (each successful unregister once). `BuildContentOverlayBaseTests` and `OverlayRootRecordTests` cover the pure compare (including uppercase and `sha256:` digests), the serialized “no record” reading, the adapter round-trip, and the coordinator digest reject before reports. `ContentRevisionGateTests` covers the two-layer reservation, deletion priority, shared path/revision rejected before reserve, and the second OS lease failure. `OverlayDirectoryProviderTests` plus offline `OverlayTests` O1–O8 cover both representation directions, cross-layer `Full` fallback, object and scene id shadow (including base pin and direct `EntryMissing`), pin-unsatisfied `IntegrityRejected` (`DecideFailureCode` (1): overlay `PinMismatch` then base `NotFound`), per-row mismatch values, `SourceBindingUnavailable` for an unbound overlay claim, one-prefix eviction of both layers, and repair limited to `VerifiedDigest`. AC6 `BaseAndOverlay_AreRegisteredInOrder_ServeTheSelectedLayer_AndCloseOverlayThenBase` builds base and overlay on the product path, enters Play Mode, and checks edited pixels, `Moved` / `Added` / `Stay` / `Prop` records, `SourceBindingVerified`, close without `ResourcesInUse`, and an empty directory list. `Moved` scene ids are logged and not used as pass/fail. The diff touches only §3 files, their tests, offline tests, and `docs/handoff/`. Forbidden surfaces (`IAssetManagement`, `AssetManagement.ContentDirectory.cs`, both directory backends, the loader, startup, Player configuration, asmdef references, `SceneState`) are absent from `name-status.txt`. Existing enum values are not renumbered; new values are `ContentOverlay = 4`, `RecordedBaseMatch = 3`, `OverlayBaseFactMissing = 14`.
+
+Run 2 (`tests/full-editmode-run2/results.xml`): `result="Passed"`, `failed="0"`, 2009 passed, 25 inconclusive. The new fixtures and `RegisteredDirectoryRouteIntegrationTests` / `PurposeBuildIndexIntegrationTests` passed. Offline tests: 72 passed, exit 0, including O1–O8. Contract audit: errors 0. Docs audit: errors 0 (one unrelated harvest warning).
+
+## Blocking findings
+
+None.
+
+## Follow-up inputs
+
+- `BuildContentOverlayBase.IsManifestSha256` is public. §2.4’s public-name list does not name it, and §3 says the compare function is internal (`FindMismatch` is). The Editor coordinator calls it so a non-canonical digest is rejected without a new `InternalsVisibleTo`, which §2.7 forbids. §6 records the choice. It does not change register, resolve, or unregister.
+- `PendingRetryFailure_RejectsTheNextRegistrationBeforeNativeRegistration` leaves the static pending rollback and the gate reservation in place. Later tests in that fixture call `Register` and clear them, which is why run 2 still passed. A later test that reserves the gate without going through `ContentDirectoryLayers.Register` would observe `RevisionBusy` if it ran while that leak was live.
+
+## Residual risks
+
+- Run 1’s only failure is the known staging `Directory.Move` access denied in `RegisteredDirectoryRouteIntegrationTests` (`results.xml` `IOException` at `BuildContentCoordinator.Build`). §5 allows a same-head rerun. Run 2 is that rerun and is clean. Both `step.json` files say `"status": "failed"` because of the 25 inconclusive VFX tests under `-nographics`; run 2’s XML failed count is 0, which is the frozen signal.
+- `ResolveForLoad` refuses a representation rewrite whenever the requested base entry was id-shadowed, even if the fallback entry has a different native id. Loader calls pass the adopted representation, so the AC5 loader cases still load. This is the Phase B adaptation, and the specified object and scene pairs are tested.
+- An explicit close that fails does not enter the static pending rollback. Play stop and registration rollback do. A session dropped after a failed close keeps the gate reservation until that same session is closed again. That matches the single-layer cardinality (the gate still holds one registration).
+- Whether entering Play Mode with Domain Reload enabled clears a previous play’s native registrations, and what happens to OS lease handles after a script reload, are still unmeasured (§2.3, S3-4).
+- An object that shares a native id only as a dependency, not as an overlay root entry, is not shadowed. The plan already sends that to S4.
+
+## Not audited
+
+- Tests, offline checks, and audits were not re-run. The instructions forbid shell execution. Conclusions use the bundled XML, `checks/`, and the tree at head.
+- `unity.log` was not read line by line. AC6’s own listener asserts an empty Error/Exception window from register through close.
+- Player build (U4: not a required test). Domain Reload enabled play from a play entry (S3-4).
+
+## Model
+
+xAI Grok 4.7 (cursor-agent). This is the reserved C' reader. Phase A–C did not use this model.
+````
 
 ## 9. Phase D
 
