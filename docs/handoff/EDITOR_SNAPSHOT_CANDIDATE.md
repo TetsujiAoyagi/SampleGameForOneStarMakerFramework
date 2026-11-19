@@ -5,26 +5,26 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `A`（A3 の統合案。A2 の 4 件と外部計画レビュー 1 巡目の採否、§2.8 の未決事項は、owner が 2026-11-20 に担当の推奨のとおり決めた。外部計画レビューの 2 巡目と凍結の前。未凍結）
+- status: `A`（A3 凍結済み。Phase A revision 1。次は Phase B。A2 の 4 件、目的レビューのやり直し、外部計画レビュー 2 巡の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `未固定`
-- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: `未凍結`
+- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者 owner（root）、2026-11-20、Phase A revision 1（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。根拠: A2 の 4 件、目的レビューのやり直し、外部計画レビュー 2 巡の採否を §5.1 に記録し、§2.8 の U1〜U12 を決め、2 巡目に blocker と差し戻しの要求が無いことを確かめたうえで、owner が会話で「blocker 無しだから凍結して」と指示した。§2.6 の NO-GO (i) の前提である読み直しの疎通は、凍結の前に空の Scene の複製で成立した（§5）
 - risk: `high`（program の行の値。Scene の所有者と寿命（Scene の台帳に 3 つ目の種別を足す）、起動の段の順序、`SceneDirector` の load の分岐、Editor の public の引数を変える）
 - owner: root（依頼者）
 - created: 2026-11-19
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「要求時の Content 解決」（snapshot の供給元、既ロードの経路、record、「まだ保証しないこと」）と「Scene 解放の役割分担」、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6（取り込みの段、起動時の明示の要求、key と mode の組）、[18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（経路 Built + open scenes の行）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §2.2（連携部分が使う `AssetManagement` の internal の口の棚卸しに、預かる口と預け元の port を足す）、program §8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§5.2、§6、§8 の S3-3 と S0-b・S0-d・S1・S3-1 からの移送、§9 の G12・G21・G23）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
-- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
+- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結版は、A3 凍結版の commit の本書 §0〜§5）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: A3（外部計画レビューの 2 巡目、凍結）。凍結の後に Phase B。
-  - 次の作業: Draft PR で外部計画レビューの 2 巡目を行い、指摘は 1 巡につき 1 commit で反映する（採否は owner）。その後、owner の凍結判断を上の凍結記録に書いて凍結版を commit する。§2.8 と §5.1 の採否は決定済みで、2 巡目の指摘で変える時だけ書き直す。目的・利用者の 2 欄は変えない（目的レビューのやり直しは 1 回を使い切った）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結の前に Phase B を始めない。
+  - 次の Phase・役割: Phase B（実装）。凍結した Phase A は revision 1。
+  - 次の作業: §3 の責務マップを §4 の順序の (1) から実装する（(0) の疎通は取得済みで、取り直さない）。出口は、Editor での compile の確認、§5 の検証経路の動作確認を 1 回（Play A〜D と観測 O-2。Play B の Scene の名前、O-2 の asset、使った `eval` を §6 に固定する）、§6 の記録、実装の commit と票の更新。Unity の batch test と Content Directory の build を伴う test（AC5）の実行・判定は Phase C。
+  - 必要な権限: Unity Editor（この worktree の `unity/` を `unity open` で開き、`tools/unity-editor.cmd` で操作する）。動作確認の準備の installed の候補と、Editor を開いた時に付く追跡 file の差の扱いは、§5 の「疎通 (i) の記録」にある。
+  - 停止規則: §2.6 と、§4 の「Phase B から Phase A へ差し戻す条件」。push は owner に聞く。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -248,7 +248,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 
 ### 2.8 owner の判断を求める点（未決事項）
 
-未決は無い。U1〜U12 は全て決定済みである（U2〜U11 は owner が 2026-11-20 に、担当の推奨のとおりと決めた。代案は採らない）。外部計画レビューの 2 巡目の指摘で変える時は、owner の裁定とともにここを書き直す。
+未決は無い。U1〜U12 は全て決定済みである（U2〜U11 は owner が 2026-11-20 に、担当の推奨のとおりと決めた。代案は採らない）。外部計画レビューの 2 巡目は、どの決定にも変更を求めなかった（§5.1）。
 
 - **owner の決定（2026-11-20、会話）:** U2〜U11 と、§5.1 の保留・裁定待ちの項目は、全て担当の推奨のとおりにする（2026-11-19 の意向「概ね推奨どおり」を確定した）。
 - **U1 目的と利用者の文言（§1）。** 決定: 結果を先に書く形に改める（owner、2026-11-19。§1 の経緯）。改めた文言で目的レビューをやり直した（§5.1）。やり直しで出た文言への指摘 9 件では 2 欄を変えず、今の文言で凍結する（owner、2026-11-20）。
@@ -411,7 +411,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
 - 判定 C の照合 script の方式: なし（test の XML と、AC6 の観測 file を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC7 の `grep`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: Codex CLI（OpenAI 系）。A0〜A2 と統合では使っていない（A2 は Anthropic 系だけ）。動かない時だけ cursor-agent の Grok 系。外部計画レビューの系列は owner が決めるので、A3 でその系列を記録し、C' の独立性を書き直す。
+- C' 用に予約した担当・モデル・ベンダー: xAI の Grok 系（cursor-agent。Grok 系のモデルを明示する）。Phase A は Anthropic 系（A1、A2 の 4 件、目的レビューのやり直し、A3 の統合）と OpenAI 系（外部計画レビュー 1・2 巡目）を使ったので、初めの予約（Codex CLI、OpenAI 系）を A3 で書き直した。B と C も Grok 系を使わない。
 - 独立性の強化条件を満たせない場合の理由: A3 で記録する。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -459,7 +459,7 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | 目的レビューのやり直し | 作らないべきもの 9 件 | 初稿と一致 | 開発者の設定・Framework の既定・build の版への fallback・新しい record の型や load の API・複製の digest の検証・Play の中の作り直し・複製の永続化・衝突を選ばせる UI・後続の本体は作らない（複製の SHA-256 は S0-d からある出所の手掛かりで、検証には使わない） |
   | 目的レビューのやり直し | 文言への指摘 9 件（同名で path の違う Scene の取り違え、複製を作る範囲、Play 全体として何が検証済みか、複製を保持する責任、規則の最小の形、開発者への知らせ方、「起動の後」の境目、元の Scene を保存しないこと、利用者 (d) の位置づけ） | 文言は変えない（owner、2026-11-20。担当の推奨のとおり。やり直しは 1 回までで、2 欄を変えると更にやり直しが要る） | 9 件とも答えは本文にあり、2 欄に足さない: 同名 2 つは入口が拒む（§1 の現況）。複製は開いている全ての Scene（§2.4 E1）。検証済みと言えるのは directory の Scene だけで、record が Scene ごとに言う（I-4）。複製の保持は Editor の session（S0-d）。印が 0 件の規則も許す（AC4）。何が要求されたかは起動の log の `requested=` に出て、表示は S5。「起動の後」は起動の stage の後の全ての要求。元の Scene の file と Dirty を変えない（I-5、AC6）。(d) は入力を持たない |
 
-- 外部計画レビュー 1 巡目（2026-11-19、Draft PR #201、対象は commit `e3fff18a`。owner のアカウントの計画レビューと、同じ担当による第 1 指摘の訂正のコメント。系列は担当が確かめていない）。採否は担当の案を、owner が 2026-11-20 にそのまま採った:
+- 外部計画レビュー 1 巡目（2026-11-19、Draft PR #201、対象は commit `e3fff18a`。owner のアカウントの計画レビューと、同じ担当による第 1 指摘の訂正のコメント。系列は OpenAI 系で、owner が 2026-11-20 に伝えた）。採否は担当の案を、owner が 2026-11-20 にそのまま採った:
 
   | 指摘 | 分類 | 反映 |
   |---|---|---|
@@ -467,8 +467,19 @@ program と先行スライスが「S3-3」へ送った入力の引き取りと�
   | Risk / sequencing: NO-GO の条件である「同じ Play の中の複製の読み直し」を、預かる口から入口まで実装した後に初めて確かめる順になっている。Phase B の最初に、既存の snapshot の作成と bridge で最小の疎通を取る | 採用 | §4 の順序に (0) を足し、§5 の未知の操作経路 (i) に手順を書いた（製品の code を変える前。不成立なら NO-GO (i)）。AC5・AC6 の証拠はそのまま。その後、owner（root）の指示（2026-11-20）で、凍結の前に Phase A のうちにこの疎通を取り、成立した（§5 の記録）。§4 の (0) は取得済みと書き改めた |
   | I-1 の、供給元の探索の停止に加えて `LoadContentSceneAsync` の予約まで含める形は妥当 | 記録 | — |
 
+- 外部計画レビュー 2 巡目（2026-11-20、Draft PR #201。1 巡目と同じ担当、OpenAI 系。U2〜U11 への推奨のコメントは commit `fb23ae9d`、2 巡目のレビューは commit `ca53760c` が対象）。結論は「新しい blocking defect は無い。追加の差し戻しの要求は無い。owner が凍結することに異議は無い」:
+
+  | 指摘 | 分類 | 反映 |
+  |---|---|---|
+  | U2〜U11 は、どれも担当の推奨と同じ結論（代案を採らない理由も同じ） | 記録 | §2.8 の決定と一致するので、本文は変えない |
+  | U5 の留意点: record の表現は要求に対応する label で、複製の中身が Full か Whitebox かを証明しない。13 章に明記する | 記録（本文にある） | §2.4 P1、§2.8 U5、§0 の harvest to（13 章の「まだ保証しないこと」）。Phase D が書く |
+  | U9 の留意点: `Rejected` は bytes の破損の断定ではなく「snapshot では pin した要求を満たせない」という拒否である。13 章の説明と、供給元が返す理由に明記する | 記録（本文にある） | I-1 の塞ぎ方（理由に「この Play はこの Scene を snapshot から読む」と書く）、§2.8 U9、harvest to |
+  | U8 の留意点: 本スライスで「Player の実機で検証済み」とは主張しない | 記録（本文にある） | §2.8 U8、AC7 |
+  | 読み直しの疎通は空の Scene の複製に限る。実 Scene の `SceneDirector`・台帳を通した再要求と、Domain Reload 有効の Play は AC5・AC6 に残す | 記録（本文にある） | §5 の未知の操作経路 (i) の結果と (iii)、§2.6 NO-GO (i) |
+  | 凍結への所見は、Phase B の成功と AC5・AC6 の GO を先取りする承認ではない | 記録 | — |
+
 - A2 の再レビューの要否: 行わない（owner、2026-11-20）。blocker への直し（組を作る時点の印）、予約、gate の共有は、A2 の指摘に沿って所有と後始末の穴を塞いだもので、新しい供給元・状態の種別・依存の辺は増えていない。増えたのは `AssetManagement.ContentDirectory.cs` の Editor の build だけの検査 1 つで、Draft PR の外部計画レビューで見てもらう。
-- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。採否は owner（root）が 2026-11-20 に、全て担当の推奨のとおりと決めた。凍結は未了で、外部計画レビューの 2 巡目の後に owner が判断する。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。採否は owner（root）が 2026-11-20 に、全て担当の推奨のとおりと決めた。外部計画レビューの 2 巡目の後、owner が同日に凍結した（§0 の凍結記録）。
 
 ## 6. Phase B 実装結果
 
