@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `D`（判定 C は GO（§7「判定 C」）、C' 1 巡目は PASS で阻害する指摘なし（§8）。次は Phase D）
+- status: `D`（判定 C は GO（§7「判定 C」）、C' 1 巡目は PASS で阻害する指摘なし（§8）。2026-11-19 に Phase D を行った（§9）。merge の後に本書を削除する）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 266e36bb2959eac4dd10aa63440af9ad8cf7e322
@@ -616,4 +616,14 @@ xAI Grok 4.7 (cursor-agent). This is the reserved C' reader. Phase A–C did not
 
 ## 9. Phase D
 
-未着手
+- 担当: AI（Claude Code、Anthropic）。2026-11-19、owner が PR #200 の新着のコメントを確認させた上で、「blocker が無く後続のためになる内容は Phase D で取り込む」として Phase D を指示し、push と merge も指示した。
+- C / C' の突合: 判定 C（§7、2 回目の run で GO）と C' 1 巡目（§8、PASS）は、構造、I-1〜I-5、S-1〜S-3、AC1〜AC8 の成立で一致した。判定 C は後続の入力を挙げず、C' は後続の入力 2 件と残存リスクを挙げた（下）。食い違いは無い。
+- 外部レビュー（PR #200、2026-11-19、implementation head `266e36bb`）: cursor の Grok 系の読み 2 件（C' と同じ系列なので独立監査の 2 巡目に数えない）と owner の独立レビューは、どれも阻害する欠陥は無いとした。取り込んだもの: (1) owner のレビューの「S3-2 の GO は record が採用した root の entry の由来を指すまでで、その Scene から見える依存の版の一貫は保証しない」を、13 章（「id による影」と「まだ保証しないこと」）と program §8 の S3-2 の行に書いた。(2) 同じレビューの「S3-4 の縦断の実証の gate に、部分 checkout で fail-closed せざるを得ない編集がどれくらい生じ、編集 → Play の体験が成り立つかを含め、日常の共有 asset の編集のたびに Play を止めるなら入口の配線の前に方式を見直す」を、program §8 の S3-4 の行の gate に足した。(3) program §8 の S3-2 の行（「Phase B」のまま）と PR 本文（「実装はまだ含みません」のまま）の古い記述を直した。
+- C' の後続の入力の扱い: `BuildContentOverlayBase.IsManifestSha256` が public であることは §6 の理由（coordinator の assembly が `InternalsVisibleTo` を足さずに digest の形を検査する）のまま残す。型ごと program §5.3 の「見直す時に外すもの」に入っている。`PendingRetryFailure_RejectsTheNextRegistrationBeforeNativeRegistration` が保留と予約を残す点は、`OverlayRegistrationFixture.WithAsync` の finally の `FlushPendingAsync` が片付け、後の test へ残らない（cursor の読みも同じ結論）ので直さない。残存リスクのうち、明示 close の失敗が static の再試行に入らないこと、Domain Reload の 2 点は S3-4、依存として入った同じ id の物は S4 へ、program §8 の「S3-2 から移送した入力」に書いた。
+- GO 候補 head の整理: しない（公開済みの履歴を書き換えない）。
+- マージ判断: owner が merge を指示した。base は `develop`。
+- 必要な Evidence の保存・取得・必須内容の閲覧確認: 判定の evidence bundle と C' の blind bundle は、どちらも task `runtime-overlay-registration` にローカル固定（`staged`、`locality` は `local`）。2026-11-19 に別 process の `fetch` で両方を取得し（どちらも `passed`、packageSha256 一致）、全 EditMode 回帰 2 回目の XML（root `Passed`、total 2034、passed 2009、failed 0、Inconclusive 25）、判定 C の検査の出力、C' 用の凍結版の HANDOFF・program と Phase B の実装結果の写しを開けることを確かめた。昇格はしない（読み手は同じ PC だけ。owner が 2026-11-19 にローカルのみと決めた）。C' の所見は §8 に全文を転記し、push 済みの commit `126df0e4` に残る。日次清掃の job は `passed`。
+- 取得案内の引渡し確認: 2 つの取得案内は repository の外のローカル（worktree の外）にあり、`evidence inspect --task runtime-overlay-registration` でも引ける。
+- harvest: [13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（見出し、強制する実装と確かめた設定、暫定の public の値、時点、logical key の解決の粒度、id による影、重ねてよい組の登録時の照合と保証の境界、解除の経路、測った設定と Domain Reload の送り先）と「要求時の Content 解決」（上書きを重ねた登録の供給元と候補、照合が層まで比べること、cache の key、まだ保証しないこと、互換の規則の上書きの分岐、`RecordedBaseMatch` の保証の境界と 3 つの輪）。[18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（登録の現況、digest の形の検査、root の上書きの印）。[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（6000.6.9f1 での測り直しの節、移動した Scene、native の登録と Play の終わり、「Scene の id は path から作られ」の訂正）。program §8 の S3-2 の行（完了）、S3-4 の行の gate、「S3-2 から移送した入力」、S3-1 の移送の resident cache の行。
+- 削除確認: 本書を削除する（次の commit）。本書の全文は git の履歴に残る。
+- 通常の task 終了・後始末の状態と未完了事項: merge の後に `workflow-task.ps1 end -Reason completed`（Decision `chat:20261119T0345Z:runtime-overlay-registration:completed`）を記録し、branch とこの worktree を片付ける。未完了の後続の入力は program §8 の「S3-2 から移送した入力」と S3-4 の行の gate。

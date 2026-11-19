@@ -187,7 +187,7 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 ### 上書きの build と逆引き（現況）
 
 取得した目的 build（base）に、手元で編集した asset の影響を受ける root だけを build した上書きを重ねるための Editor の入口
-（S2-2）。登録の実装（`AssetManagement` が base と上書きを持つこと）は無く、S3 の範囲である。登録する側の契約は
+（S2-2）。base と上書きを重ねる登録は internal の登録の口が持ち（S3-2）、上書きを Play に載せる入口は無い（S3-4）。登録の契約は
 [13 章](13-resource-system.md)「base と上書きの登録契約」。
 
 - **逆引き:** `ContentOverlaySelection.Select(plan, snapshot, editedPaths)` は I/O を持たない。編集した path を正規化し
@@ -202,8 +202,14 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
   Selection は上書きの語彙を持たない。
 - **build:** `BuildContentRequest(selection, baseIdentity, contentSet, artifactsRoot, declaration, requirements)` は plan と snapshot を
   逆引きの結果からだけ取り、mode を `Full` に固定する。coordinator は report を書く前に、base と同じ contentSet（大文字小文字を無視）、
-  base と違う宣言の名前、base と違う target を拒む。`ContentOverlayBaseIdentity` は base の contentSet・revision・target・
+  base と違う宣言の名前、base と違う target、transport manifest の SHA-256 の形（小文字 16 進 64 字。install の receipt の
+  `manifestSha256` と同じ値）でない base の digest を拒む。`ContentOverlayBaseIdentity` は base の contentSet・revision・target・
   transport manifest の digest（と任意の宣言の名前）を持ち、空の欄を拒む。
+- **root の上書きの印:** adapter は上書きの build の root（`BuildContentRoot.OverlayBase`、型 `BuildContentOverlayBase`）に、base の 5 欄・
+  上書き自身の contentSet・build した Editor の Unity の版を書き、読み戻した root で全欄を比べる。Editor の `ContentOverlayBaseIdentity` から
+  Runtime の記録への変換はこの 1 か所だけである。上書きでない build の root は記録無し（Unity の直列化は class の欄を null にしないので、
+  必須の欄が空なら記録無しと読む）で、root の schema の版は上げていない。登録は、記録を持つ root を上書きの層としてだけ受け付ける
+  （[13 章](13-resource-system.md)「base と上書きの登録契約」）。
 - **report の追加の欄:** preflight と outcome の両方に `overlay`（上書きの印）。preflight だけに `overlayBase`
   （`contentSet`・`revision`・`target`・`manifestDigest`・`declarationName`）、`overlayEdits`、`overlayRoots`（`stableKey`・`logicalKey`・`edits`）、
   `overlayUnmatched`（`path`・`reason`）、`overlaySharedAssets`。上書きでない build では印が false、配列が空、`overlayBase` の各欄が空文字。
