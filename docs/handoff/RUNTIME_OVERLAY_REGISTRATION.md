@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-2）
-- status: `C`（差し戻し 1 巡目の後の発見 C で C-1〜C-3 が閉じたことを確かめ、判定 C へ進めた。§7「発見 C（差し戻し 1 巡目の後）」）
+- status: `C'`（判定 C は GO 候補 head で GO と判定した。§7「判定 C」。次は C'）
 - branch: `claude/runtime-overlay-registration`（PR の base は `develop`）
 - implementation base commit: `b0bc9997`（`origin/develop` の head、2026-11-18。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 266e36bb2959eac4dd10aa63440af9ad8cf7e322
@@ -18,16 +18,16 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§4.1、§4.4、§5.3、§6、§8 の S3-2 と S3-1 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（使わない。発見 C は commit で固定した差分を読む）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
-- 引継ぎ票（2026-11-19、差し戻し 1 巡目の後の発見 C から判定 C へ）:
-  - 次の Phase・役割: 判定 C。GO 候補 head は上の implementation head（未解決の blocker は無い。§7「発見 C（差し戻し 1 巡目の後）」）。§5 の判定必須テスト（起点 filter、offline の test、AC6 の `OverlayRegistrationIntegrationTests`、S3-1 の `RegisteredDirectoryRouteIntegrationTests`、最終の全 EditMode 回帰（空 filter。合否は XML の failed 0 と root result `Passed` で読む））を GO 候補 head で走らせ、evidence bundle を生成して §2.6 で判定する。AC6 と全 EditMode 回帰は他の Unity を止めて走らせる（§5）。
-  - 読む範囲: 既定（SKILL.md の表の Phase C の行。HANDOFF は §0〜§8）。
-  - 凍結した Phase A: revision 1。引き継ぐ commit はこの票を含む commit で、その SHA は次の担当の起動指示（PR がある間は状態ブロックの `引き継ぐ commit`）で渡す。implementation head・base は上の欄。
-  - 必要な権限: Unity のバッチテスト（`pwsh tools/run-tests.ps1` の sandbox 外の実行）、`pwsh` の起動（contract-audit・docs-audit・evidence の生成）、`dotnet`（offline の test）、`gh`（PR の timeline と状態ブロック）。
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。判定 C が head `266e36bb` で生成し、task `runtime-overlay-registration` に `evidence stage` した（判定用）。取得案内は判定 C の担当が進行役へ渡した（git の外。`evidence inspect --task runtime-overlay-registration` でも引ける）。受け取り側の別 session の fetch・閲覧の確認は未実施
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）、引渡し未完了。同じ head・同じ生結果から、可変な HANDOFF を除いた diff、A3 凍結 commit の HANDOFF と program、所見を含まない Phase B の実装結果（Phase B の commit の §6 の原文）で生成し、同じ task に `evidence stage` した。判定用とは別の取得案内を、判定 C の担当が進行役へ渡した。受け取り側の fetch・閲覧の確認は C' の起動前に行う
+- 引継ぎ票（2026-11-19、判定 C から C' へ）:
+  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った head（上の implementation head）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行う。高コスト証拠は無いので、この C' が最終 C' である。
+  - 読む範囲: C' は HANDOFF を読まず、C' blind bundle（凍結した Phase A、所見を含まない Phase B の実装結果、完全 diff、生結果、機械検査）だけを読む。C' 用の決定記録は無い。
+  - 凍結した Phase A: revision 1（A3 凍結 commit `7d626349`）。引き継ぐ commit はこの票を含む commit で、その SHA は進行役が起動指示（PR がある間は状態ブロックの `引き継ぐ commit`）で渡す。implementation head・base は上の欄。
+  - 必要な権限: `pwsh tools/artifacts.ps1 fetch`（sandbox 外。Artifacts の Release build がある worktree）。監査の担当の CLI の起動。
   - 停止規則: §2.6。
-  - Evidence: Phase A snapshot・Phase B result snapshot は使わない。evidence bundle と C' blind bundle は判定 C が生成する（今は未生成）。
-  - 引き渡さないもの: C' に §6 の差し戻しの経緯と §7 の所見を渡さない。
+  - Evidence: C' blind bundle（上の欄）。evidence bundle（判定用）は C' に渡さない。
+  - 引き渡さないもの: C' に §6 の差し戻しの小節、§7 の発見 C・判定 C の所見と結論、判定用の evidence bundle を渡さない。
 
 ## 1. 目的と対象外
 
@@ -539,6 +539,34 @@ program と S3-1 が「S3-2」へ送った入力の引き取りと送り先を�
 - 往復の数: B と発見 C の差し戻しは 1 巡（上限 4 巡）。
 - 判定必須のうち未実行: offline の test（core と offline の test の対象はこの巡で変わっていない）、起点 filter の残り（`ContentRevisionGateTests`・`UnityContentDirectoryAdapterTests`・`BuildContentFullModeTests`・`OneStarMaker.Tests.ContentResolution` と AC1〜AC5 の新しい class のうち `BuildContentOverlayBaseTests`・`OverlayRootRecordTests`）、`RegisteredDirectoryRouteIntegrationTests`、全 EditMode 回帰。どれも判定 C が GO 候補 head で走らせる。
 - 担当・モデル: AI（Claude Code、Anthropic）。B と同じ系列（`独立性制約あり`。owner の方針で、独立性のためにモデルを替えない）。
+
+### 判定 C（2026-11-19。GO）
+
+- 種別: 判定 C。高コスト証拠は無い（§5）。
+- 対象と開始時の照合: implementation base `b0bc9997`、GO 候補 head `266e36bb`。起動指示の引き継ぐ commit `3e4a268e83bd67000b6e3a729170d9b2015f11a5` が HEAD と一致し、作業ツリーは clean。implementation head 欄の `266e36bb` は HEAD の祖先で、`git diff --stat 266e36bb HEAD` は本書だけ。PR #200 は open（base `develop`）、状態ブロックの `引き継ぐ commit` と implementation base / head は起動指示と §0 に一致した。review・comment の新着は無い（最新は 2026-11-18 の review で、§5.1 で扱った物）。
+- 使った evidence: commit で固定した差分（`git diff b0bc9997 266e36bb`）と、下の生結果。判定用の evidence bundle と C' blind bundle は §0 の欄（どちらもこの head で生成した）。
+- 構造適合: 差分の file は §3 の file とその `.meta`、§3 の test の folder、`tools/ContentResolutionOfflineTests/`、`docs/handoff/` だけ（`git diff --name-status`）。構造の判断（層の列の 1 か所、session の 501 行の非分割妥当、gate の +43%）は 1 回目の発見 C の読みと同じで、差し戻しの差分は責務・置き場・依存・public の面を変えていない。中核の `ContentDirectoryLayers` の `Register`・`Resolve`（id による影を含む）・`TryUnregisterAll`・保留の再試行と、session の `ResolveForLoad`・解除の 3 経路を、I-1〜I-4 の文と突き合わせて読み、食い違いは見つからなかった。
+- 実行の条件: この worktree、Unity 6000.6.9f1、Editor を閉じ他の Unity が無い状態（Hub と Licensing Client だけ）。`pwsh tools/run-tests.ps1`（空 filter、`-nographics`）を sandbox 外で起動し、両 process ともライセンスは `LicenseClient-void-1.19.0` に接続した。§5 の判定必須の Unity の test（起点 filter、AC6、`RegisteredDirectoryRouteIntegrationTests`、全 EditMode 回帰）は同じ platform・graphics の条件なので、全 EditMode 回帰の 1 process に集約し、必要な class が入ったかを XML の名前と件数で確かめた。
+- 全 EditMode 回帰 1 回目: XML の root は `Failed(Child)`、total 2034、passed 2008、failed 1、Inconclusive 25。失敗は `RegisteredDirectoryRouteIntegrationTests` の 1 件で、`BuildContentCoordinator.Build` の staging の `Directory.Move` が `TestResults\bs3-fixture\staging\…` で access denied になった（§5 の既知の不安定）。AC6 を含む他の判定必須の class は全て Passed。この run の実行中（開始の 1〜2 分後）に、同じ worktree で offline の test・contract-audit・docs-audit・task の開始を実行した（失敗はその約 5 分後）。
+- 全 EditMode 回帰 2 回目（§5 に従い同じ head で走らせ直した。実行中に他の処理を並行させていない）: XML の root は `Passed`、total 2034、passed 2009、failed 0、skipped 0、Inconclusive 25（全て `SampleGame.Tests.Rendering.Vfx.*PlayTests`。§5 が予告した `-nographics` の既知の物）。step は `failed`（exit 1）で、理由は「Inconclusive のテストがあります」と Unity の exit code 2（非 Passed の結果による）。Unity は XML の完成の約 5 秒後に自然に終わり、終了 stall は無かった。`compileErrors` は空。判定必須の class（total / failed）: `ContentDirectorySessionTests` 21/0、`ContentRevisionGateTests` 7/0、`RegisteredDirectoryProviderTests` 23/0、`UnityContentDirectoryAdapterTests` 4/0、`BuildContentFullModeTests` 25/0、`OneStarMaker.Tests.ContentResolution`（当たる class は `ContentRequestLoaderTests` だけ）15/0、`ContentOverlaySessionTests` 26/0、`BuildContentOverlayBaseTests` 15/0、`OverlayRootRecordTests` 5/0、`OverlayDirectoryProviderTests` 13/0、`ContentOverlaySelectionTests` 13/0、`BuildContentProjectionTests` 4/0、`PurposeBuildIndexIntegrationTests` 1/0、`OverlayRegistrationIntegrationTests`（AC6）1/0、`RegisteredDirectoryRouteIntegrationTests` 1/0。AC6 の記録の行は `[S32 overlay] Moved entry scene id in base root: 060b9100aef177d449802082d9195412, in overlay root: 060b9100aef177d449802082d9195412 (same)`。
+- offline の test: `dotnet run --project tools/ContentResolutionOfflineTests` は 72 passed、0 failed、exit 0（上書きの O1〜O8 を含む）。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors=0、warnings=0。`pwsh tools/docs-audit.ps1` は errors=0、warnings=1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の時期で、前の記録と同じ。本書と無関係）。AC7 の参照の検査（Grep）: `Runtime/AssetManagement/` → `ContentResolution`、`Runtime/ContentResolution/Core/` → `BuildContent`・`UnityEngine`、`ContentRequestLoader.cs` → `BuildContent`、`Runtime/BuildContent/` → `ContentResolution` は全て一致なし。
+- 動作確認: 対象なし（§5。起動・Play の入口を変えず、実機の確認は AC6 の `[UnityTest]` で閉じる）。
+- AC ごとの判定:
+  - AC1・AC3: `ContentOverlaySessionTests`（26）・`BuildContentOverlayBaseTests`（15）が Passed。照合の 5 欄・宣言・digest の書式、`OverlayBaseMismatch` / `OverlayBaseMissing` / `InvalidRoot`、巻き戻しと Play 停止・close・同期終了の層ごとの失敗と再試行、途中の時点、層を足す member の無いことを持つ。成り立つ。
+  - AC2: `OverlayRootRecordTests`（5）と、digest の書式の検査を含む `BuildContentFullModeTests`（25）が Passed。成り立つ。
+  - AC4: `ContentRevisionGateTests`（7。既存 4 件は変更なし、追記 3 件）が Passed。成り立つ。
+  - AC5: `OverlayDirectoryProviderTests`（13）と offline の O1〜O8 が Passed。1 層の route と供給元の既存の test（`RegisteredDirectoryProviderTests`）も変更なしで Passed。成り立つ。
+  - AC6: `OverlayRegistrationIntegrationTests` が両 run で Passed（製品の build 経路の base と上書きの登録・読み・close・登録 0 件・観測窓の Error 0 件を test が assert する）。§2.6 NO-GO (i) に当たる観測は無い。成り立つ。
+  - AC7: 変えない file は diff に無い。既存の test の変更は例外 (1)(2) だけ（fake の adapter 3 つの `Build` の署名と、`digest-1` を SHA-256 の形の定数へ）。列挙された既存の test と offline は Passed。参照の検査は上のとおり。成り立つ。
+  - AC8: `git diff --name-status b0bc9997 266e36bb` は §3 の範囲だけで、asmdef・`AssemblyInfo.cs`・`SceneState`・`tools/Artifacts`・SampleGame の製品 code に変更なし。成り立つ。
+- 判定: **GO**（§2.6。AC1〜AC8 が全て成り立ち、判定必須テストが GO 候補 head で通った。NO-GO (i)・(ii) に当たる観測は無い）。
+- 現在の問いを阻害する欠陥: なし。
+- 阻害しない指摘: なし。
+- 後続スライスの入力: なし。
+- 既知の不安定の記録（§5 の求め）: staging の `Directory.Move` の access denied は 1 回目の `RegisteredDirectoryRouteIntegrationTests` で 1 回起きた。走らせ直した 2 回目では起きなかった。原因は調べていない。
+- 判定必須のうち未実行: なし。
+- 担当・モデル: AI（Claude Code、Anthropic）。B・発見 C と同じ系列（`独立性制約あり`。owner の方針で、独立性のためにモデルを替えない）。
 
 ## 8. Phase C'
 
