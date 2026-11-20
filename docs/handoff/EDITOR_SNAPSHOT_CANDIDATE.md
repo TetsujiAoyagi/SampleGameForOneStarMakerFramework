@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `C`（発見 C の 1 巡目が阻害する指摘なしで終わった（§7）。次は判定 C。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `C`（発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、判定 C は未完了（§7）。次は AC5 の失敗の原因を確かめるスパイク。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `ec92c1ff5f8d872bc7fdef8f65214511a3d397b5`
@@ -22,8 +22,12 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: なし（§6 の D1 は revision 2 の AC2 に取り込んだ。経緯として §6 に残す）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の判定 C（GO 候補 head は implementation head）。凍結した Phase A は revision 2。発見 C は 1 巡目で阻害する指摘なし（§7）。動作確認は B の出口に行い §6 に記録した（未実施なし。B の観測は判定の入力にしない）。
-  - 次の作業: §5 の判定必須テストを走らせる。順は AC5・`RegisteredDirectoryRouteIntegrationTests`・`OverlayRegistrationIntegrationTests` の 1 プロセス（他の Unity を止める）→ 全 EditMode 回帰（空 filter）。起点 filter と offline の test は発見 C の結果（§7）と同じ head だが、判定の bundle では GO 候補 head の結果として扱う。AC6 は実行担当が §6 の `eval` で取り直す。AC5 は 1 度も実行していない。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
+  - 次の Phase・役割: Phase C のスパイク（新しい事実の分類の「スパイク」。owner の決定、§7 の判定 C）。凍結した Phase A は revision 2。対象は implementation head。
+  - 次の作業: AC5 の失敗（§7 の判定 C）の因果を確かめ、修正先を B 適応 / A 再開 / 後続のどれかに分類する。製品の code も test も直さない（直すのは B か、Phase A の新しい revision）。
+    - 確認する条件: AC5（§2.2）と §5 の未知の操作経路 (ii)（EditMode の `[UnityTest]` で `PlaySnapshotSession.Prepare` の後に Play に入り、bridge の宣言が Play mode の中で読めること）。
+    - 観測範囲: 判定 C の生の結果（test の output と `unity.log`。取得先は起動指示で渡す）と head の source を先に読み、仮説を立てる。Unity の限定実行は `EditorSnapshotCandidateIntegrationTests` の 1 class に限り、仮説ごとに 1 回、合計 3 回まで（他の Unity を止め、`pwsh tools/run-tests.ps1 -Filter EditorSnapshotCandidateIntegrationTests`）。観測のための一時の log・assert の追加は commit せず、終わりに作業ツリーを HEAD に戻す。実 Editor の `eval` の観測は (ii) の代替の可否を見る必要がある時に 1 回だけ。
+    - 終了条件: 失敗の原因を一次証拠（log の行・source の行）で特定し、分類と根拠を §7 に書いた時点。3 回で特定できなければ、そこまでの観測と残る仮説を §7 に書いて止める。どちらも、次の手順（B へ差し戻す修正の要点、または Phase A で owner が決めること）を案として書き、owner の判断を待つ。出口で本票の次の役割を「進行役（owner の判断待ち）」に更新し、HANDOFF だけの記録 commit を切る（implementation head 欄は SHA のまま。push しない）。
+  - 判定必須の残り（スパイクの後）: 全 EditMode 回帰と AC6 の観測は未実行。AC5 を含む 3 class の 1 プロセスの結果は §7。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
   - 読む範囲: 既定のとおり（§0〜§8）。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
   - Phase C の進行（owner、2026-11-20）: 進行役が発見 C → 判定 C → C' を順に回し、B への差し戻しがあればその修正も起こす。owner は Remote Control から指示するので、subagent と別 session の起動（`start_session`）は使わない。各担当は CLI で新しい文脈として起こす: 発見 C・判定 C の判断担当と B の修正は `claude -p`（Anthropic。B と同じ系列なので「独立性制約あり（owner 受容）」と §7 に書く。高コストのモデルへ上げない）、C' は cursor-agent の Grok 系（モデルを明示。`.agents/skills/osm-workflow/references/cursor-agent.md`）。Codex（OpenAI）は使えない。Unity の batch test・Content build・AC6 の Editor 操作は進行役が実行担当として凍結済みのコマンドで行い、生の結果を判断担当に渡す（解釈を添えない）。判定 C・C' を起こす直前に PR の timeline の新着を見る。
@@ -696,6 +700,16 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 - 判定 C への意見（判断担当）: 起点 filter は変えない。AC5・`RegisteredDirectoryRouteIntegrationTests`・`OverlayRegistrationIntegrationTests` を 1 プロセスで全 EditMode 回帰より先に走らせる（§5 の未知の経路 (ii) の不成立を先に知るため）。AC5 の XML は 1 件実行・Passed（Ignore でない）と log の `[S3-3 O-1]` を見る。
 - 未確認: AC5 と §5 の (ii)、AC6 の判定用の観測（判定 C が取る）。AC1〜AC4 の test の assert の全文は読んでいない。SampleGame の `Awake` の `SceneManager` 直呼びと、lifecycle 前の `AssetOwner.Scene` の取得は grep していない。
 - 差し戻しの巡: 0（最初のレビュー）。
+
+### 判定 C（1 回目、2026-11-20）: 未完了。AC5 の失敗の原因をスパイクで確かめる
+
+- 対象: GO 候補 head = implementation head `ec92c1ff`。実行担当は進行役（worktree `osm-s4d5`、HEAD `071018ed`、dirty なし。他の Unity は止めた）。
+- 実行: `pwsh tools/run-tests.ps1 -Filter 'EditorSnapshotCandidateIntegrationTests;RegisteredDirectoryRouteIntegrationTests;OverlayRegistrationIntegrationTests'`（約 3 分、Unity は自然終了）。step `failed` / exit 1、XML total 3・passed 2・failed 1、root `Failed(Child)`。
+  - Passed: `RegisteredDirectoryRouteIntegrationTests.InstalledDirectory_ServesScenesAndObjects_WithMatchingRecords_AndClosesAfterRelease`、`OverlayRegistrationIntegrationTests.BaseAndOverlay_AreRegisteredInOrder_ServeTheSelectedLayer_AndCloseOverlayThenBase`。
+  - **Failed（AC5）:** `EditorSnapshotCandidateIntegrationTests.SnapshotScenes_AreTakenReloadedAndReleased_AndUnrequestedCopiesStayOutsideTheLifecycle`。文は「Prepare が bridge に宣言を置いた / Expected: not null / But was: null」（`EditorSnapshotCandidateIntegrationTests.cs:169`、`ExerciseAsync` の中）。test の output の順: `[PlaySnapshot] Prepared in 984 ms: SnapA* (requested) …, SnapB …, SnapD …` → `[PlaySnapshot] Collected leftover snapshots: …\Assets\OsmPlaySnapshot, …OsmPlaySnapshot.meta` → `[AppInit] … SceneResourceMap に未登録のシーンをスキップ: SnapA`（SnapB・SnapD・UIScene も同じ）。
+- 止めたもの: 差し戻しの可能性があるので、全 EditMode 回帰と AC6 の観測は取っていない（判定必須の残り）。判定の判断担当（`claude -p`）は起動したが、owner がスパイクを決めたので結論の前に止めた（出力なし）。
+- owner の決定（2026-11-20、会話）: 失敗の原因をスパイクで確かめてから、どうするか（B 適応 / Phase A へ戻す（§5 の (ii) の「AC5 を実 Editor の `eval` の観測へ移す」）/ 他）を検討する。スパイクは別の session で行う。
+- 差し戻しの巡: まだ数えない（スパイクの結果で決める）。
 
 ## 8. Phase C'
 
