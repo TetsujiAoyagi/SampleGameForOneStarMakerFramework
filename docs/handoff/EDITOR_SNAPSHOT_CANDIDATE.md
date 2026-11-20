@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `C`（Phase A revision 3 で凍結（§5 の (ii) の句だけ。§5.1）。Phase B の修正（AC5 の test の Play への入り方だけ。§6 の「revision 3 の修正」）を終えた。次は判定 C のやり直し。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開と分類した（§7）。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `C'`（判定 C は 2 回目で GO（head `2318d1b0`、Phase A revision 3。§7）。次は C'。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開（revision 3、§5 の (ii) の句だけ）とし、B が AC5 の test の Play への入り方だけを直した（§6）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `2318d1b0`（判定 C の GO 候補 head）
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者 owner（root）、2026-11-20、**Phase A revision 3**（本記録を含む commit。SHA は起動指示と PR 状態ブロックで渡す）。revision 3 の根拠: 判定 C の 1 回目で AC5 が失敗し、§7 のスパイクが原因を §5 の未知の操作経路 (ii) の形（`Prepare` の後に UTF の `EnterPlayMode` で Play に入る）の不成立と特定した。owner が会話で「Phase A に戻ってかっ飛ばしてまた Phase C」と指示した。変えたのは §5 の (ii) の句だけで、A2 の再レビューは行わない（owner）。revision 2 の凍結記録: 承認者 owner（root）、2026-11-20、commit `ecf7e3e7`。revision 2 の根拠: Phase B で、AC2 の「`ContentResolutionException` になり、例外の文が identity と理由を言う」が `Core/` を変えない契約（§2.7、AC7）と両立しないと分かり、owner が会話で例外の型の扱いを決めた（§6 の D1）うえで、「Phase A に戻して、Phase B を飛ばして更新して」と指示した。変えたのは §2.2 の AC2 の失敗経路の句だけで、A2 の再レビューは行わない（owner）。Phase B は、ec92c1ff の実装が revision 2 の AC2 をそのまま満たすので、やり直さない（owner）。revision 1 の凍結記録: 承認者 owner（root）、2026-11-20、commit `4d55af25`。根拠: A2 の 4 件、目的レビューのやり直し、外部計画レビュー 2 巡の採否を §5.1 に記録し、§2.8 の U1〜U12 を決め、2 巡目に blocker と差し戻しの要求が無いことを確かめたうえで、owner が会話で「blocker 無しだから凍結して」と指示した。§2.6 の NO-GO (i) の前提である読み直しの疎通は、凍結の前に空の Scene の複製で成立した（§5）
 - risk: `high`（program の行の値。Scene の所有者と寿命（Scene の台帳に 3 つ目の種別を足す）、起動の段の順序、`SceneDirector` の load の分岐、Editor の public の引数を変える）
 - owner: root（依頼者）
@@ -22,10 +22,9 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: なし（§6 の D1 は revision 2 の AC2 に取り込んだ。経緯として §6 に残す）
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C のやり直し（進行役）。凍結した Phase A は revision 3（§5 の (ii) の句だけを改めた。§5.1）。GO 候補 head は implementation head（本票を含む commit。§6 の「revision 3 の修正」）。
-  - 次の作業: 判定必須の全てを新しい GO 候補 head で取る（1 回目の結果は head が変わったので判定の入力にしない）。最初に AC5 を含む 3 class の 1 プロセス（`pwsh tools/run-tests.ps1 -Filter 'EditorSnapshotCandidateIntegrationTests;RegisteredDirectoryRouteIntegrationTests;OverlayRegistrationIntegrationTests'`）を走らせる。この batch が、B が取っていない test の assembly の compile の確認を兼ねる（`error CS` 0 を見る）。AC5 の XML は 1 件実行・Passed（Ignore でない）と、log の `[S3-3 O-1]` の行を見る。続けて起点 filter、offline の test、全 EditMode 回帰、AC6 の観測（§5）。B は `pwsh tools/contract-audit.ps1` を実行できなかった（§6）ので、判定 C の機械検査で取る。
-  - 差し戻しの巡: A 再開なので B と発見 C の巡には数えない（進行役の決定。判定 C で見つかった凍結文の不成立で、B の実装の欠陥ではない）。発見 C を挟むかは進行役が決める（owner の指示は「Phase A に戻ってかっ飛ばしてまた Phase C」。変わったのは AC5 の test の Play への入り方だけ）。
-  - 判定必須の残り: AC5 を含む 3 class の 1 プロセス、起点 filter、offline の test、全 EditMode 回帰、AC6 の観測（全て新しい head で）。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
+  - 次の Phase・役割: C'（進行役が cursor-agent の Grok 系で起こす）。対象は判定 C と同じ head `2318d1b0`。
+  - 次の作業: 判定 C の evidence bundle と C' blind bundle を同じ head から作り（`.agents/skills/osm-workflow/references/review-evidence.md`）、C' を起こす。C' の結果を §8 に書く。
+  - 差し戻しの巡: 0。
   - 読む範囲: 既定のとおり（§0〜§8）。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
   - Phase C の進行（owner、2026-11-20）: 進行役が発見 C → 判定 C → C' を順に回し、B への差し戻しがあればその修正も起こす。owner は Remote Control から指示するので、subagent と別 session の起動（`start_session`）は使わない。各担当は CLI で新しい文脈として起こす: 発見 C・判定 C の判断担当と B の修正は `claude -p`（Anthropic。B と同じ系列なので「独立性制約あり（owner 受容）」と §7 に書く。高コストのモデルへ上げない）、C' は cursor-agent の Grok 系（モデルを明示。`.agents/skills/osm-workflow/references/cursor-agent.md`）。Codex（OpenAI）は使えない。Unity の batch test・Content build・AC6 の Editor 操作は進行役が実行担当として凍結済みのコマンドで行い、生の結果を判断担当に渡す（解釈を添えない）。判定 C・C' を起こす直前に PR の timeline の新着を見る。
@@ -731,6 +730,19 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 - revision 3 で改める句の案: (ii) の「`PlaySnapshotSession.Prepare`（…）を呼んでから `EnterPlayMode` に入り」を、「`PlaySnapshotSession.Prepare`（…）を呼び、同じ editor の tick で `EditorApplication.isPlaying = true` にして Play に入り（UTF の `EnterPlayMode` は `isPlaying` を立てる前に 1 frame 空け、その frame で `PlaySnapshotSession` の idle の解除が準備を消すので使わない。test の中の `IEditModeTestYieldInstruction` で `EnterPlayMode` と同じ手順から最初の待ちを除く）」にする。末尾の「成り立たなければ…Phase A へ戻す」と結果の記録の位置は revision 3 を書く担当が整える。
 - B の修正の要点: `EditorSnapshotCandidateIntegrationTests` で、`Prepare` と `EditorApplication.isPlaying = true` を同じ tick に置く（test の中の `IEditModeTestYieldInstruction`。`EnterPlayMode.Perform` から最初の `yield return null` を除いた形）。宣言の assert の位置は B が決める。製品の code と他の test は変えない。理由を test の comment に 1〜2 行で残す。修正の確認は判定 C のやり直しが兼ねる（3 class の 1 プロセス → 全 EditMode 回帰 → AC6 の観測）。
 - 差し戻しの巡: A 再開なので B と発見 C の巡には数えない案（判定 C で見つかった凍結文の不成立で、B の実装の欠陥ではない）。数え方は進行役が決めて記録する。
+
+### 判定 C（2 回目、2026-11-20）: GO
+
+- 対象: GO 候補 head = implementation head `2318d1b0`（Phase A revision 3。前回の head `ec92c1ff` からの製品・test の差は `EditorSnapshotCandidateIntegrationTests.cs` だけ）。実行担当は進行役（worktree `osm-s4d5`、HEAD `2318d1b0`、dirty なし。他の Unity は止めた）。判断担当は `claude -p` の新しい文脈（Anthropic、Claude Opus 5.5。B と同じモデルなので **独立性制約あり（owner 受容）**）。生の結果だけを渡し、解釈を添えていない。
+- 実行の範囲（owner の指示「実装は変えていないので、飛ばせる test は飛ばす」）: 3 class の 1 プロセスと起点 filter は単独で走らせず、全 EditMode 回帰に含まれることを判断担当が XML で確かめた。別の発見 C は行わず、test の差の review を判定 C が兼ねた。
+- 全 EditMode 回帰（`pwsh tools/run-tests.ps1`、空 filter、Unity 6000.6.9f1、`-nographics`）: XML total 2080・passed 2055・failed 0・skipped 0・inconclusive 25（全て `SampleGame.Tests.Rendering.Vfx.*`）、root `Passed`、`error CS` 0。AC5 の `SnapshotScenes_AreTakenReloadedAndReleased_AndUnrequestedCopiesStayOutsideTheLifecycle` は 1 件実行・Passed（`Collected leftover` は Play の前に出ていない）、`RegisteredDirectoryRouteIntegrationTests`・`OverlayRegistrationIntegrationTests` も Passed、起点 filter の 10 class は計 187 件で全て Passed。step は `failed` / exit 1（Inconclusive のため。§5 の読み方どおり合否に使わない）。**Unity は XML の完成の後に既知の native 終了 stall で約 1.5 時間終わらず、実行担当が CIM の Terminate で強制終了した**（自然終了ではない。合否は XML で読む。Harness README の停止規則により追加調査はしない）。
+- 機械検査（同じ HEAD）: `pwsh tools/contract-audit.ps1` 違反なし、`pwsh tools/docs-audit.ps1` 違反なし（警告 1: program HANDOFF の harvest 時期）、offline の test 72 passed / 0 failed。
+- AC6（実行担当、§5 の検証経路と §6 の `eval`。installed の候補は revision `20261119T154403156Z-dfbf…`、経路の元の値は未設定で、終わりに戻した）: Play A・B・C・D とも合否の読み方の全ての項目が期待どおり。Play A〜C の観測窓の Error / Exception は 0（Console の件数は全ての Play で Error 0、Play C は record の `errorCount 0`）。Play D は `InvalidOperationException`（複製の file が受け付けられない）で失敗し、`Title` は load 済みに 0 個。停止の後は全ての Play で置き場無し・`playModeStartScene` null・`Title.unity` の SHA-256 と Dirty が準備と同じ。Play C と Play D の後に `EditorSettings.asset` の serialize の差（§6 と同じ 2 行。Play C は値の差も）が出て、`git checkout` で戻した。
+- O-2（合否に使わない）: 保存していない `_tint` の赤が `Title` の複製の参照から読めた（Editor の asset と同じ instance）。directory から載った Scene にこの asset の参照は無い。停止の後、asset の file が赤で保存されていた（N1）ので `git checkout` で戻した。O-1（AC5 の log）とともに S3-4 へ渡す。
+- 結論: **GO。** 判定必須の条件、AC1〜AC8、§2.6 の GO 定義は全てこの head の一次証拠で満たされた。NO-GO (i)・(ii) に当たらない。test の差は §5 の (ii)（revision 3）と AC5 に合い、常時契約にも合う（阻害する指摘なし）。
+- 後続スライスの入力（違反根拠なし）: F8: AC5 の test は UTF の `EnterPlayMode` の手順を test の中に写した（`EditorSnapshotCandidateIntegrationTests.cs` の `PrepareAndEnterPlayMode`）ので、UTF の版を上げた時に手順がずれうる → test の手入れ。
+- 判断担当の未確認: UTF の `EnterPlayMode.cs` の source は照合していない（§7 のスパイクの記録に依拠）。AC1〜AC4 の test の assert の全文は読み直していない（実装は `ec92c1ff` から変わらず、発見 C の review に依拠）。
+- evidence bundle の記録（取得案内）は bundle を作った時に §0 に書く。差し戻しの巡: 0。
 
 ## 8. Phase C'
 
