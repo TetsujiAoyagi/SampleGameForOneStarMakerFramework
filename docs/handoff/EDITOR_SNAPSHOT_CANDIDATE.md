@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `C`（発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、判定 C は未完了（§7）。次は AC5 の失敗の原因を確かめるスパイク。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `C`（発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、判定 C は未完了（§7）。スパイクで原因を特定し、B 適応（test だけの修正）と分類した（§7）。次は owner の判断。Phase B は実装・Editor の compile・動作確認（Play A〜D と O-2）を終えている。Phase A は revision 2（AC2 の失敗経路の例外の句だけを改めた。§5.1 の「revision 2」）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `ec92c1ff5f8d872bc7fdef8f65214511a3d397b5`
@@ -22,12 +22,9 @@
 - C' blind bundle の取得案内・状態: 未生成
 - A3 後の決定記録: なし（§6 の D1 は revision 2 の AC2 に取り込んだ。経緯として §6 に残す）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C のスパイク（新しい事実の分類の「スパイク」。owner の決定、§7 の判定 C）。凍結した Phase A は revision 2。対象は implementation head。
-  - 次の作業: AC5 の失敗（§7 の判定 C）の因果を確かめ、修正先を B 適応 / A 再開 / 後続のどれかに分類する。製品の code も test も直さない（直すのは B か、Phase A の新しい revision）。
-    - 確認する条件: AC5（§2.2）と §5 の未知の操作経路 (ii)（EditMode の `[UnityTest]` で `PlaySnapshotSession.Prepare` の後に Play に入り、bridge の宣言が Play mode の中で読めること）。
-    - 観測範囲: 判定 C の生の結果（test の output と `unity.log`。取得先は起動指示で渡す）と head の source を先に読み、仮説を立てる。Unity の限定実行は `EditorSnapshotCandidateIntegrationTests` の 1 class に限り、仮説ごとに 1 回、合計 3 回まで（他の Unity を止め、`pwsh tools/run-tests.ps1 -Filter EditorSnapshotCandidateIntegrationTests`）。観測のための一時の log・assert の追加は commit せず、終わりに作業ツリーを HEAD に戻す。実 Editor の `eval` の観測は (ii) の代替の可否を見る必要がある時に 1 回だけ。
-    - 終了条件: 失敗の原因を一次証拠（log の行・source の行）で特定し、分類と根拠を §7 に書いた時点。3 回で特定できなければ、そこまでの観測と残る仮説を §7 に書いて止める。どちらも、次の手順（B へ差し戻す修正の要点、または Phase A で owner が決めること）を案として書き、owner の判断を待つ。出口で本票の次の役割を「進行役（owner の判断待ち）」に更新し、HANDOFF だけの記録 commit を切る（implementation head 欄は SHA のまま。push しない）。
-  - 判定必須の残り（スパイクの後）: 全 EditMode 回帰と AC6 の観測は未実行。AC5 を含む 3 class の 1 プロセスの結果は §7。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
+  - 次の Phase・役割: 進行役（owner の判断待ち）。§7 のスパイクで AC5 の失敗の原因を特定し、B 適応（AC5 の test だけの修正）と分類した。凍結した Phase A は revision 2。対象は implementation head。
+  - 次の作業（案。owner が決める）: §7 のスパイクの「次の手順の案」のとおり、B の修正（`EditorSnapshotCandidateIntegrationTests` の Play への入り方だけ）を起こし、修正後の head で判定 C をやり直す。製品の code は変えない。
+  - 判定必須の残り（B の修正の後）: AC5 を含む 3 class の 1 プロセス（1 回目の結果は §7。修正後の head でやり直す）、全 EditMode 回帰、AC6 の観測。§6 の N1〜N4（特に N3: 移行中の `eval` が Pipeline の Error を出すこと、N2: O-2 の後に asset の file を戻すこと）は AC6 の観測の手順の注意として読む。
   - 読む範囲: 既定のとおり（§0〜§8）。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
   - Phase C の進行（owner、2026-11-20）: 進行役が発見 C → 判定 C → C' を順に回し、B への差し戻しがあればその修正も起こす。owner は Remote Control から指示するので、subagent と別 session の起動（`start_session`）は使わない。各担当は CLI で新しい文脈として起こす: 発見 C・判定 C の判断担当と B の修正は `claude -p`（Anthropic。B と同じ系列なので「独立性制約あり（owner 受容）」と §7 に書く。高コストのモデルへ上げない）、C' は cursor-agent の Grok 系（モデルを明示。`.agents/skills/osm-workflow/references/cursor-agent.md`）。Codex（OpenAI）は使えない。Unity の batch test・Content build・AC6 の Editor 操作は進行役が実行担当として凍結済みのコマンドで行い、生の結果を判断担当に渡す（解釈を添えない）。判定 C・C' を起こす直前に PR の timeline の新着を見る。
@@ -710,6 +707,20 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 - 止めたもの: 差し戻しの可能性があるので、全 EditMode 回帰と AC6 の観測は取っていない（判定必須の残り）。判定の判断担当（`claude -p`）は起動したが、owner がスパイクを決めたので結論の前に止めた（出力なし）。
 - owner の決定（2026-11-20、会話）: 失敗の原因をスパイクで確かめてから、どうするか（B 適応 / Phase A へ戻す（§5 の (ii) の「AC5 を実 Editor の `eval` の観測へ移す」）/ 他）を検討する。スパイクは別の session で行う。
 - 差し戻しの巡: まだ数えない（スパイクの結果で決める）。
+
+### スパイク（AC5 の失敗の原因、2026-11-20）: 原因を特定。分類は B 適応（test だけの修正）
+
+- 対象: implementation head `ec92c1ff`（worktree `osm-s4d5`、HEAD `49342d03`。製品と test の tree は head と同じ）。担当: 進行役とは別の session（Claude Code、Anthropic。B と同じ系列なので **独立性制約あり（owner 受容）**）。入力は判定 C の生の結果（`unity.log`・`results.xml`・`step.json`）と head の source。
+- **原因:** AC5 の test は `PlaySnapshotSession.Prepare` の後に Unity Test Framework の `EnterPlayMode` で Play に入る（`EditorSnapshotCandidateIntegrationTests.cs:136`、`:147`）。`EnterPlayMode.Perform` は `EditorApplication.isPlaying = true` の前に `yield return null` を 1 回挟む（`com.unity.test-framework` の `UnityEditor.TestRunner/TestRunner/Messages/EnterPlayMode.cs:45`、`:49`）。その 1 frame の `EditorApplication.update` で、`isPlaying` と `isPlayingOrWillChangePlaymode` がどちらも偽のまま宣言が残っているので、`PlaySnapshotSession.OnUpdate` の「Play に至らなかった idle」の解除（`PlaySnapshotSession.cs:219-221`）が `Release` を呼び、bridge・`playModeStartScene`・宣言・複製の folder を消した。その後に Play に入ったので、bridge の宣言が null（`:169` の失敗）で、Unity は開いていた元の `SnapA`・`SnapB`・`SnapD` を Play に読んだ（AppInit の「SceneResourceMap に未登録のシーンをスキップ」の 3 行）。
+- 一次証拠（判定 C の `unity.log`）: 1251 行 `[PlaySnapshot] Prepared in 984 ms …`（stack は test の `:136`）→ 1300 行 `IgnoreFailingMessages:true`（test の `:143`）→ 1303 行 `[PlaySnapshot] Collected leftover snapshots: …\Assets\OsmPlaySnapshot, …OsmPlaySnapshot.meta`（stack は `CollectLeftovers` ← `Release`（`PlaySnapshotSession.cs:205`）← `OnUpdate`（`:221`）← `EditorApplication:Internal_CallUpdateFunctions`）→ 1320 行 `Entering Playmode with Reload Domain disabled.` → 1657・1719・1781 行 AppInit の `SnapA`・`SnapB`・`SnapD` のスキップ。
+- 製品の側は正しい: idle の解除は base `a629f9c1` からある既存の契約（`PlaySnapshotSession` の class の doc comment「Play に至らなかった idle」。本スライスは `OnUpdate` を変えていない）。SampleGame の入口は `Prepare` と `EditorApplication.EnterPlaymode` を同じ tick で呼ぶ（`PlayEntryTransaction.cs:127`、`:132`）ので、この隙間は無い（§6 の動作確認の Play A〜D が成立したことと合う）。
+- 因果の確認（限定実行 1 回、3 回の予算のうち 1 回）: test だけを一時に変え、`EnterPlayMode.Perform` と同じ手順（`ExpectDomainReload` 真、`UnlockReloadAssemblies`、`isPlaying = true`、`isPlaying` まで待つ）から最初の `yield return null` だけを除いた test の中の `IEditModeTestYieldInstruction` を作り、その `Perform` の中で `Prepare` の直後（同じ tick）に `isPlaying = true` にした（宣言の assert は Play に入った後へ移し、`[S3-3 SPIKE]` の log 2 行を足した）。`pwsh tools/run-tests.ps1 -Filter EditorSnapshotCandidateIntegrationTests`（他の Unity は無し、約 1 分）: exit 0、XML total 1・passed 1・failed 0、root `Passed`。log は `Prepared` → `[S3-3 SPIKE] prepared; setting isPlaying in the same tick` → `Entering Playmode` → `[S3-3 SPIKE] after enter: isPlaying=True prepared=True bridgeNull=False` の順で、Play の後に `Collected leftover snapshots`（EnteredEditMode の解除）。AC5 の (1)〜(9) と観測窓の Error の assert、置き場と `playModeStartScene` の片付けまで通った。参考の O-1 の行（合否に使わない。判定の evidence は修正後の判定 C で取り直す）: `[S3-3 O-1] snap=(0,1,0) directory=(1,0,0) sameInstance=false built=(1,0,0) edited=(0,1,0)`。一時の変更は戻し、作業ツリーは HEAD と同じ（dirty なし、`Assets/OsmPlaySnapshot` と fixture の残りなし）。生の結果と一時の変更の説明は進行役のローカルの evidence の folder（`spike`）に置いた（未保存）。
+- **分類: B 適応。** 直すのは AC5 の test の Play への入り方だけで、凍結した条件・契約（idle の解除を含む fail-closed と片付けの契約）・責務配置・公開 API を変えない。AC5 の本文は「`Prepare` で複製と宣言を作って Play に入る」で、入り方の API を決めていない。§5 の未知の経路 (ii) は `EnterPlayMode` の名前を書くが、確かめる中身（EditMode の `[UnityTest]` で `Prepare` の後に Play に入り、bridge の delegate で複製を読め、Play を出た後に片付く）は上の限定実行で成立した。よって (ii) の「成り立たなければ AC5 を `eval` の観測へ移すかを Phase A へ戻す」には当たらないと判断する（`EnterPlayMode` の型そのものを (ii) の条件と読むなら A 再開になるので、owner が確かめる点として下に置く）。
+  - 採らない代案: 製品の `OnUpdate` の解除を遅らせる（既存の片付けの契約を変える。A 再開になり、必要もない）。AC5 を実 Editor の `eval` へ移す（Phase A の新しい revision が要り、test で成立する経路を捨てる）。
+- 次の手順の案（owner の判断待ち）:
+  1. B の修正（`claude -p`）: `EditorSnapshotCandidateIntegrationTests` で、`Prepare` と `EditorApplication.isPlaying = true` を同じ tick に置く（test の中の `IEditModeTestYieldInstruction`。`EnterPlayMode.Perform` から最初の `yield return null` を除いた形）。宣言の assert の位置は B が決める。製品の code と他の test は変えない。理由を test の comment に 1〜2 行で残す（UTF の `EnterPlayMode` の 1 frame の隙間で idle の解除が走る）。§6 に B 適応として記録する。
+  2. 修正の確認は判定 C のやり直しが兼ねる: 修正後の head で 3 class の 1 プロセス → 全 EditMode 回帰 → AC6 の観測（§0 の判定必須の残り）。差し戻しの巡はこれを 1 巡と数える案（判定 C → B → 判定 C）。
+  3. owner が確かめる点: §5 の (ii) の `EnterPlayMode` を「UTF の型」ではなく「Play に入る操作」と読んでよいか（上の分類の前提）。
 
 ## 8. Phase C'
 
