@@ -133,18 +133,17 @@ namespace OneStarMaker.Tests.Editor.Build
             EditorSceneManager.OpenScene(snapA, OpenSceneMode.Single);
             EditorSceneManager.OpenScene(snapB, OpenSceneMode.Additive);
             EditorSceneManager.OpenScene(snapD, OpenSceneMode.Additive);
-            PlaySnapshotSession.Prepare(name => name == "SnapA");
-            var declared = PlaySnapshotSession.Declaration;
-            Assert.That(declared.Select(x => x.Identity), Is.EqualTo(new[] { "SnapA", "SnapB", "SnapD" }));
-            Assert.That(declared.Select(x => x.RequestAtStartup), Is.EqualTo(new[] { true, false, false }));
-            var copies = declared.ToDictionary(x => x.Identity, x => x.CopyPath);
 
             Environment.SetEnvironmentVariable(modeEnv, "addressables", EnvironmentVariableTarget.Process);
             LogAssert.ignoreFailingMessages = true;
             Application.logMessageReceived += OnLog;
             try
             {
-                yield return new EnterPlayMode();
+                yield return new PrepareAndEnterPlayMode(() => PlaySnapshotSession.Prepare(name => name == "SnapA"));
+                var declared = PlaySnapshotSession.Declaration;
+                Assert.That(declared.Select(x => x.Identity), Is.EqualTo(new[] { "SnapA", "SnapB", "SnapD" }));
+                Assert.That(declared.Select(x => x.RequestAtStartup), Is.EqualTo(new[] { true, false, false }));
+                var copies = declared.ToDictionary(x => x.Identity, x => x.CopyPath);
                 var run = ExerciseAsync(installed, digest, expected, copies);
                 yield return new WaitUntil(() => run.IsCompleted);
                 run.GetAwaiter().GetResult();
@@ -503,6 +502,37 @@ namespace OneStarMaker.Tests.Editor.Build
             {
                 PreLoad.TryGetValue(sceneResource.Identity, out var preLoad);
                 return new FixtureScene(sceneResource, sceneQuery, sceneController, preLoad);
+            }
+        }
+
+        /// <summary>
+        /// <see cref="PlaySnapshotSession.Prepare"/> と <c>EditorApplication.isPlaying = true</c> を同じ editor の tick で行って Play に入る。
+        /// UTF の <see cref="EnterPlayMode"/> は isPlaying を立てる前に 1 frame 空け、その frame の update で session の
+        /// 「Play に至らなかった idle」の解除が準備を消すので使わない。手順は EnterPlayMode.Perform から最初の待ちだけを除いた形で、
+        /// SampleGame の入口が Prepare と Play の開始を同じ tick で呼ぶのと同じ条件になる。
+        /// </summary>
+        private sealed class PrepareAndEnterPlayMode : IEditModeTestYieldInstruction
+        {
+            private readonly Action _prepare;
+
+            internal PrepareAndEnterPlayMode(Action prepare)
+            {
+                _prepare = prepare;
+            }
+
+            public bool ExpectDomainReload => true;
+
+            public bool ExpectedPlaymodeState { get; private set; }
+
+            public IEnumerator Perform()
+            {
+                if (EditorApplication.isPlaying) throw new InvalidOperationException("Editor is already in PlayMode");
+                if (EditorUtility.scriptCompilationFailed) throw new InvalidOperationException("Script compilation failed");
+                _prepare();
+                ExpectedPlaymodeState = true;
+                EditorApplication.UnlockReloadAssemblies();
+                EditorApplication.isPlaying = true;
+                while (!EditorApplication.isPlaying) yield return null;
             }
         }
 
