@@ -35,6 +35,7 @@
 
 - **BOOTSTRAP から移送された入力（PR #166、2026-11-08）。** (a) BOOTSTRAP は完了し、initializer は 1,062 行になった（常駐サービスは `FrameworkServiceSet`、UICommon は `BootstrapUiCommonLoader`、旧リモートカタログは `LegacyRemoteCatalogProbe` へ移った）。下の行番号は全て取り直す。(b) `BuildContentDirectoryIntegrationTests` が Content Directory build の所要時間で `[Timeout(360000)]` を超えて Failed になることがあった（2026-11-07 に 668 秒・363 秒、`develop` でも 362 秒。2026-11-08 の再実行では 225 秒で Passed）。失敗した実行のうち後の 2 回は、終了時に固まった別の Unity batch プロセスが残っている間に走った（そのプロセスは 2026-11-08 の時点で CPU を 1 コア使い続けていた。走った時点の負荷は測っていない）。負荷の影響か build 自体が重くなったのかは切り分けていない。timeout の延長は修復と扱わない。所有はこのスライスか BuildSystem 側で、A1 で決める。
 
+- **S3-3（EDITOR_SNAPSHOT_CANDIDATE）から移送された入力（2026-11-21）。** initializer は S3-3 で 1,305 行になった（base `a629f9c1` の 1,197 行から。snapshot の Play の配線（預け元と snapshot の供給元）と、stage `plan-editor-snapshots` → `intake-editor-snapshots` → `request-snapshot-scenes` の分岐。判定は `EditorPlaySnapshotIntake` の純粋な関数にある）。分割の範囲を決める時にこの増分も含める。
 - **base の取り直し。** 下の行番号・型名・可視性は base `d4861882`。`BUILDSYSTEM_STANDALONE_ENTRY` は `ContentDirectoryIndex` や `InstalledRevisionVerifier` 等の public 入口を作る可能性があり（A0 §4.3 X6）、そうなれば facade が越える internal の一覧が変わる。BOOTSTRAP が先に入っていれば initializer の構成と行数も変わる。
 - **不変条件の取り直し。** BOOTSTRAP §2.1 の I1〜I4（公開面、起動順序と stage 名、終了順序、失敗経路）と同じ形の不変条件を、着手時の base の実測で書く。BOOTSTRAP が完了して削除されていれば、git 履歴の同書と harvest 後の `04-app-startup.md` を参照する。
 - **新しい A1 の規則。** 本スライスは新しく A1 を始めるので、[Phase と HANDOFF](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の内部フロー) の利用者の入力の表、目的レビュー、分割の検討、不変条件と成立条件の主張と経路の箇条を適用する。

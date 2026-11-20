@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `D`（判定 C は 2 回目で GO、C' の 1 巡目は阻害する指摘なし（head `2318d1b0`、Phase A revision 3。§7・§8）。次は Phase D。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開（revision 3、§5 の (ii) の句だけ）とし、B が AC5 の test の Play への入り方だけを直した（§6）。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `done`（判定 C は 2 回目で GO、C' の 1 巡目は阻害する指摘なし（head `2318d1b0`、Phase A revision 3。§7・§8）。Phase D は §9。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開（revision 3、§5 の (ii) の句だけ）とし、B が AC5 の test の Play への入り方だけを直した（§6）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `2318d1b0`（判定 C の GO 候補 head）
@@ -757,4 +757,16 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 
 ## 9. Phase D
 
-未着手
+### Phase D（2026-11-21）: merge へ進む
+
+- 担当: 進行役（Claude Code、Anthropic）。owner の指示（会話）「外部レビューされて Blocker なし。Phase D をやってマージして後始末して」。
+- **判定 C と C' の突き合わせ:** 結論は一致した（判定 C は GO、C' は阻害する指摘なし。同じ head `2318d1b0`）。C' は判定 C の所見を受け取らずに、凍結済みの失敗経路（照合の不一致、複製が読めない時、要求の失敗、Play の終わりの解放）と、判定必須テスト・AC5・AC6 の合否の読み方を bundle の生証拠で確かめた。食い違う所見は無い。C' の後続の入力（O-1・O-2、凍結が「まだ保証しない」と書いた範囲）は、判定 C の O-1・O-2 と §2.3 の割り当てと同じである。
+- **外部レビュー（assist、PR の会話、head `2318d1b0`）:** cursor[bot] の実装レビューと、owner が依頼した独立レビューの 2 件とも blocker なし。cursor[bot] が blocker にしなかった 2 点（台帳に既にある預かった Scene を返す経路はその場で照合をやり直さない、起動時の要求の失敗は `SceneManager` で複製を unload する）は、I-4（照合は預かる時点）と I-2 の塞ぎ方（`request-snapshot-scenes` の失敗で複製を unload）のとおりで、凍結した条件の中にある。
+- **後続の入力の行き先（どれも本書の合否を変えない）:**
+  - F1（initializer の増加）→ [RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md) §2。
+  - F2（`EditorSnapshotSceneSource.cs` の同居）、F5（宣言が空・identity の重複の失敗の段と文）、F6・F8（AC5 の test の手入れ）、F7 = N1（`saveAsCopy` が Dirty の asset を書く）、O-1・O-2 → program §8 の「S3-3 から移送した入力」。
+  - F3（payload の無い論理 node の印）、F4（`request-snapshot-scenes` の失敗の後に残る台帳の entry と組）→ 13 章「Editor snapshot の供給元」に harvest。
+- **Evidence の保存・引渡し:** 判定 C の evidence bundle と C' blind bundle は同じ PC にローカル固定済み（`locality` は `local`）で、Phase D で取得し直し、全 EditMode の XML（total 2080・failed 0・root `Passed`）と AC6 の観測を閲覧できた。発見 C・判定 C の 1 回目・スパイクの生出力と、各担当の所見、削除前の本書は、Phase D の bundle として同じ方法で固定した。取得案内（reference と packageSha256）は進行役のローカルの evidence の folder に置き、この文書と PR に実値を書かない。Evidence の日次清掃 job は `passed`。Cloud・別 host への昇格はしていない（読み手がいない）。
+- **harvest:** §0 の harvest to のとおり。13 章「Scene 解放の役割分担」「要求時の Content 解決」（Editor snapshot の供給元、SceneDirector の経路、まだ保証しないこと）、04 章 §4.6、18 章「宣言からの Play 経路」の経路 Built + open scenes、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §2.2 の X4、program §8（S3-3 の行と移送）と §10 の U2。本書は harvest の commit で削除する。
+- task の終了: owner の上の指示を completed の決定として `workflow-task.ps1 end` に記録する。
+- 未完了: なし（merge と worktree の後始末は本書の削除の後に行う）。
