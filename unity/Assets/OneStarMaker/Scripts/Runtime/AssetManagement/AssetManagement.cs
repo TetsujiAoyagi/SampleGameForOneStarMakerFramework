@@ -214,6 +214,15 @@ namespace OneStarMaker.Runtime.AssetManagement
                 return;
             }
 
+#if UNITY_EDITOR
+            // 預かった Scene は預け元の unload で離す。directory の close の後も残るので、_contentDirectory を見ずに先に分ける
+            // （下の else は封じた Addressables の backend に落ちる）。
+            if (scene.Backend is AdoptedScene adopted)
+            {
+                await UnloadAdoptedSceneAsync(adopted);
+            }
+            else
+#endif
             if (_contentDirectory != null && scene.Backend is IContentDirectoryToken)
             {
                 await _contentDirectory.UnloadSceneAsync(scene.Backend);
@@ -313,6 +322,10 @@ namespace OneStarMaker.Runtime.AssetManagement
                 }
             }
 
+#if UNITY_EDITOR
+            // 預かった Scene も印だけを倒す（Unity が解体する）。預け元は 1 回の Play の物なので外す。
+            DetachAdoptedSceneSource();
+#endif
             ReleaseAllAssetsNow();
         }
 

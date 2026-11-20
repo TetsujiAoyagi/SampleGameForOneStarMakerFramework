@@ -7,6 +7,7 @@ using System.Linq;
 using OneStarMaker.Editor.PlaySnapshot;
 using OneStarMaker.Foundation.Config;
 using OneStarMaker.Runtime.AssetManagement;
+using OneStarMaker.Runtime.SceneSystem;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
 using UnityEditor.AddressableAssets.Build.DataBuilders;
@@ -39,7 +40,9 @@ namespace SampleGame.DependOnAll.Editor.Build
             PublishBlocked = PublishBlocked,
             ConfirmSaveScenes = EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo,
             ReplaceWithEmptyScene = () => EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single),
-            PrepareSnapshot = PlaySnapshotSession.Prepare,
+            // 起動時に lifecycle へ要求する Scene の規則: 開いている Scene のうち SceneResourceMap にある物は全て要求する（今までの動きと同じで、
+            // 利用者の新しい入力は無い）。port の Action の形は変えない。
+            PrepareSnapshot = () => PlaySnapshotSession.Prepare(ReadSceneResourceMapNames().Contains),
             ReleaseSnapshot = PlaySnapshotSession.Release,
             CloseObservation = PlayEntryRecord.StopObserving,
         });
@@ -53,6 +56,14 @@ namespace SampleGame.DependOnAll.Editor.Build
             PlaySnapshotSession.SourceChanged += PlayEntryRecord.MarkSourceChanged;
             // batch には Toolbar が無い。
             if (!Application.isBatchMode) PlayEntryRecord.Changed += PlayEntryWindow.RefreshToolbar;
+        }
+
+        /// <summary>SceneResourceMap の Scene 名（Prepare の時点の asset から読む。map が無ければ例外で、入口は準備の失敗として扱う）。</summary>
+        private static HashSet<string> ReadSceneResourceMapNames()
+        {
+            var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SampleGameBootstrapContentComposer.SceneResourceMapPath);
+            if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + SampleGameBootstrapContentComposer.SceneResourceMapPath);
+            return new HashSet<string>(map.SceneResources.Where(x => x != null).Select(x => x.Identity), StringComparer.Ordinal);
         }
 
         /// <summary>回復操作「空 Scene で Play」。保存を拒まれたら偽。</summary>

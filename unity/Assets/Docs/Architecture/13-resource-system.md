@@ -296,6 +296,10 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
 続けて同期 `CompletePlayStop` が所有し、`StopAndDrain` は明示 close だけが使う。`.Forget()` による
 非同期 Unload も持たない。
 
+Editor の snapshot の Play では、台帳は外で読んだ Scene（Play 前の複製）を 3 つ目の種別として預かる（下の「Editor snapshot の供給元」）。
+`UnloadSceneAsync` は預かった Scene を預け元の unload に渡し、`ReleaseAll` は台帳の印だけを倒す（Unity が解体する）。
+`CloseContentDirectoryAsync` は directory の token の Scene だけを unload し、預かった Scene は close の後も台帳に残る。
+
 ### 要求時の Content 解決（`Runtime/ContentResolution/`）
 
 呼び出し側が供給元の種類や所在を知らないまま、要求に対して候補を得てロードし、何をどの供給元から得たかを説明するための任意の層である。
@@ -329,7 +333,7 @@ Play Mode 終了で `Addressables.UnloadSceneAsync` を呼ぶと `Cannot find ha
   （base の 4 欄 `osm.compat.overlayBase*`、build した Editor の Unity の版、root の schema）。互換の基準は base の検証済みの値のままで、上書きの候補は記録した base の値を基準と比べる。
   上書きの候補の digest は空なので、上書きを pin で選ぶ要求は作れない（上書きの登録中に base の版を選べないことの帰結）。
 - **寿命。** 供給元は session と同じ寿命で、session の token を取らず native の load もしない。供給元が生きていても close は完了する。close と Play 停止の後は `Unavailable` を返す。
-- **置き場。** `Directory/` は BuildContent の session・索引・定数と、`AssetManagement` の internal の問い合わせ 1 つ（`IsInstalledContentDirectory`）を使う連携部分である。参照の向きは `Directory/` → BuildContent・AssetManagement・`Core/` の一方向で、AssetManagement と BuildSystem 本体は `ContentResolution` を参照しない。`Core/` は Unity と BuildContent を参照せず、loader は BuildContent を知らない。
+- **置き場。** `Directory/` は BuildContent の session・索引・定数と、`AssetManagement` の internal の問い合わせ 1 つ（`IsInstalledContentDirectory`）を使う連携部分である。参照の向きは `Directory/` → BuildContent・AssetManagement・`Core/` の一方向で、AssetManagement と BuildSystem 本体は `ContentResolution` を参照しない。`Core/` は Unity と BuildContent を参照せず、loader は BuildContent を知らない。`EditorSnapshot/` も連携部分で、`Core/` と、`AssetManagement` の internal の預かる口・預け元を据える口・預け元の port を使い、Bootstrap と BuildContent を参照しない（宣言は配線が値に写して渡す）。
 
 #### record と実ロード元の一致
 
@@ -351,17 +355,37 @@ loader が成功として返す record の候補の identity は、その handle
 - loader を渡した `SceneDirector`（internal の constructor。public の constructor は変えない）は、content directory の分岐で Scene を loader で読み、record をその Scene の組に持たせる。`GetContentLoadRecord(sceneIdentity)` が今持つ Scene の record を返す。loader を通らずに用意した Scene（Addressables、既に `SceneManager` にあって再利用した Scene、payload の無い論理 node）、持っていない id、unload の後は null で、例外にしない。失敗・取消の後始末で組が外れると record も消える。
 - 起動時の表現は全 Scene に同じ値なので、それが空でも `Full` でもない時だけ fallback に `Full` を明示して要求する。表現を持たない Scene は `Full` で載り、record の表現は `Full` になる。
 - loader が拒んだ時は既存の load の失敗と同じ後始末をし、content 入口を直接呼んで読み直さない。取消は今までどおり Unity の Scene の load に渡さない。
+- loader が「既ロードの口を持つ供給元がこの identity を宣言している」と答えた identity に限り、`SceneDirector` は payload の無い論理 node の判定の後、`SceneManager` にある同名の Scene の再利用より前に loader に尋ねる（下の「Editor snapshot の供給元」）。宣言に無い identity と snapshot の無い Play の順は変わらず、Unity が既に載せた同名の Scene を再利用する（その Scene に record は無い）。
 - 起動での配線の条件は [04 章 §4.6](04-app-startup.md#46-play-from-any-sceneeditor-対応)。
+
+#### Editor snapshot の供給元（`EditorSnapshot/`。Editor の build だけ）
+
+経路 Built + open scenes の Play（[18 章](18-asset-description.md)「宣言からの Play 経路」）では、入口が Play の前に作った複製を要求時解決の供給元の 1 つにする。
+開いて編集した Scene はその Play の間ずっと複製で動き、開いていない Scene は directory の版で動き、途中で黙って入れ替わらない。
+新しい型と分岐は全て `#if UNITY_EDITOR` の中にあり、Player の compile の結果は変わらない。配線は [04 章 §4.6](04-app-startup.md#46-play-from-any-sceneeditor-対応)。
+
+- **宣言にある identity には複製だけが答える（fail-closed）。** `EditorSnapshotProvider`（id `editor-play-snapshot`）は policy の先頭に置かれ、宣言にある identity の Scene の要求には常に `Available`（由来 `EditorSnapshot`、根拠 `OpenSceneSnapshot`、経路 `AlreadyLoadedScene`、identity は空）を返し、`NotFound` と `Unavailable` を返さない。このため resolver は directory の供給元へ進まない。宣言に無い identity と Object の要求には `NotFound` を返す。expected identity を載せた要求は、identity の無い `Rejected` で探索を止める（理由は「この Play はこの Scene を snapshot から読む」）。これは `Rejected` の元の意味（供給元が申告と bytes の食い違いを検出した）より広い使い方である。
+- **候補の表現は要求の写しである。** 候補は要求の表現をそのまま申告し、表現の指定が無い要求には `Full` を申告する。複製を採る理由は利用者が開いている Scene であることで、表現も digest も検証しない。snapshot の record の表現は、中身の表現の保証ではない。
+- **既ロードの経路。** loader は経路 `AlreadyLoadedScene` の候補を、供給元の internal の口（`IContentSceneLoadBinding`）に任せる。供給元は台帳の預かる口を呼び、台帳は directory の load と同じ gate の中で、load 済みの複製を読み直さずに採るか、無ければ複製の path を読み直す。load を終えた時点の Scene を照合し（名前が identity と等しい、path が宣言の複製、同名の load 済みの Scene が他に無い。照合は 1 つの純粋な関数で、起動の取り込みも同じ関数を使う）、合った時だけ台帳に入れて `SourceBindingVerified` を true にする。record の事実は `osm.editorSnapshot.sourcePath` / `copyPath` / `wasDirty` / `sha256`。
+- **採れない時は directory へ進まない。** file が無い、load が失敗した、同名が別の path で load 済み、のどれでも、預け元は identity と理由を文に持つ `InvalidOperationException` を投げ、loader は包まずに通す（content 入口の load の失敗と同じ扱い）。読んだ Scene は unload され、loader も `SceneDirector` も directory から読み直さない。既ロードの口を持たない供給元の `AlreadyLoadedScene` の候補は `LoadPathUnsupported`、預け元を据えていない `AssetManagement` と組んだ候補は `SourceBindingMismatch` で、どちらも load の前に `ContentResolutionException` で拒む。
+- **台帳が預かる。** 配線は Play の初めに預け元（`IAdoptedSceneSource`）を `AssetManagement` に 1 つ据え、宣言の identity を予約する（その時点で台帳に同じ identity があれば起動の失敗）。予約した identity の `LoadContentSceneAsync` は、複製が台帳にあるかどうかに関係なく `EntryAmbiguous` で拒む。resolver を通さない直接の呼び手も、snapshot の Play の間は宣言にある identity を directory から読めない。預かるのは directory が受付中の時だけで、同じ identity の並行の預かりは 1 回の取得で同じ Scene を返す。取得の途中の取消は、Unity の load が止まらないので完了を待って unload してから取消を返す。預け元の unload は、既に無効な Scene を unload 済みと扱い、load 済みの Scene の unload の失敗は例外にして台帳を未 unload のまま残す（もう一度呼べる）。台帳は snapshot を知らず、外で読んだ Scene、その unload の手段、予約する identity だけを知る。
+- **物理的な load と lifecycle を分ける。** 取り込みは宣言の全ての複製を起動時に物理的に load するが、lifecycle に入るのは明示的に要求された Scene だけである。起動時の要求は Play の入口が複製ごとの印で宣言し（`PlaySnapshotSession.Prepare` の必須の引数。Framework は「開いていれば要求する」という既定を持たない。SampleGame の入口は「SceneResourceMap にある Scene は全て要求する」）、その後の要求は Runtime の code が出す。未要求の複製は load 済みのまま `SceneDirector` の組を持たず、台帳に現れず、Framework はその Scene の `AssetOwner.Scene` の所有を作らない。Unity の `Awake` / `Start` は止めない。要求した Scene の親や子として SceneResourceMap が指す Scene は、明示の要求の帰結であって未要求ではない。
+- **host の規約（Framework は強制しない）。** Scene が要求されて lifecycle に入る前に、その Scene の `AssetOwner.Scene` で asset を取らない。`AssetRegistry` は owner の Scene に組や台帳の entry があるかを検査しないので、規約に反して取った asset は、後のその Scene の要求の失敗の後始末で、Scene が load 済みのまま解放されうる。
+- **後始末が他の Scene を名前で unload しない。** `SceneDirector` は宣言にある identity の組を、作る時点で「台帳経由で unload する」と印す。PreLoad の取消・失敗などの後始末は `UnloadSceneAsync(identity)` だけを呼び、台帳に無ければ何もしないので、未要求の複製は load 済みのまま残る。宣言にある identity で SceneResource の payload が空の論理 node でも、印は台帳経由のままにする（名前の unload に戻すと未要求の複製を離しうる）。
+- **起動時の要求の失敗。** stage `request-snapshot-scenes` の `AddScene` が失敗すると、load 済みの複製を取り込みの失敗と同じ規則で全て unload してから起動の失敗にする。要求済みの Scene の台帳の entry と `SceneDirector` の組は、起動の失敗の後始末（`ReleaseAll`）まで残る。
+- **由来の表示。** Editor の `PlaySnapshotSession.SourceChanged` は「宣言の identity と同名の Scene が複製以外の path で load された」とだけ言う。どの供給元から来たかの正本は Runtime の record である（SampleGame の入口の record は由来を `snapshot->other` と書く）。複製の file の中身は Play の間に再検証しない。record は複製の path と、Play の前の SHA-256・Dirty を事実として持つ。
 
 #### まだ保証しないこと
 
-- 供給元は登録した session の層（base と任意の上書き 1 つ）だけである。上書きを Play に載せる入口、Editor snapshot の候補、Local / LAN の供給元、要求の時点の install は無い。
+- 供給元は登録した session の層（base と任意の上書き 1 つ）と、Editor の snapshot の Play の複製だけである。上書きを Play に載せる入口、Local / LAN の供給元、要求の時点の install は無い。
+- Editor snapshot は Scene の要求にだけ答え、開いている Scene が参照する asset・prefab の手元の版を届けない。未要求の複製を要求まで load しないこと、snapshot の無い配線済みの Play で Unity が載せた同名の Scene を拒むことも無い。
+- game の code が `SceneManager` を直接呼んで載せた同名の Scene は扱わない。同じ identity を `SceneDirector` と loader の直接の呼び手が同時に持つ使い方は保証しない（台帳は identity ごとに 1 件で参照を数えないので、片方の unload がもう片方の Scene を離す）。`SceneDirector` の unload の Phase 2 と Phase 3 の間（`ExecuteAfterUnLoad` の `await`）に同じ identity を再び要求すると、Phase 3 の `ReleaseScene` が新しい entry を消しうる。directory の Scene も snapshot の Scene も同じである。
 - record が言うのは採用した **root の entry** の層までで、その Scene から見える依存の asset の版が同じ層に揃うことは言わない（上の「id による影」の限界）。
 - 起動時の読み込み（UICommon の Scene、SceneResourceMap）と、`SceneBase` が読む付属 asset は resolver を通らず、record は無い。Player では配線しない。
 - 採用の後に content 入口が失敗した時、probe と候補は呼び手に残らない。`Rejected` の expected identity は record に残らない。要求をまたぐ pin と revision の固定は無い。
 - `SceneDirector` の取消は Unity の Scene の load に届かない。
 - resident cache から取り出す asset が別の directory・別の層の物にならないことは cache の key に依る。key は session に共通の前置き（base の path・identity・target）の後に、上書きの層なら `~overlay:` と上書きの path・identity を続け、close と Play 停止の退避は共通の前置き 1 回で両方の層に届く。key を作るのは session（`GetObjectKey`・`CachePrefix`）と `AssetManagement.EvictContentDirectoryCache` だけである。
-- 実 Editor での確認は Reload Domain 無効の Play だけで、Reload Domain 有効と Player の実機は確かめていない。session と gate の層の化を通る 1 層の経路の Player の実機の非退行は S4 が確かめる。
+- directory の層の経路の実 Editor での確認は Reload Domain 無効の Play だけである。snapshot の Play は Reload Domain の無効と有効の両方で確かめた。Player の実機は確かめていない。session と gate の層の化を通る 1 層の経路の Player の実機の非退行は S4 が確かめる。
 
 #### 候補の互換判定（`ContentCompatibilityRule`）
 

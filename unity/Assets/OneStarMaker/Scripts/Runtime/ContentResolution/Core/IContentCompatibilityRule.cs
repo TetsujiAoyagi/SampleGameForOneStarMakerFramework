@@ -7,8 +7,8 @@ namespace OneStarMaker.Runtime.ContentResolution
     /// </summary>
     /// <remarks>
     /// この契約は既定の実装を置かない。identity 等値のような既定を置くと、互換判定（identity・digest・target・schema）の
-    /// 製品実装が決めるべき既定値を先に凍結してしまうためである。製品実装が入るまでは、ホストは自前の規則を渡さない限り
-    /// <see cref="ResolutionPolicy"/> を組めない。
+    /// 既定値を契約に凍結してしまうためである。製品の判定は <see cref="ContentCompatibilityRule"/> が持ち、ホストはそれか自前の規則を
+    /// 渡して <see cref="ResolutionPolicy"/> を組む。
     /// 規則が <see cref="System.OperationCanceledException"/> 以外の例外を投げると、resolver は fault として探索を止める（fail-closed）。
     /// </remarks>
     public interface IContentCompatibilityRule

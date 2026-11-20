@@ -251,7 +251,7 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(warnings, Has.Count.EqualTo(1), "Warning は 1 回の Play で identity ごとに 1 回");
             Assert.That(warnings[0], Does.Contain("Title"));
             var origin = Current.record.origins.Single();
-            Assert.That(origin.origin, Is.EqualTo(PlayEntryRecord.OriginSnapshotThenDirectory));
+            Assert.That(origin.origin, Is.EqualTo(PlayEntryRecord.OriginSnapshotThenOther));
             Assert.That(origin.path, Is.EqualTo("Assets/SampleGame/Scenes/Title.unity"));
         }
 

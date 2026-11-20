@@ -419,6 +419,14 @@ namespace OneStarMaker.Runtime.SceneSystem
                 {
                     LoadCts = loadCts
                 };
+#if UNITY_EDITOR
+                // Editor の Play の複製（snapshot）が宣言する identity は、組を作る時点で「台帳経由で unload する」と印す。
+                // PerformUnitySceneLoad に入る前の後始末（AddScene の取消の窓、PreLoad の失敗・取消）も、この印で
+                // UnloadSceneAsync(identity) だけを呼び、台帳に無ければ何もしない。名前の unload に落とすと、load 済みのまま
+                // lifecycle の外に居る未要求の複製を離してしまう。予約により、この identity の台帳の entry は預かった複製だけである。
+                if (_contentLoader != null && _contentLoader.DeclaresAlreadyLoadedScene(sceneIdentify))
+                    pair.BackendSceneLoaded = true;
+#endif
                 _currentScenes.Add(sceneIdentify, pair);
                 newlyCreatedScenes.Add(sceneIdentify);
                 // OnPreLoadedImpl 以降で Assets.LoadAsync(ref, sceneId) と付随 asset の読み口が使えるよう注入。
@@ -629,6 +637,24 @@ namespace OneStarMaker.Runtime.SceneSystem
         protected virtual async UniTask<(bool BackendSceneLoaded, GameObject[] RootObjects)>
             PerformUnitySceneLoad(string sceneIdentify, SceneResource sceneResource, int priority)
         {
+#if UNITY_EDITOR
+            // 複製が宣言する identity は、load 済みの同名の Scene を名前で再利用する前に loader で読む（由来を確かめずに採ると、
+            // record が無く、再要求が directory から読まれる）。宣言に無い identity の順は下のまま変えない。
+            if (_contentLoader != null && _contentLoader.DeclaresAlreadyLoadedScene(sceneIdentify))
+            {
+                var declaredDescription = sceneResource.SceneAssetDescription
+                    ?? throw new InvalidOperationException($"Scene reference not found: {sceneIdentify}");
+                // payload の無い論理 node の判定は今と同じ順で先に置く。組は台帳経由の unload の印のまま返す（台帳に無いので unload は何もしない）。
+                if (declaredDescription.Payloads.Count == 0)
+                {
+                    return (true, Array.Empty<GameObject>());
+                }
+
+                return await LoadThroughContentLoaderAsync(
+                    sceneIdentify, new SceneLoadOptions(LoadSceneMode.Additive, activateOnLoad: true, priority: priority));
+            }
+
+#endif
             var unityScene = SceneManager.GetSceneByName(sceneIdentify);
             if (!unityScene.IsValid() || !unityScene.isLoaded)
             {

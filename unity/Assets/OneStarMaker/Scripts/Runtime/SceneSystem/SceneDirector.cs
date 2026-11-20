@@ -34,8 +34,8 @@ namespace OneStarMaker.Runtime.SceneSystem
             public SceneBase SceneBase { get; }
 
             /// <summary>
-            /// PerformUnitySceneLoad が Addressables 経由でロードした場合 true。
-            /// Phase 2/3 で AssetManagement 経由の Unload/Release に使用する。
+            /// Scene を AssetManagement の Scene の台帳経由で unload する組なら true（Addressables・Content Directory・Editor の Play の複製から読んだ Scene）。
+            /// Phase 2/3 で AssetManagement 経由の Unload/Release に使用する。複製が宣言する identity は組を作る時点で true にする。
             /// Editor 既存シーン等で SceneManager から取得した場合は false。
             /// </summary>
             public bool BackendSceneLoaded { get; set; }

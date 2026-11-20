@@ -81,6 +81,30 @@ namespace OneStarMaker.Runtime.ContentResolution
             AssetManagement.AssetManagement assetManagement,
             out RegisteredDirectoryRoute? route,
             out string notCreatedReason)
+            => TryCreateCore(session, assetManagement, null, out route, out notCreatedReason);
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// route を組み立て、<paramref name="leadingProvider"/> を policy の先頭（directory の供給元より前）に置く。
+        /// Editor の Play の複製（snapshot）の供給元を足す配線だけが使う。供給元の型は知らない（<see cref="IContentProvider"/> として受ける）。
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="leadingProvider"/> が null。</exception>
+        internal static bool TryCreate(
+            ContentDirectorySession session,
+            AssetManagement.AssetManagement assetManagement,
+            IContentProvider leadingProvider,
+            out RegisteredDirectoryRoute? route,
+            out string notCreatedReason)
+            => TryCreateCore(session, assetManagement, leadingProvider ?? throw new ArgumentNullException(nameof(leadingProvider)),
+                out route, out notCreatedReason);
+#endif
+
+        private static bool TryCreateCore(
+            ContentDirectorySession session,
+            AssetManagement.AssetManagement assetManagement,
+            IContentProvider? leadingProvider,
+            out RegisteredDirectoryRoute? route,
+            out string notCreatedReason)
         {
             if (session == null) throw new ArgumentNullException(nameof(session));
             if (assetManagement == null) throw new ArgumentNullException(nameof(assetManagement));
@@ -112,6 +136,16 @@ namespace OneStarMaker.Runtime.ContentResolution
             var providers = overlayProvider == null
                 ? new IContentProvider[] { provider }
                 : new IContentProvider[] { overlayProvider, provider };
+#if UNITY_EDITOR
+            // 先頭の供給元（snapshot）は directory の層より前に置く。宣言にある identity には常に答えるので、directory の層は probe されない。
+            if (leadingProvider != null)
+            {
+                var withLeading = new IContentProvider[providers.Length + 1];
+                withLeading[0] = leadingProvider;
+                Array.Copy(providers, 0, withLeading, 1, providers.Length);
+                providers = withLeading;
+            }
+#endif
             var policy = new ResolutionPolicy(providers, new ContentCompatibilityRule(envelope));
             route = new RegisteredDirectoryRoute(provider, overlayProvider, envelope, policy, new ContentRequestLoader(assetManagement, policy));
             notCreatedReason = string.Empty;

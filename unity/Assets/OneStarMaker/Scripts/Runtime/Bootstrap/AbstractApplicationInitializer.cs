@@ -94,6 +94,13 @@ namespace OneStarMaker.Runtime
         /// SceneDirector の Scene の読み込みと、host の code の直接の要求が共有する。
         /// </summary>
         private ContentRequestLoader? _contentLoader;
+#if UNITY_EDITOR
+        /// <summary>
+        /// loader の policy の先頭に置いた Editor の Play の複製（snapshot）の供給元。snapshot を宣言した Play で、loader を配線した時だけ作る。
+        /// 起動の計画は、これが無い snapshot の Play を起動の失敗にする。
+        /// </summary>
+        private EditorSnapshotProvider? _snapshotProvider;
+#endif
         private PlayerBakedContentConfiguration? _bakedPlayerContent;
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
@@ -420,21 +427,40 @@ namespace OneStarMaker.Runtime
                 }
 
 #if UNITY_EDITOR
-                // Editor の Play 入口が宣言した Scene の複製を、登録より前に読む。封じは IAssetManagement の Addressables の取得経路だけが対象で、
-                // この段は IAssetManagement を通らない。読んだ複製は次の登録で名前のとおり再利用され、同名を directory から読まない。
-                if (_contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration
-                    && _config != null && _config.GetBool(EditorPlaySnapshotBridge.ExpectedConfigKey))
+                // Editor の Play 入口が snapshot を宣言した Play の計画。取り込み（複製の load）より前に決め、成り立たなければ複製を読まずに起動の失敗にする。
+                progress.Stage = "plan-editor-snapshots";
+                var snapshotPlan = EditorPlaySnapshotIntake.PlanStartup(
+                    _config != null && _config.GetBool(EditorPlaySnapshotBridge.ExpectedConfigKey),
+                    _contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration,
+                    _contentLoader != null && _snapshotProvider != null,
+                    EditorPlaySnapshotBridge.Declaration,
+                    name => _sceneResourceMap!.GetSceneResource(name) != null);
+                if (snapshotPlan.Failure != null)
+                    throw new InvalidOperationException(snapshotPlan.Failure);
+
+                if (snapshotPlan.RequestsSnapshotScenes)
                 {
+                    // 宣言の複製を全て物理的に load して照合する。封じは IAssetManagement の Addressables の取得経路だけが対象で、
+                    // この段は IAssetManagement を通らず、Scene の台帳にも触らない（lifecycle に入れるのは次の段の明示の要求だけ）。
                     progress.Stage = "intake-editor-snapshots";
                     await IntakeEditorSnapshotsAsync(ct);
-                }
 
+                    // load 済みの Scene の走査はしない。物理的に load されていることを lifecycle への要求にしないため、
+                    // 入口が「起動時に要求する」と印した Scene だけを要求する。印の無い複製は load 済みのまま lifecycle の外に居る。
+                    progress.Stage = "request-snapshot-scenes";
+                    await RequestSnapshotScenesAsync(snapshotPlan.Requested, ct);
+                }
+                else
+                {
 #endif
-                // Editor のプレイモードで開いていたシーンを SceneDirector に登録する。
-                // PerformUnitySceneLoad が SceneManager.GetSceneByName でロード済みシーンを検出し、
-                // 再ロードせず RootGameObjects を返すため二重ロードは発生しない。
-                progress.Stage = "register-loaded-scenes";
-                await RegisterAlreadyLoadedScenes(ct);
+                    // Editor のプレイモードで開いていたシーンを SceneDirector に登録する。
+                    // PerformUnitySceneLoad が SceneManager.GetSceneByName でロード済みシーンを検出し、
+                    // 再ロードせず RootGameObjects を返すため二重ロードは発生しない。
+                    progress.Stage = "register-loaded-scenes";
+                    await RegisterAlreadyLoadedScenes(ct);
+#if UNITY_EDITOR
+                }
+#endif
 
                 if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0
                     && !RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration))
@@ -517,7 +543,7 @@ namespace OneStarMaker.Runtime
                 foreach (var scene in declaration)
                 {
                     if (scene.IsActive) SceneManager.SetActiveScene(SceneManager.GetSceneByPath(scene.CopyPath));
-                    Debug.Log(EditorPlaySnapshotIntake.FormatLoadedLog(scene));
+                    Debug.Log(EditorPlaySnapshotIntake.FormatIntakeLog(scene));
                 }
             }
             catch (OperationCanceledException)
@@ -526,22 +552,59 @@ namespace OneStarMaker.Runtime
             }
             catch (Exception)
             {
-                foreach (var target in EditorPlaySnapshotIntake.SelectUnloadTargets(declaration, CaptureLoadedScenes()))
-                {
-                    try
-                    {
-                        var unload = SceneManager.UnloadSceneAsync(SceneManager.GetSceneByPath(target.Path));
-                        if (unload == null)
-                            Debug.LogError("[AppInit] Editor play snapshot cleanup could not unload " + target.Path + ".");
-                        else
-                            await unload.ToUniTask();
-                    }
-                    catch (Exception unloadException)
-                    {
-                        Debug.LogError("[AppInit] Editor play snapshot cleanup also failed for " + target.Path + ": " + unloadException);
-                    }
-                }
+                await UnloadEditorSnapshotCopiesAsync(declaration);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 起動時の要求: 入口が印した複製だけを、宣言の並び順に SceneDirector へ要求する（要求ごとに 1 行 log）。
+        /// <para>
+        /// 失敗したら、load 済みの複製を取り込みの失敗と同じ規則で全て unload してから例外を出す。起動の失敗の後始末は Unity の Scene を
+        /// unload しないので、段のほかに回収する者がいない。Play の終了による cancel では unload しない（Unity が片付ける）。
+        /// </para>
+        /// </summary>
+        private async UniTask RequestSnapshotScenesAsync(IReadOnlyList<EditorPlaySnapshotScene> requested, CancellationToken ct)
+        {
+            try
+            {
+                foreach (var scene in requested)
+                {
+                    await _sceneDirector!.AddScene(scene.Identity, null, ct);
+                    Debug.Log(EditorPlaySnapshotIntake.FormatRequestLog(scene.Identity, _sceneDirector!.IsSceneStable(scene.Identity)));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                var declaration = EditorPlaySnapshotBridge.Declaration;
+                if (declaration != null) await UnloadEditorSnapshotCopiesAsync(declaration);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// load 済みの宣言の複製を全て unload する（起動の段の失敗の後始末）。unload の失敗は Error の log にし、元の例外を隠さない。
+        /// </summary>
+        private static async UniTask UnloadEditorSnapshotCopiesAsync(IReadOnlyList<EditorPlaySnapshotScene> declaration)
+        {
+            foreach (var target in EditorPlaySnapshotIntake.SelectUnloadTargets(declaration, CaptureLoadedScenes()))
+            {
+                try
+                {
+                    var unload = SceneManager.UnloadSceneAsync(SceneManager.GetSceneByPath(target.Path));
+                    if (unload == null)
+                        Debug.LogError("[AppInit] Editor play snapshot cleanup could not unload " + target.Path + ".");
+                    else
+                        await unload.ToUniTask();
+                }
+                catch (Exception unloadException)
+                {
+                    Debug.LogError("[AppInit] Editor play snapshot cleanup also failed for " + target.Path + ": " + unloadException);
+                }
             }
         }
 
@@ -710,7 +773,17 @@ namespace OneStarMaker.Runtime
         {
             if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
                 throw new InvalidOperationException("The configured asset manager cannot serve content resolution.");
+#if UNITY_EDITOR
+            var snapshot = CreateEditorSnapshotProvider();
+            RegisteredDirectoryRoute? route;
+            string notCreatedReason;
+            var created = snapshot == null
+                ? RegisteredDirectoryRoute.TryCreate(session, assetManagement, out route, out notCreatedReason)
+                : RegisteredDirectoryRoute.TryCreate(session, assetManagement, snapshot.Value.Provider, out route, out notCreatedReason);
+            if (!created)
+#else
             if (!RegisteredDirectoryRoute.TryCreate(session, assetManagement, out var route, out var notCreatedReason))
+#endif
             {
                 Debug.Log($"[AppInit] Content resolution: wired=false reason={notCreatedReason}");
                 return string.Empty;
@@ -720,8 +793,40 @@ namespace OneStarMaker.Runtime
             var identity = route.Provider.Identity;
             Debug.Log($"[AppInit] Content resolution: wired=true provider={route.Provider.Id} contentSet={identity.ContentSet} " +
                       $"revision={identity.Revision} target={identity.Target} manifestSha256={identity.Digest}");
+#if UNITY_EDITOR
+            if (snapshot != null)
+            {
+                // 預け元を据えて宣言の identity を予約する（以後、その identity は directory の content 入口から読めない）。
+                // 予約の時点で同じ identity の Scene が台帳にあれば例外で、起動の失敗にする。
+                assetManagement.InstallAdoptedSceneSource(snapshot.Value.Source);
+                _snapshotProvider = snapshot.Value.Provider;
+                Debug.Log($"[AppInit] Content resolution: snapshot provider={snapshot.Value.Provider.Id} " +
+                          $"scenes={snapshot.Value.Provider.DeclaredCount} requested={snapshot.Value.RequestedCount}");
+            }
+#endif
             return route.FallbackRepresentation;
         }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// この Play が snapshot を宣言していれば（config の key が真で、bridge に宣言がある）、預け元と供給元を同じ宣言の instance から作る。
+        /// 宣言していなければ null。key があって宣言が無い Play は、ここでは作らず、起動の計画が起動の失敗にする。
+        /// </summary>
+        private (EditorSnapshotSceneSource Source, EditorSnapshotProvider Provider, int RequestedCount)? CreateEditorSnapshotProvider()
+        {
+            if (_config == null || !_config.GetBool(EditorPlaySnapshotBridge.ExpectedConfigKey))
+                return null;
+            var declaration = EditorPlaySnapshotBridge.Declaration;
+            var loadScene = EditorPlaySnapshotBridge.LoadScene;
+            if (declaration == null || loadScene == null)
+                return null;
+
+            var source = new EditorSnapshotSceneSource(EditorPlaySnapshotIntake.ToDeclaredScenes(declaration), new UnityEditorSnapshotSceneIo(loadScene));
+            // 表現の指定が無い要求に申告する表現は、directory が代わりに返す Full と同じ値にする。
+            var provider = new EditorSnapshotProvider(source, ContentEntryMatch.Full);
+            return (source, provider, declaration.Count(x => x.RequestAtStartup));
+        }
+#endif
 
         /// <summary>
         /// root の宣言（runtime 既定値と表現の主値）と起動設定・実効表現を比べ、違いを Warning 1 行で出す。
@@ -889,6 +994,9 @@ namespace OneStarMaker.Runtime
             _assetManagement = null;
             _contentDirectorySession = null;
             _contentLoader = null;
+#if UNITY_EDITOR
+            _snapshotProvider = null;
+#endif
 
             _sceneResourceMap = null;
 

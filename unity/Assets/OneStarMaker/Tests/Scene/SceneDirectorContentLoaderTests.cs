@@ -14,6 +14,7 @@ using OneStarMaker.Runtime.AssetManagement.Internal;
 using OneStarMaker.Runtime.ContentResolution;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Tests.AssetManagement;
+using OneStarMaker.Tests.ContentResolution;
 using OneStarMaker.Tests.SceneSystem.Helpers;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -275,6 +276,92 @@ namespace OneStarMaker.Tests.SceneSystem
             Assert.That(_director.GetContentLoadRecord("Entry"), Is.Not.Null, "読み直した Scene には新しい記録が付く");
         });
 
+        // ─── Editor の Play の複製（snapshot）が宣言する identity ───
+
+        [UnityTest]
+        public IEnumerator DeclaredSnapshotScene_IsReadThroughTheLoader_AndUnloadedThroughTheRegistry()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var snapshot = Snapshot();
+            snapshot.Io.AddLoaded("Snap", SnapCopy);
+            var director = CreateRecordingDirector(snapshot, Resource("Snap"));
+
+            await director.AddScene("Snap", null, CancellationToken.None);
+
+            var record = director.GetContentLoadRecord("Snap");
+            Assert.That(record, Is.Not.Null);
+            Assert.That(record!.Candidate.SourceKind, Is.EqualTo(ContentSourceKind.EditorSnapshot));
+            Assert.That(snapshot.Io.Loads, Is.Zero, "load 済みの複製を採る");
+            Assert.That(_port.SceneLoads, Is.Zero);
+
+            await director.UnloadScene("Snap");
+            Assert.That(director.Unloads, Is.EqualTo(new[] { ("Snap", true) }), "台帳経由で unload する");
+            Assert.That(snapshot.Io.Unloads, Is.EqualTo(1));
+        });
+
+        [UnityTest]
+        public IEnumerator DeclaredSnapshotScene_CanceledInPreLoad_IsCleanedUpThroughTheRegistryOnly()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var snapshot = Snapshot();
+            var unrequested = snapshot.Io.AddLoaded("Snap", SnapCopy);
+            var director = CreateRecordingDirector(snapshot, Resource("Snap"));
+            using var cts = new CancellationTokenSource();
+            Factory.OnCreated = scene =>
+            {
+                scene.PreLoadAction = async ct =>
+                {
+                    cts.Cancel();
+                    await UniTask.WaitUntilCanceled(ct);
+                    ct.ThrowIfCancellationRequested();
+                };
+            };
+
+            var canceled = false;
+            try { await director.AddScene("Snap", null, cts.Token); }
+            catch (OperationCanceledException) { canceled = true; }
+
+            Assert.That(canceled, Is.True);
+            Assert.That(director.Unloads, Is.EqualTo(new[] { ("Snap", true) }), "名前の unload に落とさず、台帳経由（台帳に無いので何もしない）");
+            Assert.That(unrequested.IsLoaded, Is.True, "load 済みのまま lifecycle の外に居る複製を離さない");
+            Assert.That(snapshot.Io.Unloads + snapshot.Io.Loads, Is.Zero);
+            Assert.That(director.ContainsScene("Snap"), Is.False);
+        });
+
+        [UnityTest]
+        public IEnumerator DeclaredSnapshotScene_FailedInPreLoad_IsCleanedUpThroughTheRegistryOnly()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var snapshot = Snapshot();
+            var unrequested = snapshot.Io.AddLoaded("Snap", SnapCopy);
+            var director = CreateRecordingDirector(snapshot, Resource("Snap"));
+            Factory.OnCreated = scene => scene.PreLoadAction = _ => throw new InvalidOperationException("PreLoad failure");
+
+            var failed = false;
+            try { await director.AddScene("Snap", null, CancellationToken.None); }
+            catch (InvalidOperationException) { failed = true; }
+
+            Assert.That(failed, Is.True);
+            Assert.That(director.Unloads.All(x => x.Item1 == "Snap" && x.Item2), Is.True, "宣言にある identity は台帳経由だけ");
+            Assert.That(unrequested.IsLoaded, Is.True);
+            Assert.That(snapshot.Io.Unloads, Is.Zero);
+            Assert.That(director.ContainsScene("Snap"), Is.False);
+        });
+
+        [UnityTest]
+        public IEnumerator UndeclaredScene_KeepsTheExistingCleanupFlag()
+            => UniTask.ToCoroutine(async () =>
+        {
+            var snapshot = Snapshot();
+            var director = CreateRecordingDirector(snapshot, Resource("Other"));
+            Factory.OnCreated = scene => scene.PreLoadAction = _ => throw new InvalidOperationException("PreLoad failure");
+
+            try { await director.AddScene("Other", null, CancellationToken.None); }
+            catch (InvalidOperationException) { }
+
+            Assert.That(director.Unloads.All(x => x.Item1 == "Other" && !x.Item2), Is.True, "宣言に無い identity の後始末は今と同じ");
+        });
+
         [Test]
         public void LoaderWithoutContentDirectoryMode_IsRejected()
         {
@@ -285,6 +372,44 @@ namespace OneStarMaker.Tests.SceneSystem
         }
 
         // ─── fixture ───
+
+        private const string SnapCopy = "Assets/OsmPlaySnapshot/1_2_ab/Snap.unity";
+
+        private (EditorSnapshotProvider Provider, FakeSceneIo Io) Snapshot()
+        {
+            var io = new FakeSceneIo();
+            var source = new EditorSnapshotSceneSource(
+                new[] { new EditorSnapshotDeclaredScene("Snap", SnapCopy, "Assets/Scenes/Snap.unity", false, "abc") }, io);
+            _assets.InstallAdoptedSceneSource(source);
+            return (new EditorSnapshotProvider(source, "Full"), io);
+        }
+
+        private RecordingDirector CreateRecordingDirector((EditorSnapshotProvider Provider, FakeSceneIo Io) snapshot, params SceneResource[] resources)
+        {
+            Map = SceneTestHelper.CreateSceneResourceMap(resources);
+            CreatedSOs.Add(Map);
+            var loader = new ContentRequestLoader(_assets, new ResolutionPolicy(new IContentProvider[] { snapshot.Provider, new Provider() }, new AcceptAllRule()));
+            var director = new RecordingDirector(Factory, UICommon, Map, _assets, loader);
+            _director = director;
+            return director;
+        }
+
+        /// <summary>Unity の Scene の unload の判断（台帳経由か、名前か）を記録する SceneDirector。</summary>
+        private sealed class RecordingDirector : SceneDirector
+        {
+            internal RecordingDirector(ISceneFactory factory, Runtime.UISystem.UICommon ui, SceneResourceMap map, IAssetManagement assets, ContentRequestLoader loader)
+                : base(factory, ui, map, new NoLoadingDisplay(), assets, "Full", true, loader, "Full")
+            {
+            }
+
+            internal List<(string, bool)> Unloads { get; } = new();
+
+            protected override UniTask PerformUnitySceneUnload(string sceneIdentify, bool backendSceneLoaded)
+            {
+                Unloads.Add((sceneIdentify, backendSceneLoaded));
+                return base.PerformUnitySceneUnload(sceneIdentify, backendSceneLoaded);
+            }
+        }
 
         private SceneDirector CreateDirector(Provider provider, string variant, params SceneResource[] resources)
         {
