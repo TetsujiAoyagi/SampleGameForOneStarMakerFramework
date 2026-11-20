@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-3）
-- status: `C'`（判定 C は 2 回目で GO（head `2318d1b0`、Phase A revision 3。§7）。次は C'。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開（revision 3、§5 の (ii) の句だけ）とし、B が AC5 の test の Play への入り方だけを直した（§6）。Phase A の採否は §5.1、未決事項の決定は §2.8）
+- status: `D`（判定 C は 2 回目で GO、C' の 1 巡目は阻害する指摘なし（head `2318d1b0`、Phase A revision 3。§7・§8）。次は Phase D。経緯: 発見 C の 1 巡目は阻害する指摘なし。判定 C の 1 回目で AC5 が失敗し、スパイクで原因を特定して A 再開（revision 3、§5 の (ii) の句だけ）とし、B が AC5 の test の Play への入り方だけを直した（§6）。Phase A の採否は §5.1、未決事項の決定は §2.8）
 - branch: `claude/editor-snapshot-candidate`（PR の base は `develop`）
 - implementation base commit: `a629f9c1`（`origin/develop` の head、2026-11-19。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `2318d1b0`（判定 C の GO 候補 head）
@@ -18,12 +18,12 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§3、§4.1、§4.4、§5.2、§6、§8 の S3-3 と S0-b・S0-d・S1・S3-1 からの移送、§9 の G12・G21・G23）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5。C / C' が読む凍結版は、A3 凍結版の commit の本書 §0〜§5）
 - Phase B result snapshot の取得案内・状態: 未生成（stage は使っていない。発見 C は implementation head の commit を入力にする）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の evidence bundle（head `2318d1b0`）。取得案内は進行役のローカル
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head。取得案内は進行役のローカル（C' は取得して監査した）
 - A3 後の決定記録: なし（§6 の D1 は revision 2 の AC2 に取り込んだ。経緯として §6 に残す）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（進行役が cursor-agent の Grok 系で起こす）。対象は判定 C と同じ head `2318d1b0`。
-  - 次の作業: 判定 C の evidence bundle と C' blind bundle を同じ head から作り（`.agents/skills/osm-workflow/references/review-evidence.md`）、C' を起こす。C' の結果を §8 に書く。
+  - 次の Phase・役割: Phase D（owner の判断を受けて harvest・merge の準備）。対象は head `2318d1b0`（判定 C GO、C' 阻害する指摘なし）。
+  - 次の作業: 判定 C と C' の突き合わせ、後続スライスの入力（§7 の F1〜F8、§8）の行き先の確認、§0 の harvest to への harvest。evidence の取得案内は進行役のローカルにある（Phase D で取得の確認をする）。
   - 差し戻しの巡: 0。
   - 読む範囲: 既定のとおり（§0〜§8）。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と Content Directory の build（AC5。他の Unity を止めて走らせる。§5）、AC6 の Unity Editor（`unity open` と `tools/unity-editor.cmd eval`）。installed の候補は §6 の動作確認と同じ revision を使える。B が開いた Editor は終了済み。
@@ -746,7 +746,14 @@ revision 2 の注: この節は revision 1 の下で書いた Phase B の記録�
 
 ## 8. Phase C'
 
-未着手
+### C'（1 巡目、2026-11-20）: 阻害する指摘なし
+
+- 対象: head `2318d1b0`（判定 C と同じ。base `a629f9c1`）。担当: cursor-agent の Grok 系（`grok-4.7-high`、`--mode=ask`、新しい文脈、約 7 分）。B・発見 C・判定 C（Anthropic）と別の系列。進行役が起こし、所見・結論は渡していない。
+- 入力: C' blind bundle（進行役が同じ head から作り、同じ PC にローカル固定。取得を確かめた。取得案内は進行役のローカルにあり、この文書に実値を書かない）と、head の tree から本書を除いた写し。bundle の中身は、判定 C の evidence bundle（全 EditMode の XML・log・step と実行記録、機械検査の出力、AC6 の観測と実際に動いた `eval`）に、head の本書の §1〜§6 と base..head の diff（本書を除く）を足したもの。§0 は status 行が発見 C の結論を含むので外した。§5 の (ii)・§5.1 の revision 3 の行・§6 の「revision 3 の修正」は判定 C の 1 回目とスパイクに触れるが、凍結した Phase A と Phase B の結果の本文なので書き換えずに入れた（進行役の判断）。
+- 結論: **阻害する指摘なし。** 凍結済みの失敗経路（照合の不一致、複製が読めない時、要求の失敗、Play の終わりの解放）を実装の順で確かめ、判定必須テストと AC5・AC6 の合否の読み方が bundle の生証拠で満たされると判断した。
+- 後続スライスの入力: O-1・O-2 の観測（S3-4 へ。§7 と同じ値）。凍結が「まだ保証しない」と書いた範囲（game の code の `SceneManager` の直呼び、同じ identity の同時要求、unload の途中の再要求）は実装もその範囲のまま。
+- 未確認（C' の申告）: Player の実機（§2.8 U8 で判定必須の外）、SampleGame の `Awake` の `SceneManager` の直呼び、bundle の内容 hash の再計算。
+- 差し戻しの巡: 0。判定 C と C' の突き合わせは Phase D の担当が行う。
 
 ## 9. Phase D
 
