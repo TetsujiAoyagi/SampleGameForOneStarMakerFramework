@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `C`（発見 C の 2 回目を待つ。差し戻し 1 巡目の B は D1・D2 を直した（§6「発見 C の差し戻し 1 巡目」）。A3 凍結版は revision 1。発見 C の指摘 D1・D2 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `B`（発見 C の差し戻し 2 巡目を待つ。発見 C の 2 回目は D1・D2 の直しを閉じ、新しい指摘 D3（AC6 の test が R1 の Play に入らない）を返した（§7「発見 C（2 回目）」）。A3 凍結版は revision 1。発見 C の指摘 D1〜D3 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `f81a872e33ab3639700b1188dcf4f677e98a6ab2`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C の 2 回目。差し戻し 1 巡目の後）。
-  - 次の作業: §6「発見 C の差し戻し 1 巡目」の直し（D1・D2）を、§7 の指摘に照らして見直し、§5 の起点 filter を走らせる（直した test の `OverlayFromLocalEditsIntegrationTests` は Content Directory の build を伴うので、起点 filter に足すかは C が根拠付きで決める）。差し戻しが無ければ判定 C へ進める。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（差し戻し 1 巡目の B の出口の commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）。B が開いた Editor は B の出口で閉じた。資格情報は要らない。
-  - 停止規則: §2.6。直しの見直しで §3 に無い file の変更、asmdef・`InternalsVisibleTo` の追加が要ると分かったら B へ返す。
+  - 次の Phase・役割: Phase B（発見 C の差し戻し 2 巡目）。
+  - 次の作業: §7「発見 C（2 回目）」の D3 を直す（`OverlayFromLocalEditsIntegrationTests` が R1・R4 で Play mode に入ってから登録する形にする）。直しは §3 の test の file の中で閉じる見込み。§6 に差し戻し 2 巡目の記録を足し、票を発見 C（3 回目）へ更新する。
+  - 読む範囲: 既定（§0〜§5、差し戻しなので §6〜§8 も）。
+  - 引き継ぐ commit: この票を含む commit（発見 C の 2 回目の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Editor でのコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test は B では走らせない（Phase C が直しの確認に同じ test を走らせる）。資格情報は要らない。発見 C が走らせた Unity は全て終わっていて、Editor は開いていない。
+  - 停止規則: §2.6。直しに §3 に無い file の変更、product の code の変更、asmdef・`InternalsVisibleTo` の追加が要ると分かったら止めて、§4 の差し戻しの条件に照らす。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -583,6 +583,52 @@ R8 は同じ head の 2 つの checkout にまたがる。test の class の doc
 **判定必須のうち未実行:** AC6 の R0〜R7（`OverlayFromLocalEditsIntegrationTests`）、R8、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。差し戻しが決まったので走らせていない（Content Directory の build を伴う test は判定 C でまとめる）。
 
 **次:** B へ戻す（1 巡目）。D1・D2 を直した head で、発見 C が直した箇所と起点 filter を見直す。
+
+### 発見 C（2 回目、2026-11-22）
+
+- 種別: 発見 C（差し戻し 1 巡目の後）。GO 判定はしない。C' は起動しない。
+- 対象: implementation base `63f171ac`、implementation head `f81a872e`（差し戻し 1 巡目の B の出口の commit）。直しの差分は `git diff f79b73c0 f81a872e`、完全 diff は `git diff 63f171ac f81a872e`。どちらも commit で固定した。
+- evidence bundle: 未生成（判定 C が GO 候補 head で作る）。
+- 担当・モデル: AI（Claude Code、Anthropic）。Phase B と同じ系列で、`独立性制約あり`。
+- 引継ぎの照合: 起動指示の SHA と HEAD が一致し、作業ツリーは clean。implementation head 欄は「この票を含む commit」で、HEAD と親の差分に `docs/handoff/` 以外の file がある（implementation head は HEAD）。PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は一致した。PR の timeline の新着は全て A3 の前の head（`cf344338`・`60b69684`・`f1194a7a`）宛てで、A3 が §5.1 と U17 で扱い済み。`f79b73c0`・`f81a872e` 宛ての新着は無い。
+
+**D1・D2 の直しの見直し**
+
+- D1: 閉じた。`AssertSourceClosureMatchesTheBuild` は、記録の root の集合と `index` の entry の集合の一致、記録の root の GUID と plan の selected の `PhysicalKey`（root の GUID）の一致、各 root の閉包と snapshot の閉包の生の値での一致、記録の path が全て `sourceFiles` にあること、読み口の「あり」を見る。HTTP の install は既存の `LoopbackArtifactServer` の経路で、Local と HTTP の `transport.json` を公開した bytes と比べる。下の run 1 で、これらの assert は全て通った（失敗はその後の R1 の Play）。
+- D2: 閉じた。12 引数の `BuildContentResult` の constructor と `ContentOverlayRecord.Plan` は internal で、使う側は `OneStarMaker.Build.Content` の中と、`InternalsVisibleTo` の範囲の test だけ。
+- 範囲（AC8）: 直しが変えた file は §3 の file と §3 の test の接頭辞の file と本書だけ。`git diff --name-only 63f171ac f81a872e` の `Runtime/` は `ContentTransportManifest.cs` だけで、Selection、SampleGame の製品 code、asmdef、`AssemblyInfo.cs` に差分は無い。
+
+**現在の問いを阻害する指摘**
+
+| # | severity | category | 指摘 | 違反する条件 | 一次証拠 | 修正先 |
+|---|---|---|---|---|---|---|
+| D3 | major | semantic | AC6 の `OverlayFromLocalEditsIntegrationTests.R0ToR7_PlanBuildAndPlayFromLocalEdits_InAPartialCheckout` が R1 の Play で毎回失敗する。`yield return new EnterPlayMode()` の後も Play mode に入らず、`ReadScenesAsync` の登録が `ContentLoadManager.RegisterContentDirectory is not supported in edit mode` で例外になる。log に `Entering Playmode` の行が一度も無い。単独でも、D1 の前の test の版（`f79b73c0`）でも同じ。同じ形の既存の `OverlayRegistrationIntegrationTests` は単独で Passed で、`Entering Playmode with Reload Domain disabled.` が出る。違いは、新しい test が `EnterPlayMode` を入れ子の `IEnumerator`（`Play(...)`、258 行）の中で yield していることである。test framework の `TestEnumerator.Execute` は入れ子の enumerator を展開して yield し直すだけで、既存の test と R8 の test は `EnterPlayMode` を test の本体の直下で yield している。これが原因という見立ては、framework の code を読んだ推定で、直して走らせるまで確かめていない。R1 より後（R2〜R7）は走っていない | AC6（R1 と R4 の「登録して Play」、S-1・S-2 の Play の部分） | 下の run 1・3・4 の XML と `unity.log`。`OverlayFromLocalEditsIntegrationTests.cs` 154・195・258〜273 行。`OverlayRegistrationIntegrationTests.cs` 138 行 | B 適応。test の file の中で直す（例: `Play` の中身を test の本体へ戻して `EnterPlayMode` を直下で yield する）。直した後の確認は Phase C が同じ test を走らせて行う。product の code の変更が要ると分かったら §4 に照らす |
+
+**後続スライスの入力:** なし。
+
+**観測（指摘ではない）:** run 1 の後、空の folder `unity/Assets/OneStarMakerGenerated 1` と `.meta` が残った（test framework が「test が片付けなかった file」として報告）。中身は空で、この担当が消した。run 3・4 では残らなかった。D3 の失敗で `Cleanup` までの順が崩れた結果かは確かめていない。B は D3 を直す時に、失敗した時の片付けを見てよい（受け入れ条件の追加ではない）。
+
+**機械検査**
+
+- `pwsh tools/contract-audit.ps1`: exit 0、違反なし。
+- `pwsh tools/docs-audit.ps1`: exit 0、警告 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 が埋まっているという harvest の案内。本書の変更ではない）。
+
+**Unity の batch test（head `f81a872e`、Unity 6000.6.9f1、`-nographics`、EditMode、sandbox 外、2026-11-22）**
+
+起点 filter に `OverlayFromLocalEditsIntegrationTests` を足した。理由は、D1 の直しが test の assert そのもので、直しの確認にはその test を走らせるしか無いため（phase-c の「当該欠陥の修正確認に必要な場合は限定実行できる」）。受け入れ条件の追加ではない。run 2〜4 は D3 の原因の切り分けで、それぞれ 1 class だけを走らせた。どの run も Unity は自然に終わった（終了 stall なし）。Editor は開いていなかった（`tools/unity-editor.cmd status` に instance なし。動いていたのは Unity CLI の identity service だけ）。
+
+| run | filter | 結果 |
+|---|---|---|
+| 1 | §5 の起点 filter の 13 class と `OverlayFromLocalEditsIntegrationTests` | root result `Failed(Child)`、total 230、passed 229、failed 1（`R0ToR7_…`。D3）。起点 filter の 13 class は 229 件全て Passed で、件数は 1 回目の発見 C と同じ |
+| 2 | `OverlayRegistrationIntegrationTests` | `Passed`、total 1、passed 1 |
+| 3 | `OverlayFromLocalEditsIntegrationTests` | `Failed(Child)`、total 1、failed 1。run 1 と同じ例外 |
+| 4 | `OverlayFromLocalEditsIntegrationTests`（test の 2 file だけを一時的に `f79b73c0` の版にした。走らせた後に HEAD の版に戻し、作業ツリーは clean） | `Failed(Child)`、total 1、failed 1。同じ例外。D3 は D1 の直しより前からある |
+
+- 生のログと XML は worktree の `TestResults/` の下に残した（判定の証拠ではない）。
+
+**判定必須のうち未実行:** AC6 の R2〜R7、R8、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。差し戻しが決まったので走らせていない。
+
+**次:** B へ戻す（2 巡目。上限は 4 巡）。D3 を直した head で、発見 C が `OverlayFromLocalEditsIntegrationTests` を走らせて R0〜R7 と AC7 の実機の部分を確かめ、起点 filter を見直す。
 
 ## 8. Phase C'
 
