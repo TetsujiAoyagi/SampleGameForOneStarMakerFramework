@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `A`（A3 凍結済み、revision 1。次は Phase B。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `B`（Phase B 完了。A3 凍結版は revision 1。次は発見 C。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,11 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順序で実装する。最初の作業は §4 の (1)（未測定 (i)〜(iv) と R8 の経路の確認）で、結果を §6 に書く。出口の次の担当は発見 C（動作確認は `対象なし`。§5）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Unity の実 Editor。§4 の (1) は、対象を限定した Editor 操作として B が行う（A3 で凍結した実行経路。対象は未測定 (i)〜(iv) と R8 の経路の観測に限る）。R8 の経路の確認は新しい worktree を使う。それ以外の Unity の実行は Editor のコンパイル確認までで、batch の test の実行と判定は Phase C が行う。資格情報は要らない。
-  - 停止規則: §2.6 の NO-GO (i)〜(iv) と、§4 の「Phase B から Phase A へ差し戻す条件」に当たれば、実装を止めて owner に返す。
+  - 次の Phase・役割: Phase C（発見 C）。動作確認は `対象なし`（§5、§6）。
+  - 次の作業: implementation base から head までの差分を、§2 の受け入れ条件と §3 の責務マップに照らしてレビューし、§5 の起点 filter と判定必須テストを走らせて §7 に書く。R8 は同じ head の 2 つの checkout にまたがる `[Explicit]` の test で、走らせ方は §6 の「判定 C への引渡し」。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の出口の commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`）と、R8 のための新しい worktree の作成と初回の import（約 11 分）。Content Directory の build を伴う test は他の Unity を止めて走らせる（§5）。資格情報は要らない。
+  - 停止規則: §2.6。NO-GO (i)〜(iv) に当たる観測（特に AC6 の R4・R8 で `B` の `T` が編集後の色）は owner に返す。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -464,7 +465,71 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
 
 ## 6. Phase B 実装結果
 
-未着手
+### §4 の (1) 未測定 (i)〜(iv) と R8 の経路の観測
+
+2026-11-21、Unity 6000.6.9f1、A3 凍結版（`b0c78b47`）の worktree で、対象を限定した Editor 操作（`tools/unity-editor.cmd eval`）として取った。観測用の一時 script と fixture は commit せず、観測の後に消した。fixture は §2.2 の「AC6 の回」の形（Scene `A`・`AWhitebox`・`B` が texture `T` を Light の cookie として直接参照し、Scene `C` が material `M`（texture `U`）を使う）。plan と snapshot は手で組んだ（製品の計画の code は未実装の時点）。どれも不成立ではなく、§2.6 の NO-GO と §4 の差し戻しの条件には当たらない。
+
+| 未測定 | 観測 |
+|---|---|
+| (i) | `B` と `AWhitebox` を `.meta` と一緒に `Assets` の外へ退かして `Refresh` した project で、`A` だけの上書き（`T` を編集後の色）を製品の coordinator で build した。成功（約 15 秒）。R8 の経路（下）でも成功 |
+| (ii) | base（`A`・`B`・`C`）と、`A` だけの上書きを Play mode で `RegisterVerifiedWithOverlay` で登録して読んだ。`A` は上書きから載り（record は上書き）cookie の pixel は編集後の色、`B` は base から載り（record は base）cookie の pixel は base の build の時の色、`C` は base。close の後の登録は 0 件 |
+| (iii) | `M` だけを退かした時、`AssetDatabase.GetDependencies(C, true)` は `C` 自身だけを返した（`M` の path も、`M` からしか届かない `U` も返さない）。欠けの記録は出ず、手元の閉包が小さく見えるだけである。閉包の記録の asset の解決（GUID が file を指すか）で `C` の欠けを見分けられる（下の (iv) の注意のとおり、file の有無で判定する）。§4 の差し戻しの条件「記録の閉包の asset の解決だけでは依存の欠けを見分けられない」には当たらない。記録の無い base では、依存の file だけが欠けた root は検出に現れない（§2.3 の「記録に無い root の依存だけが手元に無い場合」と §2.8 U7 の既知の制約のとおり） |
+| (iv) | 退かして戻した `B`・`AWhitebox`・`M` の GUID と、`C` の依存は元のまま。**退かしている間も、一度 import した Library の `AssetDatabase.GUIDToAssetPath` と `AssetPathToGUID` は消えた asset の GUID と path の対応を返し続けた。** そのため、手元の解決は file の有無で決める（`UnityContentOverlayLocalSource`）。materialize では、この状態の root は `UnresolvedRootGuid` ではなく `MissingRootAsset` の欠け（`RootFileMissing`）になる |
+
+R8 の経路: 新しい worktree（`git worktree add --detach`、clean な `Library`。初回の import は約 11 分）に、`B` と `AWhitebox` を除く fixture の file を `.meta` ごと写してから Editor を開いた。`B` と `AWhitebox` の GUID は `GUIDToAssetPath` が空を返し（一度も import していない）、写した file の GUID は元の checkout と同じ。元の checkout が build・publish した base を install し、この worktree で `A` だけの上書きを build した（成功）。Play で `A` は上書きの編集後の色、`B` は base の色だった。観測の後に worktree を消した。
+
+### 実装
+
+- `Runtime/BuildContent/Distribution/ContentTransportManifest.cs`: 任意の欄 `sourceClosure` と serializable の型 4 つ（`ContentSourceClosure`・`Root`・`Asset`・`Group`）。logic は無い。
+- Materialization: `MaterializeAllowingAbsentSources`、`BuildMaterializationAbsence`（理由は `RootUnresolved` / `RootFileMissing` / `DependencyMissing`）、`BuildMaterializationSnapshot.Absences` と欠けの記録を持つ internal の constructor、`AssetDependencySnapshotBuilder.BuildAllowingAbsence`。今の `Materialize` と `Build` は同じ入力に同じ結果を返す。
+- Content:
+  - `ContentSourceClosureRecord`（記録の作成と読み口。状態は Present / Missing / Unsupported / Invalid）。
+  - `ContentOverlayPlanner.Plan` と `ContentOverlayEditDetection`（検出）、`ContentOverlayPlan`（状態 3 つ、編集、上書き・他の供給元・作り直せない root、`Acknowledge`、`GetReusableResult`）。
+  - `ContentOverlayLocalSource`（手元を読む port と実物、閉包の hash の共通関数 `ContentSourceHashes`）、`ContentOverlayReuse`（鍵、`overlay/<contentSet>.json` の記録）。
+  - `ContentOverlaySelection`（上書きの root が決まった後の結果を作る internal の `Result` を出し、計画と共有する。public の `Select` の結果は変えない）。
+  - `BuildContentRequest(ContentOverlayPlan)`、`BuildContentResult.OverlayKey`、preflight の `rootClosures`・`sourceHashRecord`・`sourceHashes`・`overlayUnbuildable`・`overlaySupplied`・`overlayKey`、outcome の `overlayKey`。
+  - coordinator の build の前後の hash（全ての build）と、計画から作った上書きの Unity の前の存在の確認・計画の時の hash との比較・再利用の記録の書き込み。issue code `SourceChangedDuringBuild`・`SourceFileMissing`。
+  - publisher の build の前の hash からの `sourceFiles`、記録の作成と読み直し、上限の超過で版 0 と `Debug.LogWarning`。
+- test（新）: `ContentSourceClosureRecordTests`（AC1）、`ContentOverlayPlannerTests`（AC2・AC4）、`MaterializeAllowingAbsentSourcesTests`（AC3）、`ContentOverlayBuildAndReuseTests`（AC5）、`SourceClosurePublishTests`（AC7 の単体）、共有の fixture `OverlayPlanWorld`（以上 `OneStarMaker/Tests/Editor/Build/`）。`OverlayFromLocalEditsIntegrationTests`（AC6 の R0〜R7 と AC7 の実機の一部）、`OverlayFromLocalEditsR8Tests`（R8）、共有の fixture `OverlayFromLocalEditsFixture`（以上 `SampleGame/Tests/Editor/Build/`）。
+- 行数: 製品 code は約 1,450 行増（§3 の見込みは約 1,100）。`ContentOverlayPlan.cs` が見込みより約 90 行多いのは公開型の doc comment で、責務は増えていない。§2.5 の境界で分けるほどではないと判断した（500 行・50% の警報に当たる file は無い）。test は約 1,470 行（OneStarMaker）と約 800 行（SampleGame）。
+
+### HANDOFF との差（B 適応）
+
+- 検出を `ContentOverlayEditDetection.cs` に分けた。§3 が許す分割（計画の入口と検出・分類の中身が 300 行を超える）で、新しい責務・依存・公開 API は無い（internal）。
+- `BuildMaterializationAbsence` に `RootPath`（root の GUID が解決しない時は null）を足した。依存だけが欠けた root の kind（Scene / Object）を計画が path から決めるために要る。root の path も GUID も手元で分からず記録にも無い root は、kind を空のままにする（記録の無い base で root の file が無い root の表示だけに効く）。
+- 欠けを許す materialize で root の GUID が解決しない候補の provenance は、`rootPath` に `(unresolved)` を入れる。`ScenePayloadMappingPolicy.cs` は §3 に無いので変えず、stable key と 3 つの key は path に依らないので選択と projection に影響しない。
+- 手元の解決（`UnityContentOverlayLocalSource.ResolveGuid`）は、`GUIDToAssetPath` の結果に加えて file の有無を見る（上の (iv) の観測）。
+- 計画は base の manifest の上限・digest・UTF-8 の JSON かを、選択の読み口 `ContentPurposeIndex.Read`（public）と同じ規則で見る。索引の型が壊れた manifest もこの検査で例外になる（記録の「壊れている」に読み替えない）。
+- 再利用の照合（鍵・outcome・成果物の file の hash）は、`Plan` の時ではなく受け取りの口 `GetReusableResult` を呼んだ時に行う。計画と受け取りの間に成果物が変わる隙を作らないため。鍵は `Plan` が計算する。
+- 認めの照合（`Acknowledge`）の同一性は root の logical key・kind・表現・root の GUID で、理由と stable key は入れない（記録にだけある root は stable key を持たない）。
+- AC6 の fixture: `T` は Light の cookie として Scene から直接参照する（material を挟まない）。合成で足す root は prefab `Z`。map は memory の上だけで作る（file にしない）。宣言は `A`・`B`・`C` を root にし、filter は空、表現は Full だけ。
+- R8 の経路（§2.2 で B が決める点）: fixture の file は `.meta` を固定の GUID で書く代わりに、元の checkout が作った file を `.meta` ごと写して 2 つの checkout で同じ bytes と GUID にする（Unity の API で作る Scene の file は object の id が毎回変わり、同じ内容を 2 回作れないため）。base の受け渡しも同じ package に入れる。R8 は `[Explicit]` の 2 つの test に分け、全 EditMode 回帰では走らない（AC8 の合否を変えない）。手順は下の「判定 C への引渡し」。
+
+### 未実行
+
+- Unity の batch test は全て未実行（Phase C の責任。§0 の引継ぎ票）。AC1〜AC7 と AC8 の全 EditMode 回帰の合否は判定 C で読む。
+- Editor のコンパイル確認: 済み（6000.6.9f1、`error CS` 0 件。足した code の警告も無い。`SceneResourceContentMaterializer.cs` の `IsStable` の CS8602 は base からある警告）。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 が埋まっているという harvest の案内で、本書の変更ではない）。
+- AC8 の範囲: `Runtime/` の差分は `ContentTransportManifest.cs` だけ。`Editor/Build/Selection/`、`SampleGame/`（`Tests/` を除く）、asmdef、`AssemblyInfo.cs` に差分は無い（`git diff --stat 63f171ac`）。
+
+### 判定 C への引渡し（R8 の走らせ方）
+
+R8 は同じ head の 2 つの checkout にまたがる。test の class の doc comment にも同じ手順を書いた。
+
+1. 判定 C の checkout で `OverlayFromLocalEditsR8Tests.R8_ProduceBaseAndSourcesForACleanCheckout` を名前の filter で選んで走らせる（`[Explicit]` なので名前で選ぶ）。base を build・publish し、publish した directory、`B` と `AWhitebox` を除く fixture の file（`.meta` を含む）、識別と GUID（`base.json`）を package に書いて、fixture を消す。package の既定は checkout の `TestResults/s34a-r8-package`、環境変数 `OSM_S34A_R8_PACKAGE` で別の場所を指せる。
+2. 同じ head の新しい worktree（`Library` の無い checkout）を作り、1 の package をその worktree から見える場所に置く（環境変数で指すか、`TestResults/s34a-r8-package` へ写す）。
+3. その worktree で `OverlayFromLocalEditsR8Tests.R8_PartialCheckout_PlansBuildsAndPlaysLikeR4` を名前の filter で選んで走らせる。test は始めに、fixture の folder が無いことと、`B`・`AWhitebox` の GUID が解決しないこと（一度も import していない）を確かめ、満たさなければ失敗する。
+
+### 動作確認
+
+- 対象 head: なし
+- 条件ごとの実行担当・環境・実行したコマンド: なし
+- 生の観測と保存先・状態: なし
+- 検証経路の期待と違う観測と、B への差し戻し: なし
+- `未実施` の条件と理由・担当: `対象なし`（§5「操作・実行時・目視条件の検証経路: 該当なし」）
+
+- implementation head commit: §0 の欄（この票を含む commit）
+- Phase B 担当・ベンダー: AI（Claude Code、Anthropic）
 
 ## 7. Phase C
 

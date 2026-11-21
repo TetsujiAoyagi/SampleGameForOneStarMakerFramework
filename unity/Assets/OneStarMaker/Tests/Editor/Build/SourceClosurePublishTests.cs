@@ -118,7 +118,7 @@ namespace OneStarMaker.Tests.Editor.Build
         [Test]
         public void ClosureFileAbsentAtHashTime_NonOverlayBuildSucceeds_AndPublishesWithoutRecord()
         {
-            var result = Build(missing: "Gone.asset");
+            var result = Build(null, null, "Gone.asset");
             Assert.That(result.IsSuccess, Is.True, result.Summary);
             var manifest = Manifest(Publish(result));
             Assert.That(manifest.sourceClosure.version, Is.Zero);
