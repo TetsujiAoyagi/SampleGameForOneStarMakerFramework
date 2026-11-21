@@ -16,6 +16,7 @@ namespace OneStarMaker.Editor.Build.Materialization
         private readonly ReadOnlyCollection<BuildContentRequirement> _requirements;
         private readonly ReadOnlyCollection<BuildDependencySnapshot> _dependencies;
         private readonly ReadOnlyCollection<BuildGraphNode> _graph;
+        private readonly ReadOnlyCollection<BuildMaterializationAbsence> _absences;
 
         internal BuildMaterializationSnapshot(IEnumerable<BuildContentCandidate> candidates,
             IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> tags,
@@ -28,7 +29,17 @@ namespace OneStarMaker.Editor.Build.Materialization
             IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> tags,
             IEnumerable<BuildContentRequirement> requirements, IEnumerable<BuildDependencySnapshot> dependencies,
             IEnumerable<BuildGraphNode> graph)
+            : this(candidates, tags, requirements, dependencies, graph, Array.Empty<BuildMaterializationAbsence>())
         {
+        }
+
+        // 欠けの記録を持つ snapshot（欠けを許す materialize と、それを引き継ぐ合成が使う）。
+        internal BuildMaterializationSnapshot(IEnumerable<BuildContentCandidate> candidates,
+            IReadOnlyDictionary<string, IReadOnlyList<BuildTag>> tags,
+            IEnumerable<BuildContentRequirement> requirements, IEnumerable<BuildDependencySnapshot> dependencies,
+            IEnumerable<BuildGraphNode> graph, IEnumerable<BuildMaterializationAbsence> absences)
+        {
+            _absences = Array.AsReadOnly(absences.OrderBy(x => x.StableKey, StringComparer.Ordinal).ToArray());
             _candidates = Array.AsReadOnly(candidates.OrderBy(x => x.StableKey, StringComparer.Ordinal).ToArray());
             _providers = Array.AsReadOnly<IBuildTagProvider>(new IBuildTagProvider[] { new SnapshotTagProvider(tags) });
             _requirements = Array.AsReadOnly(requirements.OrderBy(x => x.LogicalKey, StringComparer.Ordinal)
@@ -45,6 +56,13 @@ namespace OneStarMaker.Editor.Build.Materialization
         // SceneResourceMap の親子・ロード種別・宣言済み表現・付随 asset を Selection の形に写した graph。
         // 到達規則（BuildPurposeResolver）の入力で、SceneResource 自体は Selection へ渡さない。
         public IReadOnlyList<BuildGraphNode> Graph => _graph;
+
+        /// <summary>
+        /// 手元で source が欠けて閉包を持たない候補の記録（stable key の ordinal 順）。<see cref="SceneResourceContentMaterializer.Materialize"/> の
+        /// snapshot では常に空。欠けを許す materialize の snapshot では、閉包の無い候補ごとにちょうど 1 件ある。
+        /// 合成で snapshot を作り直す呼び手は、この記録を引き継ぐ（落とすと、上書きの計画が閉包の無い selected の root で例外になる）。
+        /// </summary>
+        public IReadOnlyList<BuildMaterializationAbsence> Absences => _absences;
 
         public BuildDependencySnapshot? FindDependency(string physicalKey) =>
             _dependencies.FirstOrDefault(x => string.Equals(x.RootGuid, physicalKey, StringComparison.Ordinal));

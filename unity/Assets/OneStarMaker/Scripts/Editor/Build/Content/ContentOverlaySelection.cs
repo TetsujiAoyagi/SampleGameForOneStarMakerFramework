@@ -133,12 +133,20 @@ namespace OneStarMaker.Editor.Build.Content
     public sealed class ContentOverlayRecord
     {
         internal ContentOverlayRecord(ContentOverlaySelectionResult selection, ContentOverlayBaseIdentity baseIdentity)
+            : this(selection, baseIdentity, null)
+        {
+        }
+
+        internal ContentOverlayRecord(ContentOverlaySelectionResult selection, ContentOverlayBaseIdentity baseIdentity, ContentOverlayPlan? plan)
         {
             Selection = selection;
             BaseIdentity = baseIdentity;
+            Plan = plan;
         }
         public ContentOverlaySelectionResult Selection { get; }
         public ContentOverlayBaseIdentity BaseIdentity { get; }
+        /// <summary>計画（<see cref="ContentOverlayPlanner"/>）から作った上書きの計画。逆引きの結果から直接作った上書きでは null。</summary>
+        public ContentOverlayPlan? Plan { get; }
     }
 
     /// <summary>
@@ -212,17 +220,32 @@ namespace OneStarMaker.Editor.Build.Content
             var overlay = selected.Where(x => reasons[x.StableKey].Count != 0).ToArray();
             if (overlay.Length == 0)
                 return new ContentOverlaySelectionResult(null, snapshot, edits, Array.Empty<ContentOverlayRootReason>(), unmatched, Array.Empty<string>());
-
-            // 共有 asset は path の ordinal で数える（閉包の path は materialization が正規化した canonical な形）。
             var overlayKeys = new HashSet<string>(overlay.Select(x => x.StableKey), StringComparer.Ordinal);
+            return Result(plan.WithSelectedSubset(overlayKeys), snapshot, edits,
+                overlay.Select(x => new ContentOverlayRootReason(x, reasons[x.StableKey])), unmatched, selected);
+        }
+
+        /// <summary>
+        /// 上書きの root と理由が決まった後の結果を作る（逆引きと、手元の編集からの計画が共有する）。共有 asset は、上書きの root の閉包と、
+        /// <paramref name="scope"/> のうち上書きに入らなかった root の閉包の共通部分。<paramref name="scope"/> は閉包を持つ selected の root に限る
+        /// （source の欠けた root は手元の閉包を持たない）。
+        /// </summary>
+        internal static ContentOverlaySelectionResult Result(BuildPlan overlayPlan, BuildMaterializationSnapshot snapshot, IEnumerable<string> edits,
+            IEnumerable<ContentOverlayRootReason> overlay, IEnumerable<ContentOverlayUnmatchedEdit> unmatched, IEnumerable<BuildContentCandidate> scope)
+        {
+            var roots = overlay.ToArray();
+            // 共有 asset は path の ordinal で数える（閉包の path は materialization が正規化した canonical な形）。
+            var overlayKeys = new HashSet<string>(roots.Select(x => x.Root.StableKey), StringComparer.Ordinal);
             var overlayFiles = new HashSet<string>(StringComparer.Ordinal);
             var remainingFiles = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var candidate in selected)
-                (overlayKeys.Contains(candidate.StableKey) ? overlayFiles : remainingFiles).UnionWith(closures[candidate.StableKey]);
+            foreach (var candidate in scope)
+            {
+                var closure = snapshot.Dependencies.First(x => string.Equals(x.RootGuid, candidate.PhysicalKey, StringComparison.Ordinal));
+                (overlayKeys.Contains(candidate.StableKey) ? overlayFiles : remainingFiles).UnionWith(closure.Entries.Select(x => x.Path));
+            }
             var shared = overlayFiles.Where(remainingFiles.Contains).OrderBy(x => x, StringComparer.Ordinal).ToArray();
-
-            return new ContentOverlaySelectionResult(plan.WithSelectedSubset(overlayKeys), snapshot, edits,
-                overlay.Select(x => new ContentOverlayRootReason(x, reasons[x.StableKey])), unmatched, shared);
+            return new ContentOverlaySelectionResult(overlayPlan, snapshot, edits.Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal),
+                roots.OrderBy(x => x.Root.StableKey, StringComparer.Ordinal), unmatched, shared);
         }
 
         // 区切りを / にし、X.meta を X に読み替える（.meta だけの変更は import の設定の変更で、asset 本体の版を変える）。
