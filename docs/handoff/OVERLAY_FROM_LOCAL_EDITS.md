@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `C`（発見 C の 3 回目を待つ。差し戻し 2 巡目の B が D3（AC6 の test が R1 の Play に入らない）を直した（§6「発見 C の差し戻し 2 巡目」）。発見 C の 2 回目は D1・D2 の直しを閉じ、D3 を返した（§7「発見 C（2 回目）」）。A3 凍結版は revision 1。発見 C の指摘 D1〜D3 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `B`（差し戻し 3 巡目を待つ。発見 C の 3 回目は D3 の直しを読みでは閉じたが、実機では fixture の作成で D4（新しい単体 test が空の `Assets/OneStarMakerGenerated` を残し、同じ process の AC6 と既存の `UnityContentDirectoryAdapterTests` を壊す）に当たって止まった（§7「発見 C（3 回目）」）。A3 凍結版は revision 1。発見 C の指摘 D1〜D4 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: この票を含む commit
+- implementation head commit: `bebbe6b5535e295245ab58d5149aeb7cc9a39d4e`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,11 +21,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C の 3 回目。差し戻し 2 巡目の後）。動作確認は `対象なし`（§5）。
-  - 次の作業: §6「発見 C の差し戻し 2 巡目」の D3 の直しを見直し、`OverlayFromLocalEditsIntegrationTests` を走らせて R0〜R7 と AC7 の実機の部分を確かめ、起点 filter を見直す（§7「発見 C（2 回目）」の「次」）。差し戻しが無ければ判定 C へ進める。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（差し戻し 2 巡目の B の出口の commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）。資格情報は要らない。B が開いた Editor は出口で閉じた。
+  - 次の Phase・役割: Phase B（発見 C の差し戻し 3 巡目。上限は 4 巡）。動作確認は `対象なし`（§5）。
+  - 次の作業: §7「発見 C（3 回目）」の D4 を直す（`SourceClosurePublishTests` と `ContentOverlayBuildAndReuseTests` の TearDown で、空になった `Assets/OneStarMakerGenerated` も消す）。B 適応で、test の file の中で閉じる。直しと結果を §6 に「発見 C の差し戻し 3 巡目」として書く。
+  - 読む範囲: 既定（§0〜§5。差し戻しなので §6〜§8 も）。
+  - 引き継ぐ commit: この票を含む commit（発見 C の 3 回目の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test は Phase C。資格情報は要らない。発見 C は Editor を開いていない。
   - 停止規則: §2.6。
   - 引き渡さないもの: なし。
 
@@ -640,6 +640,53 @@ R8 は同じ head の 2 つの checkout にまたがる。test の class の doc
 **判定必須のうち未実行:** AC6 の R2〜R7、R8、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。差し戻しが決まったので走らせていない。
 
 **次:** B へ戻す（2 巡目。上限は 4 巡）。D3 を直した head で、発見 C が `OverlayFromLocalEditsIntegrationTests` を走らせて R0〜R7 と AC7 の実機の部分を確かめ、起点 filter を見直す。
+
+### 発見 C（3 回目、2026-11-22）
+
+- 種別: 発見 C（差し戻し 2 巡目の後）。GO 判定はしない。C' は起動しない。
+- 対象: implementation base `63f171ac`、implementation head `bebbe6b5`（差し戻し 2 巡目の B の出口の commit）。直しの差分は `git diff f81a872e bebbe6b5`、完全 diff は `git diff 63f171ac bebbe6b5`。どちらも commit で固定した。
+- evidence bundle: 未生成（判定 C が GO 候補 head で作る）。
+- 担当・モデル: AI（Claude Code、Anthropic）。Phase B と同じ系列で、`独立性制約あり`。
+- 引継ぎの照合: 起動指示の SHA と HEAD が一致し、作業ツリーは clean。implementation head 欄は「この票を含む commit」で、HEAD と親の差分に `docs/handoff/` 以外の file（`OverlayFromLocalEditsIntegrationTests.cs`）がある（implementation head は HEAD）。PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は一致した。PR の timeline に `f79b73c0` より後の head 宛ての新着は無い。
+
+**D3 の直しの見直し**
+
+- 読みでは閉じている。R1・R4 の `EnterPlayMode`・`ExitPlayMode` は test の本体の直下で yield し、Play の前の準備と環境変数の戻しは `BeginPlay`・`EndPlay` で、戻しは `try`/`finally`（iterator の中の `try`/`finally` で、`catch` は無い）。変えた file は §3 の test の接頭辞の file 1 つと本書だけ。
+- 実機では確かめられていない。下の run 5 で、test は R1 より前の fixture の作成（`OverlayFromLocalEditsFixture.Create`）で失敗した（D4）。Play mode に入るかは D4 を直した head で確かめる。
+
+**現在の問いを阻害する指摘**
+
+| # | severity | category | 指摘 | 違反する条件 | 一次証拠 | 修正先 |
+|---|---|---|---|---|---|---|
+| D4 | major | semantic | 新しい単体 test の片付けが、import されていない空の folder `Assets/OneStarMakerGenerated` を disk に残し、同じ process で後に走る test を壊す。`SourceClosurePublishTests` と `ContentOverlayBuildAndReuseTests` は SetUp で `Assets/OneStarMakerGenerated/S34aUnit~/<id>` を `Directory.CreateDirectory` で作り、TearDown は `<id>` と `S34aUnit~` だけを消して `OneStarMakerGenerated` を残す（`~` の下は import されないので、残った folder は `.meta` も AssetDatabase の entry も無い）。後で `AssetDatabase.IsValidFolder("Assets/OneStarMakerGenerated")` が false を返し、`CreateFolder` が `OneStarMakerGenerated 1`・`2`…を作り、呼び手は元の path に file を書いて `DirectoryNotFoundException` になる。(1) AC6 の `R0ToR7_…` は起点 filter と同じ process で、fixture の `EnsureFolder` の後の `T.png` の書き込みで失敗した（run 5）。(2) 既存の `UnityContentDirectoryAdapterTests` は `SourceClosurePublishTests` の後で 4 件失敗した（製品の adapter の `BS2b/<identity>/bs2b-owner.marker` の書き込みと、`AssertNoGeneratedFolder`）（run 6）。全 EditMode 回帰は名前の順でこの 2 class より後に両方を走らせるので、AC8 の「failed 0」も落ちる | AC6（R0〜R7 が走らない）、AC8（全 EditMode 回帰の failed 0）、I-6（既存の adapter の test が同じ入力で結果を変える） | run 5・6 の XML。`SourceClosurePublishTests.cs` 34・43〜49 行、`ContentOverlayBuildAndReuseTests.cs` 45〜53 行、`OverlayFromLocalEditsFixture.cs` 382〜391 行、`UnityContentDirectoryAdapterTests.cs` 178〜179 行、`UnityContentDirectoryAdapter.cs` 248 行 | B 適応。2 つの単体 test の TearDown で、空になった `Assets/OneStarMakerGenerated` も消す（`S34aUnit~` と同じく、空の時だけ）。test の file の中で閉じ、製品の code は変えない。直した後の確認は、同じ process で単体 test の後に `UnityContentDirectoryAdapterTests` と `OverlayFromLocalEditsIntegrationTests` が走る filter で行う |
+
+**後続スライスの入力:** なし。
+
+**観測（指摘ではない）:**
+
+- 製品の adapter（`UnityContentDirectoryAdapter.EnsureFolder` の形）も、import されていない同名の folder が disk にあると `OneStarMakerGenerated 1` を作って失敗する。base からある形で本書は変えておらず、D4 の直しは原因の test 側で足りる。
+- 発見 C の 2 回目の run 1（head `f81a872e`、同じ単体 test を含む filter）では、fixture の作成は通り R1 の Play で失敗し、空の `OneStarMakerGenerated 1` が残った。run 5 との違い（fixture の作成が通ったこと）は確かめていない。残った folder の観測は D4 の仕組みと合う。
+- run 5・6 の後に残った空の folder（`OneStarMakerGenerated`、`OneStarMakerGenerated 1`〜`4` と `.meta`）は、中身が空であることを確かめてこの担当が消した。作業ツリーは clean。
+
+**機械検査**
+
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（checks 1〜9）。
+- `pwsh tools/docs-audit.ps1`: errors 0、警告 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 が埋まっているという harvest の案内。本書の変更ではない）。
+
+**Unity の batch test（head `bebbe6b5`、Unity 6000.6.9f1、`-nographics`、EditMode、sandbox 外、2026-11-22）**
+
+Editor は開いていなかった（`tools/unity-editor.cmd status` に instance なし。動いていたのは Unity CLI の identity service だけ）。どちらの run も Unity は exit code 2 で終わり（test の失敗）、XML は完成した。終了 stall は無い。
+
+| run | filter | 結果 |
+|---|---|---|
+| 5 | §5 の起点 filter の 13 class と `OverlayFromLocalEditsIntegrationTests`（2 回目の run 1 と同じ。D3 の直しの確認） | root result `Failed(Child)`、total 230、passed 229、failed 1（`R0ToR7_…`、0.3 秒。fixture の作成の `DirectoryNotFoundException`。D4）。起点 filter の 13 class は 229 件全て Passed |
+| 6 | `SourceClosurePublishTests` と `UnityContentDirectoryAdapterTests`（D4 の再現。phase-c の「当該欠陥の再現に必要な場合は限定実行できる」。受け入れ条件の追加ではない） | root result `Failed(Child)`、total 12、passed 8、failed 4（`UnityContentDirectoryAdapterTests` の `BuildCallFails_FailsAndLeavesNothing(True/False)`、`NonEmptyUserData_DoesNotStopTheBuild`、`OpenUnsavedScene_WithReadOnlyMeta_BuildsWithoutTouchingSource`） |
+
+- 生のログと XML は worktree の `TestResults/` の下に残した（判定の証拠ではない）。
+
+**判定必須のうち未実行:** AC6 の R0〜R7（D4 で fixture の作成から先が走っていない）、R8、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。差し戻しが決まったので走らせていない。
+
+**次:** B へ戻す（3 巡目。上限は 4 巡）。D4 を直した head で、発見 C が run 5 と同じ filter に `UnityContentDirectoryAdapterTests` を足して走らせ、D3（R1 の Play）と D4 を確かめ、R0〜R7 と AC7 の実機の部分を確かめる。
 
 ## 8. Phase C'
 
