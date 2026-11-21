@@ -151,7 +151,18 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(r1Built.IsSuccess, Is.True, r1Built.Summary);
             Assert.That(F.Reports(_artifacts), Is.EqualTo(reports + 1), "R1: build 1 回");
             End("R1", t);
-            yield return Play(installed, r1Built);
+            // EnterPlayMode / ExitPlayMode は test の本体の直下で yield する。入れ子の IEnumerator の中で yield すると、test framework は
+            // 入れ子を別の enumerator に包んで返すだけで Play mode への移行を行わず、登録が edit mode のまま走って失敗する。
+            var mode = BeginPlay();
+            try
+            {
+                yield return new EnterPlayMode();
+                var run = F.ReadScenesAsync(installed, r1Built, "A", "B", "C");
+                yield return new WaitUntil(() => run.IsCompleted);
+                _played = run.GetAwaiter().GetResult();
+                yield return new ExitPlayMode();
+            }
+            finally { EndPlay(mode); }
             AssertRound(("A", ContentSourceKind.ContentOverlay, r1Built.Identity, F.EditedT, null),
                 ("B", ContentSourceKind.ContentOverlay, r1Built.Identity, F.EditedT, null),
                 ("C", ContentSourceKind.ContentDirectory, baseBuilt.Identity, null, F.BaseU));
@@ -192,7 +203,16 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(r4Built.IsSuccess, Is.True, r4Built.Summary);
             Assert.That(F.Reports(_artifacts), Is.EqualTo(reports + 1), "R4: build 1 回");
             End("R4", fixture.PathOf("B.unity"), fixture.PathOf("AWhitebox.unity"));
-            yield return Play(installed, r4Built);
+            mode = BeginPlay();
+            try
+            {
+                yield return new EnterPlayMode();
+                var run = F.ReadScenesAsync(installed, r4Built, "A", "B", "C");
+                yield return new WaitUntil(() => run.IsCompleted);
+                _played = run.GetAwaiter().GetResult();
+                yield return new ExitPlayMode();
+            }
+            finally { EndPlay(mode); }
             // B の T が編集後の色なら、作り直せない root の直接参照が base の build の時の版で出る前提が崩れる（NO-GO (ii)）。
             AssertRound(("A", ContentSourceKind.ContentOverlay, r4Built.Identity, F.EditedT, null),
                 ("B", ContentSourceKind.ContentDirectory, baseBuilt.Identity, F.BaseT, null),
@@ -254,26 +274,19 @@ namespace OneStarMaker.Tests.Editor.Build
 
         private Dictionary<string, F.Loaded> _played = new();
 
-        // Play mode に入り、base と上書きを登録して A・B・C を読み、出る。アプリの起動は Addressables の経路にして、この test の登録と取り合わない。
-        private IEnumerator Play(ContentInstallResult installed, BuildContentResult overlay)
+        private const string ModeEnv = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
+
+        // Play mode に入る前の準備。空の Scene にし、アプリの起動を Addressables の経路にして、この test の登録と取り合わない。
+        // 戻り値は元の環境変数の値で、EndPlay に渡して戻す。
+        private static string? BeginPlay()
         {
-            const string modeEnv = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
-            var previousMode = Environment.GetEnvironmentVariable(modeEnv, EnvironmentVariableTarget.Process);
+            var previousMode = Environment.GetEnvironmentVariable(ModeEnv, EnvironmentVariableTarget.Process);
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            Environment.SetEnvironmentVariable(modeEnv, "addressables", EnvironmentVariableTarget.Process);
-            try
-            {
-                yield return new EnterPlayMode();
-                var run = F.ReadScenesAsync(installed, overlay, "A", "B", "C");
-                yield return new WaitUntil(() => run.IsCompleted);
-                _played = run.GetAwaiter().GetResult();
-                yield return new ExitPlayMode();
-            }
-            finally
-            {
-                Environment.SetEnvironmentVariable(modeEnv, previousMode, EnvironmentVariableTarget.Process);
-            }
+            Environment.SetEnvironmentVariable(ModeEnv, "addressables", EnvironmentVariableTarget.Process);
+            return previousMode;
         }
+
+        private static void EndPlay(string? previousMode) => Environment.SetEnvironmentVariable(ModeEnv, previousMode, EnvironmentVariableTarget.Process);
 
         private void AssertRound(params (string Key, ContentSourceKind Source, string Revision, Color32? Cookie, Color32? Main)[] expected)
         {
