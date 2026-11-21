@@ -144,9 +144,15 @@ namespace OneStarMaker.Tests.Editor.Build
             return map;
         }
 
+        /// <summary>
+        /// 最後の <see cref="BuildBase"/> が build に渡した選択（plan と snapshot）。publish した閉包の記録を、build に渡した閉包と
+        /// 生の値で比べるために持つ（受け入れ条件 AC7）。
+        /// </summary>
+        internal Local? BaseSelection { get; private set; }
+
         internal BuildContentResult BuildBase(string artifacts)
         {
-            var local = Select();
+            var local = BaseSelection = Select();
             Assert.That(local.Snapshot.Absences, Is.Empty, "base は全ての source がある checkout で作る");
             var result = new BuildContentCoordinator().Build(new BuildContentRequest(local.Plan, local.Snapshot, BaseSet, artifacts,
                 Declaration, local.Requirements, BuildContentMode.Full));
@@ -244,6 +250,25 @@ namespace OneStarMaker.Tests.Editor.Build
             var request = new ContentInstallRequest(digest, BaseSet, revision, BuildContentCoordinator.TargetName, Application.unityVersion, 2, long.MaxValue);
             using var local = new LocalContentArtifactSource(published);
             return await new ContentInstaller(new ContentCacheStore(cacheRoot)).InstallAsync(request, local, cancellation.Token);
+        }
+
+        /// <summary>
+        /// 同じ公開 directory を loopback の HTTP の供給元から install する（受け入れ条件 AC7 の「Local と HTTP から install した manifest が
+        /// 同じ bytes」）。server は install の後に止める。
+        /// </summary>
+        internal static async Task<ContentInstallResult> InstallFromHttpAsync(string published, string digest, string revision, string cacheRoot)
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var request = new ContentInstallRequest(digest, BaseSet, revision, BuildContentCoordinator.TargetName, Application.unityVersion, 2, long.MaxValue);
+            ContentInstallResult? installed = null;
+            var server = new LoopbackArtifactServer(published, cancellation.Token);
+            await ContentInstallTestOperation.RunWithShutdownAsync(async () =>
+            {
+                using var remote = new HttpContentArtifactSource(server.BaseUri);
+                installed = await new ContentInstaller(new ContentCacheStore(cacheRoot)).InstallAsync(request, remote, cancellation.Token);
+                Assert.That(server.RequestCount, Is.GreaterThan(1), "HTTP の供給元から取った");
+            }, server.StopAsync);
+            return installed!;
         }
 
         /// <summary>Play の中で読んだ 1 つの Scene: どの層から載ったか、Light の cookie と renderer の texture の pixel。</summary>

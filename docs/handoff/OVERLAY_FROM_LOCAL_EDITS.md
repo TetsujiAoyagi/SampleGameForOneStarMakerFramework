@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `B`（発見 C の差し戻し 1 巡目。A3 凍結版は revision 1。発見 C の指摘 D1・D2 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `C`（発見 C の 2 回目を待つ。差し戻し 1 巡目の B は D1・D2 を直した（§6「発見 C の差し戻し 1 巡目」）。A3 凍結版は revision 1。発見 C の指摘 D1・D2 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: f79b73c0b9bf3475ab9dc423d0f7f71eebcddded
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の差し戻し 1 巡目）。
-  - 次の作業: §7 の D1（AC7 の実機の assert）と D2（§3 に無い public 2 つを internal に）を B 適応で直し、Editor のコンパイルを確かめ、§6 に直した内容を書いて新しい implementation head を切る。直した後は再び発見 C（直した箇所と起点 filter の見直し）、その後に判定 C。
-  - 読む範囲: 既定（差し戻しなので §0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test は走らせない（Phase C の責任）。資格情報は要らない。
-  - 停止規則: §2.6。D1・D2 の直しで §3 に無い file の変更、asmdef・`InternalsVisibleTo` の追加、`Runtime/` の DTO の外の変更が要ると分かったら止めて返す。
+  - 次の Phase・役割: Phase C（発見 C の 2 回目。差し戻し 1 巡目の後）。
+  - 次の作業: §6「発見 C の差し戻し 1 巡目」の直し（D1・D2）を、§7 の指摘に照らして見直し、§5 の起点 filter を走らせる（直した test の `OverlayFromLocalEditsIntegrationTests` は Content Directory の build を伴うので、起点 filter に足すかは C が根拠付きで決める）。差し戻しが無ければ判定 C へ進める。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（差し戻し 1 巡目の B の出口の commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）。B が開いた Editor は B の出口で閉じた。資格情報は要らない。
+  - 停止規則: §2.6。直しの見直しで §3 に無い file の変更、asmdef・`InternalsVisibleTo` の追加が要ると分かったら B へ返す。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -490,7 +490,7 @@ R8 の経路: 新しい worktree（`git worktree add --detach`、clean な `Libr
   - `BuildContentRequest(ContentOverlayPlan)`、`BuildContentResult.OverlayKey`、preflight の `rootClosures`・`sourceHashRecord`・`sourceHashes`・`overlayUnbuildable`・`overlaySupplied`・`overlayKey`、outcome の `overlayKey`。
   - coordinator の build の前後の hash（全ての build）と、計画から作った上書きの Unity の前の存在の確認・計画の時の hash との比較・再利用の記録の書き込み。issue code `SourceChangedDuringBuild`・`SourceFileMissing`。
   - publisher の build の前の hash からの `sourceFiles`、記録の作成と読み直し、上限の超過で版 0 と `Debug.LogWarning`。
-- test（新）: `ContentSourceClosureRecordTests`（AC1）、`ContentOverlayPlannerTests`（AC2・AC4）、`MaterializeAllowingAbsentSourcesTests`（AC3）、`ContentOverlayBuildAndReuseTests`（AC5）、`SourceClosurePublishTests`（AC7 の単体）、共有の fixture `OverlayPlanWorld`（以上 `OneStarMaker/Tests/Editor/Build/`）。`OverlayFromLocalEditsIntegrationTests`（AC6 の R0〜R7 と AC7 の実機の一部）、`OverlayFromLocalEditsR8Tests`（R8）、共有の fixture `OverlayFromLocalEditsFixture`（以上 `SampleGame/Tests/Editor/Build/`）。
+- test（新）: `ContentSourceClosureRecordTests`（AC1）、`ContentOverlayPlannerTests`（AC2・AC4）、`MaterializeAllowingAbsentSourcesTests`（AC3）、`ContentOverlayBuildAndReuseTests`（AC5）、`SourceClosurePublishTests`（AC7 の単体）、共有の fixture `OverlayPlanWorld`（以上 `OneStarMaker/Tests/Editor/Build/`）。`OverlayFromLocalEditsIntegrationTests`（AC6 の R0〜R7 と AC7 の実機。AC7 の実機は差し戻し 1 巡目で足した）、`OverlayFromLocalEditsR8Tests`（R8）、共有の fixture `OverlayFromLocalEditsFixture`（以上 `SampleGame/Tests/Editor/Build/`）。
 - 行数: 製品 code は約 1,450 行増（§3 の見込みは約 1,100）。`ContentOverlayPlan.cs` が見込みより約 90 行多いのは公開型の doc comment で、責務は増えていない。§2.5 の境界で分けるほどではないと判断した（500 行・50% の警報に当たる file は無い）。test は約 1,470 行（OneStarMaker）と約 800 行（SampleGame）。
 
 ### HANDOFF との差（B 適応）
@@ -519,6 +519,17 @@ R8 は同じ head の 2 つの checkout にまたがる。test の class の doc
 1. 判定 C の checkout で `OverlayFromLocalEditsR8Tests.R8_ProduceBaseAndSourcesForACleanCheckout` を名前の filter で選んで走らせる（`[Explicit]` なので名前で選ぶ）。base を build・publish し、publish した directory、`B` と `AWhitebox` を除く fixture の file（`.meta` を含む）、識別と GUID（`base.json`）を package に書いて、fixture を消す。package の既定は checkout の `TestResults/s34a-r8-package`、環境変数 `OSM_S34A_R8_PACKAGE` で別の場所を指せる。
 2. 同じ head の新しい worktree（`Library` の無い checkout）を作り、1 の package をその worktree から見える場所に置く（環境変数で指すか、`TestResults/s34a-r8-package` へ写す）。
 3. その worktree で `OverlayFromLocalEditsR8Tests.R8_PartialCheckout_PlansBuildsAndPlaysLikeR4` を名前の filter で選んで走らせる。test は始めに、fixture の folder が無いことと、`B`・`AWhitebox` の GUID が解決しないこと（一度も import していない）を確かめ、満たさなければ失敗する。
+
+### 発見 C の差し戻し 1 巡目（2026-11-21）
+
+引き継いだ commit は `74f07127`（発見 C の記録 commit）。起動指示の SHA・HEAD・clean、implementation head `f79b73c0` が HEAD の祖先で差分が本書だけであること、PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は全て一致した。どちらの直しも B 適応で、§3 の file の中で閉じる（新しい責務・依存・公開 API は無く、D2 は公開 API を §3 のとおりに減らす）。
+
+- **D1（AC7 の実機の assert）:** `OverlayFromLocalEditsIntegrationTests` の base の publish・install の直後に、`AssertSourceClosureMatchesTheBuild` と HTTP の install を足した。記録は読み口を通さず DTO の生の値で比べる（読み口の規則と同じ式で比べると、読み口の誤りを test が写すため）。確かめるのは、(1) 記録の root の集合（logical key・kind・表現）と `index` の entry の集合が等しい（`index.version` は 1）、(2) 記録の root の GUID の集合が build に渡した plan の selected の root と等しく、各 root の閉包（所属の組から引いた GUID と path）が build に渡した snapshot の閉包と ordinal で等しい（空でない）、(3) 記録の asset の path が全て `sourceFiles` にある、(4) 最後に読み口 `ContentSourceClosureRecord.Read` が「あり」と読む。build に渡した選択は fixture の `BaseSelection`（`BuildBase` が build に渡した plan と snapshot）から取る。HTTP は fixture の `InstallFromHttpAsync`（既存の `LoopbackArtifactServer` と `ContentInstallTestOperation.RunWithShutdownAsync` の経路。`PurposeBuildIndexIntegrationTests` と同じ形）で同じ公開 directory を別の cache に install し、Local と HTTP の install の `transport.json` が公開した bytes と等しいことを見る。`PurposeBuildIndexIntegrationTests` には手を入れていない（AC7 の「AC6 の base の publish」を AC6 の test の中で閉じる方を選んだ）。
+- **D2（§3 に無い public 2 つ）:** `BuildContentResult` の 12 引数の constructor（`overlayKey` 付き）と `ContentOverlayRecord.Plan` を internal にした。使う側は `OneStarMaker.Build.Content` の中（coordinator、再利用の記録）だけで、test の assembly は既存の `InternalsVisibleTo` の範囲にある。
+- 変えた file: `Editor/Build/Content/BuildContentReport.cs`、`Editor/Build/Content/ContentOverlaySelection.cs`、`SampleGame/Tests/Editor/Build/OverlayFromLocalEditsFixture.cs`、`SampleGame/Tests/Editor/Build/OverlayFromLocalEditsIntegrationTests.cs` と本書。どれも §3 の file か §3 の test の接頭辞の file で、`Runtime/`、Selection、SampleGame の製品 code、asmdef、`AssemblyInfo.cs` は変えていない。
+- Editor のコンパイル確認: 済み（6000.6.9f1。B が開いた Editor で `Library/ScriptAssemblies` の `OneStarMaker.Build.Content.dll` と `SampleGame.Tests.Editor.dll` が直した source より新しく、`EditorUtility.scriptCompilationFailed` が false、Editor.log に `error CS` は 0 件で、直した file の警告も無い）。Editor は出口で閉じた。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内で、本書の変更ではない）。
+- 未実行: Unity の batch test は全て未実行（Phase C の責任）。直した `OverlayFromLocalEditsIntegrationTests`（AC6・AC7 の実機）は Content Directory の build を伴い、判定必須である。
 
 ### 動作確認
 

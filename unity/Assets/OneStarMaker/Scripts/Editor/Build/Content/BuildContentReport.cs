@@ -136,7 +136,8 @@ namespace OneStarMaker.Editor.Build.Content
         }
 
         /// <param name="overlayKey">計画から作った上書きの build の鍵（再利用の照合に使う SHA-256）。それ以外の build では null。</param>
-        public BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
+        /// <remarks>鍵を渡すのは coordinator と再利用の記録の読み口だけなので internal にする（公開の増分は <see cref="OverlayKey"/> だけ）。</remarks>
+        internal BuildContentResult(string identity, string preflightPath, string outcomePath, string? contentPath,
             string? manifestPointer, string? metadataPath, string summary, BuildContentIssue[] issues, BuildPurposeDeclaration? declaration,
             BuildContentMode mode, IReadOnlyList<ContentTransportIndexEntry>? indexEntries, string? overlayKey)
         { Mode = mode; OverlayKey = overlayKey; Identity = identity; PreflightPath = preflightPath; OutcomePath = outcomePath; ContentPath = contentPath;

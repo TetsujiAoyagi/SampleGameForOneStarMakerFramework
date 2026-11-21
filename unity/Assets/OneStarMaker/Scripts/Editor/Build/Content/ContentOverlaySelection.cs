@@ -146,7 +146,8 @@ namespace OneStarMaker.Editor.Build.Content
         public ContentOverlaySelectionResult Selection { get; }
         public ContentOverlayBaseIdentity BaseIdentity { get; }
         /// <summary>計画（<see cref="ContentOverlayPlanner"/>）から作った上書きの計画。逆引きの結果から直接作った上書きでは null。</summary>
-        public ContentOverlayPlan? Plan { get; }
+        /// <remarks>読むのは coordinator だけなので internal にする（この型の公開面は変えない）。</remarks>
+        internal ContentOverlayPlan? Plan { get; }
     }
 
     /// <summary>

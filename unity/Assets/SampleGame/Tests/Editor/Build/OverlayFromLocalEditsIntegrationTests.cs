@@ -44,6 +44,40 @@ namespace OneStarMaker.Tests.Editor.Build
             F.DeleteIfEmpty("Assets/OneStarMakerGenerated");
         }
 
+        /// <summary>
+        /// 受け入れ条件 AC7 の実機の部分。publish した閉包の記録を、読み口を通さずに DTO の生の値で、build に渡した選択と比べる
+        /// （版が 1 であることだけでは、記録を読み口が「あり」と読むことを示さない。全ての source がある checkout の計画は、記録が壊れていても
+        /// path の比較で同じ答えになるので、R0〜R3 の合格もそれを示さない）。最後に読み口が「あり」と読むことも確かめる。
+        /// </summary>
+        private static void AssertSourceClosureMatchesTheBuild(ContentTransportManifest manifest, F.Local built)
+        {
+            var record = manifest.sourceClosure;
+            // 記録の root の集合は index の entry の集合と等しい。
+            string Entry(string logicalKey, string kind, string representation) => logicalKey + "/" + kind + "/" + representation;
+            var recordRoots = record.roots.Select(x => Entry(x.logicalKey, x.kind, x.representation)).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            var indexEntries = manifest.index.entries.Select(x => Entry(x.logicalKey, x.kind, x.representation)).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            Assert.That(manifest.index.version, Is.EqualTo(1), "AC7: base は索引を持つ");
+            Assert.That(recordRoots, Is.EqualTo(indexEntries), "AC7: 記録の root の集合と index の entry の集合");
+            // build に渡した selected の root ごとに、記録の root がちょうど 1 つあり、閉包（GUID と path）が snapshot の閉包と生の値で等しい。
+            Assert.That(record.roots.Select(x => x.guid).OrderBy(x => x, StringComparer.Ordinal),
+                Is.EqualTo(built.Plan.SelectedContent.Select(x => x.PhysicalKey).OrderBy(x => x, StringComparer.Ordinal)), "AC7: 記録の root と build の selected の root");
+            for (var i = 0; i < record.roots.Length; i++)
+            {
+                var root = record.roots[i];
+                var recorded = record.assets.Where(x => record.groups[x.group].roots.Contains(i))
+                    .Select(x => x.guid + "|" + x.path).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+                var closure = built.Snapshot.Dependencies.Single(x => string.Equals(x.RootGuid, root.guid, StringComparison.Ordinal));
+                var expected = closure.Entries.Select(x => x.Guid + "|" + x.Path).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+                Assert.That(expected, Is.Not.Empty, root.logicalKey);
+                Assert.That(recorded, Is.EqualTo(expected), "AC7: " + Entry(root.logicalKey, root.kind, root.representation) + " の閉包");
+            }
+            // 記録の asset の path は全て sourceFiles にある。
+            var sourcePaths = new HashSet<string>(manifest.sourceFiles.Select(x => x.path), StringComparer.Ordinal);
+            Assert.That(record.assets.Select(x => x.path).Where(x => !sourcePaths.Contains(x)), Is.Empty, "AC7: sourceFiles に無い記録の path");
+            var read = ContentSourceClosureRecord.Read(manifest);
+            Assert.That(read.State, Is.EqualTo(ContentSourceClosureState.Present), read.Detail);
+        }
+
         private static string[] OverlayKeys(ContentOverlayPlan plan) => plan.OverlayRoots.Select(x => x.Root.LogicalKey).OrderBy(x => x, StringComparer.Ordinal).ToArray();
 
         [UnityTest]
@@ -72,6 +106,15 @@ namespace OneStarMaker.Tests.Editor.Build
             var installed = install.GetAwaiter().GetResult();
             var manifest = JsonUtility.FromJson<ContentTransportManifest>(File.ReadAllText(Path.Combine(installed.RevisionRoot, "transport.json")));
             Assert.That(manifest.sourceClosure.version, Is.EqualTo(1), "base は閉包の記録を持つ");
+            AssertSourceClosureMatchesTheBuild(manifest, fixture.BaseSelection!);
+
+            // AC7: 同じ公開 directory を HTTP の供給元からも別の cache に install し、manifest が Local と同じ bytes であること。
+            var publishedBytes = File.ReadAllBytes(Path.Combine(published, "transport.json"));
+            var httpInstall = F.InstallFromHttpAsync(published, digest, baseBuilt.Identity, Path.Combine(_delivery, "http-cache"));
+            yield return new WaitUntil(() => httpInstall.IsCompleted);
+            var httpInstalled = httpInstall.GetAwaiter().GetResult();
+            Assert.That(File.ReadAllBytes(Path.Combine(installed.RevisionRoot, "transport.json")), Is.EqualTo(publishedBytes), "AC7: Local から install した manifest");
+            Assert.That(File.ReadAllBytes(Path.Combine(httpInstalled.RevisionRoot, "transport.json")), Is.EqualTo(publishedBytes), "AC7: HTTP から install した manifest");
 
             // 各回の前後で、その回が変える file を除く fixture の source と installed の revision が同じ。
             SortedDictionary<string, string>? sources = null, revision = null;
