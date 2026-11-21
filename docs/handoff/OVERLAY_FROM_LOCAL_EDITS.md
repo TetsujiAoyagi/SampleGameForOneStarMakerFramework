@@ -14,7 +14,7 @@
 - owner: root（依頼者）
 - created: 2026-11-21
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
-- harvest to: [18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（編集の検出、欠けを許す materialize、作り直せない root、認める口、再利用）と「配信用 transport の公開境界」（`sourceClosure` の欄）、[13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（作り直せない root が base の版で動くこと）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（AC6 の観測）、program §5.3・§8・§10
+- harvest to: [18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「上書きの build と逆引き」（編集の検出、欠けを許す materialize、作り直せない root、認める口、再利用）と「配信用 transport の公開境界」（`sourceClosure` の欄）、[13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（作り直せない root の entry が base から載り、その直接参照が base の build の時の bytes であること。「同じ id の物」と「id による影」の規則は変えない）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（AC6 の観測）、program §5.3・§8・§10
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§1、§4.3、§5.3「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」、§8 の S3-4 の行と S3-2・S3-3 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: A3（外部計画レビュー、owner の採否、凍結）。凍結の後に Phase B。
-  - 次の作業: 外部計画レビューの 1 巡目（6 件）は反映した（§5.1）。追加の巡があれば 1 巡につき 1 commit で反映する。owner が §2.8 の U1・U2 と §5.1 の採否を決め、凍結判断を上の凍結記録に書いて凍結版を commit する。目的・利用者の 2 欄を変えた時は、凍結の前に目的レビューをやり直す。
+  - 次の作業: 外部計画レビューの 1 巡目（6 件）と 2 巡目（7 件）は反映した（§5.1）。追加の巡があれば 1 巡につき 1 commit で反映する。owner が §2.8 の U1・U2 を決め（§5.1 の担当の分類は、覆す行だけを指す）、凍結判断を上の凍結記録に書いて凍結版を commit する。目的・利用者の 2 欄を変えた時は、凍結の前に目的レビューをやり直す。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: 凍結の前に Phase B を始めない。
   - 引き渡さないもの: なし。
@@ -75,7 +75,7 @@
 
 ## 2. 意思決定と受け入れ境界
 
-- このスライスが答える問い: **検証済みの install した base の manifest と手元の file だけから、開発者の入力なしに、(1) 上書きが要るか、(2) 上書きに入れる root、(3) 編集の影響を受けるが手元で作り直せない root を build の前に決められ、(2) を製品の build 経路で作って base に重ねた Play で、上書きに入れた root は手元の版、(3) の root は base の版で出ると言えるか。source の一部が手元に無い checkout でも言えるか。**
+- このスライスが答える問い: **検証済みの install した base の manifest と手元の file だけから、開発者の入力なしに、(1) 上書きが要るか、(2) 上書きに入れる root、(3) 編集の影響を受けるが手元で作り直せない root を build の前に決められ、(2) を製品の build 経路で作って base に重ねた Play で、上書きに入れた root は手元の版、(3) の root は base の entry から載り、その直接参照は base の build の時の版で出ると言えるか。source の一部が手元に無い checkout でも言えるか。**
 - 誤って YES を出す道（受け入れ条件はこれを塞ぐ）:
   - 全ての source がある checkout だけで確かめる。部分 checkout は materialize が失敗して上書きが作れず、入口が失敗を握ると base だけの Play になる。
   - base の root の source だけを欠けさせて確かめる。base が選ばない表現の Scene や、依存の file だけが欠ける checkout が現れない。
@@ -95,15 +95,15 @@
 - **編集:** 次のどれか。削除は入らない（下の「削除」）。
   - 内容の変更: 閉包の記録の asset（GUID）が手元にあり、file か `.meta` の SHA-256 が base の `sourceFiles` の値と違う。
   - 移動: 閉包の記録の asset が、手元では base と違う path にある。
-  - 追加: 手元の閉包にあり、閉包の記録に GUID が無い file。
-  - 閉包の記録が無い base では、path で `sourceFiles` と比べる（内容の変更と、`sourceFiles` に path の無い file）。
+  - 追加: 手元の選択の selected の root の閉包にあり、閉包の記録に GUID が無い file（除外した候補の閉包は見ない）。
+  - 閉包の記録が無い・未対応・壊れている base では、閉包の記録を使わず、path で `sourceFiles` と比べる（内容の変更と、selected の root の閉包にあって `sourceFiles` に path の無い file）。
 - **source の欠けた root:** root の file が手元に無い、手元の閉包の file が無い、または閉包の記録にあるその root の asset が手元で解決しない root。
 - **作り直せない root:** 次のどれか（program §5.3 の D を含む）。理由を結果に持つ。「他の供給元が届ける」に入った root は除く（優先は AC4 の (a)）。
   - source の欠けた selected の root で、閉包の記録の閉包に編集を含む（`SourceAbsent`）。
   - source の欠けた selected の root で、閉包の記録に無い（`NotInBase`。base にも上書きにも無い root になる）。
   - source の欠けた selected の root があり、閉包の記録が無い・未対応の版・壊れている（`RecordMissing` / `RecordUnsupported` / `RecordInvalid`。欠けた selected の root の全て。編集が 0 件に見えても）。
   - 閉包の記録にあって手元の選択に無い root で、記録の閉包に編集を含む（`NotInLocalSelection`）。
-- **削除:** 手元に無い file は、消したのか checkout していないのかを VCS なしに区別できない。本書は「手元に無い」を編集に数えず、source の欠けとして扱う（§2.3、§2.8 U7）。
+- **削除:** 手元に無い file は、消したのか checkout していないのかを VCS なしに区別できない。本書は「手元に無い」を編集に数えず、source の欠けとして扱う（§2.3、§2.8 U7）。記録が「あり」の時は、欠けた root に編集が当たらなければ何も出ない。記録が無い・未対応・壊れている時は、手元から見えた欠けは原因を問わず作り直せない root になる（AC4 の (f)）。
 
 不変条件（起きてはいけないこと）:
 
@@ -111,8 +111,8 @@
   - 主張を崩しうる経路: (1) `ContentSourceAdvisor.Inspect` が `Missing` を優先して `Changed` を返さない。(2) 部分 checkout で materialize が失敗し、呼び手が例外を握って base だけで進む。(3) 手元に無い root を候補から落として plan を作り、その root が逆引きの対象から外れる。(4) base に無い file は `sourceFiles` との比較に現れない。(5) `.meta` だけの変更。(6) 移動して編集した asset（path で突き合わせると、source の欠けた root の記録の閉包に当たらない）。(7) 閉包の記録が無い・壊れている。(8) 大文字小文字だけ違う path。(9) 表現が複数ある node で、記録の閉包を logical key で引いて別の表現の閉包を当てる。(10) base にあって手元の選択に無い root（手元の map が古い、選択の規則が違う）。(11) hash を取った後に source を変えて build・publish した base（今の `sourceFiles` の hash は publish の時点。build の前へ移すだけでは、hash の後から Unity の build が読むまでの変更が残る。adapter は Unity の build の前に `AssetDatabase.Refresh()` を呼ぶので、その間に変わった file は build に入る）。(12) 閉包が持たない依存（script、`Packages/`、import 時の依存）。(13) 削除。(14) install の digest と合わない・読めない base の manifest を、記録だけが「壊れている」と読んで `sourceFiles` を使う。(15) 記録が無い base で、既にある asset だけを指す root の宣言を手元で足す（閉包の file が変わらないので編集に出ない）。
   - 探索した境界: `Editor/Build/Materialization/`、`Editor/Build/Selection/`、`Editor/Build/Content/`、`Runtime/BuildContent/Distribution/` の manifest と検証。(12)(13)(15) は塞がない（§2.3）。(15) は base にも上書きにも無い root になり、Play では解決の失敗として現れる（古い版は出ない）。
   - 未確認: SampleGame の bootstrap の合成（`SampleGameBootstrapContentComposer`）が欠けの記録を引き継ぐ形（S3-4b）。引き継がない合成は、閉包の無い selected の root で計画が例外になる（黙って通らない）。
-- **I-2 作り直せない root がある上書きは、呼び手がその集合を認めない限り渡されない。** 作り直せない root が 1 つでもある計画から、build の request を作ることも、前回の上書きを受け取ることも、その root の集合そのものを認めた計画でなければ例外になる（report と Unity の build の前）。認めた時は、preflight に root・理由・当たった編集・足りない file が残る。
-  - 崩しうる経路: (1) 既存の上書きの constructor（逆引きの結果から作る口）。source の欠けた selected の root は閉包が無く、今の逆引きの検査（選択 root ごとに閉包がちょうど 1 つ）が例外にする。(2) 逆引きを経由せずに `BuildPlan.WithSelectedSubset` で絞った plan を上書きでない build に渡す（今も publish は拒む。既存の public の口で、本書は変えない。§2.3）。(3) 再利用の口が、認めていない計画に前回の成果物を返す。(4) 前の計画の集合を、作り直せない root が増えた後の計画に流用する。(5) 「他の供給元が届ける」に、root の file が手元に無い root の key を渡して作り直せない root から外す。
+- **I-2 作り直せない root がある上書きは、呼び手がその集合を認めない限り渡されない。** 作り直せない root が 1 つでもある計画から、build の request を作ることも、前回の上書きを受け取ることも、その root の集合そのものを認めた計画でなければ例外になる（report と Unity の build の前）。認めた時は、preflight に root・理由・当たった編集・足りない file が残る。上書きに入れる root が無く、作り直せない root だけがある計画は、編集の無い計画と同じ状態（上書き不要）にならない。
+  - 崩しうる経路: (6) 上書きが空の計画は request も再利用も通らないので、状態だけを見る呼び手が、作り直せない root だけの計画を編集なしとして進める。(1) 既存の上書きの constructor（逆引きの結果から作る口）。source の欠けた selected の root は閉包が無く、今の逆引きの検査（選択 root ごとに閉包がちょうど 1 つ）が例外にする。(2) 逆引きを経由せずに `BuildPlan.WithSelectedSubset` で絞った plan を上書きでない build に渡す（今も publish は拒む。既存の public の口で、本書は変えない。§2.3）。(3) 再利用の口が、認めていない計画に前回の成果物を返す。(4) 前の計画の集合を、作り直せない root が増えた後の計画に流用する。(5) 「他の供給元が届ける」に、root の file が手元に無い root の key を渡して作り直せない root から外す。
 - **I-3 手元に無い source を Unity の build に渡さない。** source の欠けた root は上書きの plan の selected に入らない。閉包の無い root を selected に持つ plan は、Unity の build の前の照合（projection）で失敗する（今の検査）。計画から作った上書きの build は、Unity を呼ぶ前に selected の閉包の全ての file が手元にあることを確かめる。
   - 崩しうる経路: (1) 計画が source の欠けた root を上書きの root に数える。(2) root の file はあるが依存が手元に無い root を、手元の閉包が欠けを含まないために「揃う」と読む（未測定 (iii)）。(3) host の合成が欠けの記録を落とす。
 - **I-4 利用者の source、installed cache、base の directory を書かない。** 計画・検出・再利用の照合は読むだけである。build は今の adapter の契約（利用者の file を書かない。[18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)）のまま。再利用の記録は成果物の root の下で、`reports/`・workspace・publish 先・installed cache の外に置く。
@@ -120,28 +120,28 @@
   - 確かめた事実（A2）: 今の `InspectInstalled` の read lease は `%LocalAppData%\OneStarMaker\RevisionLocks\v1\` に lock の file を作って残し、cache root と revision の下には作らない。本書の計画は lease を取らずに manifest の bytes を読む（§2.4 P6）。
 - **I-5 再利用で古い上書きを出さない。** 前回の上書きを返すのは、上書きの入力の鍵（base の identity の 5 欄、上書きの contentSet、target、build する Editor の Unity の版、root に写る宣言の値、上書きの root ごとの stable key・logical key・表現・root の GUID と path、上書きの閉包の全ての file の GUID・path・file と `.meta` の SHA-256、鍵の版の定数）が前回と同じで、前回の成果物の directory が残り outcome が成功の時だけである。1 つでも違えば build する。計画から作った上書きの build は、Unity の build の後に閉包の file を hash し直し、計画の時と違えば失敗にして再利用の記録を書かない。
   - 崩しうる経路: (1) 鍵に入らない入力（script、project の設定、package、Framework の build の code）。既知の制約として書き、Framework の code の変更は鍵の版の定数を上げる（§2.3）。(2) 前回の成果物が消された・壊れた。(3) 別の base に重ねて作った上書き（登録の照合も拒む）。(4) 計画と build の間、build の間に source が変わり、変わった中身の上書きが古い鍵で記録される。
-- **I-6 上書きを使わない利用は変わらない。** 今の `Materialize`、今の閉包の作成、上書きでない build、今の逆引きの呼び方は、同じ入力に同じ結果を返す。例外は I-1 (11) のための 2 つである: publish の `sourceFiles` の hash の時点を build の前へ移す。build の前と Unity の build の後で閉包の file の hash が違う build は、上書きでなくても失敗にする（§2.8 U10）。新しい欄を持つ manifest を、この変更より前の runtime の検証（必須欄と型）が受け付け、`index` の版と目的 build の選択の答えは変わらない。`Runtime/` の変更は manifest の DTO の任意の欄だけで、`Runtime/ContentResolution/`、session、gate、`AssetManagement`、`Bootstrap`、`SceneSystem`、Distribution の検証と install に差分が無い（program §5.3 の見直しの条件 (3)）。
+- **I-6 上書きを使わない利用は変わらない。** 今の `Materialize`、今の閉包の作成、上書きでない build、今の逆引きの呼び方は、同じ入力に同じ結果を返す。例外は I-1 (11) のための 2 つである: publish の `sourceFiles` の hash の時点を build の前へ移す。build の前と Unity の build の後で閉包の file か `.meta` の hash が違う build は、上書きでなくても失敗にする（§2.8 U10）。hash の時点で無い file は「無い」と記録し、前後とも「無い」なら等しいと扱う（上書きでない build は、今と同じく閉包の file が無くても失敗にしない。無い file を失敗にするのは、計画から作った上書きの build だけである。I-3）。新しい欄を持つ manifest を、この変更より前の runtime の検証（必須欄と型）が受け付け、`index` の版と目的 build の選択の答えは変わらない。`Runtime/` の変更は manifest の DTO の任意の欄だけで、`Runtime/ContentResolution/`、session、gate、`AssetManagement`、`Bootstrap`、`SceneSystem`、Distribution の検証と install に差分が無い（program §5.3 の見直しの条件 (3)）。
 
 成立条件（起きなければならないこと）:
 
-- **S-1 全ての source がある checkout:** 共有 asset の編集（program §5.3 の B・C）と、新しい asset を参照に足す編集（E）から、閉包に編集を含む root が上書きに入り、製品の build 経路で上書きが出来て、base に重ねた Play でその root が手元の版で載る。閉包の記録が無い base でも同じ。
-- **S-2 source の一部が手元に無い checkout:** 計画が失敗せずに出る。欠けるのが、base の root の Scene、base が選ばない表現の Scene、root の依存の file のどれでも出る。手元で揃う root の上書きが build でき、作り直せない root が、root・理由・当たった編集・足りない file とともに計画に出る。認めた計画の上書きを base に重ねた Play で、上書きの root は手元の版、作り直せない root は base の版で載る。担当外の source を一度も import していない `Library` の checkout でも同じである（AC6 の R8）。
+- **S-1 全ての source がある checkout:** 共有 asset の編集（program §5.3 の B・C）から、閉包に編集を含む root が上書きに入り、製品の build 経路で上書きが出来て、base に重ねた Play でその root が手元の版で載る（AC6 の R1）。新しい asset を参照に足す編集（E）は、足した asset が「追加」、参照を足した asset が「内容の変更」として同じ root に当たり、その root が上書きに入って build できる（AC6 の R7。Play では確かめない）。閉包の記録が無い・未対応・壊れている base でも、計画の答えは同じである（AC4 の (g)）。
+- **S-2 source の一部が手元に無い checkout:** 計画が失敗せずに出る。欠けるのが、base の root の Scene、base が選ばない表現の Scene、root の依存の file のどれでも出る。手元で揃う root の上書きが build でき、作り直せない root が、root・理由・当たった編集・足りない file とともに計画に出る。認めた計画の上書きを base に重ねた Play で、上書きの root は手元の版で載り、作り直せない root は base の entry から載って（record は base）、その root の直接参照は base の build の時の bytes である。上書きにある id の物を id で引いた時の版は、ここでは言わない（§2.3）。担当外の source を一度も import していない `Library` の checkout でも同じである（AC6 の R8）。source が欠けていても、欠けた root の記録の閉包に編集が無ければ、上書き不要で作り直せない root も無い（AC4 の (m)、R8 の前半）。
 - **S-3 build の回数:** 編集が無い計画は上書き不要で build 0 回。同じ内容の 2 回目は前回の上書きを返して build 0 回。編集を足すと build 1 回（program §5.3 の見直しの条件 (2)）。
 - **S-4 他の供給元が届ける Scene:** 編集が当たる root が全て「他の供給元が届ける」Scene なら上書き不要で build 0 回（見直しの条件 (1)）。
-- **S-5 閉包の記録の publish:** 目的 build を publish した manifest に閉包の記録が入り、root の集合は `index` の entry の集合と等しく、各 root の閉包は build に渡した閉包と等しく、記録の asset の path は全て `sourceFiles` にあり、`sourceFiles` の hash は build の前の値で、Unity の build の後に取り直した値と等しい（違う build は成功にならず、publish できない）。manifest が上限を超える時は記録を版 0（記録なし）にして publish する。その事実は Console の警告（`Debug.LogWarning`）に出て、publish した manifest の `sourceClosure` の版 0 として機械でも読める。記録を版 0 にしても上限を超える manifest は、今までどおり publish が失敗する。
+- **S-5 閉包の記録の publish:** 目的 build を publish した manifest に閉包の記録が入り、root の集合は `index` の entry の集合と等しく、各 root の閉包は build に渡した閉包と等しく、記録の asset の path は全て `sourceFiles` にあり、`sourceFiles` の hash は build の前の値で、Unity の build の後に取り直した値と等しい（違う build は成功にならず、publish できない）。閉包の file の hash が 1 つでも取れなかった build（hash の時点で file が無い。合成の test の build）と、索引が版 0 の publish は、記録を版 0 にして、`sourceFiles` は今と同じく在る file だけを書く。manifest が上限を超える時は記録を版 0（記録なし）にして publish する。その事実は Console の警告（`Debug.LogWarning`）に出て、publish した manifest の `sourceClosure` の版 0 として機械でも読める。記録を版 0 にしても上限を超える manifest は、今までどおり publish が失敗する。
 
 ### 2.2 受け入れ条件
 
 | ID | 条件 | 検証する条件 | 種別 |
 |---|---|---|---|
 | AC1 | 閉包の記録の読み口: 正しい記録を、root（logical key・kind・表現・root の GUID）ごとの asset（GUID・path）として返す。欄が無い・版 0 は「記録なし」、版 2 以上は「未対応」、値が壊れた記録（GUID の形か重複、path の重複か `sourceFiles` に無い path、範囲外の番号、`index` の entry と違う root の集合、自分の閉包に root の GUID が無い root）は「壊れている」と理由を返し、どれも閉包を返さない。読み口に渡すのは、計画が install の結果と照合し終えた bytes だけである（照合に落ちた manifest は AC4 の (k)）。表現が 2 つある node は表現ごとに別の閉包を返す。新しい欄を持つ manifest が今の `ValidateRequiredFields` を通り、`ContentPurposeIndex.Read` の答えが欄の無い manifest と同じ | I-1 (7)(9)、I-6、S-5 | 単体（EditMode） |
-| AC2 | 編集の検出（fake の手元。test は編集の一覧を渡さず、手元の file と GUID の対応だけを変える）: 内容の変更、`.meta` だけの変更（本体の path で出る）、追加、移動、移動して編集、を同じ入力から同時に返す。手元に無い asset があっても他の編集を返す。大文字小文字だけ違う path を別の file として扱わない。記録の無い base では path で比べる | I-1 (1)(4)(5)(6)(8) | 単体 |
-| AC3 | 欠けを許す materialize: 今の `Materialize` は、root の file が無い・依存が無い入力に今と同じ issue を返し snapshot が null。新しい口は、同じ入力で snapshot を返し、欠けた payload の候補が残り（stable key は今と同じ）、欠けの記録（stable key・logical key・root の GUID・理由・足りない path）が付き、その候補に閉包は無い。宣言が選ばない表現の Scene が欠けていても snapshot が出て、選択は今の規則でその候補を除外する。構造の失敗（GUID と path の不一致、衝突、graph の欠損、map の null）は新しい口でも issue のまま | I-1 (2)(3)、I-6、S-2 | 単体 |
-| AC4 | 計画の分類（fake の手元と、bytes で組んだ base の manifest）: (a) 編集を閉包に含む root が「上書きに入れる」「他の供給元が届ける」「作り直せない」のちょうど 1 つに入る。優先は、root の file が手元に無い → 作り直せない、root の file が手元にある Scene で key が渡された → 他の供給元（依存の file が欠けていても。開いている Scene は snapshot が手元の版で届ける）、残りの source の欠けた root → 作り直せない、それ以外 → 上書き。(b) 「他の供給元」は Scene の node の logical key で、その node の全ての表現の Scene に効き、付随 asset の root には効かない。root の file が欠けた root の key を渡しても作り直せない root のまま。root の file はあるが依存の欠けた Scene の key を渡すと他の供給元に入り、作り直せない root に出ない。(c) 記録の閉包の asset が手元で解決しない root は、手元の閉包が出来ていても source の欠けた root になる。(d) 移動して編集した asset が、source の欠けた root の記録の閉包に当たる。(e) 記録にあって手元の選択に無い root が、編集を含めば `NotInLocalSelection` で出る。(f) 欠けた selected の root があり記録が無い・未対応・壊れている時、編集が 0 件でも欠けた selected の root が全て作り直せない root になり、「上書き不要・作り直せない root なし」を返さない。(g) 全ての source がある checkout は、記録が無くても手元だけで決まる。(h) 記録が「あり」で、その root の集合に無い root は、編集が無くても「上書きに入れる」（source が欠ければ `NotInBase`）。記録が無い・未対応・壊れている base では (h) を使わず、手元で足した root は編集（`sourceFiles` に path の無い file）に出た分だけが上書きに入る。(i) 「上書きに入れる」が空なら上書き不要で、その時も他の分類と当たらなかった編集は計画に残る。(j) 閉包が無く欠けの記録も無い selected の root は例外。(k) base の `transport.json` の bytes が上限を超える、SHA-256 が install の digest と違う、contentSet・revision・target が install の結果と違う、JSON として読めない、のどれでも計画は例外で、分類を返さない（記録の「壊れている」に読み替えず、`sourceFiles` を使わない）。計画は build を起こさず file を書かない | I-1、I-2 (5)、I-3 (1)(2)(3)、S-4 | 単体 |
-| AC5 | 認める口・build の口・再利用（fake の adapter）: 作り直せない root がある計画は、認めないと request の作成も前回の上書きの受け取りも例外（report の directory は増えない）。集合が計画の作り直せない root と完全に一致しない認めは例外。認めた計画の build は preflight に `overlayUnbuildable`（root・理由・編集・足りない file）と `overlaySupplied` を残す。上書き不要の計画から request は作れない。Unity の前に selected の閉包の file が 1 つ無ければ失敗して Unity を呼ばない。build の後の hash が計画の時と違えば失敗で、再利用の記録を書かない。成功した上書きの outcome に鍵が残る。再利用は、鍵が同じで成果物が残り outcome が成功の時だけ前回の結果を返し、鍵の入力（I-5 の列挙）のどれか 1 つを変える・成果物の directory を消す・outcome を失敗にする、のどれでも返さない。再利用の記録の path が `reports/`・workspace・publish 先・installed cache の下に無い | I-2、I-3、I-4 (2)、I-5 | 単体 |
+| AC2 | 編集の検出（fake の手元。test は編集の一覧を渡さず、手元の file と GUID の対応だけを変える）: 内容の変更、`.meta` だけの変更（本体の path で出る）、追加、移動、移動して編集、を同じ入力から同時に返す。手元に無い asset があっても他の編集を返す。大文字小文字だけ違う path を別の file として扱わない。記録が無い・未対応・壊れている base では、どれも path で比べる。除外した候補の閉包にだけある file は編集に出ない | I-1 (1)(4)(5)(6)(8) | 単体 |
+| AC3 | 欠けを許す materialize: 今の `Materialize` は、root の file が無い・依存が無い入力に今と同じ issue を返し snapshot が null。新しい口は、同じ入力で snapshot を返し、欠けた payload の候補が残り（stable key は今と同じ）、欠けの記録（stable key・logical key・root の GUID・理由・足りない path）が付き、その候補に閉包は無い。root の GUID が手元で解決しない時、足りない path は空である（計画が閉包の記録の path で補う）。宣言が選ばない表現の Scene が欠けていても snapshot が出て、選択は今の規則でその候補を除外する。構造の失敗（GUID と path の不一致、衝突、graph の欠損、map の null）は新しい口でも issue のまま | I-1 (2)(3)、I-6、S-2 | 単体 |
+| AC4 | 計画の分類（fake の手元と、bytes で組んだ base の manifest）: (a) 編集を閉包に含む root が「上書きに入れる」「他の供給元が届ける」「作り直せない」のちょうど 1 つに入る。優先は、root の file が手元に無い → 作り直せない、root の file が手元にある Scene で key が渡された → 他の供給元（依存の file が欠けていても。開いている Scene は snapshot が手元の版で届ける）、残りの source の欠けた root → 作り直せない、それ以外 → 上書き。(b) 「他の供給元」は Scene の node の logical key で、その node の全ての表現の Scene に効き、付随 asset の root には効かない。root の file が欠けた root の key を渡しても作り直せない root のまま。root の file はあるが依存の欠けた Scene の key を渡すと他の供給元に入り、作り直せない root に出ない。(c) 記録の閉包の asset が手元で解決しない root は、手元の閉包が出来ていても source の欠けた root になる。(d) 移動して編集した asset が、source の欠けた root の記録の閉包に当たる。(e) 記録にあって手元の選択に無い root が、編集を含めば `NotInLocalSelection` で出る。(f) 欠けた selected の root があり記録が無い・未対応・壊れている時、編集が 0 件でも欠けた selected の root が全て作り直せない root になり、「上書き不要・作り直せない root なし」を返さない。欠けの原因（削除か未 checkout か）は区別せず、fake の gateway が欠けた依存の path を返した root も同じに入る。(g) 全ての source がある checkout は、記録が無い・未対応・壊れているのどれでも、`sourceFiles` との path の比較と手元の閉包だけで決まり、編集があるのに編集 0 件を返さない。(h) 記録が「あり」で、その root の集合に無い root は、編集が無くても「上書きに入れる」（source が欠ければ `NotInBase`）。記録が無い・未対応・壊れている base では (h) を使わず、手元で足した root は編集（`sourceFiles` に path の無い file）に出た分だけが上書きに入る。(i) 「上書きに入れる」も「作り直せない」も空なら状態は「上書き不要」で、その時も他の供給元と当たらなかった編集は計画に残る。「上書きに入れる」が空で「作り直せない」が 1 つでもあれば、状態は「作り直せない root だけ」で、「上書き不要」を返さない（build は要らないが、編集の無い計画と同じ状態にしない）。当たらなかった編集は状態を変えない（どの root の閉包にも無い）。(j) 閉包が無く欠けの記録も無い selected の root は例外。(k) base の `transport.json` の bytes が上限を超える、SHA-256 が install の digest と違う、contentSet・revision・target が install の結果と違う、JSON として読めない、のどれでも計画は例外で、分類を返さない（記録の「壊れている」に読み替えず、`sourceFiles` を使わない）。(m) 記録が「あり」で、source の欠けた selected の root の記録の閉包に編集が無ければ、その root はどの分類にも出ない（他に編集が無ければ、状態は「上書き不要」で作り直せない root も無い）。計画は build を起こさず file を書かない | I-1、I-2 (5)、I-3 (1)(2)(3)、S-4 | 単体 |
+| AC5 | 認める口・build の口・再利用（fake の adapter）: 作り直せない root がある計画は、認めないと request の作成も前回の上書きの受け取りも例外（report の directory は増えない）。集合が計画の作り直せない root と完全に一致しない認めは例外。認めた計画の build は preflight に `overlayUnbuildable`（root・理由・編集・足りない file）と `overlaySupplied` を残す。上書き不要の計画と、作り直せない root だけの計画から request は作れない。再利用が返す前回の結果の preflight（`overlayUnbuildable`・`overlaySupplied`・編集）は、その build を作った時の記録である。今回の分類と理由の正本は今回の計画で、鍵が同じでも理由は違いうる（例: `SourceAbsent` だった root が、手元の選択から外れて `NotInLocalSelection` になる。上書きの閉包は同じなので前回の上書きを返し、計画は今回の理由を持つ）。Unity の前に selected の閉包の file が 1 つ無ければ失敗して Unity を呼ばない。build の後の hash が計画の時と違えば失敗で、再利用の記録を書かない。成功した上書きの outcome に鍵が残る。再利用は、鍵が同じで成果物が残り outcome が成功の時だけ前回の結果を返し、鍵の入力（I-5 の列挙）のどれか 1 つを変える・成果物の directory を消す・outcome を失敗にする、のどれでも返さない。再利用の記録の path が `reports/`・workspace・publish 先・installed cache の下に無い | I-2、I-3、I-4 (2)、I-5 | 単体 |
 | AC6 | 実機（合成 fixture、製品の経路。下の「AC6 の回」） | S-1〜S-4、I-1〜I-5、未測定 (i)〜(iv) | 実機（EditMode の `[UnityTest]`、build を伴う） |
-| AC7 | 実機（AC6 の base の publish）: 記録の root の集合が `index` の entry の集合と等しく、各 root の閉包（GUID と path）が build に渡した snapshot の閉包と生の値で等しく、記録の asset の path が全て `sourceFiles` にある。Local と HTTP から install した manifest が同じ bytes。単体（fake の adapter）: preflight の hash の後、adapter の build の中で閉包の file を書き換えた build は、上書きでなくても失敗になり（issue は「build の間に source が変わった」）、`content/<identity>/` を残さず、publish できない。build が成功した後に source を書き換えてから publish した manifest の `sourceFiles` の hash は build の前の値である。上限を超える記録は版 0 で publish され、`Debug.LogWarning` が 1 件出る（`LogAssert` で確かめる）。記録を版 0 にしても上限を超える manifest は publish が失敗する。hash の記録を持たない古い preflight からの publish は、記録を版 0 にして今までどおり publish する | S-5、I-1 (11)、I-6 | 実機 + 単体 |
-| AC8 | 非退行と範囲: 全 EditMode 回帰が「XML の failed 0 と root result `Passed`」。Phase B の commit が変える file は §3 の file だけ。`unity/Assets/OneStarMaker/Scripts/Runtime/` の差分は `BuildContent/Distribution/ContentTransportManifest.cs` だけ。`unity/Assets/SampleGame/`（`Tests/` を除く）と `Editor/Build/Selection/` に差分が無い（`git diff --stat`）。asmdef と `AssemblyInfo.cs` を変えていない | I-6 | 機械検査 |
+| AC7 | 実機（AC6 の base の publish）: 記録の root の集合が `index` の entry の集合と等しく、各 root の閉包（GUID と path）が build に渡した snapshot の閉包と生の値で等しく、記録の asset の path が全て `sourceFiles` にある。Local と HTTP から install した manifest が同じ bytes。単体（fake の adapter）: preflight の hash の後、adapter の build の中で閉包の file を書き換えた build は、上書きでなくても失敗になり（issue は「build の間に source が変わった」）、`content/<identity>/` を残さず、publish できない。`.meta` だけを書き換えた build も同じである（比べる集合は、preflight に残した閉包の file と `.meta`）。閉包の file が hash の時点で無い上書きでない build は今と同じく成功し、その publish は記録が版 0 で、既存の `BuildContentFullModeTests` と `ContentPurposeIndexPublishTests` の publish は変えずに通る。索引が版 0 の publish は記録も版 0。build が成功した後に source を書き換えてから publish した manifest の `sourceFiles` の hash は build の前の値である。上限を超える記録は版 0 で publish され、`Debug.LogWarning` が 1 件出る（`LogAssert` で確かめる）。記録を版 0 にしても上限を超える manifest は publish が失敗する。hash の記録を持たない古い preflight からの publish は、記録を版 0 にして今までどおり publish する | S-5、I-1 (11)、I-6 | 実機 + 単体 |
+| AC8 | 非退行と範囲: 全 EditMode 回帰が「XML の failed 0 と root result `Passed`」。Phase B の commit が変える file は §3 の file と本書だけ。`unity/Assets/OneStarMaker/Scripts/Runtime/` の差分は `BuildContent/Distribution/ContentTransportManifest.cs` だけ。`unity/Assets/SampleGame/`（`Tests/` を除く）と `Editor/Build/Selection/` に差分が無い（`git diff --stat`）。asmdef と `AssemblyInfo.cs` を変えていない | I-6 | 機械検査 |
 
 **AC6 の回。** fixture は合成の `SceneResourceMap` で、Scene `A`（Full と Whitebox の 2 つの表現。base の宣言は Full だけを選ぶ）・`B`・`C`、`A` と `B` が直接参照する texture `T`、`C` だけが参照する texture `U` と material `M`、合成で足した root 1 つ。base は欠けを許す materialize（全て揃った状態）→ 選択 → build（`Full`）→ publish → install。Play mode の登録は S3-2 の口（`RegisterVerifiedWithOverlay`）を直接呼ぶ。file を退かす時は `.meta` と一緒に `Assets` の外へ移し、戻した後に GUID が base と同じことを確かめる。
 
@@ -154,12 +154,13 @@
 | R4 | `B` の Scene と、`A` の Whitebox の Scene を退かして計画。認めずに request、認めて build → 登録して Play | 計画が出る。上書きに `A`、作り直せないに `B`（`SourceAbsent`、編集 `T`、足りない file は `B` の Scene）。`A` の Whitebox は除外のまま。認めない request は例外。認めて build 1 回。Play で `A` の `T` は編集後（record は上書き）、`B` の `T` は base の色（record は base）、`C` は base |
 | R5 | そのまま計画。認めずに前回の上書きを受け取る、認めて受け取る | 認めないと例外。認めると前回の上書き、build 0 回 |
 | R6 | `B` と Whitebox を戻す。`M` を退かし、`U` の pixel を書き換えて計画 → 認めて build | 上書きに `A` と `B`、作り直せないに `C`（`SourceAbsent`、編集 `U`、足りない file は `M`）、build 1 回 |
-| R7 | `M` を戻す。`T` を別の folder へ移動し（GUID は同じ）、`B` の Scene を退かして計画 → 認めて build | 上書きに `A` と `C`、作り直せないに `B`（編集は移動した `T`）、build 1 回 |
-| R8 | clean な checkout（fixture を一度も import していない `Library`。新しい worktree）で、`B` の Scene と `A` の Whitebox の Scene を最初から置かずに fixture を作る。別の checkout が build・publish した base を install し、`T` の pixel を base と違う色にして計画 → 認めて build → 登録して Play | R4 と同じ。計画が出る。上書きに `A`、作り直せないに `B`（`SourceAbsent`、編集 `T`、足りない file は記録の `B` の Scene の path）。`A` の Whitebox は除外のまま。build 1 回。Play で `A` の `T` は手元の色（record は上書き）、`B` の `T` は base の色（record は base） |
+| R7 | `M` を戻す。`T` を別の folder へ移動し（GUID は同じ）、`B` の Scene を退かし、`C` の Scene に base に無い新しい texture `N` を参照に足して計画 → 認めて build | 上書きに `A` と `C`（`C` の理由は、追加の `N`、内容の変更の `C` の Scene と `U`）、作り直せないに `B`（編集は移動した `T`）、build 1 回 |
+| R8 | clean な checkout（fixture を一度も import していない `Library`。新しい worktree）で、`B` の Scene と `A` の Whitebox の Scene を最初から置かずに fixture を作る。同じ GO 候補 head の別の checkout が build・publish した base を install する。前半: `T` を base と同じ内容のまま計画。後半: `T` の pixel を base と違う色にして計画 → 認めて build → 登録して Play | 前半: 状態は上書き不要、作り直せない root なし、build 0 回（source が欠けていても、編集が無ければ認めを求めない）。後半: R4 と同じ。計画が出る。上書きに `A`、作り直せないに `B`（`SourceAbsent`、編集 `T`、足りない file は記録の `B` の Scene の path）。`A` の Whitebox は除外のまま。build 1 回。Play で `A` の `T` は手元の色（record は上書き）、`B` の `T` は base の色（record は base） |
 
 - 各回の前後で、test が自分で変える file（`T`、`U`、退かした file と `.meta`）を除く fixture の source と、installed の revision の全ての file の SHA-256 が同じ。
 - 「build 0 回」の読み方: 合格は、その回に build の口を呼ばず、成果物の root の `reports/` の下の directory の数が増えないこと。report の前に拒まれた呼び出し（認めない request）も directory を増やさない。projection の失敗は directory を増やすので 0 回に数えない。
-- R4 の「`B` の `T` は base の色」の読み方: 合格は、`B` から載った renderer の texture の pixel が base の build の時の色であること。編集後の色が出た場合は、作り直せない root が base の版で動くという前提が崩れるので、NO-GO (ii) で owner に返す（§2.6）。
+- R4 の「`B` の `T` は base の色」の読み方: 合格は、`B` から載った renderer の texture の pixel が base の build の時の色であること。編集後の色が出た場合は、作り直せない root の直接参照が base の build の時の版で出るという前提が崩れるので、NO-GO (ii) で owner に返す（§2.6）。`T` は root ではなく、id では引かない。R4 と R8 の合格を、上書きにある id の物を base の root から id で引いた時の版（13 章「同じ id の物」で上書きの版）の証拠に使わない。
+- 合成で足した root の読み方: host が「欠けを許す materialize → 選択 → 合成 → `Plan`」の順に呼ぶ経路を通すために置く。この root の閉包に編集は入らないので、R0〜R7 のどの回でも、上書きにも作り直せない root にも出ない。
 - R6 の読み方: `M` を退かした時、Unity の `GetDependencies` が `M` の path を返しても返さなくても、`C` が作り直せない root になること（記録の閉包の asset が手元で解決しないことで決まる）。どちらを返したかは観測として §6 に残す（未測定 (iii)）。
 - R8 の読み方: R0〜R7 は `B` を一度 import した `Library` で file を退かすので、GUID から path への解決、`GetDependencies` の答え、Unity の build が、担当外の source を最初から持たない project と同じとは言えない。R8 はその project で R4 と同じ答えが出ることを確かめる。fixture は 2 つの checkout で同じ GUID になるように作る（`.meta` を固定の GUID で書く）。base を 2 つの checkout の間で渡す形は B が決めて §6 に書く。R8 は clean な checkout でだけ走らせ、全 EditMode 回帰の合否（AC8 の「failed 0 と root result `Passed`」）を変えない形にする（別の filter でだけ走らせる方法は B が決める）。
 
@@ -171,6 +172,7 @@
 | 作り直せない root がある時に通知して続けるか止めるか | S3-4b（§2.8 U3） |
 | 部分 checkout で作り直せない root がどれくらい生じ、編集 → Play の体験が成り立つか（program §8 の S3-4 の行の gate。成り立たなければ入口の配線の前に上書きの方式を見直す） | S3-4b の最初の作業（入口の配線の前）。本書が確かめるのは検出と分類の正しさまでで、頻度は測らない（§2.8 U14） |
 | 記録が無い・未対応・壊れている base で、既にある asset だけを指す root の宣言を手元で足した場合（閉包の file が変わらないので編集に出ず、その root は base にも上書きにも無い。Play では解決の失敗になり、古い版は出ない） | 後続（S3-4b の A1 が、manifest の `index` の entry と比べて拾うかを決める）。記録のある base では AC4 の (h) が拾う |
+| 作り直せない root から、上書きにある id の物を id で引いた時の版（上書きの版になる。13 章「同じ id の物」。影は上書きの root の entry だけに効く。「id による影」）と、状態を持つ共有 asset の実体が 2 つに分かれること（13 章「実体の重複」） | 既存の登録契約（S3-2）。本書は覆さず、確かめない。作り直せない root について本書が言うのは、entry が base から載ることと、直接参照が base の build の時の bytes であることまでである |
 | build の間に source を書き換えて、Unity の build の後までに元へ戻した変更（前後の hash が同じになる） | 塞がない。build の間に source を変えないことは、今の逆引きと同じく呼び手の前提である |
 | 保存していない asset の編集、複製の準備が Dirty の asset を file に書く順、disk に書いたが import していない変更（計画の前の `AssetDatabase.Refresh`） | S3-4b（計画の呼び手の前提として本書の API の doc に書く） |
 | Play に入る時の domain reload が前の Play の native の登録の残りを消すか、OS の lease の file handle、close が失敗した session の扱い（S3-2 から移送） | S3-4b |
@@ -259,7 +261,7 @@ A1 の発見（部分 checkout では逆引きの入力が作れない。§1 の
 ### 2.6 判定定義と停止規則
 
 - GO: AC1〜AC8 が全て合格。
-- NO-GO（owner に返す）: (i) root の Scene の file が手元に無い project で、Unity の build が選んだ root を build できない（未測定 (i)。AC6 の R4 と R8）。(ii) 作り直せない root が base の版で載らない（未測定 (ii)。AC6 の R4）。(iii) 実装に `Runtime/` の DTO の欄より外の変更、Selection の変更、asmdef の参照か `InternalsVisibleTo` の追加が要ると分かった（program §5.3 の見直しの条件 (3)）。(iv) 欠けを許す materialize の snapshot を今の選択と projection が受け付けない。
+- NO-GO（owner に返す）: (i) root の Scene の file が手元に無い project で、Unity の build が選んだ root を build できない（未測定 (i)。AC6 の R4 と R8）。(ii) 作り直せない root の直接参照が base の build の時の版で載らない（未測定 (ii)。AC6 の R4）。(iii) 実装に `Runtime/` の DTO の欄より外の変更、Selection の変更、asmdef の参照か `InternalsVisibleTo` の追加が要ると分かった（program §5.3 の見直しの条件 (3)）。(iv) 欠けを許す materialize の snapshot を今の選択と projection が受け付けない。
 - CONDITIONAL ACCEPT は使わない（スパイクではない）。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし。
@@ -295,20 +297,22 @@ A1 の発見（部分 checkout では逆引きの入力が作れない。§1 の
 | U4 | 閉包の記録が manifest の上限を超えた時 | 記録なし（版 0）で publish して警告する（出し先は U13）。publish を失敗にしない（版 0 でも上限を超える manifest は今までどおり失敗）。その base では部分 checkout の計画が、欠けた selected の root を全て作り直せない root にする（毎回認めが要る）。全ての source がある checkout は今までどおり動く |
 | U5 | 未測定 (i)〜(iv) を凍結の前に実 Editor で確かめるか | 確かめない。Phase B の最初の作業にし（§4 の (1)）、不成立なら NO-GO で返す。build を伴う Unity の実行は Phase C の担当という分担に合わせる |
 | U6 | 編集の検出と鍵の計算の所要 | base の `sourceFiles` の file と手元の閉包の file の SHA-256 を毎回計算する。正しさを先に取り、速くする工夫は入れない。所要の表示は S3-4b |
-| U7 | 削除の扱い | 編集に数えない（未 checkout と区別できない）。asset を消すと、その asset を閉包に持っていた root は source の欠けた root になり、他の編集が当たれば作り直せない root になる。消しただけなら何も出ず、base の版で動く。区別は VCS の adapter（S5）へ送る。全ての source がある checkout で日常的に asset を消す開発者には不便が残る |
+| U7 | 削除の扱い | 編集に数えない（未 checkout と区別できない）。**記録が「あり」の時:** asset を消すと、その asset を閉包に持っていた root は source の欠けた root になり、他の編集が当たれば作り直せない root になる。消しただけなら何も出ず、その root は base から載る。**記録が無い・未対応・壊れている時:** 欠けが手元から見えた root（root の file が無い。または Unity が返した依存の path の file が無い）は、消したのか未 checkout かに関わらず、AC4 の (f) で作り直せない root になる。Unity が消した依存の path を返さなければ欠けは見えず、何も出ない。どちらになるかは未測定 (iii) で決まり、結果を §6 に残す。区別は VCS の adapter（S5）へ送る。全ての source がある checkout で日常的に asset を消す開発者には不便が残る |
 | U8 | S3-4a をさらに「閉包の記録の publish」と「計画と build」に分けるか（§2.5） | 分けない |
 | U9 | A2 の後に設計を改めた（部分 checkout の plan の作り方 P2、記録の形 P3、認める口 P4、base の読み方 P6）。A2 の再レビューを行うか | 行わない。Draft PR の外部計画レビューで見てもらう（§5.1） |
 | U10 | build の前後で閉包の file の hash が違う build の扱い（外部計画レビュー） | 上書きでない build も失敗にする。hash を build の前へ移すだけでは、hash の後から Unity の build までの変更が base の記録と中身を食い違わせ、手元が「編集なし」になる（I-1 (11)）。I-6 の例外が 1 つ増え、build ごとに閉包の hash を 2 回計算する（U6 と同じく正しさを先に取る）。owner が覆す時は、「目的 build の間は source を変えない」を publish する者の前提として書く形に戻す |
 | U11 | S-2 を、担当外の source を一度も import していない checkout で確かめるか（外部計画レビュー） | 確かめる（AC6 の R8、判定必須）。S-2 を「import 済みの `Library` で file を退かした状態」に限る書き方にはしない。担当外の source を持たなくてよいことは上書きの方式を採る制約（program §5.3）で、その成立を入口の配線の後まで送らない。R8 の経路が作れない時は Phase A へ戻し、S-2 を限って clean な checkout を S3-4b の入口の配線の前の必須の gate にするかを owner が決める（§4） |
-| U12 | root の file はあるが依存の欠けた Scene に「他の供給元」の key が渡された時の分類（外部計画レビュー） | 他の供給元に入れる。開いている Scene は依存が欠けていても snapshot が手元の版で届けるので（S3-3 の O-1）、作り直せない root にすると「base の版で動く」という記録が実際と食い違う。root の file が無い root は、snapshot が届けられないので作り直せない root のままにする（I-2 (5)） |
+| U12 | root の file はあるが依存の欠けた Scene に「他の供給元」の key が渡された時の分類（外部計画レビュー） | 他の供給元に入れる。開いている Scene は依存が欠けていても snapshot が手元の版で届けるので（S3-3 の O-1）、作り直せない root にすると、「base の entry から載る」という記録が実際（snapshot の複製から載る）と食い違う。root の file が無い root は、snapshot が届けられないので作り直せない root のままにする（I-2 (5)） |
 | U13 | 閉包の記録を版 0 にした時の警告の出し先（外部計画レビュー） | `Debug.LogWarning` と、publish した manifest の `sourceClosure` の版 0。`ContentTransportPublisher.Publish` の public の形は変えない。CI が機械で確かめる時は manifest の版を読む |
-| U14 | program の S3-4 の行の gate「fail-closed せざるを得ない編集がどれくらい生じ、編集 → Play の体験が成り立つか」を、分割の後にどこで評価するか（外部計画レビュー） | S3-4b の最初の作業で、入口の配線の前に評価する。owner の条件（2026-11-19）は「成り立たなければ入口の配線を積み上げる前に方式を見直す」で、これを満たす。本書の製品 code と manifest の欄は、その評価の前に入る。本書は頻度を測らない（宣言からの host 関数が要り、SampleGame の製品 code を変えない対象外と衝突する） |
+| U14 | program の S3-4 の行の gate「fail-closed せざるを得ない編集がどれくらい生じ、編集 → Play の体験が成り立つか」を、分割の後にどこで評価するか（外部計画レビュー） | S3-4b の最初の作業で、入口の配線の前に評価する。owner の条件（2026-11-19）は「成り立たなければ入口の配線を積み上げる前に方式を見直す」で、これを満たす。本書の製品 code と manifest の欄は、その評価の前に入る。本書は頻度を測らない（宣言からの host 関数が要り、SampleGame の製品 code を変えない対象外と衝突する）。評価が方式の見直しになった時、`sourceClosure` は任意の欄のまま残してよい（読むのは Editor の計画だけで、Runtime の検証と install は見ない）。外す時と形を変える時だけ版を上げる。本書が 13 章・18 章へ harvest した文と、計画・認める口・再利用の code を戻すかは、見直しを行うスライスが決める（S3-4b の最初の作業の結果を受ける） |
+| U15 | 上書きに入れる root が無く、作り直せない root だけがある計画の状態（外部計画レビュー） | 「上書き不要」と分けて、3 つ目の状態にする。認めの門（request と再利用）を通らない計画が、編集の無い計画と同じ状態で返ると、状態だけを見る入口が黙って base だけで進める。その状態で止めるか続けるかは S3-4b（U3）。当たらなかった編集は状態を変えない（指摘は「編集なし」の条件に入れる案だったが、どの root の閉包にも無い編集は Play の中身を変えない） |
+| U16 | hash の時点で閉包の file が無い、上書きでない build（Phase C で突かれる点の見直し） | 失敗にせず、今までどおり成功しうる。既存の test（`BuildContentFullModeTests`、`ContentPurposeIndexPublishTests`）は、disk に無い path と GUID の形でない値の閉包を build・publish している。この build の publish は閉包の記録を版 0 にする。全ての build で hash が取れることを要求すると I-6 を破る |
 
 **S3-4b へ送った点（本書では決めない）。**
 
 | ID | 点 | S3-4b への入力 |
 |---|---|---|
-| U3 | 作り直せない root がある時の Play（通知して続けるか、止めるか） | 担当の見立ては「止めずに Play に入り、毎回 Console と record に出す。黙らせる設定は作らない」（止めると共有 asset の編集のたびに Play が止まり、program §8 の行が方式の見直しの条件にしている。開いている Scene は snapshot が手元の版で出す）。本書は、どちらの規則でも使える口（集合を認めた計画だけが上書きを得る）までを作る |
+| U3 | 作り直せない root がある時の Play（通知して続けるか、止めるか） | 担当の見立ては「止めずに Play に入り、毎回 Console と record に出す。黙らせる設定は作らない」（止めると共有 asset の編集のたびに Play が止まり、program §8 の行が方式の見直しの条件にしている。開いている Scene は snapshot が手元の版で出す）。本書は、どちらの規則でも使える口（集合を認めた計画だけが上書きを得る）と、作り直せない root だけの計画を別の状態で返すこと（U15）までを作る |
 
 ## 3. 責務マップ
 
@@ -323,16 +327,16 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
 | `Editor/Build/Materialization/SceneResourceContentMaterializer.cs` | 欠けを許す口 `MaterializeAllowingAbsentSources` を足す。欠けた payload の候補を、閉包を持たずに残す（provenance に欠けの理由）。今の `Materialize` は変えない | 今と同じ | public の method を足す | AC3 | 257 → +50 |
 | `Editor/Build/Content/ContentSourceClosureRecord.cs`（新） | 閉包の記録の値の規則を 1 か所で持つ。build の閉包から記録を作る関数（publisher が使う）と、manifest の bytes から読む読み口（「あり」「記録なし」「未対応」「壊れている」と理由） | 値 | internal。Runtime の DTO だけを使う | AC1 | 新 約 190 |
 | `Editor/Build/Content/ContentOverlayLocalSource.cs`（新） | 計画が手元を読む port（GUID → path、file の有無、SHA-256）と、`AssetDatabase` と `File` の実物。test は fake に替える | 計画の間 | internal | AC2、AC4 | 新 約 70 |
-| `Editor/Build/Content/ContentOverlayPlan.cs`（新） | 計画の入力と結果の値。状態（上書き不要・build が要る）、編集（path・種類）、上書きの root と理由、他の供給元、作り直せない root（key・理由・編集・足りない file）、当たらなかった編集、共有 asset、base の identity、鍵。集合を認める口 `Acknowledge` | 値（不変） | public | AC4、AC5 | 新 約 190 |
+| `Editor/Build/Content/ContentOverlayPlan.cs`（新） | 計画の入力と結果の値。状態（上書き不要・build が要る・作り直せない root だけ）、編集（path・種類）、上書きの root と理由、他の供給元、作り直せない root（key・理由・編集・足りない file）、当たらなかった編集、共有 asset、base の identity、鍵。集合を認める口 `Acknowledge` | 値（不変） | public | AC4、AC5 | 新 約 190 |
 | `Editor/Build/Content/ContentOverlayPlanner.cs`（新） | 計画の入口 `Plan`。base の manifest の bytes を読んで照合し（§2.4 P6。落ちれば例外）、編集を検出し、手元の plan と snapshot（欠けの記録付き）と閉包の記録から分類し、鍵を計算して再利用の記録を照合する。build を起こさず file を書かない | 1 回の計画 | public static。host は「欠けを許す materialize → 選択 → 合成 → `Plan`」の順に呼ぶ | AC2、AC4、AC6 | 新 約 260 |
 | `Editor/Build/Content/ContentOverlayReuse.cs`（新） | 鍵の計算と、contentSet ごとの最後の成功の記録（成果物の root の下の `overlay/<contentSet>.json`）の読み書き。鍵・成果物の残り・outcome の成功を確かめる | 記録の file | internal。受け取りは計画の口から | AC5 | 新 約 140 |
 | `Editor/Build/Content/ContentOverlaySelection.cs` | 逆引きの中身を、対象の root の範囲を引数に取る internal の関数に出し、計画が使う。public の `Select` は結果を変えない | 値 | public は変えない | AC4、既存の `ContentOverlaySelectionTests` | 238 → +25 |
-| `Editor/Build/Content/BuildContentReport.cs` | 計画から上書きの request を作る constructor（認めていない計画と上書き不要の計画を拒む）。preflight に root ごとの閉包、file と `.meta` の build の前の SHA-256、`overlayUnbuildable`、`overlaySupplied`、鍵。outcome に鍵。`BuildContentResult` に鍵の property | 今と同じ | public の constructor と property を足す。今の constructor は変えない | AC5、AC7 | 279 → +80 |
-| `Editor/Build/Content/BuildContentCoordinator.cs` | preflight の前に閉包の file を hash し、Unity の後に hash し直して、違えば失敗にする（全ての build。成果物の directory を残さない）。計画から作った上書きの build は、加えて Unity の前に閉包の file の存在を確かめ、Unity の後の hash を計画の時の値とも比べる。成功した上書きの後に再利用の記録を書く | 今と同じ | public は変えない。issue code を足す | AC5、AC7 | 221 → +65 |
+| `Editor/Build/Content/BuildContentReport.cs` | 計画から上書きの request を作る constructor（認めていない計画と、build が要らない計画（上書き不要・作り直せない root だけ）を拒む）。preflight に root ごとの閉包、file と `.meta` の build の前の SHA-256、`overlayUnbuildable`、`overlaySupplied`、鍵。outcome に鍵。`BuildContentResult` に鍵の property | 今と同じ | public の constructor と property を足す。今の constructor は変えない | AC5、AC7 | 279 → +80 |
+| `Editor/Build/Content/BuildContentCoordinator.cs` | preflight の前に閉包の file と `.meta` を hash し、Unity の後に hash し直して、違えば失敗にする（全ての build。成果物の directory を残さない。hash の時点で無い file は「無い」と記録し、前後とも「無い」なら等しい）。計画から作った上書きの build は、加えて Unity の前に閉包の file の存在を確かめ、Unity の後の hash を計画の時の値とも比べる。成功した上書きの後に再利用の記録を書く | 今と同じ | public は変えない。issue code を足す | AC5、AC7 | 221 → +65 |
 | `Editor/Build/Content/BuildContentProjection.cs`（issue code の定義） | issue code に「build の間に source が変わった」「閉包の file が手元に無い」を足す。照合の規則は変えない | 今と同じ | public の enum に値を足す | AC5 | 168 → +6 |
-| `Editor/Build/Content/ContentTransportPublisher.cs` | preflight の root ごとの閉包と build の前の hash から、`sourceFiles` と閉包の記録を書く。書いた bytes を読み口で読み直す。上限を超える時は記録を版 0 にして `Debug.LogWarning` を出す（上限の超過は今の読み直し `ContentPurposeIndex.Read` の `TooLarge` で分かる。版 0 でも超えれば今までどおり失敗）。hash の記録の無い古い preflight は、今の書き方で記録を版 0 にする | 今と同じ | 変えない | AC7 | 186 → +55 |
+| `Editor/Build/Content/ContentTransportPublisher.cs` | preflight の root ごとの閉包と build の前の hash から、`sourceFiles` と閉包の記録を書く。書いた bytes を読み口で読み直す。上限を超える時は記録を版 0 にして `Debug.LogWarning` を出す（上限の超過は今の読み直し `ContentPurposeIndex.Read` の `TooLarge` で分かる。版 0 でも超えれば今までどおり失敗）。hash の記録の無い古い preflight、hash が 1 つでも取れなかった build、索引が版 0 の publish は、今の書き方で記録を版 0 にする | 今と同じ | 変えない | AC7 | 186 → +55 |
 | `OneStarMaker/Tests/Editor/Build/`（test） | AC1〜AC5・AC7 の単体（新しい test class）と、既存の `ContentOverlaySelectionTests`・`SceneResourceContentMaterializerTests`・`ContentPurposeIndexPublishTests`・`BuildContentReportTests` の非退行 | — | 既存の `OneStarMaker.Tests.Editor` の参照と `InternalsVisibleTo` の範囲 | — | 新 約 900 |
-| `SampleGame/Tests/Editor/Build/OverlayFromLocalEditsIntegrationTests.cs`（新、test） | AC6・AC7 の実機。合成の `SceneResourceMap` を materializer に通す fixture（GUID は固定。R8 は clean な checkout で別に走る） | — | 既存の `SampleGame.Tests.Editor` の参照の範囲 | — | 新 約 550 |
+| `SampleGame/Tests/Editor/Build/OverlayFromLocalEdits*.cs`（新、test。fixture と R8 を別の file に分けてよい） | AC6・AC7 の実機。合成の `SceneResourceMap` を materializer に通す fixture（GUID は固定。R8 は clean な checkout で別に走る） | — | 既存の `SampleGame.Tests.Editor` の参照の範囲 | — | 新 約 550 |
 
 - 公開 API の増分（まとめ）: Runtime は manifest の field 1 つと serializable の型 4 つ。Materialization は `MaterializeAllowingAbsentSources`、`BuildMaterializationAbsence`、`BuildMaterializationSnapshot.Absences`。Content は `ContentOverlayPlanner.Plan`、計画の入力と結果の型（`ContentOverlayPlan` と、状態・編集の種類・作り直せない理由の enum）、`BuildContentRequest` の constructor 1 つ、`BuildContentResult` の property 1 つ、`BuildContentIssueCode` の値 2 つ。今の public の型の意味は変えない（`ContentOverlayUnmatchedReason` に値を足さない。作り直せない root と他の供給元の root にだけ当たった編集は、それぞれの分類の理由に出て、「当たらなかった編集」には入らない）。
 - 配置の理由: 欠けを許す materialize は閉包と候補を作る所（Materialization）に置く。記録の値の規則・編集の検出・分類・鍵は、manifest と手元の閉包の両方を読む Editor の build の関心なので Content に置く。Selection は変えない。Runtime は DTO の欄だけにする（install と再検証はこの欄を見ない）。
@@ -359,7 +363,7 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
 - 判定 C の照合 script の方式: なし（test の XML を判定 C の担当が読む）。
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC8 の `git diff --stat`。
 - A0/A1 主担当・モデル・ベンダー: AI（Claude Code、Anthropic）。
-- C' 用に予約した担当・モデル・ベンダー: Codex CLI（OpenAI 系）。A0〜A2 と統合では使っていない（A2 は Anthropic 系だけ）。動かない時だけ cursor-agent の Grok 系。外部計画レビューの 1 巡目は 2 件で、2 件目は Claude Code（Anthropic 系。主担当と同じ系列）である。1 件目の系列は本書の担当からは確かめられなかった。C' は起動の時点で、Phase A〜C に関与していない系列から進行役が選ぶ。1 件目が OpenAI 系で、未関与の系列が残っていなければ、Grok 系で `独立性制約あり` と記録する。
+- C' 用に予約した担当・モデル・ベンダー: Codex CLI（OpenAI 系）。A0〜A2 と統合では使っていない（A2 は Anthropic 系だけ）。動かない時だけ cursor-agent の Grok 系。外部計画レビューの 1 巡目は 2 件で、2 件目は Claude Code（Anthropic 系。主担当と同じ系列）である。1 件目の系列は本書の担当からは確かめられなかった。2 巡目は Cursor の Grok（xAI 系）で、Grok 系も Phase A に関与した。C' は起動の時点で、Phase A〜C に関与していない系列から進行役が選ぶ。1 件目が OpenAI 系で、未関与の系列が残っていなければ、Grok 系で `独立性制約あり` と記録する。
 - 独立性の強化条件を満たせない場合の理由: A3 で記録する。
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -419,7 +423,32 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
   | 2 件目 Minor | AC4 の読みが分かれる 2 点: root の file はあるが依存の欠けた Scene に「他の供給元」の key が渡された時の分類。(h) の「記録に無い root」が、記録の無い base では全ての root に当たる | 採用。記録の無い base で既にある asset だけを指す root の宣言を足した場合は、既知の制約として記録 | AC4 の (a)(b)(h)、§2.1 の用語、I-1 の本文と (15)、I-2 (5)、§2.3、§2.8 U12 |
   | 2 件目 Minor | 閉包の記録を版 0 にした時の「警告」の出し先が決まっていない | 採用 | `Debug.LogWarning` と manifest の版 0（S-5、AC7、§3 の publisher、§2.8 U13）。publisher の public の形は変えない |
 
-- 外部計画レビューの後の A2 の再レビューの要否: 行わない（担当の決定）。この巡の変更は、不変条件を崩す経路を塞ぐ追加（build の前後の hash、照合に落ちた manifest での停止）、読みの確定（AC4 の優先と (h)、警告の出し先）、証拠の追加（R8）で、責務マップの file・依存の向き・公開 API の増分は変えていない。上書きでない build の成功条件を変える U10 と、未確認の経路を足す U11 は、追加の外部計画レビューの巡があればそこで見てもらう。
+- 外部計画レビューの 2 巡目（2026-11-21、Cursor の Grok、xAI 系。対象は `cf344338` と `60b69684`）。指摘は 7 件で、1 巡目の 6 件が反映後の文で塞がっていることも確認している。下は担当の分類である。
+
+  | 指摘 | 担当の分類 | 反映 |
+  |---|---|---|
+  | Major: 「作り直せない root は base の版」は、R4 と未測定 (ii) が測る直接参照の bytes より広い。13 章は、上書きにある id の物はどちらの root から引いても上書きの版になると受け入れている | 採用 | 問い、S-2、NO-GO (ii)、R4 の読み方、harvest 先、program §8 の S3-4a の行を、「entry は base から載り、直接参照は base の build の時の bytes」に揃えた。id で引く経路は既存の契約として §2.3 に書き、R4 と R8 の合格をその証拠に使わない |
+  | Medium: 状態が 2 値で、作り直せない root だけが当たった計画が「上書き不要」になる | 採用（「当たらなかった編集」を状態に入れる所だけ不採用） | 3 つ目の状態（I-2 と経路 (6)、AC4 の (i)、AC5、§3、§2.8 U15） |
+  | Medium: 記録が未対応・壊れている時、全ての source がある checkout の検出規則が無い | 採用 | 記録が無い・未対応・壊れているの 3 つとも path の比較で決める（§2.1 の用語、AC2、AC4 の (g)、S-1） |
+  | Medium: U7 の「消しただけなら何も出ない」と (f) が、記録の無い base の削除で別の答えになる | 採用（U7 を記録が「あり」の時に限る方） | §2.1 の削除、AC4 の (f)、§2.8 U7。Unity が消した依存の path を返すかは未測定 (iii) |
+  | Minor: 再利用が返す outcome の `overlayUnbuildable` が今回の理由と違いうる。AC7 の途中の書き換えが `.meta` だけの変化を落とせない | 採用 | 今回の分類と理由の正本は今回の計画（AC5）。比べる集合は閉包の file と `.meta`（I-6、AC7、§3 の coordinator） |
+  | Minor: U14 に、gate が方式の見直しになった時の `sourceClosure` の扱いが無い | 採用 | 任意の欄のまま残してよく、外す・形を変える時だけ版を上げる。harvest した文を戻すかは見直しを行うスライスが決める（§2.8 U14） |
+  | Minor: §0 の次の作業が §5.1 と食い違う | 採用 | §0 の引継ぎ票 |
+
+- Phase C で突かれる点の担当の見直し（2 巡目の反映と同じ commit）。外部の指摘ではなく、担当が自分で見つけて直した点である。
+
+  | 見つけた点 | 直し |
+  |---|---|
+  | 全ての build で閉包の hash を取ると、disk に無い path の閉包を build・publish する既存の test（`BuildContentFullModeTests`、`ContentPurposeIndexPublishTests`）が落ち、GUID の形でない値の記録を書いた publish が読み直しで失敗する。I-6 と AC8 を破る | hash の時点で無い file は「無い」と記録して失敗にせず、その publish は記録を版 0 にする（I-6、S-5、AC7、§3、§2.8 U16） |
+  | source の欠けた selected の root を全て作り直せない root にする実装でも、AC4 と AC6 を通る（欠けた root に編集が当たらない case が無い） | AC4 の (m) と、R8 の前半（部分 checkout で編集が無ければ、上書き不要で認めも求めない）、S-2 |
+  | S-1 は E（新しい asset を参照に足す）を Play まで言うが、実機の回が無い | R7 に E を足し、S-1 を「計画の分類と build の成功まで」に揃えた |
+  | 「追加」の「手元の閉包」の範囲が無く、除外した候補（base が選ばない表現）の file が毎回編集に出る実装が通る | selected の root の閉包に限る（§2.1 の用語、AC2） |
+  | 索引が版 0 の publish（coordinator を通さない result）で、記録の root の集合を索引と比べられない | 記録も版 0（S-5、AC7、§3 の publisher） |
+  | fixture の「合成で足した root」に期待が無い | どの回でも上書きにも作り直せない root にも出ない（AC6 の読み方） |
+  | AC8 の「§3 の file だけ」は、本書の §6 の記入と、fixture と R8 を別の file に分けることを違反にする | 本書を除き、test の file は接頭辞で指す（AC8、§3） |
+  | R8 の base がどの head の物か、root の GUID が解決しない時の「足りない path」が何かが無い | 同じ GO 候補 head の別の checkout が publish した base（R8）。空で、計画が記録の path で補う（AC3） |
+
+- 外部計画レビューの後の A2 の再レビューの要否: 行わない（担当の決定）。2 巡目の変更は、主張を測る範囲に揃えること、計画の状態を 1 つ足すこと、読みの確定で、責務マップの file・依存の向きは変えていない（公開 API の増分は、計画の状態の enum の値が 1 つ増える）。1 巡目の変更は、不変条件を崩す経路を塞ぐ追加（build の前後の hash、照合に落ちた manifest での停止）、読みの確定（AC4 の優先と (h)、警告の出し先）、証拠の追加（R8）で、責務マップの file・依存の向き・公開 API の増分は変えていない。上書きでない build の成功条件を変える U10 と、未確認の経路を足す U11 は、2 巡目が反映後の文で確かめている。担当の見直しで足した U16 と AC4 の (m) は、どの外部のレビューも見ていない。
 - A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner の採否と凍結は未了。
 
 ## 6. Phase B 実装結果
