@@ -17,7 +17,21 @@ namespace OneStarMaker.Editor.Build.Materialization
         internal SceneResourceContentMaterializer(IAssetDatabaseGateway gateway) =>
             _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
 
-        public BuildMaterializationResult Materialize(SceneResourceMap? map)
+        public BuildMaterializationResult Materialize(SceneResourceMap? map) => Materialize(map, false);
+
+        /// <summary>
+        /// 手元に source が欠けていても snapshot を返す materialize。root の GUID が解決しない・root の file が無い・Unity が返した依存の file が無い
+        /// payload（宣言が選ばない表現、到達しない node、付随 asset を含む）は、閉包を持たない候補として残り（stable key は
+        /// <see cref="Materialize"/> と同じ）、<see cref="BuildMaterializationSnapshot.Absences"/> に欠けの記録が付く。選択は今の規則で全ての候補を見る。
+        /// 構造の失敗（GUID と path の不一致、衝突、graph の欠損、map の null）は今と同じく issue で、snapshot は null。
+        /// </summary>
+        /// <remarks>
+        /// 閉包の無い候補を selected に残した plan は、build の前の照合（projection）が止める。上書きの計画（ContentOverlayPlanner）が欠けた root を
+        /// 上書きから外す。上書きを作る経路の外で、この snapshot を上書きでない build に渡さない。
+        /// </remarks>
+        public BuildMaterializationResult MaterializeAllowingAbsentSources(SceneResourceMap? map) => Materialize(map, true);
+
+        private BuildMaterializationResult Materialize(SceneResourceMap? map, bool allowAbsence)
         {
             var issues = new List<BuildMaterializationIssue>();
             if (map == null)
@@ -27,7 +41,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                 return new BuildMaterializationResult(null, issues);
             }
 
-            try { return MaterializeCore(map, issues); }
+            try { return MaterializeCore(map, issues, allowAbsence); }
             catch (Exception exception)
             {
                 issues.Add(new BuildMaterializationIssue(BuildMaterializationIssueCode.GatewayFailure,
@@ -50,8 +64,9 @@ namespace OneStarMaker.Editor.Build.Materialization
             public List<BuildGraphAttachedAsset> AttachedAssets { get; } = new();
         }
 
-        private BuildMaterializationResult MaterializeCore(SceneResourceMap map, ICollection<BuildMaterializationIssue> issues)
+        private BuildMaterializationResult MaterializeCore(SceneResourceMap map, ICollection<BuildMaterializationIssue> issues, bool allowAbsence)
         {
+            var absences = new List<BuildMaterializationAbsence>();
             var candidates = new List<BuildContentCandidate>();
             var requirements = new List<BuildContentRequirement>();
             var dependencies = new List<BuildDependencySnapshot>();
@@ -98,10 +113,10 @@ namespace OneStarMaker.Editor.Build.Materialization
                     if (representation == null || guid == null) continue;
                     if (!draft.SceneRepresentations.Contains(representation, StringComparer.Ordinal))
                         draft.SceneRepresentations.Add(representation);
-                    var closure = closureBuilder.Build(guid, logical, issues);
-                    if (closure == null) continue;
-                    var candidate = ScenePayloadMappingPolicy.Candidate(logical, representation, guid, closure.RootPath);
-                    Admit(candidate, closure, representation, candidates, dependencies, tags, stableKeys, physicalKeys, issues);
+                    var closure = Closure(closureBuilder, guid, logical, issues, allowAbsence, out var absence);
+                    if (closure == null && absence == null) continue;
+                    var candidate = ScenePayloadMappingPolicy.Candidate(logical, representation, guid, closure?.RootPath ?? absence!.Value.RootPath ?? UnresolvedPath);
+                    Admit(candidate, closure, absence, representation, candidates, dependencies, absences, tags, stableKeys, physicalKeys, issues);
                 }
                 // Requirements は「宣言された payload 群」。payload の無い論理 node には作らない（到達と要求は resolver が宣言から決める）。
                 if (draft.SceneRepresentations.Count != 0)
@@ -134,10 +149,10 @@ namespace OneStarMaker.Editor.Build.Materialization
                         var representation = ValidatePayload(payload, attachedKey, BuildMaterializationSubject.AttachedAsset, issues, out var guid);
                         if (representation == null || guid == null) continue;
                         if (!representations.Contains(representation, StringComparer.Ordinal)) representations.Add(representation);
-                        var closure = closureBuilder.Build(guid, attachedKey, issues);
-                        if (closure == null) continue;
-                        var candidate = ScenePayloadMappingPolicy.AttachedCandidate(logical, attached.Name, representation, guid, closure.RootPath);
-                        Admit(candidate, closure, representation, candidates, dependencies, tags, stableKeys, physicalKeys, issues);
+                        var closure = Closure(closureBuilder, guid, attachedKey, issues, allowAbsence, out var absence);
+                        if (closure == null && absence == null) continue;
+                        var candidate = ScenePayloadMappingPolicy.AttachedCandidate(logical, attached.Name, representation, guid, closure?.RootPath ?? absence!.Value.RootPath ?? UnresolvedPath);
+                        Admit(candidate, closure, absence, representation, candidates, dependencies, absences, tags, stableKeys, physicalKeys, issues);
                     }
                     if (representations.Count == 0)
                     {
@@ -166,7 +181,7 @@ namespace OneStarMaker.Editor.Build.Materialization
 
             var snapshot = issues.Count == 0
                 ? new BuildMaterializationSnapshot(candidates, tags, requirements, dependencies,
-                    drafts.Select(x => new BuildGraphNode(x.Identity, x.Parent, x.Children, x.Load, x.SceneRepresentations, x.AttachedAssets)))
+                    drafts.Select(x => new BuildGraphNode(x.Identity, x.Parent, x.Children, x.Load, x.SceneRepresentations, x.AttachedAssets)), absences)
                 : null;
             return new BuildMaterializationResult(snapshot, issues);
         }
@@ -225,8 +240,20 @@ namespace OneStarMaker.Editor.Build.Materialization
             return ScenePayloadMappingPolicy.Representation(variant);
         }
 
-        private static void Admit(BuildContentCandidate candidate, BuildDependencySnapshot closure, string representation,
-            ICollection<BuildContentCandidate> candidates, ICollection<BuildDependencySnapshot> dependencies,
+        // root の GUID が手元で解決しない欠けた候補の provenance の rootPath（診断用。stable key と 3 つの key は path に依らない）。
+        private const string UnresolvedPath = "(unresolved)";
+
+        private static BuildDependencySnapshot? Closure(AssetDependencySnapshotBuilder builder, string guid, string subjectKey,
+            ICollection<BuildMaterializationIssue> issues, bool allowAbsence,
+            out (BuildMaterializationAbsenceReason Reason, string? RootPath, IReadOnlyList<string> MissingPaths)? absence)
+        {
+            absence = null;
+            return allowAbsence ? builder.BuildAllowingAbsence(guid, subjectKey, issues, out absence) : builder.Build(guid, subjectKey, issues);
+        }
+
+        private static void Admit(BuildContentCandidate candidate, BuildDependencySnapshot? closure,
+            (BuildMaterializationAbsenceReason Reason, string? RootPath, IReadOnlyList<string> MissingPaths)? absence, string representation,
+            ICollection<BuildContentCandidate> candidates, ICollection<BuildDependencySnapshot> dependencies, ICollection<BuildMaterializationAbsence> absences,
             IDictionary<string, IReadOnlyList<BuildTag>> tags, ISet<string> stableKeys, ISet<string> physicalKeys,
             ICollection<BuildMaterializationIssue> issues)
         {
@@ -244,7 +271,9 @@ namespace OneStarMaker.Editor.Build.Materialization
                 return;
             }
             candidates.Add(candidate);
-            dependencies.Add(closure);
+            if (closure != null) dependencies.Add(closure);
+            else absences.Add(new BuildMaterializationAbsence(candidate.StableKey, candidate.LogicalKey, candidate.PhysicalKey,
+                absence!.Value.RootPath, absence.Value.Reason, absence.Value.MissingPaths));
             tags.Add(candidate.StableKey, new[] { ScenePayloadMappingPolicy.Tag(representation) });
         }
 

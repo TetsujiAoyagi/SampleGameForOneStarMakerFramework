@@ -14,7 +14,12 @@ namespace OneStarMaker.Editor.Build.Content
     {
         MissingCandidate, ExtraSelectedCandidate, CandidateMismatch, PhysicalKeyCollision,
         MissingClosure, DuplicateClosure, RootMismatch, DependencyMismatch, PathCollision,
-        InvalidRepresentation, BuildFailure
+        InvalidRepresentation, BuildFailure,
+        // build の前と Unity の build の後で、閉包の file か .meta の hash が違う（計画から作った上書きでは、計画の時の値とも比べる）。
+        // 中身と記録（publish の sourceFiles）が食い違うので、成果物を残さない。
+        SourceChangedDuringBuild,
+        // 計画から作った上書きで、Unity を呼ぶ前に上書きの閉包の file が手元に無い。手元に無い source を Unity の build に渡さない。
+        SourceFileMissing
     }
 
     public sealed class BuildContentIssue

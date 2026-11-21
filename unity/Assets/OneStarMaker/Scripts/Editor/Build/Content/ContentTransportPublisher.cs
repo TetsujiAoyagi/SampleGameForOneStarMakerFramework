@@ -74,15 +74,21 @@ namespace OneStarMaker.Editor.Build.Content
                     .OrderBy(x => x.path, StringComparer.Ordinal)
                     .ToArray();
 
-                // source 閉包は開発時の案内用。実行時の content 取得や登録には要求しない。
-                var sourcePaths = preflight.closure
-                    .Select(x => x.Contains('|') ? x.Substring(x.LastIndexOf('|') + 1) : x)
-                    .SelectMany(x => File.Exists(x + ".meta") ? new[] { x, x + ".meta" } : new[] { x });
-                var sources = sourcePaths.Where(File.Exists)
-                    .Distinct(StringComparer.Ordinal)
-                    .Select(x => new ContentSourceFile { path = x.Replace('\\', '/'), sha256 = Sha256(x) })
-                    .OrderBy(x => x.path, StringComparer.Ordinal)
-                    .ToArray();
+                // source 閉包は開発時の案内と、手元の編集から上書きを決める計画の比較の相手。実行時の content 取得や登録には要求しない。
+                // hash は build の前に coordinator が取った値（preflight）を書き、publish の時点の disk を読まない（build の後に source を
+                // 変えてから publish しても、記録が build した中身と食い違わないように）。hash の記録の無い旧 preflight だけ、今の時点で取る。
+                // どちらも、その時点で在る file だけを書く。
+                var sources = preflight.sourceHashRecord == 1
+                    ? preflight.sourceHashes.Where(x => x.present)
+                        .Select(x => new ContentSourceFile { path = x.path.Replace('\\', '/'), sha256 = x.sha256 })
+                        .GroupBy(x => x.path, StringComparer.Ordinal).Select(x => x.First())
+                        .OrderBy(x => x.path, StringComparer.Ordinal).ToArray()
+                    : preflight.closure
+                        .Select(x => x.Contains('|') ? x.Substring(x.LastIndexOf('|') + 1) : x)
+                        .SelectMany(x => File.Exists(x + ".meta") ? new[] { x, x + ".meta" } : new[] { x })
+                        .Where(File.Exists).Distinct(StringComparer.Ordinal)
+                        .Select(x => new ContentSourceFile { path = x.Replace('\\', '/'), sha256 = Sha256(x) })
+                        .OrderBy(x => x.path, StringComparer.Ordinal).ToArray();
                 // 宣言は build result から写す（preflight の形は変えない）。version と rootSchemaVersion は据え置き:
                 // 任意の追加項目で、宣言の無い旧 manifest は name が空のまま読まれる。
                 var declaration = result.Declaration == null ? new ContentManifestDeclaration() : new ContentManifestDeclaration
@@ -123,16 +129,30 @@ namespace OneStarMaker.Editor.Build.Content
                     sourceFiles = sources,
                     declaration = declaration,
                     index = index,
+                    sourceClosure = SourceClosure(preflight, index),
                 };
                 var manifestPath = Path.Combine(staging, "transport.json");
-                File.WriteAllText(manifestPath, JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
+                var written = Write(manifestPath, manifest);
                 // 書いた bytes を選択の読み口で読み直し、重複・空白だけの値などの形の失敗があれば公開しない（staging は finally が消す）。
                 // 値の規則を publisher に 2 つ目として書かず、読み手が受け付けない索引を配布しないための検査。
-                var written = File.ReadAllBytes(manifestPath);
                 var reread = ContentPurposeIndex.Read(written, Sha256(written));
+                if (reread.Failure == ContentPurposeIndexFailure.TooLarge && manifest.sourceClosure.version != 0)
+                {
+                    // 閉包の記録で上限を超えた時は、記録なし（版 0）で publish する。その base の部分 checkout の計画は、欠けた selected の root を
+                    // 全て作り直せない root にする（全ての source がある checkout は今までどおり動く）。版 0 でも超えれば下で今までどおり失敗する。
+                    Debug.LogWarning("[ContentTransportPublisher] The source closure record exceeds the manifest limit; published without it (sourceClosure version 0): " + final);
+                    manifest.sourceClosure = new ContentSourceClosure();
+                    written = Write(manifestPath, manifest);
+                    reread = ContentPurposeIndex.Read(written, Sha256(written));
+                }
                 var expected = index.version == 0 ? ContentPurposeIndexState.NoIndex : ContentPurposeIndexState.Indexed;
                 if (reread.State != expected)
                     throw new InvalidOperationException("Published index is invalid: " + reread.Detail);
+                // 閉包の記録も計画の読み口で読み直し、読み手が「壊れている」と読む記録を配布しない。
+                var closureRead = ContentSourceClosureRecord.Read(JsonUtility.FromJson<ContentTransportManifest>(Encoding.UTF8.GetString(written)));
+                var closureExpected = manifest.sourceClosure.version == 0 ? ContentSourceClosureState.Missing : ContentSourceClosureState.Present;
+                if (closureRead.State != closureExpected)
+                    throw new InvalidOperationException("Published source closure record is invalid: " + closureRead.Detail);
                 Directory.Move(staging, final);
                 return final;
             }
@@ -141,6 +161,24 @@ namespace OneStarMaker.Editor.Build.Content
                 if (Directory.Exists(staging))
                     Directory.Delete(staging, true);
             }
+        }
+
+        private static byte[] Write(string path, ContentTransportManifest manifest)
+        {
+            File.WriteAllText(path, JsonUtility.ToJson(manifest, true), new UTF8Encoding(false));
+            return File.ReadAllBytes(path);
+        }
+
+        // 閉包の記録は、build の前の hash が閉包の全ての file と .meta で取れ、索引が版 1 の時だけ書く（root の集合は索引の entry と等しい）。
+        // hash の記録の無い旧 preflight、hash の時点で無い file がある build（合成の test の build）、索引が版 0 の publish は版 0（記録なし）。
+        private static ContentSourceClosure SourceClosure(Preflight preflight, ContentTransportIndex index)
+        {
+            if (preflight.sourceHashRecord != 1 || index.version != 1 || preflight.sourceHashes.Length == 0 || preflight.sourceHashes.Any(x => !x.present))
+                return new ContentSourceClosure();
+            return ContentSourceClosureRecord.Create(preflight.rootClosures.Select(x => new ContentSourceClosureRootRecord(
+                x.logicalKey, x.kind, x.representation, x.guid,
+                x.closure.Select(e => new OneStarMaker.Editor.Build.Materialization.BuildDependencyEntry(
+                    e.Substring(0, e.IndexOf('|')), e.Substring(e.IndexOf('|') + 1))))));
         }
 
         // staging は公開先の親の下の `.staging/<guid32>` に置く。名前（41 文字）が build identity（52 文字）より短いので、
@@ -181,6 +219,9 @@ namespace OneStarMaker.Editor.Build.Content
             public string contentSet = "";
             public string[] excluded = Array.Empty<string>();
             public string[] closure = Array.Empty<string>();
+            public ContentReportRootClosure[] rootClosures = Array.Empty<ContentReportRootClosure>();
+            public int sourceHashRecord;
+            public ContentReportSourceHash[] sourceHashes = Array.Empty<ContentReportSourceHash>();
         }
     }
 }
