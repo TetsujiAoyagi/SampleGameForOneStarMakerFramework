@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `A`（revision 2 の A2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。owner の D5 の裁定（§0 の引継ぎ票）を I-6・AC8・§3・§4・§5 に反映した版を A2 に掛ける。revision 1 の経緯: A3 凍結版は revision 1、B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
+- status: `B`（A3 凍結版は revision 2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 2 は owner の D5 の裁定を I-6・AC8・§3・§4・§5 に反映し、B の作業は §4 の (7) だけ。A2 の 2 件と採否は §5.1「revision 2」。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `d4d2e22bcd500a23919323553e41f01318561586`
-- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
+- implementation head commit: `未固定`
+- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。revision 2 は 2026-11-22。対象は revision 2（この記録を含む commit の本書の全体）。根拠は、owner の D5 の裁定（2026-11-22。§0 の引継ぎ票に記録した「両方を採る」）が revision 2 の中身を決め、本文への反映と凍結を指示したこと。A2 で採った指摘は同じ事実（manifest の bytes が増えること）の読みを補うだけで、code の変更・範囲・目的・利用者の 2 欄は裁定の外へ広げていない（§5.1「revision 2」）。revision 1 は 2026-11-21 に owner が凍結した（外部計画レビューの 3 巡の反映の後に凍結と Phase B の開始を指示。§2.8 の U1・U2 は担当の案のとおり）
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
 - created: 2026-11-21
@@ -21,13 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner の裁定の後に Phase A（revision 2。§7「判定 C（2026-11-22）」の D5 の扱いを決める）。動作確認は `対象なし`（§5）。
-  - owner の裁定（2026-11-22、D5）: 両方を採る。`ContentInstallerTests.cs` を §3 と AC8 の範囲に足して予算を上げる（この test が確かめるのは hash の不一致で、1024 bytes に意味は無い）。記録を持たない manifest でも `sourceClosure` の空の欄で bytes が増え、install の予約が同じだけ増えることを I-6 の例外として明記する。product の code で欄を省く直しは取らない。
-  - 次の作業: 上の裁定に沿って D5 の扱いを本文に反映し、revision 2 で凍結する。決めることは、(1) 新しい欄で manifest の bytes が増え、install の予約が増えることを I-6 の例外に足すか、(2) 直しに要る §3 の外の file（少なくとも `OneStarMaker/Tests/BuildContent/Distribution/ContentInstallerTests.cs` の予算 1024 bytes）を §3 と AC8 の範囲に足すか、別の直し方にするか。凍結の後は B が直し、発見 C が全 EditMode 回帰（または `ContentInstallerTests` を含む filter）で確かめてから判定 C へ戻す。判定 C の R8 と evidence bundle は未実行なので、次の GO 候補 head でやり直す。
-  - 読む範囲: 既定（Phase A は全節）。D5 は §7「判定 C（2026-11-22）」。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Phase A は Unity を要らない。後の B・C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
-  - 停止規則: §2.6。A3 後の例外承認は無いので、範囲を変える時は revision 2 として A2・A3 を通す。
+  - 次の Phase・役割: Phase B（revision 2）。動作確認は `対象なし`（§5）。
+  - owner の裁定（2026-11-22、D5）: 両方を採る。`ContentInstallerTests.cs` を §3 と AC8 の範囲に足して予算を上げる（この test が確かめるのは hash の不一致で、1024 bytes に意味は無い）。記録を持たない manifest でも `sourceClosure` の空の欄で bytes が増え、install の予約が同じだけ増えることを I-6 の例外として明記する。product の code で欄を省く直しは取らない。revision 2 で本文に反映した（I-6 の 3 つ目の例外、AC8、§3、§4 の (7)、§5）。
+  - 次の作業: §4 の (7) だけを行う（`ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision` の予算 `1024` を `1024 * 1024` にする。行を整形し直さない。AC8）。(1)〜(6) の code は revision 1 の実装（`d4d2e22b` まで）のまま変えない。B の commit が新しい implementation head になる。その後は発見 C が §5 の起点 filter（`ContentInstallerTests` を含む）で確かめ、判定 C へ進める。判定 C の判定必須（全 EditMode 回帰、R8、evidence bundle）は新しい GO 候補 head でやり直す。B と発見 C の差し戻しの巡は revision 2 で数え直す（revision 1 の 3 巡とは別）。
+  - 読む範囲: 既定（Phase B は §0〜§5。差し戻しでは §6〜§8 も）。D5 は §7「判定 C（2026-11-22）」。
+  - 引き継ぐ commit: この票を含む commit（revision 2 の A3 凍結版）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: B は Unity の batch test を要らない（Editor のコンパイル確認は今までと同じ）。C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
+  - 停止規則: §2.6。§3 に無い file の変更が要る時は Phase A へ戻す（§4）。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -123,7 +123,7 @@
   - 確かめた事実（A2）: 今の `InspectInstalled` の read lease は `%LocalAppData%\OneStarMaker\RevisionLocks\v1\` に lock の file を作って残し、cache root と revision の下には作らない。本書の計画は lease を取らずに manifest の bytes を読む（§2.4 P6）。
 - **I-5 再利用で古い上書きを出さない。** 前回の上書きを返すのは、上書きの入力の鍵（base の identity の 5 欄、上書きの contentSet、target、build する Editor の Unity の版、root に写る宣言の値、上書きの root ごとの stable key・logical key・表現・root の GUID と path、上書きの閉包の全ての file の GUID・path・file と `.meta` の SHA-256、鍵の版の定数）が前回と同じで、前回の outcome が成功で、build が成功した時に記録した成果物の file（`content/<identity>/` の下の全ての file の相対 path と SHA-256）が全て同じ内容で残っている時だけである。1 つでも違えば build する（成果物の file が 1 つ欠けた・書き換わった時と、再利用の記録か outcome が読めない時を含む）。計画から作った上書きの build は、Unity の build の後に閉包の file を hash し直し、計画の時と違えば失敗にして再利用の記録を書かない。
   - 崩しうる経路: (1) 鍵に入らない入力（script、project の設定、package、Framework の build の code）。既知の制約として書き、Framework の code の変更は鍵の版の定数を上げる（§2.3）。(2) 前回の成果物が消された・壊れた（directory は残り、中の file が 1 つ欠けた・書き換わった場合を含む。鍵は入力しか見ないので、壊れた成果物が同じ鍵で返り続ける。登録（S3-2）は上書きの directory の存在と base の identity を見るが、中の file は見ない）。(3) 別の base に重ねて作った上書き（登録の照合も拒む）。(4) 計画と build の間、build の間に source が変わり、変わった中身の上書きが古い鍵で記録される。
-- **I-6 上書きを使わない利用は変わらない。** 今の `Materialize`、今の閉包の作成、上書きでない build、今の逆引きの呼び方、install は、同じ入力に同じ結果を返す。例外は 3 つで、はじめの 2 つは I-1 (11) のためである: publish の `sourceFiles` の hash の時点を build の前へ移す。build の前と Unity の build の後で閉包の file か `.meta` の hash が違う build は、上書きでなくても失敗にする（§2.8 U10）。hash の時点で無い file は「無い」と記録し、前後とも「無い」なら等しいと扱う（上書きでない build は、今と同じく閉包の file が無くても失敗にしない。無い file を失敗にするのは、計画から作った上書きの build だけである。I-3）。3 つ目の例外は manifest の大きさである（revision 2。§7「判定 C（2026-11-22）」の D5 に対する owner の裁定）: JsonUtility は欄を省けないので、記録を持たない manifest も `sourceClosure` の版 0 の空の欄（`,"sourceClosure":{"version":0,"roots":[],"assets":[],"groups":[]}`、65 bytes）を書き、記録を持つ manifest はその分さらに大きい。install は manifest の bytes を予約に数える（`ContentInstaller` の `metadataBytes`）ので、同じ入力の install の予約は manifest が増えた bytes と同じだけ増え、予算の境目にある install は `BudgetUnsatisfied` に変わりうる。予約の数え方と予算の検査（Distribution の install）は変えない。既存の test のうち、この増分で答えが変わるのは `ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision`（予算 1024 bytes。確かめるのは hash の不一致で、1024 bytes に意味は無い）だけで（判定 C の J1 の全 EditMode 回帰で失敗したのはこの 1 件）、その予算を上げる（§3）。product の code で欄を省く直しは取らない。新しい欄を持つ manifest を、この変更より前の runtime の検証（必須欄と型）が受け付け、`index` の版と目的 build の選択の答えは変わらない。`Runtime/` の変更は manifest の DTO の任意の欄だけで、`Runtime/ContentResolution/`、session、gate、`AssetManagement`、`Bootstrap`、`SceneSystem`、Distribution の検証と install に差分が無い（program §5.3 の見直しの条件 (3)）。
+- **I-6 上書きを使わない利用は変わらない。** 今の `Materialize`、今の閉包の作成、上書きでない build、今の逆引きの呼び方、install は、同じ入力に同じ結果を返す。例外は 3 つで、はじめの 2 つは I-1 (11) のためである: publish の `sourceFiles` の hash の時点を build の前へ移す。build の前と Unity の build の後で閉包の file か `.meta` の hash が違う build は、上書きでなくても失敗にする（§2.8 U10）。hash の時点で無い file は「無い」と記録し、前後とも「無い」なら等しいと扱う（上書きでない build は、今と同じく閉包の file が無くても失敗にしない。無い file を失敗にするのは、計画から作った上書きの build だけである。I-3）。3 つ目の例外は manifest の大きさである（revision 2。§7「判定 C（2026-11-22）」の D5 に対する owner の裁定）: JsonUtility は欄を省けないので、記録を持たない manifest も `sourceClosure` の版 0 の空の欄を書き（compact な JSON で `,"sourceClosure":{"version":0,"roots":[],"assets":[],"groups":[]}` の 65 bytes。publisher の整形した出力ではそれより大きい）、記録を持つ manifest はその分さらに大きい。manifest の bytes に依る判定は、この増分で境目の答えが変わりうる: (a) install の予約（`ContentInstaller` の `metadataBytes`）。境目の install は `BudgetUnsatisfied` に変わりうる。(b) installed の `transport.json` を含む cache の使用量と追い出し（`ContentCacheStore.MakeRoom`）。同じ予算で追い出される revision が変わりうり、pin で追い出せない時は `BudgetUnsatisfied` に変わりうる。(c) publish の読み直しの上限（4 MiB、`ContentPurposeIndex.Read` の `TooLarge`）。記録を版 0 にしても、元の manifest が上限の手前の増分の幅にあった publish は失敗に変わりうる。予約と使用量の数え方、予算と上限の検査（Distribution の install と cache、publisher の読み直し）は変えない。既存の test のうち、この増分で答えが変わるのは `ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision`（予算 1024 bytes。確かめるのは hash の不一致で、1024 bytes に意味は無い）だけで（判定 C の J1 の全 EditMode 回帰で失敗したのはこの 1 件。A2 が `ContentInstallRequest` を作る全ての呼び出しを確かめた）、その予算を上げる（§3）。product の code で欄を省く直しは取らない。新しい欄を持つ manifest を、この変更より前の runtime の検証（必須欄と型）が受け付け、`index` の版と目的 build の選択の答えは変わらない。`Runtime/` の変更は manifest の DTO の任意の欄だけで、`Runtime/ContentResolution/`、session、gate、`AssetManagement`、`Bootstrap`、`SceneSystem`、Distribution の検証と install に差分が無い（program §5.3 の見直しの条件 (3)）。
 
 成立条件（起きなければならないこと）:
 
@@ -144,7 +144,7 @@
 | AC5 | 認める口・build の口・再利用（fake の adapter）: 作り直せない root がある計画は、認めないと request の作成も前回の上書きの受け取りも例外（report の directory は増えない）。集合が計画の作り直せない root と完全に一致しない認めは例外。認めた計画の build は preflight に `overlayUnbuildable`（root・理由・編集・足りない file）と `overlaySupplied` を残す。上書き不要の計画と、作り直せない root だけの計画から request は作れない。再利用が返す前回の結果の preflight（`overlayUnbuildable`・`overlaySupplied`・編集）は、その build を作った時の記録である。今回の分類と理由の正本は今回の計画で、鍵が同じでも理由は違いうる（例: `SourceAbsent` だった root が、手元の選択から外れて `NotInLocalSelection` になる。上書きの閉包は同じなので前回の上書きを返し、計画は今回の理由を持つ）。Unity の前に selected の閉包の file が 1 つ無ければ失敗して Unity を呼ばない。build の後の hash が計画の時と違えば失敗で、再利用の記録を書かない。成功した上書きの outcome に鍵が残る。再利用は、鍵が同じで、記録した成果物の file が全て同じ内容で残り、outcome が成功の時だけ前回の結果を返す。鍵の入力（I-5 の列挙）のどれか 1 つを変える・成果物の directory を消す・directory を残して中の file を 1 つ消す・中の file を 1 つ書き換える・outcome を失敗にする・outcome か再利用の記録を読めない内容にする、のどれでも返さず、その後の build は成功して、記録は新しい成果物を指す。成果物の directory に記録に無い file が増えただけでは拒まない。再利用の記録の path が `reports/`・workspace・publish 先・installed cache の下に無い | I-2、I-3、I-4 (2)、I-5 | 単体 |
 | AC6 | 実機（合成 fixture、製品の経路。下の「AC6 の回」） | S-1〜S-4、I-1〜I-5、未測定 (i)〜(iv) | 実機（EditMode の `[UnityTest]`、build を伴う） |
 | AC7 | 実機（AC6 の base の publish）: 記録の root の集合が `index` の entry の集合と等しく、各 root の閉包（GUID と path）が build に渡した snapshot の閉包と生の値で等しく、記録の asset の path が全て `sourceFiles` にある。Local と HTTP から install した manifest が同じ bytes。単体（fake の adapter）: preflight の hash の後、adapter の build の中で閉包の file を書き換えた build は、上書きでなくても失敗になり（issue は「build の間に source が変わった」）、`content/<identity>/` を残さず、publish できない。`.meta` だけを書き換えた build も同じである（比べる集合は、preflight に残した閉包の file と `.meta`）。閉包の file が hash の時点で無い上書きでない build は今と同じく成功し、その publish は記録が版 0 で、既存の `BuildContentFullModeTests` と `ContentPurposeIndexPublishTests` の publish は変えずに通る。索引が版 0 の publish は記録も版 0。build が成功した後に source を書き換えてから publish した manifest の `sourceFiles` の hash は build の前の値である。上限を超える記録は版 0 で publish され、`Debug.LogWarning` が 1 件出る（`LogAssert` で確かめる）。記録を版 0 にしても上限を超える manifest は publish が失敗する。hash の記録を持たない古い preflight からの publish は、記録を版 0 にして今までどおり publish する | S-5、I-1 (11)、I-6 | 実機 + 単体 |
-| AC8 | 非退行と範囲: 全 EditMode 回帰が「XML の failed 0 と root result `Passed`」。Phase B の commit が変える file は §3 の file と本書だけ。`unity/Assets/OneStarMaker/Scripts/Runtime/` の差分は `BuildContent/Distribution/ContentTransportManifest.cs` だけ。`unity/Assets/SampleGame/`（`Tests/` を除く）と `Editor/Build/Selection/` に差分が無い（`git diff --stat`）。`unity/Assets/OneStarMaker/Tests/BuildContent/` の差分は `Distribution/ContentInstallerTests.cs` の `Install_HashMismatch_DoesNotPublishRevision` の予算の値だけ（revision 2。I-6 の 3 つ目の例外）。asmdef と `AssemblyInfo.cs` を変えていない | I-6 | 機械検査 |
+| AC8 | 非退行と範囲: 全 EditMode 回帰が「XML の failed 0 と root result `Passed`」。Phase B の commit が変える file は §3 の file と本書だけ。`unity/Assets/OneStarMaker/Scripts/Runtime/` の差分は `BuildContent/Distribution/ContentTransportManifest.cs` だけ。`unity/Assets/SampleGame/`（`Tests/` を除く）と `Editor/Build/Selection/` に差分が無い（`git diff --stat`）。`unity/Assets/OneStarMaker/Tests/BuildContent/` の差分は `Distribution/ContentInstallerTests.cs` の `Install_HashMismatch_DoesNotPublishRevision` の予算の値を §3 の `1024 * 1024` にすることだけ（revision 2。I-6 の 3 つ目の例外）。test の本体は 1 行に書かれていて `--stat` では値の変更と書き換えを区別できないので、`git diff --word-diff=porcelain 63f171ac <head> -- unity/Assets/OneStarMaker/Tests/BuildContent/` の変更が `1024);` → `1024 * 1024);` の 1 箇所だけであることで確かめる（行を整形し直さない）。asmdef と `AssemblyInfo.cs` を変えていない | I-6 | 機械検査 |
 
 **AC6 の回。** fixture は合成の `SceneResourceMap` で、Scene `A`（Full と Whitebox の 2 つの表現。base の宣言は Full だけを選ぶ）・`B`・`C`、`A` と `B` が直接参照する texture `T`、`C` だけが参照する texture `U` と material `M`、合成で足した root 1 つ。base は欠けを許す materialize（全て揃った状態）→ 選択 → build（`Full`）→ publish → install。Play mode の登録は S3-2 の口（`RegisterVerifiedWithOverlay`）を直接呼ぶ。file を退かす時は `.meta` と一緒に `Assets` の外へ移し、戻した後に GUID が base と同じことを確かめる。
 
@@ -360,7 +360,7 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
 - 単体テスト: AC1〜AC5 と AC7 の単体の部分（Unity の build を伴わない EditMode）。
 - 差し戻し中の起点 `-Filter`（C が根拠付きで変更可。受け入れ条件の追加ではない）: AC1〜AC5 の新しい test class、`ContentInstallerTests`（revision 2。D5 は manifest の bytes が install の予約に入る所で現れ、revision 1 の起点 filter はこの class を含まなかった）、`ContentOverlaySelectionTests`、`SceneResourceContentMaterializerTests`、`ContentPurposeIndexPublishTests`、`ContentPurposeIndexTests`、`ContentManifestValidationTests`、`BuildContentReportTests`、`BuildContentProjectionTests`、`BuildContentFullModeTests`。
 - 判定必須テスト（GO 候補 head）: 上の起点 filter、AC6・AC7 の実機の test（R8 は clean な checkout で別に走らせる）、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、最終の全 EditMode 回帰（空 filter。合否は「XML の failed 0 と root result `Passed`」で読む。`-nographics` の VFX 25 件の Inconclusive で `step.json` が `failed` になるため）。
-- 全 EditMode 回帰の適用除外: なし。Player の build は判定必須にしない（Player の構成に入る変更は manifest の DTO の任意の欄だけで、install と再検証はその欄を見ない。代替証拠は AC1 の「新しい欄を持つ manifest が今の検証を通る」と AC8 の `Runtime/` の差分）。
+- 全 EditMode 回帰の適用除外: なし。Player の build は判定必須にしない（Player の構成に入る変更は manifest の DTO の任意の欄だけで、install と再検証はその欄の意味を見ない。欄の bytes は予約・cache の使用量・上限に数えるが、それは I-6 の 3 つ目の例外で、Player の build で確かめる新しい経路は無い。代替証拠は AC1 の「新しい欄を持つ manifest が今の検証を通る」と AC8 の `Runtime/` の差分）。
 - 統合・Unity テスト: AC6 の R0〜R7 は Content Directory の build を 5 回伴う（base 1、上書き 4）。R8 は clean な checkout（新しい worktree。初回の import を伴う）で上書きの build を 1 回伴う。他の Unity が同時に動くと build を伴う test が失敗した既知の事例がある（program §8）ので、判定 C は他の Unity を止めて走らせる。build を伴う batch の後の Unity の終了 stall は既知（`tools/Harness/README.md`）で、XML の完成で判定する。coordinator の staging の `Directory.Move` が access denied で失敗する既知の不安定（program §8）に当たった時は、同じ head で走らせ直してよく、その事実を §7 に記録する。
 - 操作・実行時・目視条件の検証経路: 該当なし。全ての受け入れ条件は EditMode の test（batch）と機械検査で閉じる。動作確認は `対象なし`。
 - 未知の操作経路の疎通結果と、必要な検証支援・確認地点: **未確認。初回確認は Phase B の最初の作業（§4 の (1)）と Phase C:** EditMode の `[UnityTest]` の中で、fixture の file を `.meta` と一緒に `Assets` の外へ退かして `AssetDatabase.Refresh` し、計画と build を行い、戻すこと（既存の実機の test は file を消さない）と、未測定 (i)〜(iv)。理由は、Unity の build を伴う試行を Phase A で行わないため（§2.8 U5）。R0〜R7 は `B` を一度 import した `Library` で測るので、一度も import していない project の答えは R8 が clean な checkout で取る。R8 の経路（新しい worktree の初回の import、同じ GUID の fixture、2 つの checkout の間の base の受け渡し）も未確認で、初回確認は同じく Phase B の最初の作業と Phase C。不成立なら §2.6 の NO-GO で owner に返し、R8 の経路が作れない時は Phase A へ戻す（§4）。build → publish → install → Play mode の登録と読みは `OverlayRegistrationIntegrationTests` と `RegisteredDirectoryRouteIntegrationTests` で成立した経路である。
@@ -464,6 +464,27 @@ path は §1 の現況と同じ相対。行数は base `63f171ac`。
 
 - 外部計画レビューの後の A2 の再レビューの要否: 行わない（担当の決定）。3 巡目の変更は、再利用の条件を 1 つ足すこと（internal の記録の欄が増える。公開 API と依存の向きは変えない）と、読みの確定である。2 巡目の変更は、主張を測る範囲に揃えること、計画の状態を 1 つ足すこと、読みの確定で、責務マップの file・依存の向きは変えていない（公開 API の増分は、計画の状態の enum の値が 1 つ増える）。1 巡目の変更は、不変条件を崩す経路を塞ぐ追加（build の前後の hash、照合に落ちた manifest での停止）、読みの確定（AC4 の優先と (h)、警告の出し先）、証拠の追加（R8）で、責務マップの file・依存の向き・公開 API の増分は変えていない。上書きでない build の成功条件を変える U10 と、未確認の経路を足す U11 は、2 巡目が反映後の文で確かめている。担当の見直しで足した U16 と AC4 の (m) は、3 巡目の 1 件目が確かめている。3 巡目で足した U17 と AC4 の (n) は、どの外部のレビューも反映後の文では見ていない。
 - A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。owner は 2026-11-21 に凍結した。上の表の担当の分類を覆した行は無い（§0 の凍結記録）。
+
+### revision 2（2026-11-22、D5）
+
+- 契機: 判定 C の D5（§7）。owner の裁定（§0 の引継ぎ票）を I-6・AC8・§3・§4・§5 に反映した。目的・利用者の 2 欄、§2.1 の他の条件、§2.2 の AC1〜AC7、製品 code の責務マップは変えていない。
+- A2（同一 PC）。入力版は commit `5f8fd5e2`（A2 入力版。code は revision 1 の implementation head `d4d2e22b` のまま）と、HANDOFF copy（sha256 `89f91bb08004a4c93406f1c2b3c3bfeac02d19c0e0e811c65096f6fe0e62dd49`）。2 件とも Claude Code の subagent（Anthropic 系。主担当と同じ系列）で、互いの指摘は渡していない。評価の枠は「§4 の (1)〜(6) は実装済み、(7) だけが未実装」。
+  - アーキテクチャゲート: 照合は一致。blocker 0、major 0、minor 3。
+  - 不変条件の反証と AC の読み違い: 照合は一致。blocker 0、major 1、minor 3。
+  - 目的レビュー: やり直さない（2 欄を変えていないので、規則のやり直しの条件に当たらない）。A0 だけからの代替構成も足さない（変更は owner が裁定した 1 つの事実の扱いで、構成の選択肢が無い）。
+- A3 の分類（担当の分類）:
+
+  | 出所 | 指摘 | 分類 | 反映 |
+  |---|---|---|---|
+  | 反証 1 major | 3 つ目の例外が install の予約だけを挙げる。manifest の bytes に依る判定は、cache の使用量と追い出し（`ContentCacheStore.MakeRoom` は installed の `transport.json` を含む実 file の bytes を数える）と、publish の読み直しの 4 MiB 上限もあり、同じ増分で境目の答えが変わる | 採用 | 3 つ目の例外を「manifest の bytes に依る判定」として (a) install の予約、(b) cache の使用量と追い出し、(c) publish の読み直しの上限を挙げた（I-6）。code は変えない。裁定の「bytes が増える」と同じ事実の結果で、裁定の外へ広げていない |
+  | 反証 2 minor | 65 bytes は compact な JSON の値で、publisher は整形して書く | 採用 | I-6 に「compact な JSON で 65 bytes。整形した出力ではそれより大きい」と書いた |
+  | ゲート 1・反証 3 minor | AC8 の「予算の値だけ」を `git diff --stat` で判定できず（test の本体が 1 行）、値も AC8 で固定されていない | 採用 | AC8 に §3 の値と、`--word-diff=porcelain` で変更が 1 箇所だけであることを書いた |
+  | ゲート 2・反証 4 minor | §0 の引継ぎ票が判定 C の時点のまま | 採用 | 凍結版の票で直した |
+  | ゲート 3・反証 4 minor | §5 の「install と再検証はその欄を見ない」が I-6 の例外と並べて矛盾して見える | 採用 | 「欄の意味を見ない。bytes は I-6 の 3 つ目の例外」と書いた（§5） |
+
+- 外部計画レビュー（Draft PR）: revision 2 では行わない（担当の決定）。変更は owner が裁定した 1 つの事実（新しい欄で manifest の bytes が増えること）の扱いと、test の値 1 つで、製品 code・公開 API・依存・責務マップは revision 1 のまま。A2 の 2 件が code と照合して、採った指摘は全て読みの補いだった。owner が覆す時は、この版を Draft PR で外部計画レビューに掛けてから凍結し直す。
+- 外部計画レビューの後の A2 の再レビュー: 該当なし。
+- A3 統合担当・採否: 統合は AI（Claude Code、Anthropic）。凍結は §0 の凍結記録。
 
 ## 6. Phase B 実装結果
 
