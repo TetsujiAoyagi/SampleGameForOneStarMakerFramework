@@ -54,7 +54,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         /// <summary>
-        /// Runtime の provider が作った 1 層の store から 3 key を抜き出す。環境変数の provider は名前の大文字のまま store へ入れるので、
+        /// Runtime の provider が作った 1 層の store から、明示設定と数える key（<see cref="PlayEntryDecision.ExplicitSettingKeys"/>）を抜き出す。環境変数の provider は名前の大文字のまま store へ入れるので、
         /// 大文字小文字を区別せずに探す（Runtime の AppConfig も区別しない）。空文字の値も「ある」として残す。
         /// </summary>
         internal static PlayEntryConfigLayer From(IEnumerable<KeyValuePair<string, string>> store)

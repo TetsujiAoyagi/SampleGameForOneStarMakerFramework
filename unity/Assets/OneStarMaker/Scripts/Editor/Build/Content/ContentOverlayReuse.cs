@@ -71,7 +71,8 @@ namespace OneStarMaker.Editor.Build.Content
         // 成功した上書きの後に呼ぶ。成果物の file を hash して、contentSet の記録をこの build に差し替える。
         // 失敗は例外で返す。呼び手（coordinator）は成功した build を失敗にせず、理由を結果に写す。
         // 置き換えは 1 回の操作（File.Replace）で行い、既存の記録を先に消す段を持たない。途中で失敗しても既存の記録は
-        // 前の bytes のまま読める（鍵が違うので、今の計画には返らない）。別名の file は成否によらず残さない。
+        // 前の bytes のまま読める（鍵が違うので、今の計画には返らない）。別名の file は成否によらず消しにいくが、その削除自体が
+        // 失敗すると残りうる。名前は contentSet ごとに 1 つで固定なので、残っても増えず、次の Write が書き直す。TryGet は読まない。
         internal static void Write(string artifactsRoot, string contentSet, string key, BuildContentResult result)
         {
             var root = Path.GetFullPath(artifactsRoot);
@@ -97,7 +98,8 @@ namespace OneStarMaker.Editor.Build.Content
             }
             finally
             {
-                // 置き換えが成功していれば別名は既に無い。失敗した時の書きかけを残さない（削除の失敗は元の失敗を隠さない）。
+                // 置き換えが成功していれば別名は既に無い。失敗した時の書きかけは消しにいく。削除の失敗は握りつぶして元の失敗を隠さず、
+                // その時は別名が残る（上の通り次の Write が書き直す）。
                 try { if (File.Exists(temp)) File.Delete(temp); }
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
