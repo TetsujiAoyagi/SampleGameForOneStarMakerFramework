@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `C`（revision 2 の発見 C は阻害する指摘なし。次は判定 C。§7「発見 C（revision 2、2026-11-22）」。revision 2 の Phase B は §4 の (7) を終えた（§6「revision 2 の Phase B（2026-11-22）」）。A3 凍結版は revision 2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 2 は owner の D5 の裁定を I-6・AC8・§3・§4・§5 に反映し、B の作業は §4 の (7) だけ。A2 の 2 件と採否は §5.1「revision 2」。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
+- status: `C'`（revision 2 の判定 C は GO。次は C' の 1 巡目。§7「判定 C（revision 2、2026-11-22）」。revision 2 の発見 C は阻害する指摘なし（§7「発見 C（revision 2、2026-11-22）」）。revision 2 の Phase B は §4 の (7) を終えた（§6「revision 2 の Phase B（2026-11-22）」）。A3 凍結版は revision 2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 2 は owner の D5 の裁定を I-6・AC8・§3・§4・§5 に反映し、B の作業は §4 の (7) だけ。A2 の 2 件と採否は §5.1「revision 2」。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `ae0670664c4bf05c7414d55e4bd27f4fcae62455`
@@ -18,20 +18,19 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§1、§4.3、§5.3「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」、§8 の S3-4 の行と S3-2・S3-3 からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C（revision 2）が implementation head で生成し、task `s3-4a-overlay-from-local-edits` に `evidence stage` した（判定用、25 file）。取得案内は進行役の共有メモ（git 管理外）にある。別の pwsh process の fetch で `passed`、XML と head を読めた。受け取り側の別 session の fetch・閲覧は未確認
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（26 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側の fetch・閲覧の確認は C' の起動前に行う
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（revision 2）。動作確認は `対象なし`（§5）。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C（revision 2）の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役）、使った担当・モデルと独立性を §8 に書く。高コスト証拠は無いので、この C' が最終 C' である。動作確認は `対象なし`（§5）。
   - owner の裁定（2026-11-22、D5）: 両方を採る。`ContentInstallerTests.cs` を §3 と AC8 の範囲に足して予算を上げる（この test が確かめるのは hash の不一致で、1024 bytes に意味は無い）。記録を持たない manifest でも `sourceClosure` の空の欄で bytes が増え、install の予約が同じだけ増えることを I-6 の例外として明記する。product の code で欄を省く直しは取らない。revision 2 で本文に反映した（I-6 の 3 つ目の例外、AC8、§3、§4 の (7)、§5）。
-  - Phase B（revision 2）の結果: §4 の (7) を終えた（§6「revision 2 の Phase B（2026-11-22）」）。implementation head は §0 の欄の commit で、(1)〜(6) の code は `d4d2e22b` から変えていない。
-  - 発見 C（revision 2）の結果: 阻害する指摘なし。§5 の起点 filter（14 class）は 232 件全て Passed で、D5 の `Install_HashMismatch_DoesNotPublishRevision` も Passed（§7「発見 C（revision 2、2026-11-22）」）。B と発見 C の差し戻しは revision 2 で 0 巡。
-  - 次の作業: 判定 C が GO 候補 head（§0 の implementation head 欄）で §5 の判定必須（起点 filter、AC6・AC7 の実機、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、最終の全 EditMode 回帰、R8 は clean な checkout で §6「判定 C への引渡し」の手順）を走らせ、evidence bundle を作る。revision 1 の判定 C の J1 は旧 head の結果で流用しない。
-  - 読む範囲: 既定（判定 C は §0〜§8）。D5 は §7「判定 C（2026-11-22）」。
-  - 引き継ぐ commit: この票を含む commit（発見 C（revision 2）の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - Phase B result snapshot・evidence bundle・C' blind bundle の取得案内: 未生成（B は作らない）。
-  - 必要な権限: C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
-  - 停止規則: §2.6。§3 に無い file の変更が要る時は Phase A へ戻す（§4）。
-  - 引き渡さないもの: なし。
+  - 判定 C（revision 2）の結果: §7「判定 C（revision 2、2026-11-22）」。C' には渡さない。
+  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
+  - 読む範囲: C' は本書を読まない（所定の blind 入力だけ）。進行役は §0 と §8。
+  - 引き継ぐ commit: この票を含む commit（判定 C（revision 2）の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目）。Phase A snapshot と Phase B result snapshot は作っていない（blind bundle が凍結版の §1〜§5 と、Phase B の commit の §6 を収録する）。
+  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の Release build 済みの worktree）。Unity の再実行は必須でない。
+  - 停止規則: §2.6。C' の阻害指摘で head が変われば、判定後の head 変更の規則で判定 C からやり直す。
+  - 引き渡さないもの: C' に、本書（特に §6 の差し戻しの小節、§7 の発見 C・判定 C の所見と結論）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
 
 ## 1. 目的と対象外
 
@@ -851,6 +850,60 @@ Editor と他の Unity は動いていなかった（`Win32_Process` に `Unity.
 **判定必須のうち未実行:** AC6・AC7 の実機（`OverlayFromLocalEditsIntegrationTests`）、R8、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。判定 C が GO 候補 head でまとめて走らせる（R2-1 は判定の証拠ではない。revision 1 の J1 は旧 head の結果で流用しない）。
 
 **次:** 判定 C へ進める。GO 候補 head は `ae067066`。
+
+### 判定 C（revision 2、2026-11-22）
+
+- 種別: 判定 C。結論は **GO**（§2.6 の AC1〜AC8 が全て合格。NO-GO (i)〜(iv) に当たる観測は無い）。高コスト証拠は無いので、次の C' が最終 C' である。
+- 対象: implementation base `63f171ac`、GO 候補 head `ae067066`。完全 diff は `git diff 63f171ac ae067066`（commit で固定）。`d4d2e22b` からの code の差分は `ContentInstallerTests.cs` の値 1 つだけ。
+- evidence bundle: 判定用と C' blind bundle を同じ head と同じ生結果から作った（§0 の欄。取得案内は進行役の共有メモ）。判定用は 25 file（base・head、完全 diff・stat・name-status、AC8 の word diff、凍結版（`24c1c8bb`）と `2ca11e1f` の本書、`contract-audit`・`docs-audit` の出力、下の 3 run の XML・step・Unity の log・runner の標準出力、R8 の package の zip、executor-note）。C' blind bundle は 26 file（目次の README、凍結版の §1〜§5、Phase B の commit の §6 から差し戻しの 3 小節を除いた原文、本書を除いた diff、head の source の zip、機械検査、3 run の生結果、executor-note）。凍結版の §1〜§5 は I-6 と §5.1 で revision 1 の判定 C の失敗に触れる（owner の裁定と凍結条件がそれに基づくので、凍結文のまま入れた。README に書いた）。
+- 担当・モデル: AI（Claude Code、Anthropic）。Phase B と同じ系列で、`独立性制約あり`。実行担当と判断担当は同じ session。
+- 引継ぎの照合: 起動指示の SHA `2ca11e1f` と HEAD が一致し、作業ツリーは clean。implementation head `ae067066` は HEAD の祖先で、HEAD までの差分は本書だけ。PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は一致した。PR の timeline に `f79b73c0` より後の head 宛ての新着は無い。
+
+**構造適合**
+
+- 変わった file は §3 の file、§3 の test の接頭辞の file、§3 が許す分割の `ContentOverlayEditDetection.cs` と本書・program だけ。`Runtime/` の差分は `ContentTransportManifest.cs` だけ。`SampleGame/` の差分は `Tests/Editor/Build/` の 3 file（と `.meta`）だけで、Selection、asmdef、`AssemblyInfo.cs` に差分は無い。`unity/Assets/OneStarMaker/Tests/BuildContent/` の word diff は `* 1024` の挿入 1 箇所だけ（AC8）。
+- 足した・変えた `.cs` は全て先頭が `#nullable enable`。`record` 型、`Task.Delay`・`Thread.Sleep`、`ZLogger` は無い（diff の grep で `record` に当たるのは変数名だけ）。`?.`・`??` は C# の値と配列にだけ使い、破棄されうる `UnityEngine.Object` には使っていない。`UnityEditor` を使う file は Editor と test の asmdef の下だけ。
+- 製品 code は revision 1 の判定 C が読んだ `d4d2e22b` から変わっておらず、その構造の結論（§2.1 と AC4・AC5 の文のとおり）と食い違う点は無い。
+
+**機械検査**
+
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（checks 1〜9）。
+- `pwsh tools/docs-audit.ps1`: errors 0、警告 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内。本書の変更ではない）。
+
+**Unity の batch test（head `ae067066`、Unity 6000.6.9f1、`-nographics`、EditMode、sandbox 外）**
+
+始める前に `Win32_Process` に `Unity.exe` は無かった。3 run は順に走らせ、他の Unity は同時に動いていない。
+
+| run | checkout と filter | 結果 |
+|---|---|---|
+| J1 | この checkout（HEAD `2ca11e1f`、code は `ae067066`）、空 filter（最終の全 EditMode 回帰） | root result `Passed`、total 2170、passed 2143、**failed 0**、inconclusive 25、skipped 2。`step.json` は `failed`・exit 1（Unity の exit code 2。inconclusive 25 のため。§5 のとおり XML で読む）。log に `error CS` は 0 件。Unity は自然に終わった（所要約 13 分） |
+| R8-1 | この checkout、`OverlayFromLocalEditsR8Tests.R8_ProduceBaseAndSourcesForACleanCheckout` | root result `Passed`、total 1、passed 1。`step.json` は `passed`・exit 0、Unity は自然に終わった。package（30 file）を `TestResults/s34a-r8-package` に書いた |
+| R8-3 | 新しい worktree（`git worktree add --detach` で `ae067066`。`Library` と `Assets/OneStarMakerGenerated` は無い）に R8-1 の package を写して、`OverlayFromLocalEditsR8Tests.R8_PartialCheckout_PlansBuildsAndPlaysLikeR4` | root result `Passed`、total 1、passed 1（初回の import を含めて XML の完成まで約 9 分、test は約 54 秒）。log に `Entering Playmode with Reload Domain disabled.` が出た |
+
+- J1 の収録（class ごと、全て Passed）: §5 の起点 filter の 14 class は 232 件（`ContentSourceClosureRecordTests` 17、`ContentOverlayPlannerTests` 35、`MaterializeAllowingAbsentSourcesTests` 8、`ContentOverlayBuildAndReuseTests` 19、`SourceClosurePublishTests` 8、`ContentInstallerTests` 3、`ContentOverlaySelectionTests` 13、`SceneResourceContentMaterializerTests` 32、`ContentPurposeIndexPublishTests` 6、`ContentPurposeIndexTests` 40、`ContentManifestValidationTests` 19、`BuildContentReportTests` 3、`BuildContentProjectionTests` 4、`BuildContentFullModeTests` 25。件数は発見 C（revision 2）と同じ）。`OverlayFromLocalEditsIntegrationTests` 1（AC6 の R0〜R7 と AC7 の実機）、`OverlayRegistrationIntegrationTests` 1、`PurposeBuildIndexIntegrationTests` 1。skipped 2 は R8 の `[Explicit]` の 2 件で、R8 は R8-1・R8-3 で走らせた。inconclusive 25 は全て `SampleGame.Tests.Rendering.Vfx` で、`-nographics` の既知（§5）。
+- R8-3 の Unity の終了: XML の完成（11:11:57、+09:00）の後に Unity（PID 17872）が終わらず、thread 1 本で UserModeTime が 701.9 s → 721.5 s（11:21:59 → 11:22:20）と増え続けた（`tools/Harness/README.md` の既知の native 終了 stall と同じ形）。約 10 分待ってから、その PID だけを `Win32_Process` の Terminate で止めた（11:22:20）。`step.json` の `process.exitCode` 0 と `passed` はこの Terminate が作った値で、自然終了ではない。時刻と CPU の数値は bundle の executor-note にある。判定は XML で読むので合否に影響しない。停止規則に従い原因の調査はしていない。
+- R8-3 の worktree は、生結果を bundle に収めた後に消した（Editor が開いた時の `UniversalRenderPipelineGlobalSettings.asset` の serialize の差だけが残っていた）。
+
+**AC ごとの判定**
+
+| AC | 証拠 | 判定 |
+|---|---|---|
+| AC1 | J1 の `ContentSourceClosureRecordTests` 17、`ContentManifestValidationTests` 19、`ContentPurposeIndexTests` 40 | 合格 |
+| AC2 | J1 の `ContentOverlayPlannerTests` 35 | 合格 |
+| AC3 | J1 の `MaterializeAllowingAbsentSourcesTests` 8、`SceneResourceContentMaterializerTests` 32 | 合格 |
+| AC4 | J1 の `ContentOverlayPlannerTests` 35 | 合格 |
+| AC5 | J1 の `ContentOverlayBuildAndReuseTests` 19、`BuildContentReportTests` 3 | 合格 |
+| AC6 | J1 の `OverlayFromLocalEditsIntegrationTests`（R0〜R7）、R8-1・R8-3（clean な checkout の R8） | 合格 |
+| AC7 | J1 の `OverlayFromLocalEditsIntegrationTests`（実機の記録の照合と Local・HTTP の bytes）、`SourceClosurePublishTests` 8、`BuildContentFullModeTests` 25、`ContentPurposeIndexPublishTests` 6 | 合格 |
+| AC8 | J1 の failed 0 と root result `Passed`。範囲は上の構造適合（`git diff --stat`・`--name-only`・word diff） | 合格 |
+
+**現在の問いを阻害する指摘:** なし。
+
+**後続スライスの入力:** なし。
+
+**判定必須のうち未実行:** なし。操作・実行時・目視の条件は `対象なし`、高コスト証拠は無い。
+
+**次:** C' の 1 巡目（§0 の引継ぎ票）。
 
 ## 8. Phase C'
 
