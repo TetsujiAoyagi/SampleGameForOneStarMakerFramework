@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `B`（動作確認からの差し戻しを処理した。製品 code の変更なし。次は動作確認のやり直し）
+- status: `B`（Phase B の後の動作確認のやり直しを終えた。期待との差なし。次は発見 C）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 1a3bf4428237cc8d5192e680bef1689c300dc4c7
@@ -21,16 +21,16 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 動作確認（Phase B の後。差し戻しの 1 巡目の後のやり直し）。実行担当は B の session ではない担当。
-  - 次の作業: 対象 head（implementation head 欄。1 回目と同じ。この巡で製品 code は変えていない）で、V1c・V1・V2・V3 を各 1 回行う。material の色は §6「動作確認からの差し戻し（1 巡目）」の「編集の作り方」で変える（1 回目の `_BaseColor` だけの変更は使わない）。それ以外の手順・観測・記録の形は 1 回目（§6「動作確認」）と §5 の検証経路のとおり。V2 は確認の応答を先に置かない（確認が出たら、それ自体を期待との差として記録する）。出口は引継ぎ票を、差が無ければ発見 C へ、差があれば B へ更新する。
-  - 読む範囲: 既定（§0、§5、§6）。
-  - 引き継ぐ commit: この票を含む commit（B の差し戻しの記録 commit）。SHA は起動指示で渡す。
+  - 次の Phase・役割: 発見 C（Phase B の後の動作確認は 2 回目で期待との差なし。§6「動作確認（やり直し）」）。
+  - 次の作業: implementation base から head までの差分を発見 C として読み、§5 のテストとレビュー計画に沿って所見を §7 に記録する。動作確認の 1 回目の差し戻し（§6）は発見 C と同じ巡に数える。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（動作確認のやり直しの記録 commit）。SHA は起動指示で渡す。
   - implementation base / head: §0 の欄のとおり。
-  - 取得案内: snapshot・bundle は未生成（上の欄）。1 回目の動作確認の生の記録は §6 の「動作確認」の最後の段落の所在。
-  - 必要な権限: 開いている Editor の `tools/unity-editor.cmd eval`。Editor が閉じていれば起動してよい。Unity の test と batch の build は走らせない（Phase C）。
+  - 取得案内: snapshot・bundle は未生成（上の欄）。動作確認の生の記録は §6 の「動作確認」と「動作確認（やり直し）」の最後の段落の所在。
+  - 必要な権限: §5 と発見 C の手順のとおり。
   - 停止規則: §2.6。
   - 引き渡さないもの: なし。
-  - push: Phase B の出口の commit、動作確認の記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
+  - push: Phase B の出口の commit、動作確認の記録 commit、差し戻しの記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 
 ## 1. 目的と対象外
 
@@ -626,6 +626,32 @@ B が決めた実装詳細（§3 の port の境界の中）:
 入口の動きの読み: 入口は確認の後で 1 回だけ保存し、その後に Dirty に戻った asset を次の Play でもう一度確かめた。これは U4（検出できた未保存の asset を確認なしで保存しない。Dirty の印を外して保存を避ける作り込みはしない）と I-4 のとおりで、変えない。2 回目の保存で source が変わったので、V2 が再利用せずに build したことも、再利用の鍵の契約（disk の保存済みの内容で決まる）のとおりである。harvest の候補（18 章「宣言からの Play 経路」の既知の動き）: shader の検証を通さない script の編集は、保存と再 import で Unity が補うので、入口の保存の後にも未保存として残り、次の Play で確認がもう一度出る。保存し直すと source が変わり、上書きは作り直される。
 
 **編集の作り方（動作確認のやり直しと判定 C の V1c・V1・V5・V7 で使う）:** §5 の「編集の作り方」の「色の property を `eval` で変える」は、次の手順で行う。`Material.SetColor("_BaseColor", 値)` の後に、`System.Type.GetType("UnityEditor.Rendering.Universal.ShaderGUI.LitShader, Unity.RenderPipelines.Universal.Editor")` を `Activator.CreateInstance(type, true)` で作った `ShaderGUI` の `ValidateMaterial(mat)` を呼び、`EditorUtility.SetDirty(mat)` を呼ぶ（対象の material の shader は `Universal Render Pipeline/Lit`）。V5・V7 は続けて `AssetDatabase.SaveAssets()` で保存する。
+
+### 動作確認（やり直し）
+
+2 回目（2026-11-22）。対象 head は `1a3bf442`（implementation head。引き継いだ commit は `2b51da52` で、`1a3bf442` からの差分は本書だけ）。実行担当は B とも 1 回目とも別の session（AI、Claude Code、Anthropic）。Unity 6000.6.9f1、この PC。Editor は開いていたもの（PID 41128、`status` が `ready`）を使った。操作は全て `tools/unity-editor.cmd eval`。合否は書かない。
+
+**結果: V1c・V1・V2・V3 の全てで、検証経路の期待との差は無い。未実施なし。** I-1・I-4 に反する観測は無い。
+
+準備:
+
+- 開始の時、`git status --porcelain` は既知の untracked の `*.pdb.meta` 5 つ（1 回目と同じ。以下の git status はこれを除く）だけで、Dirty の asset なし、開いている Scene は `Title`（Dirty でない）、`playModeStartScene` は null、ledger なし、`Assets/OsmPlaySnapshot` なし、`artifacts/bs2b/reports` は 81。
+- base は installed cache（`artifacts/bs4/players`）に既にある 1 回目の revision `20261122T104848665Z-c22e…`（manifest SHA-256 `a013c6ec…`）を使った。検証 Play は走らせていない。
+- 編集の対象と要求は 1 回目と同じ（`DemoCellLit.mat`、Play の中で `InGameSession` → `Season_Spring` → `Spring_Lighting` を `SceneDirector.AddScene` で要求。3 回とも全て成功）。編集は §6「動作確認からの差し戻し（1 巡目）」の「編集の作り方」で行った。値は `_BaseColor` を (0.2, 0.4, 0.8, 1) にした。1 回目と B の確かめが (0.25, 0.5, 0.75) の保存済みの内容で上書きを作っており、同じ値では V1 が再利用になりうるため、値を変えた。編集の直後、memory の `_Color` も (0.2, 0.4, 0.8, 1) に揃っていた。
+- **準備の取りこぼし（回に数えない）:** 最初の V1c の Play は、経路が `Source`・Variant profile が有効のまま（1 回目の後に戻した設定）だったので、入口が rule `ConflictingState`（`A Variant profile is active …`）で拒否した。先置きの応答 `cancel` は消費されずに残った。応答を消し、1 回目と同じく profile を外し、経路を `BuiltWithLocalEdits` にして V1c をやり直した。最後に profile を `Production.asset` に、経路を `Source` に戻した。
+
+| 回 | 観測 | 期待との差 |
+|---|---|---|
+| V1c | 応答 `cancel`。record は `Blocked`、rule `LocalEditsRoute`、reason `Play was cancelled at the unsaved assets confirmation; nothing was saved: …/DemoCellLit.mat`。前後で material の SHA-256（`5734e46c…`）と Dirty（真）、`Title` の path と Dirty（偽）が同じ。複製の置き場なし、ledger なし、`playModeStartScene` は null、reports は 81 のまま、git status は空のまま、先置きの応答は消えた | なし |
+| V1 | 応答 `save`。入口が保存した（file の差分は `_BaseColor` と `_Color` が手元の値、URP が足した `_ScreenSpaceReflections*` の 2 行）。reports は 82（build 1 回、上書きの状態 `Built`）。起動の log に `[AppInit] Content overlay registered: identity=20261122T111406516Z-ab7c… baseRevision=20261122T104848665Z-c22e… path=…\artifacts\bs2b\content\20261122T111406516Z-ab7c…` の 1 行。record は `EnteredPlay`、Error 0、`overlayCheck=matched`、置いた key は 9（上書きの 2 key を含む）。`Spring_Lighting`・`Spring_Cell_0_4`・`Spring_Environment_0_4` の `GetContentLoadRecord` は `ContentOverlay`（provider `registered-content-overlay`）、`Title` は `EditorSnapshot`、`OutGameScene` は `ContentDirectory`。renderer の値は全て (0.2, 0.4, 0.8)（HEAD の値は (1, 1, 1)）。installed の revision の file の一覧と大きさ（256 file）は 1 回目の記録と同じ。停止の後、material は Dirty でなく（Dirty の asset なし）、git status は material の file だけ（V1 の差分、SHA-256 `3a3c1d10…`）、複製の置き場なし、`copiesRemoved=yes` | なし |
+| V2 | 応答を置かずに Play した。確認は出ずに Play に入った。reports は 82 のまま（build 0 回）、上書きの状態 `Reused`（build は `not-run`）、identity は V1 と同じ `20261122T111406516Z-ab7c…`。登録の行・record の供給元・値は V1 と同じ（`overlayCheck=matched`、Error 0）。停止の後、git status は V1 の差分だけ（SHA-256 は同じ）、Dirty の asset なし | なし |
+| V3 | material を `git checkout` と `AssetDatabase.Refresh()` で戻した（SHA-256 `5734e46c…`、Dirty でない）。応答を置かずに Play し、確認は出なかった。上書きの状態 `NotRequired`、build と再利用の確かめは `not-run`、置いた key は 7（上書きの key なし）、log に上書きの登録の行は 0、`overlayRegistered` と `overlayCheck` は空。3 つの Scene の record は `ContentDirectory`、値は (1, 1, 1)。reports は 82 のまま。停止の後、git status は基準と同じ（空） | なし |
+
+検査の費用の記録（合否に使わない）: V1 は prepare 1.249・plan 1.575・reuse check 0.045・build 21.846 秒、root 112。V2 は 1.193・1.546・0.431 秒、build は `not-run`、root 112。V3 は 1.189・1.147 秒、reuse check と build は `not-run`、root 0。検査の対象の file の件数と容量（計画の契約から数える推定）は数えていない（判定の担当が数える）。
+
+観測の注意: V1 の上書きの build の間に状態を読む `eval` を 4 回送り、main thread の timeout（`Main thread operation timed out after 5000ms`）で返った。18 章「観測の注意」の Console の Error はこの 4 回で、App の Error ではない（record の Error は 0）。
+
+生の記録（各回の前後の状態、record の JSON、Play の中の観測、`[PlayEntry]`・`[AppInit]` の log の行、使った `eval` の script）は、進行役の共有メモの folder（git 管理外）の `operation-check-2b51da5/` に置いた。対象 head は GO 候補 head ではない（判定 C は §5 の V0〜V7 を候補 head でやり直す）。
 
 ## 7. Phase C
 
