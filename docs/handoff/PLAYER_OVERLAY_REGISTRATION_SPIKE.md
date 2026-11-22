@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `C`（Phase B を 2026-11-23 に終えた。発見 C は未着手）
+- status: `B`（発見 C の 1 回目が 2026-11-23 に阻害する findings 3 件で差し戻した。差し戻しの 1 巡目。§7）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
-- implementation head commit: この票を含む commit
+- implementation head commit: `16328d4d09e80ef159df37310ee41788334cd33d`
 - A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビューの 3 巡目が見た commit `2c24044d` の本書と program に、凍結の記録・引継ぎ票・3 巡目の記録・承認済みの語への置き換えだけを足した物で、目的・条件・責務マップは変えていない）。承認の根拠: 外部計画レビューが 3 巡目で阻害する指摘なしとして凍結へ進むことを勧め、owner が凍結と Phase B の開始を指示した。この指示で、凍結の時に承認するものとして本書が挙げていた 2 点（§1 の目的・利用者の文言、§2.4 の S4 の分割）も承認された
 - risk: `high`（製品 code は変えない。結論が S4 の後続の行の形（実機へ編集を届ける方式）を決め、Player を build して起動する harness はこの project で初めてで、独立して失敗しうる未知が複数ある。§5）
 - owner: root（依頼者）
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C）。
-  - 次の作業: implementation head の差分を、§3 の責務マップ、§2.1 の不変条件・成立条件、§2.2 の受け入れ条件、§4 の禁止と照らす。判定必須テスト（§5）は Phase C の実行担当が実行する（Phase B では Unity の test・content と Player の build・Player の起動を一つも実行していない。§6 の未実行）。§6 の「B 適応と判断の記録」の各項は、§4 の B 適応の範囲に入るかを確かめる対象である。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/player-overlay-registration-spike` であること。上の implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があること（implementation head は HEAD 自身）。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-0-player-overlay-registration-spike` で確かめる）。
-  - 読む範囲: 既定（§0〜§8。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む commit（Phase B の出口。SHA は起動指示と PR #209 の状態ブロックで渡す）。
-  - 必要な権限: Unity の batch test、test が行う content と Player の build、test が起動する Player の process（sandbox 外の承認済み経路。§5 の初期状態）。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たる所見は Phase A へ、harness・fixture・環境の所見は B へ返す。答えの向きを理由に差し戻さない（§2 の判定定義）。
-  - 引き渡さないもの: なし。
+  - 次の Phase・役割: Phase B（発見 C からの差し戻しの 1 巡目）。
+  - 次の作業: §7 の「現在の問いを阻害する findings」D1〜D3 を、§4 の B 適応の範囲で直す（判定の写像 `PlayerOverlayVerdict.cs` と `PlayerOverlayVerdictTests.cs` だけで足りる見込み。§3 の責務・asmdef・製品の file は変えない）。直した内容と根拠を §6 に「差し戻し 1 巡目」として足し、Editor でコンパイルを確かめる。Unity の test は実行しない（起点 filter は発見 C が実行する。今の head では 44 件 Passed）。直す時に §4 の「Phase A へ差し戻す条件」に当たれば止まる。出口では実装の commit を切り、その SHA を implementation head 欄に書いた記録 commit で票を発見 C（2 回目）へ更新する（または実装と票を 1 つの commit にして欄を「この票を含む commit」にする）。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/player-overlay-registration-spike` であること。上の implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-0-player-overlay-registration-spike` で確かめる）。
+  - 読む範囲: 差し戻しの既定（§0〜§8。§5.1 は読まなくてよい）。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示と PR #209 の状態ブロックで渡す）。
+  - 必要な権限: Editor でのコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test・build・Player の起動は行わない。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
+  - 停止規則: findings の直し方が §3 の責務・asmdef・製品の file の変更、または §2 の語の意味の変更を要するなら、直さずに止まって owner へ返す。D1〜D3 以外の改変を足さない。
+  - 引き渡さないもの: なし（C' に渡す bundle はまだ無い）。
 
 ## 1. 目的と対象外
 
@@ -455,7 +455,27 @@
 
 ## 7. Phase C
 
-未着手
+### 発見 C（1 回目、2026-11-23）
+
+- 種別: 発見。GO 判定はしない。C' は起動しない。
+- 対象: implementation base `d926e3b6b40dafab086b293e6d60784e304ecf4c`、implementation head `16328d4d09e80ef159df37310ee41788334cd33d`（commit で固定。完全 diff は `git diff d926e3b6 16328d4d`、41 file、+4,102 / −7）。
+- 使用した evidence bundle の取得案内・状態: 未生成（発見 C は固定した commit の diff と機械検査だけを入力にした。判定 C と C' の bundle は GO 候補 head で作る）。
+- 構造適合: 変更 file の集合は §3 の新規 file・folder の `.meta`・本書・program だけで、製品の file と §3 以外の asmdef の変更は無い（AC9 の file 集合）。2 つの asmdef の参照・define 制約・platform・`autoReferenced` は §3 どおり。probe は runner と別の assembly にあり、runner・観測は probe の型を `typeof`・型引数・静的参照で使わず（P4 は facts の file の文字列から `Type.GetType`）、`[Preserve]`・`link.xml`・`[RuntimeInitializeOnLoadMethod]` は無い（§4 の禁止）。runner と観測は期待値を持たず、launcher は観測の行を書かない（launcher の file の `verdict` 行は補助の判定の file 名と結論だけ）。設定の scope は 1 つの同期の呼び出し（`BuildPlayer` の中の try/finally）で開閉し、復元後に保存して 2 つの file を元の bytes に書き戻して hash を記録する。build の順は base → Player → v2 → 上書き。偽 null・`Task.Delay`・`Thread.Sleep`・`record`・`#nullable enable` の違反は無い（`??`・`?.` は全て UnityEngine.Object でない値）。行数警報: `PlayerOverlayVerdict.cs`（617）は非分割妥当（1 つの判定の写像の表。§3 の判断のとおり）、`PlayerOverlayRunner.cs`（507）は非分割妥当（round の手順と操作の開始・結果の行を 1 つの orchestration に持ち、読み取りと record は §3 どおり別 file。分けると 1 つの round の手順が file をまたぐ）。構造劣化は無い。
+- §6 の B 適応の記録: 全項を §4 の B 適応の範囲と照らした。範囲内である（環境変数・record の欄・上限の既定値・一時 root の名前・設定の読み書きの手段・scripting assembly の読み方は §4 が列挙する項目、`previousBuildReportDirectories` に BuildHistory の directory を渡すことは §3 の「base の build report の directory」の実装で、不成立時は §5 の u3 が B の修正先と決めている、Error に `Assert` を含めるのは答えを甘くしない側）。
+- 現在の問いを阻害する findings（3 件。全て B 適応で直せ、契約・責務配置・asmdef を変えない。Phase A は再開しない）:
+  - **D1（AC7・AC10。severity medium、semantic）:** 判定の写像の X1 が、主の順で参照をたどった数と列挙の数が違う時に多い方の数で読まれていない。`PlayerOverlayVerdict.cs:489` は X1 を `sceneIdsEqual`・`loadableIdsEqual`・2 つの texture の行の `entityId` の一致だけで決め、`read` の計数（`EditedTex` の reached と enumerated）を見ない。順序: read の round で reached が `[t]`、enumerated が `[t, u]`（実体 2）→ X1 の答えの行は「same」、違いとして「reached and enumerated differ」だけが足される。AC7 は「主の順で 2 つが違う時は、多い方の数で Q3 と X1 を読み」、X1 の定義は「実体 1。Editor と同じ」なので、この入力の X1 は「differs」でなければならない（スパイクの答えはどちらでも「違うが成り立つ」で変わらないが、X1 の行が定義と違う）。AC10 の「主の順で参照をたどった数と列挙の数が違う入力（多い方で読む）」の test は Q3（class の `SharedShader`）だけで、X1 の経路が無い。直し方: X1 の条件に `read` の `EditedTex` の計数の多い方が 1 であることを足し、その入力の test を足す（AC6 の Editor の対照の `ControlProblems` も同じ X1 を読むので、対照が「reached and enumerated」の違いだけで外れにならない今の扱いと矛盾しないか確かめる）。
+  - **D2（§2 の誤った答えの道 (k)。severity medium、semantic）:** harness の例外で打ち切られた主の順の round で、後始末の操作が失敗すると、その失敗が「成り立たない（cannot unload or unregister）」の答えになる。順序: read の round で 2 つの登録が成功 → 観測の途中で harness の例外（例: `Entry` の `InvalidOperationException`）→ runner は `harness-exception` 行と `abortedAt` が `harness: …` の終了行を書く → `CleanupAsync` の Release か Unregister が失敗して `op-result` の `ok` が false → `FailureAnswer`（`PlayerOverlayVerdict.cs:429`）は最初の失敗の行を答えにし、`abortedAt` の harness を見ない。(k) は「harness の不備・上書きと無関係な失敗を Unity の答えとして読む」ことを禁じ、未判定の定義は「harness・fixture・環境の問題は B へ戻し」と書く。後始末の失敗は、round の定義の操作の列が harness の例外で途切れた後の物で、(A) の「操作の失敗」の読みに入れると (k) を開く。直し方: `harness-exception` 行がある round、または終了行の `abortedAt` が harness の round は、操作の失敗の行があっても未判定（harness の問題）にし、その入力の test を足す。
+  - **D3（AC10。severity low、obvious）:** AC10 が列挙する「1 つ目の登録より前で切れた record」の test が無い。`RecordCutBeforeSecondRegister_IsUndecided`（`PlayerOverlayVerdictTests.cs:205`）は 1 つ目の登録の結果の行の直後で切っており、AC10 の別の入力（1 つ目の登録より前）を踏まない。今の code では同じ枝（`registers.Count < 2`）で未判定になるが、AC10 は入力ごとの確認を求める。直し方: 1 つ目の登録の `op-start` より前で切った入力（終了行なし）が未判定になる test を足す。
+- 阻害しない記録（判定 C への申し送り。修正を求めない）: 判定の写像は、操作の失敗か切れ目のある主の順の round で、失敗の前に読めた Q1〜Q4・X1・X2 を答えの行に書かない（`ObserveMain` を呼ばない）。§2 の GO は「読めた物を全て書く」なので、判定 C は record から読めた所まで書く（写像の出力は補助）。
+- 後続スライスへ移送する findings: なし。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests`（§5 の起点 filter。Phase B が Unity の test を一度も実行していないので、差し戻しの前に写像の test が今の head で通るかを確かめ、B の修正の基準にする）。Editor が閉じ、Unity・Pov の process が無いことを CIM で確かめ、sandbox 外で起動した。
+- テスト結果: step `status=passed`、`exitCode=0`（Unity は自然終了）。XML の root `Passed`、total 44、passed 44、failed 0、skipped 0（`PlayerOverlayVerdictTests` の全 case。`TypeMissingOnly_DoesNotHoldWithTheCause` の 2 つの TestCase を含む）。実行の前後の `git status --porcelain` は空のまま。
+- 判定必須のうち未実行: (2) `FirstProcess`、(3) `SecondProcess`、条件付きの (4) Editor の対照。差し戻しが決まったので実行しない（発見 C の規則）。§5 の u1〜u5 は全て未確認のまま。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし（content・Player の build と Player の起動は実行していない）。
+- 機械検査: `pwsh tools/contract-audit.ps1`（errors 0、warnings 0、検査 1〜9）。
+- 未確認事項: Player 上の挙動の全て（u1〜u5）。`Application.buildGUID` と build report の `summary.guid` が正規化の後に一致する形か（ValidatePlayer の照合。外れれば未判定で B へ戻る経路）。
+- 巡の数: B と発見 C の差し戻しの 1 巡目を始める（上限 4 巡）。
+- 担当・モデル: 判断担当と実行担当は同じ session（Claude Opus 5.5、Anthropic）。Phase B と同じモデルで、**独立性制約あり（owner 受容。B と別のモデルにするために高コストのモデルへ上げない方針）**。新規 session で、B の会話は読んでいない。
 
 ## 8. Phase C'
 
