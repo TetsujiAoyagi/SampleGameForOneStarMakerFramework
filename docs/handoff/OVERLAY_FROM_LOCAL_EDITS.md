@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `B`（差し戻し 3 巡目を待つ。発見 C の 3 回目は D3 の直しを読みでは閉じたが、実機では fixture の作成で D4（新しい単体 test が空の `Assets/OneStarMakerGenerated` を残し、同じ process の AC6 と既存の `UnityContentDirectoryAdapterTests` を壊す）に当たって止まった（§7「発見 C（3 回目）」）。A3 凍結版は revision 1。発見 C の指摘 D1〜D4 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `C`（発見 C の 4 回目を待つ。差し戻し 3 巡目の B が D4（新しい単体 test が空の `Assets/OneStarMakerGenerated` を残す）を直した（§6「発見 C の差し戻し 3 巡目」）。発見 C の 3 回目は D3 の直しを読みでは閉じ、実機では D4 で止まった（§7「発見 C（3 回目）」）。A3 凍結版は revision 1。発見 C の指摘 D1〜D4 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `bebbe6b5535e295245ab58d5149aeb7cc9a39d4e`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-21。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、外部計画レビューの 3 巡の反映の後に owner が凍結と Phase B の開始を指示したこと。§2.8 の U1・U2 は担当の案のとおりで、§5.1 の担当の分類を覆した行は無い。目的・利用者の 2 欄は変えていない
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,11 +21,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の差し戻し 3 巡目。上限は 4 巡）。動作確認は `対象なし`（§5）。
-  - 次の作業: §7「発見 C（3 回目）」の D4 を直す（`SourceClosurePublishTests` と `ContentOverlayBuildAndReuseTests` の TearDown で、空になった `Assets/OneStarMakerGenerated` も消す）。B 適応で、test の file の中で閉じる。直しと結果を §6 に「発見 C の差し戻し 3 巡目」として書く。
-  - 読む範囲: 既定（§0〜§5。差し戻しなので §6〜§8 も）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の 3 回目の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test は Phase C。資格情報は要らない。発見 C は Editor を開いていない。
+  - 次の Phase・役割: Phase C（発見 C の 4 回目。差し戻し 3 巡目の後。上限は 4 巡）。動作確認は `対象なし`（§5）。
+  - 次の作業: §6「発見 C の差し戻し 3 巡目」の D4 の直しを見直し、§7「発見 C（3 回目）」の「次」のとおり、run 5 と同じ filter に `UnityContentDirectoryAdapterTests` を足して走らせ、D3（R1 の Play）と D4、R0〜R7 と AC7 の実機の部分を確かめる。差し戻しが無ければ判定 C へ進める。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（差し戻し 3 巡目の B の出口の commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）。資格情報は要らない。B が開いた Editor は出口で閉じた。
   - 停止規則: §2.6。
   - 引き渡さないもの: なし。
 
@@ -541,6 +541,16 @@ R8 は同じ head の 2 つの checkout にまたがる。test の class の doc
 - Editor のコンパイル確認: 済み（6000.6.9f1。B が開いた Editor で `AssetDatabase.Refresh` の後、`Library/ScriptAssemblies/SampleGame.Tests.Editor.dll` が直した source より新しく、`EditorUtility.scriptCompilationFailed` が false、Editor.log に `error CS` は 0 件で、直した file の警告も無い）。Editor は出口で閉じた。
 - 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内で、本書の変更ではない）。
 - 未実行: Unity の batch test は全て未実行（Phase C の責任）。直した `OverlayFromLocalEditsIntegrationTests`（AC6・AC7 の実機）は Content Directory の build を伴い、判定必須である。
+
+### 発見 C の差し戻し 3 巡目（2026-11-22）
+
+引き継いだ commit は `43872ec2`（発見 C の 3 回目の記録 commit）。起動指示の SHA・HEAD・clean、implementation head `bebbe6b5` が HEAD の祖先で差分が本書だけであること、PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は全て一致した。直しは B 適応で、§3 の test の 2 file の中で閉じる（product の code、asmdef、`InternalsVisibleTo` は変えていない）。
+
+- **D4（単体 test が空の `Assets/OneStarMakerGenerated` を残す）:** `SourceClosurePublishTests` と `ContentOverlayBuildAndReuseTests` の SetUp で、`Assets/OneStarMakerGenerated` が disk に在るかを先に記録し、TearDown で `S34aUnit~` を消した後、SetUp の前に無かった `OneStarMakerGenerated` が空なら消す。SetUp の前から在った folder（他の test の fixture の親）には触れない。消し方は、AssetDatabase の folder として有効なら `AssetDatabase.DeleteAsset`（`.meta` と entry も消える）、そうでなければ `Directory.Delete`（`~` の下だけを書いた時の通常の場合。`.meta` も entry も無い）。理由の comment を TearDown に置いた。
+- 変えた file: `OneStarMaker/Tests/Editor/Build/SourceClosurePublishTests.cs`、`OneStarMaker/Tests/Editor/Build/ContentOverlayBuildAndReuseTests.cs` と本書。`Runtime/`、Selection、SampleGame、asmdef、`AssemblyInfo.cs` は変えていない。
+- Editor のコンパイル確認: 済み（6000.6.9f1。B が直した後に開いた Editor で、`Library/ScriptAssemblies/OneStarMaker.Tests.Editor.dll` が直した source より新しく、`EditorUtility.scriptCompilationFailed` が false、Editor.log に `error CS` は 0 件）。Editor は出口で閉じた。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（checks 1〜9）。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内で、本書の変更ではない）。
+- 未実行: Unity の batch test は全て未実行（Phase C の責任）。直しの確認は発見 C が、起点 filter の後に `UnityContentDirectoryAdapterTests` と `OverlayFromLocalEditsIntegrationTests` が同じ process で走る filter で行う（§7「発見 C（3 回目）」の次）。
 
 ### 動作確認
 

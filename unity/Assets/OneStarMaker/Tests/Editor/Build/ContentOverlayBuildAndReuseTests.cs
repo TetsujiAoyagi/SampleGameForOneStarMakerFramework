@@ -19,6 +19,8 @@ namespace OneStarMaker.Tests.Editor.Build
     /// </summary>
     public sealed class ContentOverlayBuildAndReuseTests
     {
+        private const string GeneratedFolder = "Assets/OneStarMakerGenerated";
+        private bool _generatedExisted;
         private string _folder = "";
         private string _artifacts = "";
         private OverlayPlanWorld _world = null!;
@@ -31,7 +33,8 @@ namespace OneStarMaker.Tests.Editor.Build
         public void SetUp()
         {
             var id = Guid.NewGuid().ToString("N").Substring(0, 8);
-            _folder = "Assets/OneStarMakerGenerated/S34aUnit~/" + id;
+            _generatedExisted = Directory.Exists(Path.Combine(OverlayPlanWorld.ProjectRoot, GeneratedFolder));
+            _folder = GeneratedFolder + "/S34aUnit~/" + id;
             _artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture", "s34a-" + id));
             _world = new OverlayPlanWorld { Mirror = true };
             foreach (var name in new[] { "T.png", "U.png", "M.mat", "A.unity", "AW.unity", "B.unity", "C.unity" }) _world.Put(P(name));
@@ -49,6 +52,15 @@ namespace OneStarMaker.Tests.Editor.Build
             if (Directory.Exists(folder)) Directory.Delete(folder, true);
             var parent = Path.GetDirectoryName(folder)!;
             if (Directory.Exists(parent) && Directory.GetFileSystemEntries(parent).Length == 0) Directory.Delete(parent);
+            // S34aUnit~ の下は import されないので、この test が作った OneStarMakerGenerated は .meta も AssetDatabase の entry も持たない。
+            // disk に残すと、後の test と製品の adapter の IsValidFolder が false を返し、CreateFolder が「OneStarMakerGenerated 1」を作って
+            // 元の path への書き込みが失敗する。SetUp の前から在った folder（他の test の片付け前のもの）には触れない。
+            var generated = Path.Combine(OverlayPlanWorld.ProjectRoot, GeneratedFolder);
+            if (!_generatedExisted && Directory.Exists(generated) && Directory.GetFileSystemEntries(generated).Length == 0)
+            {
+                if (UnityEditor.AssetDatabase.IsValidFolder(GeneratedFolder)) UnityEditor.AssetDatabase.DeleteAsset(GeneratedFolder);
+                else Directory.Delete(generated);
+            }
             if (Directory.Exists(_artifacts)) Directory.Delete(_artifacts, true);
         }
 
