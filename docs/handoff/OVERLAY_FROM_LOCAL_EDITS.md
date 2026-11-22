@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `C`（判定 C を待つ。発見 C の 4 回目は D3・D4 の直しを実機で閉じ、現在の問いを阻害する指摘は無い（§7「発見 C（4 回目）」）。差し戻しは 3 巡で収束した。A3 凍結版は revision 1。発見 C の指摘 D1〜D4 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
+- status: `A`（判定 C は GO にせず、Phase A へ差し戻す。全 EditMode 回帰で既存の `ContentInstallerTests` が 1 件失敗し、原因は本書の manifest の欄で、直すには §3 に無い file の変更が要る（§7「判定 C（2026-11-22）」の D5、§4 の差し戻し条件）。owner の裁定を待つ。発見 C の 4 回目は D3・D4 の直しを実機で閉じた（§7「発見 C（4 回目）」）。B と発見 C の差し戻しは 3 巡。A3 凍結版は revision 1。発見 C の指摘 D1〜D4 は §7。§4 の (1) の観測と実装結果は §6。A2 の 4 件と担当の採否、外部計画レビューの 1〜3 巡目の指摘と担当の分類は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
 - implementation head commit: `d4d2e22bcd500a23919323553e41f01318561586`
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（判定 C。GO 候補 head は implementation head）。動作確認は `対象なし`（§5）。
-  - 次の作業: implementation head で evidence bundle を作り、§5 の判定必須テスト（起点 filter、`OverlayFromLocalEditsIntegrationTests`、R8 を §6「判定 C への引渡し」の手順で clean な checkout に分けて、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、最終の全 EditMode 回帰（空 filter））を走らせ、AC1〜AC8 で判定する。他の Unity を止めて走らせる（§5）。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の 4 回目の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）と、R8 のための新しい worktree の作成（初回の import は約 11 分）。資格情報は要らない。発見 C は Editor を開いていない。
-  - 停止規則: §2.6。
+  - 次の Phase・役割: owner の裁定の後に Phase A（revision 2。§7「判定 C（2026-11-22）」の D5 の扱いを決める）。動作確認は `対象なし`（§5）。
+  - 次の作業: D5 の扱いを決めて revision 2 で凍結する。決めることは、(1) 新しい欄で manifest の bytes が増え、install の予約が増えることを I-6 の例外に足すか、(2) 直しに要る §3 の外の file（少なくとも `OneStarMaker/Tests/BuildContent/Distribution/ContentInstallerTests.cs` の予算 1024 bytes）を §3 と AC8 の範囲に足すか、別の直し方にするか。凍結の後は B が直し、発見 C が全 EditMode 回帰（または `ContentInstallerTests` を含む filter）で確かめてから判定 C へ戻す。判定 C の R8 と evidence bundle は未実行なので、次の GO 候補 head でやり直す。
+  - 読む範囲: 既定（Phase A は全節）。D5 は §7「判定 C（2026-11-22）」。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - 必要な権限: Phase A は Unity を要らない。後の B・C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
+  - 停止規則: §2.6。A3 後の例外承認は無いので、範囲を変える時は revision 2 として A2・A3 を通す。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -735,6 +735,48 @@ Editor は開いていなかった（`tools/unity-editor.cmd status` に instanc
 **判定必須のうち未実行:** R8、`OverlayRegistrationIntegrationTests`、`PurposeBuildIndexIntegrationTests`、全 EditMode 回帰。判定 C が GO 候補 head でまとめて走らせる（run 7 は判定の証拠ではない）。
 
 **次:** 判定 C へ進める。GO 候補 head は `d4d2e22b`。
+
+### 判定 C（2026-11-22）
+
+- 種別: 判定 C。結論は **GO にしない**（D5。Phase A へ差し戻す）。C' は起動しない。
+- 対象: implementation base `63f171ac`、GO 候補 head `d4d2e22b`。完全 diff は `git diff 63f171ac d4d2e22b`（commit で固定）。
+- evidence bundle: 未生成。差し戻しが決まったので作っていない（判定後の head 変更の規則で、次の GO 候補 head で作り直す）。生の XML とログは worktree の `TestResults/` の下に残した。
+- 担当・モデル: AI（Claude Code、Anthropic）。Phase B と同じ系列で、`独立性制約あり`。
+- 引継ぎの照合: 起動指示の SHA `d0fdfaf0` と HEAD が一致し、作業ツリーは clean。implementation head `d4d2e22b` は HEAD の祖先で、HEAD までの差分は本書だけ。PR #202 の状態ブロックの引き継ぐ commit と implementation base / head は一致した。PR の timeline に `f79b73c0` より後の head 宛ての新着は無い。
+
+**構造適合**
+
+- 変わった file は §3 の file と §3 の test の接頭辞の file と本書だけ（program の 4 行は Phase A の commit）。`Runtime/` の差分は `ContentTransportManifest.cs` の DTO（任意の欄と serializable の型 4 つ、logic なし）だけ。Selection、SampleGame の製品 code、asmdef、`AssemblyInfo.cs` に差分は無い。新規・編集の `.cs` は全て `#nullable enable`、`record` と `Task.Delay`・`Thread.Sleep` は無く、`UnityEditor` を使う file は Editor と test の asmdef の下だけ。
+- 計画（`ContentOverlayPlanner`・`ContentOverlayEditDetection`）、coordinator の build の前後と計画の時の hash の比較、再利用の照合を読み、§2.1 と AC4・AC5 の文のとおりであることを確かめた。発見 C の 4 回の構造の結論と食い違う点は無い。
+
+**機械検査**
+
+- `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（checks 1〜9）。
+- `pwsh tools/docs-audit.ps1`: errors 0、警告 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内。本書の変更ではない）。
+
+**Unity の batch test（head `d4d2e22b`、Unity 6000.6.9f1、`-nographics`、EditMode、sandbox 外）**
+
+Editor と他の Unity は動いていなかった（`Win32_Process` に `Unity.exe` なし）。
+
+| run | filter | 結果 |
+|---|---|---|
+| J1 | 空（最終の全 EditMode 回帰） | root result `Failed(Child)`、total 2170、passed 2142、**failed 1**、inconclusive 25、skipped 2。Unity は自然に終わった（終了 stall なし、所要約 13 分） |
+| J2・J3 | `ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision` 1 件（D5 の原因の計測。test の file に `Debug.Log` を一時的に足した。J2 は書き損じの compile error で未実行。J3 の後に test の file を戻し、作業ツリーは clean） | J3 は同じ失敗を再現し、計測の値は下の D5 |
+
+- J1 の収録（class ごと、全て Passed）: 起点 filter の 13 class は 229 件（件数は発見 C と同じ）、`OverlayFromLocalEditsIntegrationTests` 1、`OverlayRegistrationIntegrationTests` 1、`PurposeBuildIndexIntegrationTests` 1。skipped 2 は R8 の `[Explicit]` の 2 件。inconclusive 25 は `-nographics` の VFX 等の PlayTests で既知（§5）。
+- 失敗: `OneStarMaker.Tests.BuildContent.Distribution.ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision`（Expected `IntegrityMismatch`、But was `BudgetUnsatisfied`）。
+
+**現在の問いを阻害する指摘**
+
+| # | severity | category | 指摘 | 違反する条件 | 一次証拠 | 修正先 |
+|---|---|---|---|---|---|---|
+| D5 | major | semantic | manifest の DTO に足した `sourceClosure` は、JsonUtility が欄を省けないので記録を持たない manifest にも版 0 の空の欄（`,"sourceClosure":{"version":0,"roots":[],"assets":[],"groups":[]}`、65 bytes）を書く。install は manifest の bytes を予約に数える（`ContentInstaller` 88〜92 行）ので、同じ入力の予約が 65 bytes 増える。既存の `Install_HashMismatch_DoesNotPublishRevision` は予算 1024 bytes で install し、予約が 1071 bytes（manifest 494 bytes）になって、hash の照合の前に `BudgetUnsatisfied` で止まる（欄の無い base では 1006 bytes で予算に収まり、`IntegrityMismatch` まで進む）。発見 C の filter はこの class を含まなかったので、全 EditMode 回帰で初めて現れた | AC8（全 EditMode 回帰の failed 0）、I-6（上書きを使わない install が同じ入力に同じ結果を返す。I-6 の例外は hash の時点の 2 つだけ） | J1 の XML。J3 の `unity.log` の計測行 `required=1071 available=1024 manifestBytes=494 closureJson=48 code=BudgetUnsatisfied`。`ContentTransportManifest.cs` 31 行、`ContentInstaller.cs` 88〜92 行、`ContentInstallerTests.cs` 17 行 | **Phase A（revision 2）。** 直す口は、test の予算を変える（§3 に無い file）か、manifest の bytes の増加を I-6 の例外として受け入れるかの設計判断で、どちらも凍結した §3・AC8・I-6 の範囲の外にある。§4 の「§3 に無い file の変更が要る」に当たる。product の code の欄を省く直しは JsonUtility では取れない（§1 の現況） |
+
+**後続スライスの入力:** なし。
+
+**判定必須のうち未実行:** R8（2 つの checkout）。差し戻しが決まったので走らせていない（「差し戻しが決まったあとに最終判定用の検証一式を実行しない」）。R8 の経路は §6 の (1) で B が実 Editor で確かめた観測だけで、batch test としては一度も走っていない。
+
+**次:** owner の裁定の後、Phase A（revision 2）で D5 の扱いを決める（§0 の引継ぎ票）。B と発見 C の差し戻しの巡（3 巡）とは別に数える。
 
 ## 8. Phase C'
 
