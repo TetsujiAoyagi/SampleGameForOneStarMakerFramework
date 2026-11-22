@@ -3,23 +3,23 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A（A3 revision 3 凍結候補。目的レビューのやり直しと構造の限定再確認を反映済み。owner の凍結判断待ち。未凍結）
+- status: B（A3 revision 3 凍結済み。Phase B 実装へ引渡し）
 - branch: codex/debugstudio-s3
-- implementation base commit: 未固定（候補は develop `d176033a06ebcd1f481aa9082ed5d1053a2a03b2`。凍結時に固定する）
+- implementation base commit: d176033a06ebcd1f481aa9082ed5d1053a2a03b2
 - implementation head commit: 未固定
-- A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 未凍結
+- A3 凍結記録: owner が 2026-11-23 に「コメント来たので確認して そのあとで凍結してPhaseB入ろう」と承認。対象は revision 3（候補 commit a1178db53fa7290cb391d1760f893f745b44fef4）。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
 - created: 2026-11-20 / updated: 2026-11-23（A3 revision 3 候補）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方、検証用 GameObject の名前、結果の読み方と結果不明のときの扱い）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線、`TryGetHierarchyNodeId` の契約、hierarchy が DontDestroyOnLoad を出さないこと）
-- Phase A snapshot の取得案内・状態: 未生成。owner の凍結後に凍結仕様をローカル固定し、C と C′ に取得案内を渡す。
+- Phase A snapshot の取得案内・状態: 凍結版をこの commit で確定。オーケストレーターが task の手元引渡し先に保存・取得案内を用意し、B・C・C′ へ渡す。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 基準動作の Evidence: 116 ファイルをローカル固定（未昇格）。別の Claude CLI セッションが取得し、両 Play の hierarchy・inspect・Editor 独立値、WPF 終了と観測票を閲覧した。取得案内は task の担当者と owner 向け手元引渡し先に保管済み。
 - task: `debugstudio-s3`（開始済み）
 - A2 の入力版: 計画開始点 `a629f9c19bdfe55b24fcac2f1756e25824d9e453` の A1 初稿（§5.5）。revision 1・2 は develop `d176033a` で照合した統合候補。revision 3 は owner の縮小方針で目的・設計・受け入れ条件を改めた候補。
-- 引継ぎ票: 採否を含む revision 3 を Draft PR #204 に反映して owner の判断を待つ。承認後に、owner の凍結判断・対象 revision・次担当 B（Phase B 実装）を §0 に記録して凍結版を commit し、その SHA を票の外で渡す。凍結後に Phase A snapshot を固定する。必要な権限: なし（読取りと文書の commit だけ）。停止規則: 凍結前に実装・Unity テスト・Build をしない。§1.1 の 2 欄は目的レビューのやり直しに渡した原文のまま固定し、変えない（やり直しは使い切った。変える必要が出たら owner が文言を裁定する）。
-- 再開位置: revision 3 凍結候補（未凍結）。目的レビューのやり直しと構造の限定再確認は完了し、採否は §5.5。次は owner の凍結判断。
+- 引継ぎ票: 次の担当は Phase B 実装。凍結 revision 3 の §0〜§5（§5.5 はレビュー記録）を使い、実装・Editor コンパイル確認・contract-audit を行い、実装結果と未実行事項を §6 に記録する。Unity バッチテストは C。引き継ぐ commit の SHA と Evidence の取得案内は起動時に渡す。
+- 再開位置: Phase B の開始照合。§0 の凍結承認・未固定の implementation head と、起動指示の引継ぎ commit・clean HEAD を照合する。
 
 ## 1. 目的と対象外
 
@@ -332,6 +332,8 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 | Play2 で V3・V4 を再演する条件を薄くする | 採用 | E1・AC2・V6 は Play2 で hierarchy の数 1 だけ。同じ WPF が Play をまたいで読めることは §1.5 の基準観測を使う |
 | 全 EditMode は既存 Harness の実 exit と停止規則に従い、独自の PASS 扱いを置かない | 採用 | §5.1 |
 | `JsonUtility` が `active` の欠落を false にする点 | 採用 | 初期値の違う DTO 2 つへの `FromJsonOverwrite` で欠落を区別（§2.1 の 3）、AC1 に欠落の拒否 |
+
+**最終の外部計画レビュー。** [revision 3 へのコメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/204#issuecomment-7084506095) は凍結を支持した。文字列や null を active に渡した場合の Unity の挙動は、B が AC1 の handler fixture に代表入力を含め、C がその結果を見る。追加の GO 条件は設けない。Play 世代識別は後続のままとする。
 
 ### 5.6 再レビューと凍結までの順序
 
