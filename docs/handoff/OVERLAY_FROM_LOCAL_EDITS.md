@@ -22,7 +22,8 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: owner の裁定の後に Phase A（revision 2。§7「判定 C（2026-11-22）」の D5 の扱いを決める）。動作確認は `対象なし`（§5）。
-  - 次の作業: D5 の扱いを決めて revision 2 で凍結する。決めることは、(1) 新しい欄で manifest の bytes が増え、install の予約が増えることを I-6 の例外に足すか、(2) 直しに要る §3 の外の file（少なくとも `OneStarMaker/Tests/BuildContent/Distribution/ContentInstallerTests.cs` の予算 1024 bytes）を §3 と AC8 の範囲に足すか、別の直し方にするか。凍結の後は B が直し、発見 C が全 EditMode 回帰（または `ContentInstallerTests` を含む filter）で確かめてから判定 C へ戻す。判定 C の R8 と evidence bundle は未実行なので、次の GO 候補 head でやり直す。
+  - owner の裁定（2026-11-22、D5）: 両方を採る。`ContentInstallerTests.cs` を §3 と AC8 の範囲に足して予算を上げる（この test が確かめるのは hash の不一致で、1024 bytes に意味は無い）。記録を持たない manifest でも `sourceClosure` の空の欄で bytes が増え、install の予約が同じだけ増えることを I-6 の例外として明記する。product の code で欄を省く直しは取らない。
+  - 次の作業: 上の裁定に沿って D5 の扱いを本文に反映し、revision 2 で凍結する。決めることは、(1) 新しい欄で manifest の bytes が増え、install の予約が増えることを I-6 の例外に足すか、(2) 直しに要る §3 の外の file（少なくとも `OneStarMaker/Tests/BuildContent/Distribution/ContentInstallerTests.cs` の予算 1024 bytes）を §3 と AC8 の範囲に足すか、別の直し方にするか。凍結の後は B が直し、発見 C が全 EditMode 回帰（または `ContentInstallerTests` を含む filter）で確かめてから判定 C へ戻す。判定 C の R8 と evidence bundle は未実行なので、次の GO 候補 head でやり直す。
   - 読む範囲: 既定（Phase A は全節）。D5 は §7「判定 C（2026-11-22）」。
   - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示と PR 状態ブロックで渡す。
   - 必要な権限: Phase A は Unity を要らない。後の B・C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
