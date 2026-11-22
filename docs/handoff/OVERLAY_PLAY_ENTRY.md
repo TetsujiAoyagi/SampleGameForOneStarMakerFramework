@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `C'`（判定 C は GO。次は C'）
+- status: `D`（判定 C は GO、C' は 2 巡で owner の裁定により GO。次は Phase D）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 1a3bf4428237cc8d5192e680bef1689c300dc4c7
@@ -19,19 +19,18 @@
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（stage を使わない。発見 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s3-4b-overlay-play-entry` に `evidence stage` した（判定用、36 file）。取得案内は進行役の共有メモ（git 管理外）の判定用の file にある。別の pwsh process の fetch で `passed`、J3 の XML と base・head を読めた。受け取り側の別 session の fetch・閲覧は未確認
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（34 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側の fetch・閲覧の確認は C' の起動前に行う
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（34 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側（進行役の C' の packet 作成）の fetch で `passed`、全 file を閲覧できた（確認済み）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役）、使った担当・モデルと独立性を §8 に書く。高コスト証拠は無いので、この C' が最終 C' である。
-  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
-  - 読む範囲: C' は blind bundle だけ（README が目次）。本書を読まない。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示で渡す。
+  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。判定 C は GO（§7）、C' は 2 巡で blocker の CP1・CP5 を owner が受け入れて GO（§8）。
+  - 次の作業: push と PR の状態ブロックの更新（owner の確認の後）、PR のマージの後に、Phase D の保存・引渡し確認（evidence bundle と C' blind bundle は未昇格の `staged`）、§0 の harvest to への反映、本書の削除。C' の non-blocking（CP2・CP3・CP6・CP7）と後続の入力（CP4・CP8、§7 の J1）の扱いは owner が決める。
+  - 読む範囲: 既定（§0）と、harvest に要る節。
+  - 引き継ぐ commit: この票を含む commit（C' の記録 commit）。SHA は起動指示で渡す。
   - implementation base / head: §0 の欄のとおり。
-  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目。§7 の DR-1 は判定 C の指摘への owner の裁定なので、手順どおり C' に渡さない）。Phase A snapshot と Phase B result snapshot は作っていない（blind bundle が凍結版の §1〜§5 と、Phase B の出口の commit の §6 を収録する）。
-  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の Release build 済みの checkout）。Unity の再実行は必須でない。
-  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡。
-  - 引き渡さないもの: C' に、本書（特に §6 の動作確認と差し戻しの小節、§7 の発見 C・判定 C の所見と結論、DR-1）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
-  - push: Phase B の出口の commit から、この判定 C の記録 commit までは未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
-
+  - 取得案内: evidence bundle と C' blind bundle は上の欄（取得案内は進行役の共有メモ）。
+  - 必要な権限: push は owner の確認の後。Artifacts の操作は `tools/Artifacts/README.md` の事前承認のとおり。
+  - 停止規則: §2.6。
+  - 引き渡さないもの: なし。
+  - push: Phase B の出口の commit から、この C' の記録 commit までは未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 ## 1. 目的と対象外
 
 - 目的: 取得した目的 build（base）で Play する開発者が、Play ボタンを押すだけで、自分の編集（開いている Scene の外にある asset の編集を含む）が反映された Play に入れるようにする。何を編集したか、上書きを作るか、前回の上書きを使い回すかを、開発者は入力しない。編集が無い時と、編集が前回と同じ時は、build をせずに Play に入る。編集の影響を受けるのに手元の source では作り直せない Scene がある時は、その Scene と理由を Play のたびに示した上で Play に入る。上書きを作れない時と base に重ねられない時は、base だけの Play に黙って入らず、理由を示して止める。保存していない asset の編集がある時は、全て保存して続けるかを確かめ、黙って保存しない。利用者が明示した設定と、今ある経路の動きは変えない。
@@ -769,7 +768,43 @@ B が決めた実装詳細（§3 の port の境界の中）:
 
 ## 8. Phase C'
 
-未着手。
+### 1 巡目（2026-11-22）
+
+- 担当: cursor-agent の Grok 4.7（`grok-4.7-high`、`-p --trust --mode=ask`、stream-json）。進行役が選んだ。§5 の予約（Phase A〜C に関与していない系列）に対し、Phase A〜C の担当は全て Anthropic 系で、外部計画レビュー 3 巡の系列は確かめられないので、**独立性制約あり**。Codex（`gpt-5.6-luna`）を先に選んだが利用上限で使えず、owner の指示で cursor-agent に切り替えた。
+- 入力: C' blind bundle（§0 の取得案内。進行役の fetch は `passed`、加工なし。所見・裁定の混入が無いことを grep と目視で確かめた）、head `1a3bf442` の `unity/Assets/OneStarMaker`・`unity/Assets/SampleGame` の `.cs`・`.asmdef` と `unity/Assets/Docs/Architecture`・`unity/Assets/README.md`・`AGENTS.md` の `git archive`（本書を含まない）、規則の写し（`phase-c-prime.md`・`phases-and-handoff.md`・`review-evidence.md`）、英語の指示書。出力は最終メッセージの全文（stream-json の result）。入力 253k・出力 46k token。
+- 結論: **blocker 1 件（CP1）。**
+
+| 番号 | 分類 | 内容（C' の出力の要約。根拠の行番号は C' の記載のまま） |
+|---|---|---|
+| CP1 | Blocker | AC7 の最終の全 EditMode 回帰は、凍結した読み（XML の failed 0 と root result `Passed`）を、許された再実行の後も満たしていない（J1 failed 2、J2 failed 4、J3 failed 2。R2 の Passed は 23 件で全 EditMode ではない）。失敗は既知の `Directory.Move` の access denied と同じで、落ちた test は他の run で通っているが、凍結文の「走らせ直してよい」は合格の読みを置き換えない。J3 の `RecordThatExceedsTheManifestLimit_…` は build の失敗の理由が XML に無く、access denied と断定はできない |
+| CP2 | Non-blocking | `ContentOverlayReuse.cs` 91〜104 行: 別名の `*.tmp` の削除が `IOException`・`UnauthorizedAccessException` を投げると握って元の失敗だけを返すので、別名が残りうる（AC1 (d)「別名の file は成功でも失敗でも残さない」）。共有違反の通常の失敗の test は Passed |
+| CP3 | Non-blocking | `PlayEntryDecision.cs` 56〜64 行の `From` のコメントが「3 key を抜き出す」のまま（実装は上書きの 2 key を含む `ExplicitSettingKeys`）。後の修正が 3 key に戻すと I-2 の経路 (2) が戻る |
+| CP4 | 後続の入力 | directory の Play で同じ object を 2 回目に load すると失敗する事例（§6）。Runtime の content directory の読み口の後続 |
+
+- 監査できなかった範囲（C' の申告）: `editor-verification-V0-V7.zip` を展開できず（ask モードで file を展開・書き込みできない）、**AC5（V1c〜V7）と AC7 の実 Editor の V0、検査の費用の記録を生の記録で見ていない**。`head-1a3bf442-changed-files.zip` と Unity の log の zip も展開していない（head の C# は source で読んだ）。`out/` への書き出しもできなかった。これは進行役の packet の作り方（zip を展開した写しを bundle の外に置かなかった）による。
+- 残存リスク（C' の申告）: CP1 の失敗は run をまたいで別の test に移る。検出に掛からない Dirty の保存と、build 後の上書きの directory の書き換えは §2.3 のとおり S5・S4。
+- CP1 の裁定（owner、2026-11-22）: DR-1 と同じ事実なので同じ読みとする（AC7 の全 EditMode は合格）。CP1 のための再監査はしない。
+
+### 2 巡目（2026-11-22、範囲を絞った回）
+
+- 理由: 1 巡目で AC5（V1c〜V7）と AC7 の V0 を生の記録で監査できなかったので、owner の指示で、その範囲だけを 1 回見せた。
+- 担当と入力: 1 巡目と同じ（Grok 4.7、`grok-4.7-high`、ask モード、独立性制約あり）。packet に、`editor-verification-V0-V7.zip` を無改変で展開した写しを bundle の外（`extracted/`）に足し、1 巡目の C' 自身の報告と、CP1〜CP4 への決定記録（CP1 は上の裁定、CP2・CP3 は non-blocking、CP4 は後続の入力として記録済み）を渡した。bundle は加工していない。入力 209k・出力 57k token。
+- 結論: **blocker 1 件（CP5）。** V0〜V7 の各回の振る舞い（入る・止める、build の増分、登録、供給元、値、復元）は、全て凍結文どおりに生の記録で成立した（C' の回ごとの表）。
+
+| 番号 | 分類 | 内容（C' の出力の要約） |
+|---|---|---|
+| CP5 | Blocker | 凍結文は基準と各回の `git status --porcelain` を全文で読む（表にない差分が 1 つでもあれば不合格）。記録の script（`scripts/snap.sh` 3 行）は `MobileDependencyResolver/**/*.pdb.meta` を除いて status を書き、executor-note はその untracked 5 件が全期間残ったと述べる。凍結の許す差分の一覧にこの 5 件は無く、名指しのコマンドの全文は残っていない。フィルタ後の status では、Play が足した tracked の差分は表の file に収まる |
+| CP6 | Non-blocking | V1・V2・V3 の検査の対象の file の件数と容量、再利用の確かめの対象の成果物の件数と容量（合否に使わない記録）が obs に無い。4 つの所要と root 数はある |
+| CP7 | Non-blocking | `V6-inplay.txt`・`V4a-inplay.txt` の `reqlog` は前の回の `SessionState` の値が残った欄で、その回の Scene の要求の記録としては読めない。V6 の成否は log と Scene 行で足りる |
+| CP8 | 後続の入力 | V1 の入口の保存で、URP が同じ material に `_ScreenSpaceReflections*` の 2 行を書いた（別 file は増えていない） |
+
+- 監査できなかった範囲（C' の申告）: zip と展開した写しの byte 同一性、CP5 の 5 file の path と中身（obs に無い）、installed の一覧の全行の機械差分（256 行の件数と先頭・末尾の一致まで）。
+- 進行役の確認（CP5 の事実）: 5 file は `unity/Assets/MobileDependencyResolver/Editor/` の下の vendor の `*.pdb` の `.meta` で、`.pdb` 自体は `.gitignore` の `*.pdb` で無視されているが、Unity が Editor を開いた時に `.meta` を作る。動作確認の 1 回目（§6）の開始の時から同じ 5 つが現れ、今も同じ 5 つだけが untracked で残る。slice の差分とは関係しない。
+- CP5 の裁定（owner、2026-11-22）: 環境の既知事項として受け入れる。5 件は Editor を開いた時に Unity が作る vendor の `.meta` で、Play が書いたものではなく、除いた後の status で凍結文の目的（Play が許した差分の外を書かない）は満たされている。再監査はしない。
+
+### C' の結論
+
+**GO**（owner の裁定、2026-11-22）。2 巡の blocker は CP1（DR-1 と同じ読み）と CP5（環境の既知事項）で、どちらも owner が受け入れた。V0〜V7 の振る舞いは生の記録で凍結文どおりに成立した。non-blocking は CP2・CP3・CP6・CP7、後続の入力は CP4・CP8 で、本スライスの受け入れ条件を広げない。独立性制約あり（担当は Grok 4.7。外部計画レビューの系列は確かめていない）。
 
 ## 9. Phase D
 
