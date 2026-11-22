@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 発見 C 待ち（動作確認完了。期待との差なし）
+- status: 判定 C（全回帰の原記録と終了状態を照合中）
 - branch: codex/debugstudio-s3
 - implementation base commit: d176033a06ebcd1f481aa9082ed5d1053a2a03b2
 - implementation head commit: cf44020199a2cc687ad7cf7a29b780661283bd25
@@ -14,18 +14,18 @@
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方、検証用 GameObject の名前、結果の読み方と結果不明のときの扱い）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線、`TryGetHierarchyNodeId` の契約、hierarchy が DontDestroyOnLoad を出さないこと）
 - Phase A snapshot の取得案内・状態: 凍結版をこの commit で確定。オーケストレーターが task の手元引渡し先に保存・取得案内を用意し、B・C・C′ へ渡す。
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
+- Phase B result と動作確認の Evidence はローカル固定・発見 C で取得確認済み。判定・blind 共通入力の取得案内はオーケストレーターが手元で管理する。
 - 基準動作の Evidence: 116 ファイルをローカル固定（未昇格）。別の Claude CLI セッションが取得し、両 Play の hierarchy・inspect・Editor 独立値、WPF 終了と観測票を閲覧した。取得案内は task の担当者と owner 向け手元引渡し先に保管済み。
 - 動作確認の Evidence: implementation head で取った非秘密の生記録（各段の command・開始終了 UTC・stdout / stderr / exit、Editor の eval の独立値、WPF の保有 handle の signal と実 exit、実行 script、要約 `operation.json`、stage 対象の一覧）をローカルに保全（未昇格）。Editor の private log は含めない。stage と取得案内の用意は root。
 - task: `debugstudio-s3`（開始済み）
 - A2 の入力版: 計画開始点 `a629f9c19bdfe55b24fcac2f1756e25824d9e453` の A1 初稿（§5.5）。revision 1・2 は develop `d176033a` で照合した統合候補。revision 3 は owner の縮小方針で目的・設計・受け入れ条件を改めた候補。
-- 引継ぎ票: 次の担当は発見 C。凍結 revision 3 は変えない。読む範囲は既定（§0〜§8）。
+- 引継ぎ票: 次の担当は判定 C。凍結 revision 3 は変えない。読む範囲は既定（§0〜§8）。
   - 作業: implementation head の差分を責務マップ（§3）・最低条件・受け入れ条件（§2）と照合し、§5.1 の起点 filter と判定必須テストを Phase C の規則で実行する。動作確認（§6）は期待との差なし・未実施なし。動作確認の観測は B 以外の実行担当が implementation head で取った生の観測である。
   - 必要な権限: Unity Editor の起動・終了と `tools/unity-editor.cmd`、`pwsh tools/run-tests.ps1`（Editor を閉じて実行）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`dotnet build -c Release`（DebugStudio App / CLI）、WPF の起動と通常終了。
   - 停止規則: 人間が開いた Editor や WPF を強制終了しない。重複して起動しない。専用 worktree の Editor は動作確認の終了時点で root が開いたまま（Play 停止、Scene clean）で、全 EditMode の前に閉じる。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。検証用 GameObject を eval で作らない。
   - 入力の取得案内: Phase A snapshot、基準動作の Evidence、動作確認の Evidence は上の各行のとおり。Phase B result snapshot は未生成。
   - 引き渡さないもの: なし（B のレビュー所見は無い）。引き継ぐ commit の SHA は起動時に渡す。
-- 再開位置: 発見 C の開始照合。implementation head が HEAD の祖先で、その後の差分が `docs/handoff/` だけであることを照合してから始める。
+- 再開位置: 判定 C に固定 bundle の取得案内を渡し、同一 head の実測・XML・終了記録の照合を完了する。C′ は新規の予約モデルに限り、起動前に判定 C の状態を確認する。implementation head が HEAD の祖先で、その後の差分が `docs/handoff/` だけであることを照合してから始める。
 
 ## 1. 目的と対象外
 
@@ -402,7 +402,14 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 
 ## 7. Phase C
 
-未到達。
+### 発見 C と判定 C の実行記録
+
+- 引き継いだ commit は f68a6e7936f9945c6ec49271325ecb020d16b5be。implementation は cf44020199a2cc687ad7cf7a29b780661283bd25。間の変更はこの HANDOFF のみ。ローカル evidence tag で実装を固定。
+- 新規の Grok 4.6 High（xAI）が、取得先で凍結仕様・完全な製品差分・B 記録・実操作の原記録を読んだ。発見 C の差し戻しなし。判定 C も同じモデルの別セッション。C′ は未起動。
+- 独立した Claude Opus 5.5 実行セッションが contract-audit、docs-audit（各 exit 0）、AC4 の diff、同一 head・空 filter の全 EditMode を実行した。対象 3 fixture の 37 件は全て Passed。文字列 "false" と null はどちらも false として適用され、結果と実値が一致した。
+- 標準全回帰は 2202 件中 Passed 2175、Inconclusive 25、Skipped 2、Failed 0。25 件はすべて VFX の GraphicsDeviceType.Null。Unity 実 exit 2、Harness exit 1。
+- 描画あり全回帰は 2202 件中 Passed 2200、Inconclusive 0、Skipped 2、Failed 0。2 件は名前を指定して別の checkout 条件で実行する既存 R8 テスト。最終 shutdown 出力後にプロセスが残った。45 秒隔てた同一 handle はいずれも未 signal、報告 exit code はいずれも 0、CPU 時間は増え、ログは不変だった。限定調査はこの 1 回で終了。今回の専用 batch process だけを強制終了し、signal を確認。実 exit 99、Harness exit 1。原因・スタックの同一性は未確定。無変更の全件再実行をしない。
+- 実機は B と別セッション・同一実装 head の生記録（§6）を使用する。全回帰の非 0 終了は原記録のまま残す。判定と監査は各担当の所見を待つ。
 
 ## 8. Phase C'
 
