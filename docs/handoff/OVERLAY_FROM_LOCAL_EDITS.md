@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `B`（A3 凍結版は revision 2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 2 は owner の D5 の裁定を I-6・AC8・§3・§4・§5 に反映し、B の作業は §4 の (7) だけ。A2 の 2 件と採否は §5.1「revision 2」。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
+- status: `C`（revision 2 の Phase B は §4 の (7) を終えた。次は発見 C。§6「revision 2 の Phase B（2026-11-22）」。A3 凍結版は revision 2。判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 2 は owner の D5 の裁定を I-6・AC8・§3・§4・§5 に反映し、B の作業は §4 の (7) だけ。A2 の 2 件と採否は §5.1「revision 2」。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 の 4 件と外部計画レビューの 1〜3 巡目と担当の採否は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。revision 2 は 2026-11-22。対象は revision 2（この記録を含む commit の本書の全体）。根拠は、owner の D5 の裁定（2026-11-22。§0 の引継ぎ票に記録した「両方を採る」）が revision 2 の中身を決め、本文への反映と凍結を指示したこと。A2 で採った指摘は同じ事実（manifest の bytes が増えること）の読みを補うだけで、code の変更・範囲・目的・利用者の 2 欄は裁定の外へ広げていない（§5.1「revision 2」）。revision 1 は 2026-11-21 に owner が凍結した（外部計画レビューの 3 巡の反映の後に凍結と Phase B の開始を指示。§2.8 の U1・U2 は担当の案のとおり）
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,12 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（revision 2）。動作確認は `対象なし`（§5）。
+  - 次の Phase・役割: 発見 C（revision 2）。動作確認は `対象なし`（§5）。
   - owner の裁定（2026-11-22、D5）: 両方を採る。`ContentInstallerTests.cs` を §3 と AC8 の範囲に足して予算を上げる（この test が確かめるのは hash の不一致で、1024 bytes に意味は無い）。記録を持たない manifest でも `sourceClosure` の空の欄で bytes が増え、install の予約が同じだけ増えることを I-6 の例外として明記する。product の code で欄を省く直しは取らない。revision 2 で本文に反映した（I-6 の 3 つ目の例外、AC8、§3、§4 の (7)、§5）。
-  - 次の作業: §4 の (7) だけを行う（`ContentInstallerTests.Install_HashMismatch_DoesNotPublishRevision` の予算 `1024` を `1024 * 1024` にする。行を整形し直さない。AC8）。(1)〜(6) の code は revision 1 の実装（`d4d2e22b` まで）のまま変えない。B の commit が新しい implementation head になる。その後は発見 C が §5 の起点 filter（`ContentInstallerTests` を含む）で確かめ、判定 C へ進める。判定 C の判定必須（全 EditMode 回帰、R8、evidence bundle）は新しい GO 候補 head でやり直す。B と発見 C の差し戻しの巡は revision 2 で数え直す（revision 1 の 3 巡とは別）。
-  - 読む範囲: 既定（Phase B は §0〜§5。差し戻しでは §6〜§8 も）。D5 は §7「判定 C（2026-11-22）」。
-  - 引き継ぐ commit: この票を含む commit（revision 2 の A3 凍結版）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: B は Unity の batch test を要らない（Editor のコンパイル確認は今までと同じ）。C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
+  - Phase B（revision 2）の結果: §4 の (7) を終えた（§6「revision 2 の Phase B（2026-11-22）」）。この票を含む commit が新しい implementation head で、(1)〜(6) の code は `d4d2e22b` から変えていない。
+  - 次の作業: 発見 C が §5 の起点 filter（`ContentInstallerTests` を含む）で確かめ、判定 C へ進める。判定 C の判定必須（全 EditMode 回帰、R8、evidence bundle）は新しい GO 候補 head でやり直す。B と発見 C の差し戻しの巡は revision 2 で数え直す（revision 1 の 3 巡とは別。revision 2 ではまだ 0 巡）。
+  - 読む範囲: 既定（発見 C は §0〜§8）。D5 は §7「判定 C（2026-11-22）」。
+  - 引き継ぐ commit: この票を含む commit（revision 2 の Phase B の commit）。SHA は起動指示と PR 状態ブロックで渡す。
+  - Phase B result snapshot・evidence bundle・C' blind bundle の取得案内: 未生成（B は作らない）。
+  - 必要な権限: C は今までと同じ（Unity の batch test は sandbox 外、R8 は新しい worktree）。
   - 停止規則: §2.6。§3 に無い file の変更が要る時は Phase A へ戻す（§4）。
   - 引き渡さないもの: なし。
 
@@ -574,6 +576,17 @@ R8 は同じ head の 2 つの checkout にまたがる。test の class の doc
 - Editor のコンパイル確認: 済み（6000.6.9f1。B が直した後に開いた Editor で、`Library/ScriptAssemblies/OneStarMaker.Tests.Editor.dll` が直した source より新しく、`EditorUtility.scriptCompilationFailed` が false、Editor.log に `error CS` は 0 件）。Editor は出口で閉じた。
 - 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（checks 1〜9）。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内で、本書の変更ではない）。
 - 未実行: Unity の batch test は全て未実行（Phase C の責任）。直しの確認は発見 C が、起点 filter の後に `UnityContentDirectoryAdapterTests` と `OverlayFromLocalEditsIntegrationTests` が同じ process で走る filter で行う（§7「発見 C（3 回目）」の次）。
+
+### revision 2 の Phase B（2026-11-22）
+
+引き継いだ commit は `24c1c8bb`（revision 2 の A3 凍結版）。起動指示の SHA・HEAD・clean、§0 の凍結記録（revision 2、owner、2026-11-22）、票の次担当 B、implementation head 欄 `未固定`、PR #202 の状態ブロックの引き継ぐ commit と implementation base は全て一致した。
+
+- §4 の (7): `unity/Assets/OneStarMaker/Tests/BuildContent/Distribution/ContentInstallerTests.cs` の `Install_HashMismatch_DoesNotPublishRevision` の `ContentInstallRequest` の予算を `1024` から `1024 * 1024` にした（同じ file の他の 4 箇所と同じ式）。行は整形し直していない。他の test と product の code は変えていない。
+- AC8 の範囲: `git diff --word-diff=porcelain 63f171ac <head> -- unity/Assets/OneStarMaker/Tests/BuildContent/` の変更はこの 1 箇所だけ（word diff の token では `1024` の後に `* 1024` が入る形で出る）。この commit が変える file は上の test と本書だけ。
+- Editor のコンパイル確認: 済み（6000.6.9f1。B が開いた Editor で `AssetDatabase.Refresh` の後、`Library/ScriptAssemblies/OneStarMaker.Tests.dll` が直した source より新しく、`EditorUtility.scriptCompilationFailed` が false、Editor.log に `error CS` は 0 件）。Editor は出口で閉じた。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（checks 1〜9）。`pwsh tools/docs-audit.ps1` は errors 0・warnings 1（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の案内で、本書の変更ではない）。
+- 未実行: Unity の batch test は全て未実行（Phase C の責任）。`ContentInstallerTests` は §5 の起点 filter に入る。
+- Phase B 担当・ベンダー: AI（Claude Code、Anthropic）
 
 ### 動作確認
 
