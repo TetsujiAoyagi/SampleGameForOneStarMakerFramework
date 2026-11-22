@@ -69,6 +69,9 @@ namespace OneStarMaker.Editor.Build.Content
         }
 
         // 成功した上書きの後に呼ぶ。成果物の file を hash して、contentSet の記録をこの build に差し替える。
+        // 失敗は例外で返す。呼び手（coordinator）は成功した build を失敗にせず、理由を結果に写す。
+        // 置き換えは 1 回の操作（File.Replace）で行い、既存の記録を先に消す段を持たない。途中で失敗しても既存の記録は
+        // 前の bytes のまま読める（鍵が違うので、今の計画には返らない）。別名の file は成否によらず残さない。
         internal static void Write(string artifactsRoot, string contentSet, string key, BuildContentResult result)
         {
             var root = Path.GetFullPath(artifactsRoot);
@@ -86,9 +89,19 @@ namespace OneStarMaker.Editor.Build.Content
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             // 書きかけの記録を読まないよう、別名に書いてから置き換える。
             var temp = path + ".tmp";
-            File.WriteAllText(temp, JsonUtility.ToJson(record, true), new UTF8Encoding(false));
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(temp, path);
+            try
+            {
+                File.WriteAllText(temp, JsonUtility.ToJson(record, true), new UTF8Encoding(false));
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
+            }
+            finally
+            {
+                // 置き換えが成功していれば別名は既に無い。失敗した時の書きかけを残さない（削除の失敗は元の失敗を隠さない）。
+                try { if (File.Exists(temp)) File.Delete(temp); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
         }
 
         // 鍵が同じで、前回の outcome が成功で、記録した成果物の file が全て同じ内容で残る時だけ前回の結果を返す。それ以外は null。

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OneStarMaker.Editor.ContentOverlay;
 using UnityEditor;
 using UnityEngine;
 
@@ -27,6 +28,13 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal const string LogPrefix = "[PlayEntry] ";
         /// <summary>起動の取り込みの段の成功の log（Runtime の EditorPlaySnapshotIntake.LogPrefix と同じ文字列）。</summary>
         internal const string IntakeLogMarker = "[AppInit] Editor play snapshot intake: ";
+        /// <summary>起動が上書きつきの登録に成功した 1 行の先頭（Framework の Editor の公開定数）。</summary>
+        internal const string OverlayRegisteredLogMarker = ContentOverlayPlayConfig.RegisteredLogMarker;
+        /// <summary>
+        /// 起動が content の登録を終えた後に出す要求時解決の 1 行の先頭（Runtime の initializer と同じ文字列）。上書きつきの登録の行は
+        /// 登録の直後に出るので、この行までに来なければ「登録の行が無い」と読む。
+        /// </summary>
+        internal const string ContentResolutionLogMarker = "[AppInit] Content resolution: ";
         internal const string OriginSnapshot = "snapshot";
         /// <summary>
         /// 起動の後に、宣言の Scene と同名の Scene が複製以外の path から読まれた。どの供給元からかは言わない（由来の正本は Runtime の
@@ -52,6 +60,39 @@ namespace SampleGame.DependOnAll.Editor.Build
             public bool alignFastMode;
             /// <summary>Play の前に固定した snapshot の宣言（混成の経路だけ）。</summary>
             public SnapshotScene[] snapshot = Array.Empty<SnapshotScene>();
+            /// <summary>上書きの段の結果（経路 Built + local edits で段を通った Play だけ。それ以外は <see cref="OverlayPolicy.state"/> が空）。</summary>
+            public OverlayPolicy overlay = new();
+        }
+
+        /// <summary>
+        /// 上書きの段の計画と所要。所要は秒の文字列で、行わなかった段は <c>not-run</c>（0 と区別する）。作り直せない root は今回の計画の集合。
+        /// </summary>
+        [Serializable]
+        internal sealed class OverlayPolicy
+        {
+            public string state = "";
+            public int overlayRoots;
+            public UnbuildableRoot[] unbuildable = Array.Empty<UnbuildableRoot>();
+            public string prepareSeconds = "";
+            public string planSeconds = "";
+            public string reuseCheckSeconds = "";
+            public string buildSeconds = "";
+            /// <summary>登録する上書きの identity と path（Reused・Built の時だけ）。</summary>
+            public string identity = "";
+            public string contentPath = "";
+            /// <summary>build は成功したが再利用の記録を書けなかった理由。</summary>
+            public string reuseRecordFailure = "";
+        }
+
+        [Serializable]
+        internal sealed class UnbuildableRoot
+        {
+            public string logicalKey = "";
+            public string kind = "";
+            public string representation = "";
+            public string reason = "";
+            /// <summary>Play で何が起きるかの組（LoadsFromBase / FailsOnRequest / Undetermined）。</summary>
+            public string group = "";
         }
 
         [Serializable]
@@ -94,6 +135,12 @@ namespace SampleGame.DependOnAll.Editor.Build
             public SceneOrigin[] origins = Array.Empty<SceneOrigin>();
             /// <summary>Play の後に複製の file が残っていないか（yes / no）。snapshot の無い Play と、まだ Play 中の時は空。</summary>
             public string copiesRemoved = "";
+            /// <summary>起動の log で観測した、上書きつきの登録の identity。観測していなければ空。</summary>
+            public string overlayRegistered = "";
+            /// <summary>
+            /// 入口の計画と起動の登録の突き合わせ（入口が新しい経路で介入した Play だけ）: <c>matched</c>・<c>mismatch</c>・空（未確定か対象外）。
+            /// </summary>
+            public string overlayCheck = "";
         }
 
         [Serializable]
@@ -120,8 +167,29 @@ namespace SampleGame.DependOnAll.Editor.Build
         {
             var document = Create(facts, plan, PlayEntryState.Planned, observing: true);
             document.policy.snapshot = snapshot?.ToArray() ?? Array.Empty<SnapshotScene>();
+            if (plan.Overlay != null) document.policy.overlay = ToPolicy(plan.Overlay);
             Save(document);
         }
+
+        internal static OverlayPolicy ToPolicy(PlayEntryOverlayResult result) => new()
+        {
+            state = result.State.ToString(),
+            overlayRoots = result.OverlayRootCount,
+            unbuildable = result.Unbuildable.Select(x => new UnbuildableRoot
+                { logicalKey = x.LogicalKey, kind = x.Kind, representation = x.Representation, reason = x.Reason, group = x.Group.ToString() }).ToArray(),
+            prepareSeconds = PlayEntryOverlay.FormatSeconds(result.PrepareSeconds),
+            planSeconds = PlayEntryOverlay.FormatSeconds(result.PlanSeconds),
+            reuseCheckSeconds = PlayEntryOverlay.FormatSeconds(result.ReuseCheckSeconds),
+            buildSeconds = PlayEntryOverlay.FormatSeconds(result.BuildSeconds),
+            identity = result.Artifact?.Identity ?? "",
+            contentPath = result.Artifact?.ContentPath ?? "",
+            reuseRecordFailure = result.ReuseRecordFailure ?? "",
+        };
+
+        // 入口が新しい経路で介入した Play か（突き合わせの対象）。素通りの Play は観測した行を出すだけにする。
+        private static bool ChecksOverlay(Document document) =>
+            document.policy.rule == nameof(PlayEntryRule.LocalEditsRoute) && document.policy.action == nameof(PlayEntryAction.Intervene)
+            && document.policy.overlay.state.Length != 0;
 
         internal static void MarkBlocked(PlayEntryFacts? facts, PlayEntryPlan plan)
         {
@@ -136,7 +204,8 @@ namespace SampleGame.DependOnAll.Editor.Build
             var document = Load();
             if (document == null || !document.record.observing) return;
             document.record.enteredPlayTime = now;
-            if (document.record.errorCount + document.record.exceptionCount == 0) document.record.state = nameof(PlayEntryState.EnteredPlay);
+            if (document.record.errorCount + document.record.exceptionCount == 0 && document.record.overlayCheck != "mismatch")
+                document.record.state = nameof(PlayEntryState.EnteredPlay);
             Save(document);
             Debug.Log(FormatConsoleLine(document));
         }
@@ -144,10 +213,41 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>Application.logMessageReceived の 1 件。観測窓の外と観測していない時は無視する。</summary>
         internal static void ObserveLog(string message, LogType type, double now)
         {
-            if (type == LogType.Log && !message.Contains(SealedLogMarker) && !message.StartsWith(IntakeLogMarker, StringComparison.Ordinal)) return;
+            if (type == LogType.Log && !message.Contains(SealedLogMarker) && !message.StartsWith(IntakeLogMarker, StringComparison.Ordinal)
+                && !message.StartsWith(OverlayRegisteredLogMarker, StringComparison.Ordinal)
+                && !message.StartsWith(ContentResolutionLogMarker, StringComparison.Ordinal)) return;
             if (type == LogType.Warning) return;
             var document = Load();
             if (document == null || !document.record.observing) return;
+
+            if (type == LogType.Log && message.StartsWith(OverlayRegisteredLogMarker, StringComparison.Ordinal))
+            {
+                document.record.overlayRegistered = ParseToken(message, "identity=");
+                if (ChecksOverlay(document))
+                {
+                    // 計画の上書きと違う identity、または上書きを計画しなかった Play の登録は、どちらも計画と起動が食い違う。
+                    var planned = document.policy.overlay.identity;
+                    if (planned.Length != 0 && string.Equals(planned, document.record.overlayRegistered, StringComparison.Ordinal))
+                        document.record.overlayCheck = "matched";
+                    else
+                        MarkOverlayMismatch(document, planned.Length == 0
+                            ? "The overlay was not planned, but startup registered overlay " + document.record.overlayRegistered + "."
+                            : "Startup registered overlay " + document.record.overlayRegistered + ", not the planned " + planned + ".");
+                }
+                Save(document);
+                return;
+            }
+
+            if (type == LogType.Log && message.StartsWith(ContentResolutionLogMarker, StringComparison.Ordinal))
+            {
+                // 登録の後の行。計画した上書きの登録の行がここまでに無ければ、起動は上書きを重ねていない。
+                if (ChecksOverlay(document) && document.record.overlayCheck.Length == 0 && document.policy.overlay.identity.Length != 0)
+                {
+                    MarkOverlayMismatch(document, "The overlay " + document.policy.overlay.identity + " was planned, but startup did not report registering it.");
+                    Save(document);
+                }
+                return;
+            }
 
             if (type == LogType.Log && message.StartsWith(IntakeLogMarker, StringComparison.Ordinal))
             {
@@ -212,8 +312,22 @@ namespace SampleGame.DependOnAll.Editor.Build
         {
             var document = Load();
             if (document == null || !document.record.observing) return;
+            // 起動が要求時解決の行に届かずに終わった Play でも、計画した上書きの登録の行が無ければ食い違いとして残す。
+            if (ChecksOverlay(document) && document.record.overlayCheck.Length == 0 && document.policy.overlay.identity.Length != 0
+                && document.record.enteredPlayTime > 0)
+                MarkOverlayMismatch(document, "The overlay " + document.policy.overlay.identity + " was planned, but startup did not report registering it.");
             document.record.observing = false;
             Save(document);
+        }
+
+        // 食い違いは起動の失敗として数える（最初の失敗が無ければこれを最初の失敗にする）。Warning で 1 回出す。
+        private static void MarkOverlayMismatch(Document document, string message)
+        {
+            document.record.overlayCheck = "mismatch";
+            if (document.record.firstFailure.Length == 0) document.record.firstFailure = message;
+            var first = document.record.state != nameof(PlayEntryState.StartupFailed);
+            document.record.state = nameof(PlayEntryState.StartupFailed);
+            if (first) Debug.LogWarning(LogPrefix + message);
         }
 
         internal static string FormatConsoleLine(Document document)
@@ -227,8 +341,32 @@ namespace SampleGame.DependOnAll.Editor.Build
                    " | record: state=" + record.state + " mode=" + record.effectiveMode + " revision=" + record.revision +
                    " variantProfile=" + record.variantProfileActive + " initializer=" + record.initializer +
                    " errors=" + record.errorCount + " exceptions=" + record.exceptionCount +
-                   " sealed=" + (record.sealedLog.Length != 0) + FormatSnapshot(document);
+                   " sealed=" + (record.sealedLog.Length != 0) + FormatSnapshot(document) + FormatOverlay(document);
         }
+
+        /// <summary>
+        /// Console の 1 行の上書きの部分。状態、上書きの root の数、作り直せない root の組ごとの数、4 つの所要、記録の失敗、起動の登録。
+        /// root の名前は Warning（組ごとの行）と詳細窓が出す。
+        /// </summary>
+        internal static string FormatOverlay(Document document)
+        {
+            var overlay = document.policy.overlay;
+            var record = document.record;
+            if (overlay.state.Length == 0 && record.overlayRegistered.Length == 0) return "";
+            int Count(PlayEntryUnbuildableGroup group) => overlay.unbuildable.Count(x => x.group == group.ToString());
+            return " | overlay: state=" + (overlay.state.Length == 0 ? "-" : overlay.state) + " roots=" + overlay.overlayRoots +
+                   " unbuildable=[loadsFromBase=" + Count(PlayEntryUnbuildableGroup.LoadsFromBase) +
+                   " failsOnRequest=" + Count(PlayEntryUnbuildableGroup.FailsOnRequest) +
+                   " undetermined=" + Count(PlayEntryUnbuildableGroup.Undetermined) + "]" +
+                   " seconds=[prepare=" + Dash(overlay.prepareSeconds) + " plan=" + Dash(overlay.planSeconds) +
+                   " reuseCheck=" + Dash(overlay.reuseCheckSeconds) + " build=" + Dash(overlay.buildSeconds) + "]" +
+                   (overlay.identity.Length == 0 ? "" : " identity=" + overlay.identity) +
+                   (overlay.reuseRecordFailure.Length == 0 ? "" : " reuseRecordFailure=\"" + overlay.reuseRecordFailure + "\"") +
+                   " registered=" + (record.overlayRegistered.Length == 0 ? "none" : record.overlayRegistered) +
+                   (record.overlayCheck.Length == 0 ? "" : " check=" + record.overlayCheck);
+        }
+
+        private static string Dash(string value) => value.Length == 0 ? "-" : value;
 
         /// <summary>Console の 1 行の snapshot の部分。宣言（identity、元の path、Dirty、SHA-256）、取り込み、由来、複製の残り、解放の担当。</summary>
         internal static string FormatSnapshot(Document document)

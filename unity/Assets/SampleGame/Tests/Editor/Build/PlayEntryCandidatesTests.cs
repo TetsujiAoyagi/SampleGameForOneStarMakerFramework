@@ -66,6 +66,17 @@ namespace SampleGame.Tests.Editor.Build
         }
 
         [Test]
+        public async Task ValidRevision_CarriesTheValidatedInstallResult()
+        {
+            var installed = await InstallAsync("rev-a", "spring-full", "Full", "Full");
+            var install = Select().Candidate!.Install;
+            Assert.That(install, Is.Not.Null, "上書きの計画の base として、検証した install の結果を捨てない");
+            Assert.That(install!.RevisionRoot, Is.EqualTo(installed.RevisionRoot));
+            Assert.That(install.ManifestSha256, Is.EqualTo(installed.ManifestSha256));
+            Assert.That(install.Revision, Is.EqualTo("rev-a"));
+        }
+
+        [Test]
         public async Task DifferentDeclarationRecordedInTheManifest_IsNotACandidate()
         {
             await InstallAsync("rev-a", "spring-planner-whitebox", "Whitebox", "Planner");

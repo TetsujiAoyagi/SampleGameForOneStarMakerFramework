@@ -105,6 +105,18 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal static IReadOnlyList<string> SnapshotPlayConfigKeys(IEnumerable<KeyValuePair<string, string>> runtimeDefaults) =>
             DirectoryPlayConfigKeys(runtimeDefaults).Append(SnapshotExpectedKey).ToArray();
 
+        /// <summary>上書きの directory の path の config key（Framework の Editor の公開定数）。</summary>
+        internal const string OverlayPathKey = OneStarMaker.Editor.ContentOverlay.ContentOverlayPlayConfig.OverlayPathKey;
+        /// <summary>上書きの build の identity の config key（同上）。</summary>
+        internal const string OverlayIdentityKey = OneStarMaker.Editor.ContentOverlay.ContentOverlayPlayConfig.OverlayIdentityKey;
+
+        /// <summary>
+        /// 経路 Built + local edits が実効値を保証する config key（競合の検査に掛ける）。混成の経路の key に上書きの 2 key を足す。
+        /// 上書きを登録しない Play では上書きの key を置かないが、コマンドラインに値があると起動が重ねるので、置く時と同じく検査する。
+        /// </summary>
+        internal static IReadOnlyList<string> LocalEditsPlayConfigKeys(IEnumerable<KeyValuePair<string, string>> runtimeDefaults) =>
+            SnapshotPlayConfigKeys(runtimeDefaults).Append(OverlayPathKey).Append(OverlayIdentityKey).ToArray();
+
         internal sealed class LaunchSettings
         {
             internal LaunchSettings(IReadOnlyList<KeyValuePair<string, string>> placed, IReadOnlyList<string> controlled,

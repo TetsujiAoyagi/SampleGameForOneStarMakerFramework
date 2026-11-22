@@ -81,8 +81,8 @@ namespace OneStarMaker.Tests.Editor.Build
         private static string[] OverlayKeys(ContentOverlayPlan plan) => plan.OverlayRoots.Select(x => x.Root.LogicalKey).OrderBy(x => x, StringComparer.Ordinal).ToArray();
 
         [UnityTest]
-        // Content build を 5 回（base 1、上書き 4）と Play mode の往復を 2 回行う。build を伴う test の上限を build の数だけ足す。
-        [Timeout(2700000)]
+        // Content build を 6 回（base 1、上書き 5）と Play mode の往復を 3 回行う。build を伴う test の上限を build の数だけ足す。
+        [Timeout(3240000)]
         public IEnumerator R0ToR7_PlanBuildAndPlayFromLocalEdits_InAPartialCheckout()
         {
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.StandaloneWindows64 ||
@@ -269,10 +269,44 @@ namespace OneStarMaker.Tests.Editor.Build
             End("R7", fixture.PathOf("M.mat"), tBefore, movedT, fixture.Folder + "/Sub", fixture.PathOf("B.unity"), fixture.PathOf("C.unity"), n);
 
             fixture.Back("B.unity");
+
+            // ─── AC8（S3-4b）: base の後に手元で足した root D の source が無い。計画は NotInBase と答え、その集合を認めて上書きを作り、
+            //     base → 上書きで登録して D を要求すると見つからない種類の失敗になる。同じ Play で A の要求は上書きから成功する ───
+            Begin();
+            reports = F.Reports(_artifacts);
+            fixture.AddRootD();
+            fixture.Aside("D.unity");
+            var r8 = fixture.Plan(installed, _artifacts);
+            var d = r8.Unbuildable.Single(x => x.Root.LogicalKey == "D");
+            Assert.That(d.Reason, Is.EqualTo(ContentOverlayUnbuildableReason.NotInBase), "AC8: base の記録に無く source の無い root");
+            Assert.That(r8.State, Is.EqualTo(ContentOverlayPlanState.BuildRequired), "AC8: T の移動と C の編集が残るので上書きを作る");
+            Assert.That(OverlayKeys(r8), Does.Not.Contain("D"), "AC8: D は上書きに入らない");
+            var r8Built = new BuildContentCoordinator().Build(new BuildContentRequest(r8.Acknowledge(r8.Unbuildable.Select(x => x.Root))));
+            Assert.That(r8Built.IsSuccess, Is.True, r8Built.Summary);
+            Assert.That(F.Reports(_artifacts), Is.EqualTo(reports + 1), "AC8: build 1 回");
+            mode = BeginPlay();
+            try
+            {
+                yield return new EnterPlayMode();
+                var run = F.RequestMissingAsync(installed, r8Built, "D", "A");
+                yield return new WaitUntil(() => run.IsCompleted);
+                _missing = run.GetAwaiter().GetResult();
+                yield return new ExitPlayMode();
+            }
+            finally { EndPlay(mode); }
+            var resolution = _missing.Failure as ContentResolutionException;
+            Assert.That(resolution, Is.Not.Null, "AC8: D の要求は要求時解決の失敗: " + _missing.Failure);
+            Assert.That(resolution!.Result.FailureCode, Is.EqualTo(ContentResolutionFailureCode.NoCandidate),
+                "AC8: 見つからない種類の失敗（別の表現・別の key を代わりに採らない）");
+            F.AssertLoaded(_missing.Present, ContentSourceKind.ContentOverlay, r8Built.Identity, F.EditedT, null, "AC8: A");
+            fixture.Back("D.unity");
+            End("AC8", fixture.PathOf("D.unity"));
+
             if (previous.Any(x => x.isActive)) EditorSceneManager.RestoreSceneManagerSetup(previous);
         }
 
         private Dictionary<string, F.Loaded> _played = new();
+        private (Exception? Failure, F.Loaded Present) _missing;
 
         private const string ModeEnv = "SAMPLEGAME_CONTENT__RUNTIMEMODE";
 

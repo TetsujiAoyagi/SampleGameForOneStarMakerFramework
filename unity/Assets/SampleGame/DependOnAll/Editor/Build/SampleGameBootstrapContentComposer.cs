@@ -72,7 +72,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                     new BuildContentRequirement(UiCommonLogicalKey, BuildContentCardinality.ExactlyOne),
                     new BuildContentRequirement(SceneResourceMapLogicalKey, BuildContentCardinality.ExactlyOne),
                 }),
-                snapshot.Dependencies.Concat(new[] { uiClosure, mapClosure }), snapshot.Graph);
+                snapshot.Dependencies.Concat(new[] { uiClosure, mapClosure }), snapshot.Graph,
+                // 欠けを許す materialize の欠けの記録を引き継ぐ。落とすと上書きの計画は、閉包も欠けの記録も無い selected の root で
+                // 止まる（18 章「呼び手の順と前提」）。欠けの無い snapshot では空なので、上書きでない build の結果は変わらない。
+                snapshot.Absences);
             var composedPlan = new BuildPlan(
                 plan.Request,
                 plan.SelectedContent.Concat(new[] { ui, map }),
