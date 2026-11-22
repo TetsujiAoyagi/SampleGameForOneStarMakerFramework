@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `B`（動作確認で期待との差。B へ差し戻し）
+- status: `B`（動作確認からの差し戻しを処理した。製品 code の変更なし。次は動作確認のやり直し）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 1a3bf4428237cc8d5192e680bef1689c300dc4c7
@@ -21,16 +21,16 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（動作確認からの差し戻し。B と発見 C の巡の 1 巡目に数える）。
-  - 次の作業: §6 の「動作確認」の V1 の終わりの状態と V2 の差（入口が保存した後も material が Dirty のまま残り、次の Play で確認が出て、再保存で source が変わって再利用されない）を、新しい事実の分類に従って扱う。実装の欠陥か、検証経路の編集の作り方（`_BaseColor` だけを変える）か、契約に関わるかを B が決めて §6 に書き、必要な変更をして、動作確認（V1c・V1・V2・V3）へ戻す。
-  - 読む範囲: 既定（§0〜§5）と §6。
-  - 引き継ぐ commit: この票を含む commit（動作確認の記録 commit）。SHA は起動指示で渡す。
+  - 次の Phase・役割: 動作確認（Phase B の後。差し戻しの 1 巡目の後のやり直し）。実行担当は B の session ではない担当。
+  - 次の作業: 対象 head（implementation head 欄。1 回目と同じ。この巡で製品 code は変えていない）で、V1c・V1・V2・V3 を各 1 回行う。material の色は §6「動作確認からの差し戻し（1 巡目）」の「編集の作り方」で変える（1 回目の `_BaseColor` だけの変更は使わない）。それ以外の手順・観測・記録の形は 1 回目（§6「動作確認」）と §5 の検証経路のとおり。V2 は確認の応答を先に置かない（確認が出たら、それ自体を期待との差として記録する）。出口は引継ぎ票を、差が無ければ発見 C へ、差があれば B へ更新する。
+  - 読む範囲: 既定（§0、§5、§6）。
+  - 引き継ぐ commit: この票を含む commit（B の差し戻しの記録 commit）。SHA は起動指示で渡す。
   - implementation base / head: §0 の欄のとおり。
-  - 取得案内: snapshot・bundle は未生成（上の欄）。動作確認の生の記録は §6 の「動作確認」の最後の段落の所在。
+  - 取得案内: snapshot・bundle は未生成（上の欄）。1 回目の動作確認の生の記録は §6 の「動作確認」の最後の段落の所在。
   - 必要な権限: 開いている Editor の `tools/unity-editor.cmd eval`。Editor が閉じていれば起動してよい。Unity の test と batch の build は走らせない（Phase C）。
   - 停止規則: §2.6。
   - 引き渡さないもの: なし。
-  - push: Phase B の出口の commit と動作確認の記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
+  - push: Phase B の出口の commit、動作確認の記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 
 ## 1. 目的と対象外
 
@@ -610,6 +610,22 @@ B が決めた実装詳細（§3 の port の境界の中）:
 検査の費用の記録（合否に使わない）: V1 は prepare 1.272・plan 1.773・reuse check 0.002・build 25.782 秒、root 112。V2 は 1.271・1.691・0.001・21.896 秒、root 112。V3 は 1.327・1.217 秒、reuse check と build は `not-run`、root 0。上書きの成果物は 2 つとも 141 file・約 4.5 MB。検査の対象の file の件数と容量（計画の契約から数える推定）は数えていない（判定の担当が数える）。
 
 生の記録（各回の前後の状態、record の JSON、Play の中の観測、`[PlayEntry]`・`[AppInit]` の log の行、使った `eval` の script）は、進行役の共有メモの folder（git 管理外）の `operation-check-1a3bf44/` に置いた。B の session ではない実行担当の観測だが、対象 head は GO 候補 head ではない。
+
+### 動作確認からの差し戻し（1 巡目）
+
+担当: B（AI、Claude Code、Anthropic）。2026-11-22。開いている Editor（Unity 6000.6.9f1、この PC）の `eval`、各 1 回。製品 code は変えていない（implementation head は 1 回目と同じ）。
+
+**分類: B 適応（検証経路の編集の作り方）。実装の欠陥でも、契約に関わるものでもない。** V1 の後の Dirty と V2 の再 build は、動作確認が material の `_BaseColor` だけを script で変え、URP の shader の検証を通さなかったことから起きた。Inspector で色を変える時と同じ作り方なら起きない。
+
+確かめたこと（入口を通さず、同じ material に `eval` で 1 回ずつ。記録の後に `git checkout` で戻した）:
+
+- **1 回目と同じ作り方（`_BaseColor` だけを変えて `SetDirty`）:** `AssetDatabase.SaveAssets()` の後、Dirty は偽になり、memory の `_Color` は `_BaseColor` に揃っていたが、file の `_Color` は (1, 1, 1, 1) のままだった（1 回目の V1 の file と同じ形）。続く `AssetDatabase.Refresh()` の後、Dirty は真に戻った。もう一度保存すると file の `_Color` が (0.24999997, 0.5, 0.75, 1) に変わり（SHA-256 `22baaa9d…`。1 回目の V2 の後の file と同じ）、その後の `Refresh()` で Dirty は偽のままだった。
+- **Inspector と同じ作り方（`_BaseColor` を変えた後に、shader の custom editor `UnityEditor.Rendering.Universal.ShaderGUI.LitShader` の `ValidateMaterial(mat)` を呼んで `SetDirty`）:** 1 回の `SaveAssets()` で file は上の最終形（SHA-256 `22baaa9d…`）になり、`Refresh()` の後も Dirty は偽だった。
+- 揃える処理は URP の `BaseShaderGUI.SetMaterialKeywords` にある（`_Color` に `_BaseColor` を書く。`ValidateMaterial` から呼ばれる）。Inspector は編集のたびに `ValidateMaterial` を呼ぶので、保存の前に揃う。script の変更は、保存の時と再 import の時に Unity が揃え、file と memory が食い違ったまま残る。入口は保存の後（複製の後）に `AssetDatabase.Refresh()` を呼ぶので、その再 import が material を Dirty に戻した。
+
+入口の動きの読み: 入口は確認の後で 1 回だけ保存し、その後に Dirty に戻った asset を次の Play でもう一度確かめた。これは U4（検出できた未保存の asset を確認なしで保存しない。Dirty の印を外して保存を避ける作り込みはしない）と I-4 のとおりで、変えない。2 回目の保存で source が変わったので、V2 が再利用せずに build したことも、再利用の鍵の契約（disk の保存済みの内容で決まる）のとおりである。harvest の候補（18 章「宣言からの Play 経路」の既知の動き）: shader の検証を通さない script の編集は、保存と再 import で Unity が補うので、入口の保存の後にも未保存として残り、次の Play で確認がもう一度出る。保存し直すと source が変わり、上書きは作り直される。
+
+**編集の作り方（動作確認のやり直しと判定 C の V1c・V1・V5・V7 で使う）:** §5 の「編集の作り方」の「色の property を `eval` で変える」は、次の手順で行う。`Material.SetColor("_BaseColor", 値)` の後に、`System.Type.GetType("UnityEditor.Rendering.Universal.ShaderGUI.LitShader, Unity.RenderPipelines.Universal.Editor")` を `Activator.CreateInstance(type, true)` で作った `ShaderGUI` の `ValidateMaterial(mat)` を呼び、`EditorUtility.SetDirty(mat)` を呼ぶ（対象の material の shader は `Universal Render Pipeline/Lit`）。V5・V7 は続けて `AssetDatabase.SaveAssets()` で保存する。
 
 ## 7. Phase C
 
