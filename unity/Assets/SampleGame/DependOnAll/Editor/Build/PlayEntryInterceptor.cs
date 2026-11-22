@@ -250,7 +250,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>
         /// 混成の経路は初回 Scene を置かない。環境変数は空文字で上書きできないので、app-config（JSON の層）に空でない
         /// <c>content:firstScene</c> があれば、開いている Scene の複製と初回 Scene が重なりうるとして拒否の理由を返す。
-        /// mode の 3 key だけを残す <see cref="PlayEntryConfigLayer"/> には載らないので、本文から直接読む。環境変数とコマンドラインの層は
+        /// 明示設定と数える key（<see cref="PlayEntryDecision.ExplicitSettingKeys"/>）だけを残す <see cref="PlayEntryConfigLayer"/> には載らないので、本文から直接読む。環境変数とコマンドラインの層は
         /// <see cref="PlayAsLauncher.CheckLaunchConflicts"/> が拒否する。
         /// </summary>
         internal static string? SnapshotFirstSceneConflict(string? appConfigJson)
