@@ -3,29 +3,29 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 動作確認待ち（Phase B 完了。Editor コンパイルは未確認）
+- status: 発見 C 待ち（動作確認完了。期待との差なし）
 - branch: codex/debugstudio-s3
 - implementation base commit: d176033a06ebcd1f481aa9082ed5d1053a2a03b2
 - implementation head commit: cf44020199a2cc687ad7cf7a29b780661283bd25
 - A3 凍結記録: owner が 2026-11-23 に「コメント来たので確認して そのあとで凍結してPhaseB入ろう」と承認。対象は revision 3（候補 commit a1178db53fa7290cb391d1760f893f745b44fef4）。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（Phase B 完了）
+- created: 2026-11-20 / updated: 2026-11-23（動作確認完了）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方、検証用 GameObject の名前、結果の読み方と結果不明のときの扱い）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線、`TryGetHierarchyNodeId` の契約、hierarchy が DontDestroyOnLoad を出さないこと）
 - Phase A snapshot の取得案内・状態: 凍結版をこの commit で確定。オーケストレーターが task の手元引渡し先に保存・取得案内を用意し、B・C・C′ へ渡す。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 基準動作の Evidence: 116 ファイルをローカル固定（未昇格）。別の Claude CLI セッションが取得し、両 Play の hierarchy・inspect・Editor 独立値、WPF 終了と観測票を閲覧した。取得案内は task の担当者と owner 向け手元引渡し先に保管済み。
+- 動作確認の Evidence: implementation head で取った非秘密の生記録（各段の command・開始終了 UTC・stdout / stderr / exit、Editor の eval の独立値、WPF の保有 handle の signal と実 exit、実行 script、要約 `operation.json`、stage 対象の一覧）をローカルに保全（未昇格）。Editor の private log は含めない。stage と取得案内の用意は root。
 - task: `debugstudio-s3`（開始済み）
 - A2 の入力版: 計画開始点 `a629f9c19bdfe55b24fcac2f1756e25824d9e453` の A1 初稿（§5.5）。revision 1・2 は develop `d176033a` で照合した統合候補。revision 3 は owner の縮小方針で目的・設計・受け入れ条件を改めた候補。
-- 引継ぎ票: 次の担当は動作確認。凍結 revision 3 は変えない。読む範囲は既定（§0、§5、§6）。
-  - 最初に: implementation head の Editor コンパイルが未確認（§6 の未実行）。専用 worktree の Editor を通常経路で開き、Console に compile error が無いことを確かめる。error があれば動作確認をせず、そのエラーを §6 の動作確認に記録して B へ戻す。
-  - 作業: §5.3 の V0〜V7 を implementation head で各 1 回軽く実行し、生の観測を §6 の動作確認に記録する。合否と GO / NO-GO は書かない。期待と違う観測は原因調査や再実行で埋めず B へ戻す。
-  - 必要な権限: Unity Editor の起動と `tools/unity-editor.cmd` の command / eval、`dotnet build -c Release`（DebugStudio App / CLI）、WPF の起動と通常終了。Unity バッチテスト・Build はしない（C の担当）。
-  - 停止規則: 人間が開いた Editor や WPF を強制終了しない。重複して起動しない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。検証用 GameObject を eval で作らない。
-  - 入力の取得案内: Phase A snapshot と基準動作の Evidence は上の各行のとおり。Phase B result snapshot は未生成。
+- 引継ぎ票: 次の担当は発見 C。凍結 revision 3 は変えない。読む範囲は既定（§0〜§8）。
+  - 作業: implementation head の差分を責務マップ（§3）・最低条件・受け入れ条件（§2）と照合し、§5.1 の起点 filter と判定必須テストを Phase C の規則で実行する。動作確認（§6）は期待との差なし・未実施なし。動作確認の観測は B 以外の実行担当が implementation head で取った生の観測である。
+  - 必要な権限: Unity Editor の起動・終了と `tools/unity-editor.cmd`、`pwsh tools/run-tests.ps1`（Editor を閉じて実行）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`dotnet build -c Release`（DebugStudio App / CLI）、WPF の起動と通常終了。
+  - 停止規則: 人間が開いた Editor や WPF を強制終了しない。重複して起動しない。専用 worktree の Editor は動作確認の終了時点で root が開いたまま（Play 停止、Scene clean）で、全 EditMode の前に閉じる。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。検証用 GameObject を eval で作らない。
+  - 入力の取得案内: Phase A snapshot、基準動作の Evidence、動作確認の Evidence は上の各行のとおり。Phase B result snapshot は未生成。
   - 引き渡さないもの: なし（B のレビュー所見は無い）。引き継ぐ commit の SHA は起動時に渡す。
-- 再開位置: 動作確認の開始照合。implementation head が HEAD の祖先で、その後の差分が `docs/handoff/` だけであることを照合し、Editor コンパイルの確認から始める。
+- 再開位置: 発見 C の開始照合。implementation head が HEAD の祖先で、その後の差分が `docs/handoff/` だけであることを照合してから始める。
 
 ## 1. 目的と対象外
 
@@ -378,7 +378,27 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 
 ### 動作確認
 
-未到達。
+- 対象 head: implementation head `cf440201`（作業 worktree の HEAD は B の記録 commit `4f999815`。`cf440201` は HEAD の祖先で、間の差分は本 HANDOFF だけと照合済み。作業ツリー clean）。
+- 実行担当・モデル・ベンダー: Claude Opus 5.5（Anthropic、新規セッション。B の session とは別）。合否と GO / NO-GO は書かない。
+- 環境: 専用 worktree の Editor 6000.6.9f1（root が通常経路で開いた instance。wrapper の `status` で ready・対象 project が専用 worktree の `unity/` であることを確認）。WPF / CLI は V0 の Release build の出力（App・CLI とも build exit 0）。V0〜V7 は 1 つの実行 script で 1 回だけ流し、wrapper は 1 回に 1 invocation ずつ順に呼んだ。実行 2026-11-22T19:56:09Z〜19:57:11Z（UTC）。
+- Editor コンパイル: Editor の log に `error CS` の行なし（script compilation が完了し、warning だけ）。V0 前の eval で `playing=False;compiling=False;updating=False;compileFailed=False;sceneCount=1;scene0=:dirty=False`。
+- 生の観測（期待は §5.3）:
+
+| 段 | 観測 |
+|---|---|
+| V0 | HEAD `4f999815`、`git status --porcelain` 空。App / CLI の Release build exit 0。WPF を `--listen` で直接起動（PID 27228）。起動前に他の DebugStudio の process なし |
+| V1 | `editor_play` exit 0。`hierarchy` を 8 回読み、8 回目（約 9.0 秒）で `hasSnapshot:true`・`Connected`・`Negotiated`、`[DebugStudioVerificationTarget]` の node 1 つ、N1=`8`（flags `ActiveSelf, ActiveInHierarchy, SceneRoot`）。1〜7 回目は exit 1 の `no-snapshot`（`Connecting` / `Negotiating`） |
+| V2 | 凍結 snippet の eval: `count=1 sameSceneAsUICommon=True activeSelf=True`。非対象 root `Directional Light`: hierarchy の root に 1 つ（X=`2`）、eval で `count=1`、EntityId EX=`3298534918567`、`activeSelf=True` |
+| V3 | `send … '{"nodeId":8,"active":false}'` → stdout `CommandResult … success=true message=applied` と `{"nodeId":8,"activeSelf":false}`、exit 0。eval `count=1 sameSceneAsUICommon=True activeSelf=False`。`inspect 8` の `GameObject.ActiveSelf` rawValue `"false"`（targetName `[DebugStudioVerificationTarget]`）。読み直した hierarchy で対象 node 1 つ、NodeId `8`（flags `SceneRoot`） |
+| V4 | `'{"nodeId":8,"active":true}'` → `success=true message=applied`、`{"nodeId":8,"activeSelf":true}`、exit 0。eval `activeSelf=True`（count=1、同じ scene）。inspect rawValue `"true"`。hierarchy で対象 node 1 つ、NodeId `8`（flags `ActiveSelf, ActiveInHierarchy, SceneRoot`） |
+| V5 | `'{"nodeId":2,"active":false}'` → stderr `CommandResult … success=false message=rejected: not-verification-target`、stdout 空、exit 1。EntityId EX の root を eval で探して `count=1 name=Directional Light activeSelf=True`（V2 と同じ） |
+| V6 | `editor_stop` exit 0、停止後の eval `playing=False`、Scene dirty なし。`editor_play` exit 0。Play2 開始後に capture された snapshot を 4 回目（約 3.8 秒）で取得し、対象 node 1 つ（NodeId `8`）。1〜3 回目は exit 1 の `no-snapshot`。送信なし、GUI 操作なし、eval で何も作っていない |
+| V7 | `editor_stop` exit 0、eval `playing=False;compiling=False;updating=False;compileFailed=False;sceneCount=1;scene0=:dirty=False`。WPF に `CloseMainWindow`（true を返した）、保有 handle が 30 秒以内に signal（約 0.13 秒）、実 exit 0、強制終了なし。`git status --porcelain --untracked-files=no` 空（tracked の変更なし） |
+
+- 期待との差: なし。B へ戻すものなし。
+- 未実施: なし。
+- 補足（期待との差ではない）: 実行 script が手順外で足した待受け port の確認（`Get-NetTCPConnection` で 5011 / 5012）は、WPF の起動中も空を返したので、port の観測としては使えない。他の WPF の有無は process の列挙（起動前に 0 件）で確かめた。CLI はこの WPF と通信し、Editor と同じ回の hierarchy を返した。
+- 終了時の Editor: root が開いた instance（PID 41016）を開いたまま、ready・Play 停止・Scene clean。閉じていない。
 
 ## 7. Phase C
 
