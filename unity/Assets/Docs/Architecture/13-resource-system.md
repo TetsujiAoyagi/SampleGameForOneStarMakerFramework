@@ -103,7 +103,7 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。Play 停止と明示 close を
 同じ「完全 drain」として書かない。
 
-#### base と上書きの登録契約（S2-2 で定めた。強制は internal の登録の口にあり、入口は未配線（S3-4b））
+#### base と上書きの登録契約（S2-2 で定めた。強制は internal の登録の口にあり、起動から呼ぶ（S3-4b））
 
 開発時の Editor の Play で、取得した目的 build（base）に手元で build した上書きを重ねる時の文である。
 上書きの作り方は [18 章](18-asset-description.md)「上書きの build と逆引き（現況）」、実測は
@@ -115,13 +115,17 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 （`ContentDirectoryLayers`）で所有し、`AssetManagement` は今までどおり session を 1 つだけ install する（2 件目を拒む）。
 token・発行済みの処理・失敗した後始末は層をまたいで session で 1 組だけ数え、`ContentRevisionGate` は層 2 つを 1 件の登録として予約する
 （どちらの層の path・revision の削除の許可も拒み、層どうしの path か revision の重複は予約の前に拒む）。
-失敗は例外で返し、base だけの session を返さない。製品の入口（Play の入口、起動の設定、`AbstractApplicationInitializer`）からはまだ呼ばれず、配線は S3-4b が持つ。
+失敗は例外で返し、base だけの session を返さない。製品で呼ぶのは起動（`AbstractApplicationInitializer`）だけで、config に上書きの key 2 つがある
+Editor の directory Play で、検証済みの base（installed の pair）に対してだけ呼び、その例外を握らず起動の失敗にする（base だけの登録へやり直さない。
+[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」）。key を置くのは SampleGame の Play の入口の経路 Built + local edits と、
+自分で作った上書きを渡す別の host の入口である（[18 章](18-asset-description.md)「宣言からの Play 経路」）。
 強制を確かめた設定は、Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き、要求時解決の loader の経路で、
-製品の build 経路の base（build → publish → install → 検証）と上書き（逆引き → 上書きの build）を実機で登録・読み・解除した。
+製品の build 経路の base（build → publish → install → 検証）と上書き（逆引き → 上書きの build）を実機で登録・読み・解除した。S3-4b で、SampleGame の
+実 Editor の Play ボタンから起動の登録までを、Domain Reload の無効と有効の両方で通した（上書きの Play → 停止 → 再 Play で 2 回とも登録が成功した）。
 上書きのために足した public の値と面（`ContentSourceKind.ContentOverlay`、`ContentAcceptanceBasis.RecordedBaseMatch`、
 `ContentCompatibilityFactKeys.OverlayBase*`、`ContentCompatibilityMismatch.OverlayBaseFactMissing`、`ContentDirectoryFailureCode.OverlayBaseMismatch` /
-`OverlayBaseMissing`、`BuildContentRoot.OverlayBase` と `BuildContentOverlayBase`）は、program の S3-4b の縦断の実証まで暫定であり、
-上書きの方式を見直す時は外す。
+`OverlayBaseMissing`、`BuildContentRoot.OverlayBase` と `BuildContentOverlayBase`）は、program の S3-4b の縦断の実証まで暫定としていた。
+S3-4b は見直しの条件（program §5.3）に当たらずに縦断を実証したので暫定を解き、上書きの方式を見直す時にだけ外す。
 
 - **順序:** base を先に、上書きを後に登録する。逆の順では base の版が出た（実測）。
 - **個数:** base 1 つと上書き 0 か 1 つ。編集が増えたら、和集合の編集で上書きを作り直す（2 つ以上は未測定のため禁止）。
@@ -157,7 +161,9 @@ token・発行済みの処理・失敗した後始末は層をまたいで sessi
 - **Scene に置いた prefab の編集:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の差分 build が古い Scene の出力を再利用する不成立は、Unity 6000.6.3f1 の修正（UUM-151103）で解消し、S2-2b で入れた Scene の `.meta` の印は外した（S2-2c）。印を書く Scene が開いていると build が止まる制約も無くなった。契約は [18 章](18-asset-description.md) §4「Scene に焼き込む prefab と model の編集」、実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)。
 - **測った設定:** Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き。prefab の証拠は variant・override・unpack の無い instance に限る。
   native の登録は Play を終えても Unity が自分では解除せず（Domain Reload の有無によらない）、script の reload の後は一覧が 0 件になった。
-  Domain Reload 有効の Play の入口からの確認、Play に入る時の reload が前の Play の残りを消すか、reload の後の OS の lease の file handle は S3-4b、別の PC の base は S4。
+  Domain Reload 有効の Play は S3-4b が入口から確かめた。製品は Play の終わりに解除するので、停止の後の Edit mode で native の一覧は 0 件で、次の Play で
+  登録と read lease の取り直しが成功した（上書きなしと上書きあり。SampleGame の実 Editor、6000.6.9f1）。製品が解除し損ねた時に Play に入る時の reload が残りを消すか、
+  reload の後の OS の lease の file handle、Play の間の script の compile で session が失われた後の扱いは測っておらず S4、別の PC の base も S4。
 
 ### DIST transport と disk cache の境界
 

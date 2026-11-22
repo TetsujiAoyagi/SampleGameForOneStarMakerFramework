@@ -188,7 +188,8 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 
 取得した目的 build（base）に、手元で編集した asset の影響を受ける root だけを build した上書きを重ねるための Editor の入口
 （S2-2）。base と上書きを重ねる登録は internal の登録の口が持ち（S3-2）、手元の編集から上書きを決めて作る計画は下の「手元の編集からの計画」
-（S3-4a）、上書きを Play に載せる入口は無い（S3-4b）。登録の契約は [13 章](13-resource-system.md)「base と上書きの登録契約」。
+（S3-4a）、上書きを Play に載せる入口は SampleGame の経路 Built + local edits（下の「宣言からの Play 経路」。S3-4b）、起動の設定は
+[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」。登録の契約は [13 章](13-resource-system.md)「base と上書きの登録契約」。
 
 - **逆引き:** `ContentOverlaySelection.Select(plan, snapshot, editedPaths)` は I/O を持たない。編集した path を正規化し
   （`\` を `/`、`X.meta` を `X`、その後の重複を 1 件）、plan の selected の root のうち、snapshot の依存閉包に編集を 1 つでも含む root を選ぶ。
@@ -284,17 +285,20 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
     宣言を手元で足した場合（後者は base にも上書きにも無い root になり、Play では解決の失敗になる。古い版は出ない）。build の間に書き換えて戻した
     変更。偽の編集（改行の違い、取得していない LFS の pointer）と base より古い checkout は、編集として計画に出る（黙らないが、上書きが要らずに
     大きくなる）。検出と鍵は計画のたびに閉包の file を hash する（速くする cache は無い）。古い上書きの directory は掃除しない。
-  - **既知の不具合（再利用の記録の書き込み）:** coordinator は成功の outcome を書いた後、同じ `try` の中で再利用の記録を書くので、記録の書き込みの
-    例外は、成功した上書きの成果物を消して outcome を失敗で上書きする。記録の置き換えは既存の記録を消してから移すので、その間の失敗で古い記録も
-    失われる。記録も成果物も残らず次は作り直すので、古い上書きは出ない。上書きを Play に載せる入口が再利用を使う前に、成功の確定と記録の更新を
-    分け、記録の置き換えを原子的にする（program の S3-4b の最初の作業）。
+  - **再利用の記録の書き込み（S3-4b）:** 記録の失敗は、成功した上書きも既存の記録も壊さない。coordinator は成功の outcome を書いた後、その `try` の
+    外で記録を書き、失敗を build の失敗にせず `BuildContentResult.ReuseRecordFailure`（public の読み取り専用の欄。null なら失敗なし）に写して成功を返す
+    （`content/<identity>/` と成功の outcome は残り、outcome の file には書かない）。成功の outcome 自体の書き込みの失敗は今までどおり build の失敗である。
+    記録は別名の file に書いてから `File.Replace` で置き換え、既存の記録を先に消す段を持たないので、置き換えが終わるまで既存の記録が読める。別名の file は
+    成否によらず消す（消す時の I/O の失敗は握って元の失敗だけを返すので、別名の `*.tmp` が残りうる。後続は program §8）。記録が書けなかった build の後も
+    記録は前の build のままなので、今回の鍵の計画には `GetReusableResult` が null を返して build し直し（古い上書きは出ない）、前の鍵と同じ計画には前の結果を返す。
 - **Scene に焼き込む prefab と model の編集:** `UnityContentDirectoryAdapter` は Scene の file と `.meta`、既にある利用者の
   file を書かない（build の間も後も。除くのは製品の `AssetDatabase.Refresh()` が作る `.meta` と、adapter が所有する生成 folder
   だけ）。Scene に焼き込まれた prefab と model の編集が同じ `Library` の差分 build の出力に入ることは、Unity（6000.6.3f1 以降、
   UUM-151103）の差分 build に依拠する。adapter は Unity の版を検査しない（project の版は `ProjectVersion.txt` で固定されている）。
   Scene に置いた prefab の版の印を `.meta` に書く仕組みは S2-2b で入れ S2-2c で外した。確かめた範囲と測っていない範囲
   （override・unpack、Player の build、別の PC・`Library`）は[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)にある。
-  開いている未保存の Scene の build は batch で確かめ、対話の Editor では確かめていない。
+  開いている未保存の Scene の build は batch で確かめた。対話の Editor では、Dirty の Scene を開いたまま Play の外の同期呼び出しから build を起こし、
+  開いている Scene の path・Dirty・内容が変わらず、保存も求められなかった（S3-4b。[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Editor の Play の入口からの上書き（6000.6.9f1）」）。
   - **撤去より前の印の残り:** `userData` が `osm-prefab-stamp-` で始まる Scene の `.meta` は、撤去より前の版の build が異常終了して残した印で、
     `userData` を空に戻してよい。`Library/OneStarMaker/ScenePrefabStamp/` は消してよい。残っても出力の正しさは変わらず、build は止まらない。
   - **古い cache を持つ `Library`:** 6000.6.3f1 より前の Unity で Content Directory を build したことのある `Library` は、印の無い `.meta` を
@@ -439,15 +443,22 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 
 同じ宣言を日常 Play・検証 Play・published directory の受け取りに接続する。宣言を 1 つ選ぶと mode・表現・runtime 既定値・成果物が手入力なしに揃い、揃わない時は別の経路で黙って動かずに拒否する。経路は全て `SampleGame/DependOnAll/Editor/Build/` にあり、Framework は宣言の意味を知らない。
 
-- **Play ボタンの入口**（`PlayEntryInterceptor`。規則は `PlayEntryDecision`、順序は `PlayEntryTransaction`、候補は `PlayEntryCandidates`）: 通常の Play を押すと `ExitingEditMode` で判定し、設定を補う必要がある時だけ Play を取り消し、次の idle tick で判定をやり直して 1 回の Play の ledger を置き、`EnterPlaymode` で入り直す。利用者が選ぶのは RunPurpose と経路（Source / Built / Built + open scenes）で、`EditorUserSettings`（git 管理外）に残り、初回は `spring-full` / Source。判定は上から最初に当たった行で決まる。
+- **Play ボタンの入口**（`PlayEntryInterceptor`。規則は `PlayEntryDecision`、順序は `PlayEntryTransaction`、候補は `PlayEntryCandidates`）: 通常の Play を押すと `ExitingEditMode` で判定し、設定を補う必要がある時だけ Play を取り消し、次の idle tick で判定をやり直して 1 回の Play の ledger を置き、`EnterPlaymode` で入り直す。利用者が選ぶのは RunPurpose と経路（Source / Built / Built + open scenes / Built + local edits）で、`EditorUserSettings`（git 管理外）に残り、初回は `spring-full` / Source。判定は上から最初に当たった行で決まる。
   1. batch、または開いている Scene の名前が `InitTestScene` で始まる Play（PlayMode テスト）は素通り。同じ接頭辞の利用者の Scene も素通りし、record に理由が出る。EditMode テストの `EnterPlayMode` は Scene 名で区別できないので通常の Play と同じ判定に通る。
   2. 実効 mode が directory（ledger、mode の明示、pair だけの暗黙）で、起動が再利用しうる Scene が開いていれば拒否する（回復: 空 Scene で Play）。ただしその直前に 1 行だけ例外がある: 1 回の Play の ledger があり、手で戻す ledger が無く、入口が準備した snapshot の session が今開いている Scene と一致する時は素通りする（`SnapshotReentry`。入口自身の `EnterPlaymode` の中だけで、それ以外の `ExitingEditMode` で当たれば取り消して `Blocked` にする）。
   3. 1 回の Play の ledger があれば素通り（Play As、検証 Play、入口自身の再 Play）。
-  4. 明示設定（`content:runtimeMode`・`installedRevisionPath`・`manifestSha256` のいずれかが JSON・環境変数・コマンドラインのどこかにある。空文字を含む）があれば素通りし、値を書かない。実効 mode が addressables で Play Mode Script が `BuildScriptFastMode` でない時は拒否せず「既存 build を読みうる」と Warning に出す。
+  4. 明示設定（`content:runtimeMode`・`installedRevisionPath`・`manifestSha256`・`editor:contentOverlayPath`・`editor:contentOverlayIdentity` のいずれかが JSON・環境変数・コマンドラインのどこかにある。空文字を含む）があれば素通りし、値を書かない。実効 mode は上書きの 2 key を見ず、mode の 3 key だけで決める。上書きの key だけがある時も入口は介入せず、起動が key を読む（[§4.7](04-app-startup.md#47-設定の読み込みappconfig)「上書きの起動の設定」）。上の行 1〜3 は、上書きの key があっても今までどおり先に当たる。実効 mode が addressables で Play Mode Script が `BuildScriptFastMode` でない時は拒否せず「既存 build を読みうる」と Warning に出す。
   5. Variant profile、制御する key の外の値、コマンドラインの同じ key で拒否する。経路 Source では app-config の下位の層が空でないことも拒否する。
   6. 経路 Source は `PurposeLaunchSettings.PlayAs` の環境変数を置いて入る。Play Mode Script が Fast Mode でなければ揃えて 1 行出す。保存先は `Library/AddressablesConfig.dat` で元に戻さない。
   7. 経路 Built は installed cache から、新しい install から順に検証し最初に通った revision を使う。飛ばした revision は Warning に出る。候補が無ければ拒否し、黙って Source にしない。再利用しうる Scene が開いていれば拒否する。
   8. 経路 Built + open scenes は、Built と同じ候補の選び方で、開いている全 Scene を Play 前の複製（Dirty の in-memory の内容を含む）にして同じ Play に載せる（S0-d）。Scene reload が無効、`playModeStartScene` が既に非 null、JSON の層に空でない `content:firstScene`、新規未保存・UICommon・同名 2 つの Scene、載せる Scene が無い（空の新規 1 つだけ）の時は拒否する。`content:firstScene` は置かない（開いている Scene から始まる）。複製と空の開始 Scene は `Assets/OsmPlaySnapshot/<pid>_<process 開始時刻>_<乱数>/`（git 管理外）に置き、元の Scene の file・Dirty・path は変えない。複製の SHA-256・由来（`snapshot` / `directory`）・取り込み・複製の残りは record と詳細窓に出し、Console の 1 行は Play の後にも出す。停止、Play に至らない idle、準備の例外で `PlaySnapshotSession` が置き場を消し `playModeStartScene` を戻す。Editor の異常終了で残った置き場は、次の Editor の起動と次の準備で、folder 名の pid と開始時刻から死んだ process の物だけを回収する。入口は起動時に要求する Scene の規則（SceneResourceMap にある Scene 名）を `PlaySnapshotSession.Prepare` に渡し、map にある複製は全て lifecycle に入る（S3-3。規則の引数は必須で、Framework は既定を持たない）。複製は要求時解決の候補になり、起動の後に unload して再要求しても複製から読み直す（[§13](13-resource-system.md)「Editor snapshot の供給元」）。同名の Scene が複製以外の path から載った時は、由来を `snapshot->other` と record に書き Warning を 1 回出す。複製の準備（`EditorSceneManager.SaveScene(…, saveAsCopy: true)`）は、その時点で Dirty の asset を file に書く（S3-3 の動作確認で、保存していない asset の編集が file に書かれ Dirty が倒れた。元の Scene の file と Dirty は変わらない）。実測（S0-d の判定 C、Unity 6000.6.0f1、1 回ずつ）: 押下から Play 開始まで約 10〜15 秒（Domain Reload 有効で約 101 秒）、そのうち複製の準備は約 0.8〜4.3 秒。経路 Built の拒否（G18）と明示の directory 設定の拒否は変えない。
+  9. 経路 Built + local edits（S3-4b）は、取得した目的 build（base）に手元の編集の上書きを重ねる。候補の選び方・拒否の行と順・複製は Built + open scenes と同じで、通った時だけ rule が `LocalEditsRoute` になる（今ある 3 経路の判定と置く値は変えない。保存した経路の値を知らない古い code は `Source` と読む）。tick の順は、未保存の asset の列挙 →（1 件以上なら確認 →「保存して続ける」なら保存）→ 複製の準備 → `AssetDatabase.Refresh()` → compile 中・import 中なら止める → 上書きの段 → compile 中・import 中なら止める → 1 回の ledger → 計画の公開 → `EnterPlaymode` で、判定が拒否した Play ではどの段も走らない。例外は今までどおり複製を解除して `Blocked` にする。
+     - **未保存の asset:** 複製の保存（`saveAsCopy`）は Scene が参照しない物も含めて Dirty の asset を全て file に書く（[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Editor の Play の入口からの上書き（6000.6.9f1）」）。入口は複製の前に `Assets/` の下の load 済み・persistent・Dirty の object（`.unity` を除く）を挙げ、1 件以上なら、その一覧と「続けると、project の保存していない asset を全て保存する」の文で確認を出す。保存して続けるなら `AssetDatabase.SaveAssets()` の後に進み、保存した編集は計画に入る。やめるなら何も書かずに `Blocked`。0 件なら確認を出さない。0 件は未保存の asset が無いことの証明ではなく、列挙に掛からない Dirty（Undo の履歴、sub-asset、Dirty の Scene、prefab の編集中、未適用の import の設定は測っていない）は確認なしで複製の保存に書かれうる（既知の限界）。確認を省く設定と「今後表示しない」は無い。判定用に `SessionState` の `OSM.PlayEntry.SaveAssetsResponse.v1` に `save` か `cancel` を先に置くと、dialog の代わりに確認の段で 1 回読んで消す（0 件の時も消す）。
+     - **上書きの段:** host の関数（`SampleGameContentBuild`）が、検証した install の結果を base に、欠けを許す materialize → 選択 → 合成（欠けの記録を引き継ぐ）→ 計画を呼ぶ。「他の供給元」は今準備した複製のうち SceneResourceMap にある Scene、上書きの contentSet は `<宣言の名前>-local-edits`、成果物の root は `artifacts/bs2b`。計画が `NotRequired` か `UnbuildableOnly` なら build も再利用の確かめもせず、置く値は Built + open scenes と同じ。`BuildRequired` なら今回の作り直せない root の集合をそのまま認め、前回の上書きを受け取れればそれを使い、無ければ build して、上書きの key 2 つ（[§4.7](04-app-startup.md#47-設定の読み込みappconfig)「上書きの起動の設定」）を足す。build の失敗（issue の code と対象を理由に含む）と、計画・再利用の確かめの例外は `Blocked` で、検査を省いた結果（`NotRequired`・`Reused`）を作らず、他の経路の値で Play に入らない。成功した上書きの成果物は失敗の後も消さない。
+     - **作り直せない root:** 止めずに Play に入り、今回の計画の集合を Play のたびに Warning（組ごとに 1 行、8 件を超える分は残りの件数）・record・詳細窓（全件）に出す。組は Play で起きることで分ける: base の版で載る（`SourceAbsent`・`NotInLocalSelection`）、要求すると失敗する（`NotInBase`。base にも上書きにも無く、古い版も別の物も出ない）、どちらか見分けられない（`RecordMissing`・`RecordUnsupported`・`RecordInvalid`）。黙らせる設定は無い。Play に入れたことは、編集が全ての root に反映されたことを意味しない。記録の失敗（`ReuseRecordFailure`）も Warning と record に出して Play に入る。
+     - **検査を省かない:** 「build 0 回」の Play でも、選択の準備と計画（閉包の file の hash）は毎回走り、`BuildRequired` では再利用の確かめ（成果物の全 file の hash）も走る。record は所要を 4 つの欄（選択の準備、計画、再利用の確かめ、build）で持ち、行わなかった段は `not-run` と出す。上書きに入れた root の数と、作り直せない root の数（組ごと）も出す。閾値は持たない。
+     - **起こること（構造から）:** 開いている Scene だけの編集は、保存していてもいなくても複製が届けて build しない（Scene の保存の hook が `SceneResource` などを書き換えた時は、その asset の編集として上書きが作られる。複製の保存でもこの hook は走る）。編集の無い Play と、前回の上書きと同じ編集の Play は build 0 回。部分 checkout では作り直せない root の通知が出るだけで、Play は止まらない。記録の無い base と部分 checkout の組では、欠けた root が編集が無くても毎回作り直せない root として出る。shader の検証を通さない script の編集（例: URP の Lit の material の `_BaseColor` だけを変える）は、Unity が保存と再 import で他の property を揃えて Dirty に戻すので、入口の保存の後の `Refresh()` で再び未保存になり、次の Play で確認がもう一度出る。保存し直すと source が変わり、上書きは作り直される。Inspector の編集では起きない。
+     - **record の突き合わせ:** 入口がこの経路で介入した Play では、record は計画した上書きの identity と、起動の log の上書きつきの登録の行（`ContentOverlayPlayConfig.RegisteredLogMarker`）の identity を突き合わせる。違う identity、計画に無い登録、計画したのに要求時解決の行（`[AppInit] Content resolution: `）か Play の終わりまでに登録の行が無い時は、`overlayCheck=mismatch` で `StartupFailed` にし、後の `EnteredPlay` で上書きしない。素通りした Play では観測した identity だけを出す。照合は identity だけで base の revision と path を見ず、登録の行は session を `AssetManagement` に install する前に出るので、install の失敗でも `matched` になりうる（後続は program §8 の S5）。
 
   Console の 1 行と詳細窓（`Tools/OSM/Play Entry`。Toolbar の要素は既定で見えないことがあるので、Editor セッションの最初の Play で focus を奪わずに開く）は、同じ `PlayEntryRecord` から policy（Play の前の規則と計画）と record（観測した事実）を別々に示す。record の状態は `EnteredPlay`、`Blocked`、`StartupFailed` で、`EnteredPlayMode` から 15 秒の Error / Exception を起動の失敗として数える。initializer の成功は Runtime の log だけでは判定できないので `unknown` と出す。
 - **「known-good の自動適用はしない」と Play ボタンの入口の境界:** [§4.7](04-app-startup.md#47-設定の読み込みappconfig) の文は、Runtime が未指定時に cache の pin を見ないことを指す。入口は別で、(a) どの層にも key が無い時にその Play の間だけ `content:runtimeMode=addressables` を置くことは directory を選ばないので自動適用ではなく、(b) 利用者が Built の経路を選んだ時に、その Play の中で再検証した revision の pair を 1 回の ledger で置き record に残すことは、利用者の選択の下で候補を使う行為である。入口は JSON や既定値を commit せず、明示設定を書き換えない。
@@ -457,6 +468,9 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
 - **From published directory**（Delivery 窓の Published directory モード）: batch の結果 file（`last-result.json`）を選び、`transport.json` の SHA-256 → identity → 宣言の順に照合してから install し、検証 Play と同じ段で Play する。照合に落ちた directory は install しない。窓は標準経路の実効 cache root を表示し、窓を閉じると進行中の受け取りを取り消す。
 - **初回 Scene:** 宣言ごとの起動 Scene は App が決める（`SampleGameBuildPurposes.FirstSceneOf`。今は 6 宣言とも `Title`）。検証 Play の bridge は `content:firstScene` を置き、Runtime の Editor directory 分岐がそれをロードする（[§4.6](04-app-startup.md#46-play-from-any-sceneeditor-対応)）。BS4 coordinator も同じ関数を使う。
 - **観測の注意:** `eval` で Editor を操作して検証する時、build 中や Play mode の移行中に送った `eval` は main thread が塞がれて 5 秒で timeout し、Pipeline が `Failed to handle /api/exec request: Main thread operation timed out after 5000ms` を Console の Error として出す。印で切った区間の Error を数える時はこの行を App の Error と区別して読む（BS5b-2 の判定で採った読み）。Reload Domain が無効のこの project では、PlayMode テストはコンパイルまたは script reload の後の最初の実行でだけ走り、以降は `total=0` のまま `Passed` になった（原因は未調査）。PlayMode の結果は XML の `total` で読む。
+  - 経路 Built + local edits の実 Editor の検証（S3-4b の判定、6000.6.9f1）で分かったこと。上書きの build の間に送った状態読みの `eval` も同じく timeout して Console に Error を残す（record の Error は数えない）。Play の中の `SceneDirector` には、`eval` から App の initializer の instance と `_sceneDirector`（private）に reflection で届き、`AddScene` と `GetContentLoadRecord` を呼べる（届く口は製品に無い）。開いている Scene の file を `git checkout` で戻すと Unity の modal（外部で変更された Scene）が main thread を止めて `eval` が返らないので、戻す前に別の Scene を開く。判定用の先置きの応答は、確認の段より前で拒否された Play では消費されずに残るので、拒否の後に消してからやり直す。
+  - 入口の保存で、URP は編集した property の他に `_ScreenSpaceReflections*` の 2 行を同じ material に足した（別の file は増えなかった）。保存後の material の差分は、編集した値だけではない。
+  - 記録の欠け（S3-4b の判定の生の記録で見つかった。合否は変えていない）: 検査の費用の記録のうち、検査の対象の file と再利用の確かめの対象の成果物の件数・容量は回ごとの記録に無く、判定の要約にだけあった。Play の中の要求の記録の欄（`reqlog`）は前の回の `SessionState` の値が残り、その回の要求の記録として読めない回があった。次に検証の記録を取る時は、件数・容量を回ごとの記録に書き、`SessionState` の欄を回の始めに消す。
 
 
 ### BuildSystem の後続（BS5a・BS5b-1 から送った事項）
