@@ -67,9 +67,9 @@ namespace SampleGame.DependOnAll.Editor.Build
 
             foreach (var entry in entries)
             {
-                var values = TryValidate(store, entry, declaration, target, firstSceneOf, out var problem);
+                var values = TryValidate(store, entry, declaration, target, firstSceneOf, out var problem, out var install);
                 if (values != null)
-                    return new PlayEntryCandidateSelection(new PlayEntryCandidate(entry.Revision, values, entries.Length > 1),
+                    return new PlayEntryCandidateSelection(new PlayEntryCandidate(entry.Revision, values, entries.Length > 1, install),
                         string.Empty, problems.Select(x => "Skipped while selecting content: " + x).ToArray());
                 problems.Add(entry.Revision + ": " + problem);
             }
@@ -77,9 +77,11 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         private static IReadOnlyList<KeyValuePair<string, string>>? TryValidate(ContentCacheStore store, ContentCacheEntry entry,
-            BuildPurposeDeclaration declaration, string target, Func<string, string> firstSceneOf, out string problem)
+            BuildPurposeDeclaration declaration, string target, Func<string, string> firstSceneOf, out string problem,
+            out ContentInstallResult? install)
         {
             problem = string.Empty;
+            install = null;
             try
             {
                 var validated = store.ValidateInstalled(entry.RevisionRoot, entry.ManifestSha256, entry.ContentSet, entry.Revision, target);
@@ -88,6 +90,8 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var mismatch = VerifyPlayLauncher.CompareDeclaration(manifest?.declaration ?? new ContentManifestDeclaration(), declaration);
                 if (mismatch != null) { problem = mismatch; return null; }
                 var recorded = manifest!.declaration;
+                // 検証した install の結果を捨てずに候補へ渡す（上書きの計画が base の manifest をこの値と照合して読む）。
+                install = validated;
                 return PurposeLaunchSettings.DirectoryPlay(validated.RevisionRoot, validated.ManifestSha256, validated.Revision,
                     recorded.representation, recorded.runtimeDefaults.Select(x => new KeyValuePair<string, string>(x.key, x.value)),
                     firstSceneOf(declaration.Name));

@@ -80,6 +80,7 @@ namespace OneStarMaker.Editor.Build.Content
                 return failure;
             }
             var published = false;
+            BuildContentResult success;
             try
             {
                 _adapter.ValidateTarget();
@@ -127,14 +128,12 @@ namespace OneStarMaker.Editor.Build.Content
                     .Select(x => new ContentTransportIndexEntry
                         { logicalKey = x.LogicalKey, kind = x.Kind.ToString(), representation = x.Representation })
                     .ToArray();
-                var success = new BuildContentResult(identity, preflight, outcome, final,
+                success = new BuildContentResult(identity, preflight, outcome, final,
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
                     Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode, indexEntries, overlayPlan?.Key);
                 BuildContentReport.WriteOutcome(outcome, success, isOverlay);
-                // 成功した計画の上書きだけを再利用の記録に残す（失敗した build と、計画を通さない上書きは記録を変えない）。
-                if (overlayPlan != null) ContentOverlayReuse.Write(root, request.ContentSet, overlayPlan.Key!, success);
-                return success;
+                if (overlayPlan == null) return success;
             }
             catch (BuildIssueException ex)
             {
@@ -155,6 +154,20 @@ namespace OneStarMaker.Editor.Build.Content
                     ex.ToString(), new[] { new BuildContentIssue(BuildContentIssueCode.BuildFailure, identity, ex.Message) }, request.Declaration, request.Mode);
                 BuildContentReport.WriteOutcome(outcome, failure, isOverlay);
                 return failure;
+            }
+
+            // 成功した計画の上書きだけを再利用の記録に残す（失敗した build と、計画を通さない上書きは記録を変えない）。
+            // 成功の outcome を書いた後の別の試みなので、ここの失敗は build を失敗にしない。上の catch に入れると final を消し、
+            // outcome を失敗で上書きして、成功した上書きを捨てる。理由を結果に写し、呼び手が示す。
+            // 次の同じ鍵の計画は、記録が無いか古い鍵を指すので build し直す。
+            try
+            {
+                ContentOverlayReuse.Write(root, request.ContentSet, overlayPlan!.Key!, success);
+                return success;
+            }
+            catch (Exception ex)
+            {
+                return success.WithReuseRecordFailure("The overlay reuse record could not be written: " + ex.Message);
             }
         }
 

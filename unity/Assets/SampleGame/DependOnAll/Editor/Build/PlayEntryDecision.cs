@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using OneStarMaker.Editor.ContentOverlay;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using UnityEngine;
 
 namespace SampleGame.DependOnAll.Editor.Build
@@ -10,8 +12,13 @@ namespace SampleGame.DependOnAll.Editor.Build
     /// <summary>
     /// 経路。<see cref="BuiltWithOpenScenes"/> は build 済み content の Play に、開いている Scene の Play 前の複製を載せる（混成）。
     /// <see cref="Built"/> は「directory だけ」のまま（Scene が開いていれば従来どおり拒否する）。保存値は名前なので末尾に足す。
+    /// <see cref="BuiltWithLocalEdits"/> は混成の経路に、手元の編集の上書きの段（計画 → 認める → 再利用か build）を足したもの。
+    /// 拒否の条件と複製は混成の経路と同じで、今ある 3 経路の動きは変えない。
     /// </summary>
-    internal enum PlayEntryRoute { Source, Built, [InspectorName("Built + open scenes")] BuiltWithOpenScenes }
+    internal enum PlayEntryRoute
+    {
+        Source, Built, [InspectorName("Built + open scenes")] BuiltWithOpenScenes, [InspectorName("Built + local edits")] BuiltWithLocalEdits,
+    }
 
     internal enum PlayEntryAction { PassThrough, Intervene, Reject }
 
@@ -20,13 +27,16 @@ namespace SampleGame.DependOnAll.Editor.Build
     {
         BatchMode, TestRunnerScene, SnapshotReentry, DirectoryWithReusableScenes, OnePlayLedger, ExplicitSetting, ConflictingState,
         SourceRoute, SnapshotUnsupportedSetting, NoVerifiedCandidate, BuiltWithReusableScenes, BuiltRoute,
-        SnapshotNothingToCarry, SnapshotUnsupportedScenes, SnapshotRoute, EntryFailed,
+        SnapshotNothingToCarry, SnapshotUnsupportedScenes, SnapshotRoute, LocalEditsRoute, EntryFailed,
     }
 
     [Flags]
     internal enum PlayEntryRecovery { None = 0, EmptyScene = 1, VerifyPlayBuild = 2, SwitchToSource = 4, SwitchToBuilt = 8 }
 
-    /// <summary>JSON・環境変数・コマンドラインの 1 層のうち、mode を決める 3 key だけの値（無い key は入らない）。</summary>
+    /// <summary>
+    /// JSON・環境変数・コマンドラインの 1 層のうち、明示設定と数える key（mode を決める 3 key と上書きの 2 key）だけの値（無い key は入らない）。
+    /// 実効 mode は mode の 3 key だけから決める。
+    /// </summary>
     internal sealed class PlayEntryConfigLayer
     {
         internal static readonly PlayEntryConfigLayer Empty = new(new Dictionary<string, string>());
@@ -51,7 +61,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         {
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var pair in store)
-                if (PlayEntryDecision.ModeKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
+                if (PlayEntryDecision.ExplicitSettingKeys.Contains(pair.Key, StringComparer.OrdinalIgnoreCase))
                     values[pair.Key] = pair.Value;
             return new PlayEntryConfigLayer(values);
         }
@@ -60,10 +70,13 @@ namespace SampleGame.DependOnAll.Editor.Build
     /// <summary>検証を通った installed revision と、それで directory Play する時に置く環境変数。</summary>
     internal sealed class PlayEntryCandidate
     {
-        internal PlayEntryCandidate(string revision, IReadOnlyList<KeyValuePair<string, string>> placedEnvironment, bool hasMultiple)
-        { Revision = revision; PlacedEnvironment = placedEnvironment; HasMultiple = hasMultiple; }
+        internal PlayEntryCandidate(string revision, IReadOnlyList<KeyValuePair<string, string>> placedEnvironment, bool hasMultiple,
+            ContentInstallResult? install = null)
+        { Revision = revision; PlacedEnvironment = placedEnvironment; HasMultiple = hasMultiple; Install = install; }
 
         internal string Revision { get; }
+        /// <summary>検証した install の結果。上書きの計画の base になる（経路 Built + local edits だけが使う）。</summary>
+        internal ContentInstallResult? Install { get; }
         internal IReadOnlyList<KeyValuePair<string, string>> PlacedEnvironment { get; }
         /// <summary>宣言に一致する installed revision が他にもある（最新を選んだことを Warning で知らせる）。</summary>
         internal bool HasMultiple { get; }
@@ -111,11 +124,24 @@ namespace SampleGame.DependOnAll.Editor.Build
     {
         internal PlayEntryPlan(PlayEntryAction action, PlayEntryRule rule, string reason, string effectiveMode,
             IReadOnlyList<KeyValuePair<string, string>>? environment = null, bool alignFastMode = false,
-            PlayEntryRecovery recovery = PlayEntryRecovery.None, IReadOnlyList<string>? warnings = null, string revision = "")
+            PlayEntryRecovery recovery = PlayEntryRecovery.None, IReadOnlyList<string>? warnings = null, string revision = "",
+            PlayEntryOverlayResult? overlay = null)
         {
             Action = action; Rule = rule; Reason = reason; EffectiveMode = effectiveMode;
             Environment = environment ?? Array.Empty<KeyValuePair<string, string>>();
             AlignFastMode = alignFastMode; Recovery = recovery; Warnings = warnings ?? Array.Empty<string>(); Revision = revision;
+            Overlay = overlay;
+        }
+
+        /// <summary>
+        /// 上書きの段の結果を足した計画。置く値は判定の値に上書きの key（登録する時だけ）を足したもので、Warning に作り直せない root と
+        /// 記録の失敗を足す。判定は上書きの中身を知らず、合わせるのは入口の順序（<see cref="PlayEntryTransaction"/>）だけである。
+        /// </summary>
+        internal PlayEntryPlan WithOverlay(PlayEntryOverlayResult overlay)
+        {
+            if (overlay == null) throw new ArgumentNullException(nameof(overlay));
+            return new PlayEntryPlan(Action, Rule, Reason, EffectiveMode, Environment.Concat(overlay.Environment).ToArray(), AlignFastMode,
+                Recovery, Warnings.Concat(PlayEntryOverlay.Warnings(overlay)).ToArray(), Revision, overlay);
         }
 
         internal PlayEntryAction Action { get; }
@@ -128,6 +154,8 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal PlayEntryRecovery Recovery { get; }
         internal IReadOnlyList<string> Warnings { get; }
         internal string Revision { get; }
+        /// <summary>上書きの段の結果（経路 Built + local edits で段を通った時だけ）。</summary>
+        internal PlayEntryOverlayResult? Overlay { get; }
     }
 
     /// <summary>
@@ -147,6 +175,12 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal const string Directory = "directory";
         internal const string TestRunnerScenePrefix = "InitTestScene";
         internal static readonly IReadOnlyList<string> ModeKeys = new[] { RuntimeModeKey, InstalledRevisionPathKey, ManifestSha256Key };
+        /// <summary>
+        /// 明示設定と数える key。上書きの key は利用者の層にあれば明示設定として扱い、入口は介入しない（起動が照合つきで登録するか
+        /// 起動の失敗にする）。数えないと、入口が自分の値を置き、利用者の意図しない上書きが起動で重なる。
+        /// </summary>
+        internal static readonly IReadOnlyList<string> ExplicitSettingKeys =
+            ModeKeys.Concat(new[] { ContentOverlayPlayConfig.OverlayPathKey, ContentOverlayPlayConfig.OverlayIdentityKey }).ToArray();
 
         internal const string ExistingBuildWarning =
             "The Addressables Play Mode Script is not 'Use Asset Database', so this Play may read an existing build.";
@@ -197,7 +231,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     "No explicit setting; source Play with the selected purpose.", Addressables,
                     facts.SourceEnvironment, alignFastMode: !facts.IsFastMode);
 
-            if (facts.Route == PlayEntryRoute.BuiltWithOpenScenes)
+            if (IsSnapshotRoute(facts.Route))
             {
                 var unsupported = SnapshotUnsupportedSetting(facts);
                 if (unsupported != null)
@@ -211,7 +245,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                     (facts.CandidateFailure.Length == 0 ? "" : " " + facts.CandidateFailure),
                     Directory, recovery: PlayEntryRecovery.VerifyPlayBuild | PlayEntryRecovery.SwitchToSource);
 
-            if (facts.Route == PlayEntryRoute.BuiltWithOpenScenes)
+            if (IsSnapshotRoute(facts.Route))
                 return DecideSnapshot(facts);
 
             if (facts.ReusableScenes.Count != 0)
@@ -246,11 +280,21 @@ namespace SampleGame.DependOnAll.Editor.Build
             var warnings = new List<string>(facts.CandidateWarnings);
             if (candidate.HasMultiple)
                 warnings.Add("Several verified revisions exist for '" + facts.RunPurpose + "'; using the latest: " + candidate.Revision);
-            return new PlayEntryPlan(PlayEntryAction.Intervene, PlayEntryRule.SnapshotRoute,
-                "Built route with a verified installed revision and copies of the open scenes: " +
+            // 新しい経路は、通った時だけ rule が変わる。置く値は混成の経路と同じで、上書きの key は入口の上書きの段の結果が足す。
+            var localEdits = facts.Route == PlayEntryRoute.BuiltWithLocalEdits;
+            return new PlayEntryPlan(PlayEntryAction.Intervene, localEdits ? PlayEntryRule.LocalEditsRoute : PlayEntryRule.SnapshotRoute,
+                (localEdits ? "Built route with a verified installed revision, an overlay of your local edits, and copies of the open scenes: "
+                    : "Built route with a verified installed revision and copies of the open scenes: ") +
                 string.Join(", ", open.Select(x => x.Name)) + ".", Directory,
                 PurposeLaunchSettings.SnapshotPlay(candidate.PlacedEnvironment), warnings: warnings, revision: candidate.Revision);
         }
+
+        /// <summary>開いている Scene を複製して載せる経路（混成と Built + local edits）。拒否の条件と順は同じ。</summary>
+        internal static bool IsSnapshotRoute(PlayEntryRoute route) =>
+            route == PlayEntryRoute.BuiltWithOpenScenes || route == PlayEntryRoute.BuiltWithLocalEdits;
+
+        /// <summary>開いている Scene の複製を準備する rule。</summary>
+        internal static bool IsSnapshotRule(PlayEntryRule rule) => rule == PlayEntryRule.SnapshotRoute || rule == PlayEntryRule.LocalEditsRoute;
 
         /// <summary>混成の経路が扱えない Editor の設定。複製を作る前に分かるものだけ。</summary>
         private static string? SnapshotUnsupportedSetting(PlayEntryFacts facts)

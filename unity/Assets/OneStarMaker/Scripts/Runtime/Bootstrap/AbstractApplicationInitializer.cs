@@ -741,9 +741,17 @@ namespace OneStarMaker.Runtime
         {
             var configuration = _contentDirectoryConfiguration
                 ?? throw new InvalidOperationException("Content directory configuration is unavailable.");
-            var session = configuration.VerifiedRevision != null
+            // 上書きの決定がある時だけ 2 層で登録する。その例外は握らず起動の失敗にし、base だけの登録へやり直さない。
+            var overlay = configuration.Overlay;
+            if (overlay != null && configuration.VerifiedRevision == null)
+                throw new InvalidOperationException("A content overlay requires a verified base revision.");
+            var session = overlay != null
+                ? ContentDirectorySession.RegisterVerifiedWithOverlay(configuration.VerifiedRevision!, overlay.Path, overlay.Identity)
+                : configuration.VerifiedRevision != null
                 ? ContentDirectorySession.RegisterVerified(configuration.VerifiedRevision, new UnityContentDirectoryBackend())
                 : ContentDirectorySession.Register(configuration.Path, configuration.BuildIdentity, ContentDirectoryTarget);
+            if (overlay != null)
+                Debug.Log(ContentOverlayStartup.FormatRegistered(overlay.Identity, configuration.VerifiedRevision!.Identity, overlay.Path));
             try
             {
                 if (_assetManagement is not AssetManagement.AssetManagement assetManagement)
@@ -1083,6 +1091,15 @@ namespace OneStarMaker.Runtime
             var mode = specified ? config.GetString("content:runtimeMode") : string.Empty;
             var installedRoot=config.GetString("content:installedRevisionPath",string.Empty);
             var installedDigest=config.GetString("content:manifestSha256",string.Empty);
+            // 上書きの key は、addressables と決めて config を返さない分岐と Player の分岐より前に見る（key を残したまま base だけ・
+            // addressables で始めない）。重ねられる設定は検証済みの base の分岐にだけ渡る。
+            var overlay = ContentOverlayStartup.Decide(
+                config.ContainsKey(ContentOverlayStartup.OverlayPathKey), config.GetString(ContentOverlayStartup.OverlayPathKey, string.Empty),
+                config.ContainsKey(ContentOverlayStartup.OverlayIdentityKey), config.GetString(ContentOverlayStartup.OverlayIdentityKey, string.Empty),
+                Application.isEditor && Application.isPlaying, UseRequiredPlayerFileConfiguration, specified, mode,
+                installedRoot.Length > 0 && installedDigest.Length > 0);
+            if (overlay.Kind == ContentOverlayStartupKind.Rejected)
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, overlay.Reason);
             if (UseRequiredPlayerFileConfiguration)
             {
                 var baked=_bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Baked Player content configuration is unavailable.");
@@ -1129,7 +1146,8 @@ namespace OneStarMaker.Runtime
             {
                 var set=OneStarMaker.Runtime.BuildContent.Distribution.ContentDeliveryFiles.ReadJson<OneStarMaker.Runtime.BuildContent.Distribution.ContentInstallReceipt>(Path.Combine(installedRoot,"receipt.json")).contentSet;
                 var verified=OneStarMaker.Runtime.BuildContent.Distribution.InstalledRevisionVerifier.Verify(installedRoot,installedDigest,set,identity,ContentDirectoryTarget);
-                return new ContentDirectoryConfiguration(verified.ContentPath,identity,representation,firstScene,verified);
+                return new ContentDirectoryConfiguration(verified.ContentPath,identity,representation,firstScene,verified,
+                    overlay.Kind == ContentOverlayStartupKind.Overlay ? overlay : null);
             }
             if (!ContentRevisionGate.TryNormalize(identity, ContentDirectoryTarget, path, out var fullPath))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
@@ -1142,13 +1160,16 @@ namespace OneStarMaker.Runtime
 
         private sealed class ContentDirectoryConfiguration
         {
-            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation, string firstScene,OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision? verifiedRevision)
-            { Path = path; BuildIdentity = buildIdentity; Representation = representation; FirstScene = firstScene;VerifiedRevision=verifiedRevision; }
+            internal ContentDirectoryConfiguration(string path, string buildIdentity, string representation, string firstScene,OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision? verifiedRevision,
+                ContentOverlayStartupDecision? overlay = null)
+            { Path = path; BuildIdentity = buildIdentity; Representation = representation; FirstScene = firstScene;VerifiedRevision=verifiedRevision; Overlay = overlay; }
             internal string Path { get; }
             internal string BuildIdentity { get; }
             internal string Representation { get; }
             internal string FirstScene { get; }
             internal OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision? VerifiedRevision { get; }
+            /// <summary>重ねる上書き（<see cref="ContentOverlayStartupKind.Overlay"/> の決定）。無ければ null。検証済みの base の分岐だけが持つ。</summary>
+            internal ContentOverlayStartupDecision? Overlay { get; }
         }
 
         /// <summary>

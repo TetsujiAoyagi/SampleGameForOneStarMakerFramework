@@ -250,6 +250,82 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(Plan().GetReusableResult()!.Identity, Is.EqualTo(rebuilt.Identity), "記録は新しい成果物を指す");
         }
 
+        // ─── 再利用の記録の書き込みの失敗（成功した build を捨てない） ───
+
+        private string RecordPath => ContentOverlayReuse.RecordPath(_artifacts, OverlayPlanWorld.OverlaySet);
+
+        private string[] TempFiles()
+        {
+            var directory = Path.GetDirectoryName(RecordPath)!;
+            return Directory.Exists(directory) ? Directory.GetFiles(directory, "*.tmp") : Array.Empty<string>();
+        }
+
+        [Test]
+        public void RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept()
+        {
+            _world.Edit(P("T.png"), "v2");
+            var first = BuildOnce(Plan());
+            var before = File.ReadAllBytes(RecordPath);
+
+            _world.Edit(P("T.png"), "v3");
+            var plan = Plan();
+            Assert.That(plan.Key, Is.Not.EqualTo(first.OverlayKey));
+            BuildContentResult result;
+            // 既存の記録を、読みは許して置き換え（削除）は許さない形で開いたままにする。
+            using (new FileStream(RecordPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter()).Build(new BuildContentRequest(plan));
+
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(result.ReuseRecordFailure, Is.Not.Null.And.Not.Empty);
+            Assert.That(Directory.Exists(Path.Combine(_artifacts, "content", result.Identity)), Is.True, "成果物は残る");
+            Assert.That(Read(result.OutcomePath).issues, Is.Empty, "outcome は成功のまま");
+            Assert.That(Read(result.OutcomePath).contentPath, Is.Not.Empty);
+            Assert.That(File.ReadAllBytes(RecordPath), Is.EqualTo(before), "既存の記録の bytes は変わらない");
+            Assert.That(TempFiles(), Is.Empty, "別名の file を残さない");
+
+            // 今回の鍵には返らず、既存の記録と同じ鍵には既存の結果を返す。
+            Assert.That(Plan().GetReusableResult(), Is.Null);
+            _world.Edit(P("T.png"), "v2");
+            Assert.That(Plan().GetReusableResult()!.Identity, Is.EqualTo(first.Identity));
+
+            // 書ける状態に戻れば、同じ鍵でもう一度計画すると build が 1 回走り、記録が今回の build に置き換わる。
+            _world.Edit(P("T.png"), "v3");
+            var reports = Reports();
+            var rebuilt = BuildOnce(Plan());
+            Assert.That(rebuilt.ReuseRecordFailure, Is.Null);
+            Assert.That(Reports(), Is.EqualTo(reports + 1));
+            Assert.That(Plan().GetReusableResult()!.Identity, Is.EqualTo(rebuilt.Identity));
+            Assert.That(TempFiles(), Is.Empty);
+        }
+
+        [Test]
+        public void RecordDirectoryCannotBeCreated_BuildStaysSuccessful_WithTheReason()
+        {
+            Directory.CreateDirectory(_artifacts);
+            // 記録の置き場（overlay/）と同じ名前の file を置き、directory を作れなくする。
+            File.WriteAllText(Path.Combine(_artifacts, "overlay"), "not a directory");
+            _world.Edit(P("T.png"), "v2");
+            var result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter()).Build(new BuildContentRequest(Plan()));
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(result.ReuseRecordFailure, Is.Not.Null.And.Not.Empty);
+            Assert.That(Directory.Exists(Path.Combine(_artifacts, "content", result.Identity)), Is.True);
+            Assert.That(Read(result.OutcomePath).issues, Is.Empty);
+            Assert.That(Plan().GetReusableResult(), Is.Null);
+        }
+
+        [Test]
+        public void SuccessfulWrite_HasNoFailureReason_AndLeavesNoTemporaryFile()
+        {
+            _world.Edit(P("T.png"), "v2");
+            var first = BuildOnce(Plan());
+            Assert.That(first.ReuseRecordFailure, Is.Null);
+            _world.Edit(P("T.png"), "v3");
+            var second = BuildOnce(Plan());
+            Assert.That(second.ReuseRecordFailure, Is.Null);
+            Assert.That(Plan().GetReusableResult()!.Identity, Is.EqualTo(second.Identity));
+            Assert.That(TempFiles(), Is.Empty);
+        }
+
         [Test]
         public void ExtraFileInTheArtifacts_DoesNotDisableReuse()
         {

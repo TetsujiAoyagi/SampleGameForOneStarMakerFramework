@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `A`（凍結済み。revision 1。次は Phase B）
+- status: `B`（実装済み。次は動作確認）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。2026-11-22。対象は revision 1（この記録を含む commit の本書の全体）。根拠は、owner が同日に U1〜U6 を裁定し（§2.8）、外部計画レビューの 3 巡の反映（§5.1）と、改めた目的・利用者の 2 欄での目的レビューのやり直しの後に、3 巡目の修正の反映を条件として凍結を指示したこと
 - risk: `high`（起動の配線と fail-closed の契約、所有者と寿命（base と上書きの 2 層の登録を製品の起動から呼ぶ）、Editor の Play の入口の順序を変える）
 - owner: root（依頼者）
@@ -17,18 +17,20 @@
 - harvest to: [18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（経路 Built + local edits、順序、作り直せない root の通知、record）と「上書きの build と逆引き」（再利用の記録の書き込みの契約。「既知の不具合」の項を消す）、[13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（入口は配線済み、Domain Reload 有効の Play の実測）、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6・§4.7（上書きの起動の設定と失敗）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（§4 の (1) の観測）、program §5.3（見直しの条件 (1)〜(3) の結論と、暫定の public の値の扱い）・§8（S5 への入力: 検査の費用の記録から分かった、省ける処理と今は省けない処理）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§1、§4.3、§5.3「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」、§8 の S3-4b の行と S3-2・S3-3・S3-4a からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 未生成（stage を使わない。発見 C は commit で固定した差分を読む）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順に実装する。最初の作業は §4 の (1)（未確認 (i)〜(v)・(vii) と観測の経路 (vi) の確認）で、結果を §6 に書く。§2.6 の NO-GO に当たれば、実装を積まずに owner に返す。
-  - 読む範囲: 既定（§0〜§5）。§5.1 は経緯で、実装の入力は §1〜§5 にある。§5.1 の表と経緯にある「方式 A」「方式 B」「U7」「V1u」は、凍結より前の呼び方で、凍結した内容には無い。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版）。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: 開いている Editor の `tools/unity-editor.cmd eval`（§4 の (1) の観測と、compile の確認）。Editor が閉じていれば起動してよい。Unity の test と batch の build は走らせない（Phase C）。
-  - 出口: 実装を commit し、§6 と この票を書いて、発見 C へ渡す。push は公開点の規則に従う（Phase B の途中では push しない）。
-  - 停止規則: §2.6。§4 の「Phase B から Phase A へ差し戻す条件」。
+  - 次の Phase・役割: 動作確認（Phase B の後）。
+  - 次の作業: §5 の「動作確認（Phase B の後）」の V1c・V1・V2・V3 を各 1 回、§5 の検証経路の手順で行い、生の観測と期待との差を §6 の「動作確認」に書く。base は判定の担当が使う Editor で検証 Play から作る（§6 の「Phase C への注意（環境）」）。Scene の要求は親から順に行い、失敗したら内側の例外を記録する（§6 の「新しい事実と分類」）。確認への応答は §6 の「確認の先置きの応答」の key で先に置く。差があれば B へ戻す。無ければ発見 C へ渡す。
+  - 読む範囲: 既定（§0、§5、§6）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の出口の commit）。SHA は起動指示で渡す。
+  - implementation base / head: §0 の欄のとおり（head は「この票を含む commit」。実装と票を 1 つの commit で切った）。
+  - 取得案内: snapshot・bundle は未生成（上の欄）。
+  - 必要な権限: 開いている Editor の `tools/unity-editor.cmd eval`。Editor が閉じていれば起動してよい。Unity の test と batch の build は走らせない（Phase C）。
+  - 停止規則: §2.6。動作確認で I-1・I-4 に反する観測が出たら、続けずに B へ戻す。
   - 引き渡さないもの: なし。
+  - push: Phase B の出口の commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 
 ## 1. 目的と対象外
 
@@ -531,11 +533,63 @@ path は `unity/Assets/` からの相対。行数は base `d176033a` の `wc -l`
 
 ## 6. Phase B 実装結果
 
-未着手。
+担当: AI（Claude Code、Anthropic）。対象の Editor は Unity 6000.6.9f1、この PC。Unity の test と batch の build は走らせていない（Phase C）。
+
+### §4 の (1) の観測（2026-11-22、開いている Editor の `eval`、各 1 回）
+
+§2.6 の NO-GO (i)(ii) には当たらなかった。
+
+- **(i) 成立。** `Title` の root の GameObject の名前を変えて Dirty にし、複製を準備したまま、`eval`（main thread の同期呼び出し。入口の tick と同じく Play の外）から `SampleGameContentBuild.BuildUnchecked(spring-full, Incremental)` を起こした（203.6 秒、成功）。前後で開いている Scene は path・Dirty（真のまま）・root の数・変えた名前が同じで、build の間に `sceneSaved`・`sceneOpened` は 0 回、保存を求める dialog は出なかった（build が最後まで進んだ）。起こしたのは上書きでない build で、上書きの build そのものは通していない（adapter は同じ）。
+- **(ii) 成立。** `Assets/` の下に text file を書いて `AssetDatabase.Refresh()`（0.96 秒）を呼んだ直後、`isCompiling`・`isUpdating` は偽で、同じ呼び出しのまま `AssetPathToGUID` と `GetDependencies` が引けた（`LoadAssetAtPath<TextAsset>` は null を返した。計画はこの口を使わない）。script の追加は試していない（入口は compile 中を 2 か所で見て止める）。
+- **(iii) 成立（上書きなし）。** Reload Domain を有効にして、経路 Built（空の Scene、検証 Play で入れた base）で Play → 停止 → Play。停止の後の Edit mode で `ContentLoadManager.GetContentDirectories()` は 0 件、2 回目の Play の中で 1 件、record は `EnteredPlay`・Error 0（登録と lease の取り直しが成功）。上書きありは V7 で確かめる。
+- **(iv) 成立。** (i) の build の間、複製の置き場（`Assets/OsmPlaySnapshot/<session>/`、`Title.unity` と開始 Scene と `.meta`）の file の SHA-256 は前後で同じで、preflight に `OsmPlaySnapshot` の path は 1 つも無かった。
+- **(v) 複製の保存は Scene の保存の hook を走らせる。** 複製の準備（`PlaySnapshotSession.Prepare`）の中で、`sceneSaved` が元の `Title`（path は `Assets/SampleGame/OutGame/Title/Title.unity`）と開始 Scene について発火した。`SceneVolumeSaveHook` は `sceneSaved` を購読するので、複製の保存のたびに元の Scene の体積を計算し直す。体積の変わらない編集（名前）では `git status --porcelain` に差分は出なかった。I-4 の「今ある経路 Built + open scenes の複製の準備が今も起こしている書き込み」は、体積が変わる編集で hook が書く `SceneResource`（と祖先）である。新しい経路では複製の後に計画するので、その書き込みは編集として計画に出る（§2.9 の最後の項のとおり）。
+- **(vi) 成立。** 今ある経路の directory の Play の中で、`eval` から `SampleGame.DependOnAll.AppInitializer` の private static `s_instance` と `AbstractApplicationInitializer` の private の `_sceneDirector` に reflection で届き、`AddScene` と `GetContentLoadRecord` を呼べた。loader で載った Scene（`Title`、`OutGameScene`、`Spring_Lighting`、streaming で載った `Spring_Cell_*` など）は `ContentDirectory` の record を返し、payload の無い node（`InGameSession` など）は null を返した（API の文書どおり）。届く口は足していない。
+- **(vii) 小さい。** `Resources.FindObjectsOfTypeAll<Object>()`（約 15,400 件）から persistent・Dirty・`Assets/` の下を挙げる列挙は、1 回目 13 ms、2 回目 7 ms。実装後の host の関数で、今の installed の base（`20261119T154403156Z-…`）に対して選択の準備（欠けを許す materialize・選択・合成）は 9.65 秒、計画は 1.87 秒（状態 `NotRequired`）。owner に返す重さではない。
+
+### 実装
+
+| 段 | file | 内容 |
+|---|---|---|
+| §4 (2) AC1 | `ContentOverlayReuse.cs`、`BuildContentCoordinator.cs`、`BuildContentReport.cs` | 置き換えは `File.Replace`（既存の記録を先に消す段を持たない）。別名の file は成否によらず消す。coordinator は成功の outcome を書いた後、`try` の外で記録を書き、失敗を `BuildContentResult.ReuseRecordFailure`（public の読み取り専用の欄）に写す。outcome の file には書かない |
+| §4 (3) AC2 | `Runtime/Bootstrap/ContentOverlayStartup.cs`（新規、internal）、`AbstractApplicationInitializer.cs`、`Editor/ContentOverlay/ContentOverlayPlayConfig.cs`（新規、public の定数） | `Decide` は key 2 つ・Editor の Play か・Player の構成か・mode・installed の pair から None / Overlay / Rejected を返す。呼び出しは `ReadContentDirectoryConfiguration` の先頭（Player の分岐と addressables の `return null` より前）。Rejected は `InvalidConfiguration` の起動の失敗。Overlay は検証済みの base の分岐だけが持ち、起動は `RegisterVerifiedWithOverlay` を呼んで例外を握らず、成功で `[AppInit] Content overlay registered: identity=… baseRevision=… path=…` の 1 行を出す |
+| §4 (4) | `SampleGameContentBuild.cs`、`SampleGameBootstrapContentComposer.cs` | host の関数 `OverlayPorts`（欠けを許す materialize → 選択 → 合成 → 計画、認めて再利用、認めて build）。上書きの contentSet は `<宣言の名前>-local-edits`、成果物の root は `artifacts/bs2b`。合成は `snapshot.Absences` を引き継ぐ |
+| §4 (5) AC3 | `PlayEntryDecision.cs`、`PurposeLaunchSettings.cs`、`PlayEntryCandidates.cs` | 経路 `BuiltWithLocalEdits`（表示名 `Built + local edits`）と rule `LocalEditsRoute` を末尾側に足した（`SnapshotRoute` の後、`EntryFailed` の前）。混成の経路と同じ行を `IsSnapshotRoute` で通し、通った時だけ rule が変わる。明示設定の key（`ExplicitSettingKeys`）に上書きの 2 key を足し、実効 mode は今と同じく mode の 3 key だけで決める。候補は検証した `ContentInstallResult` を持つ。衝突の検査の key は混成の経路の key に上書きの 2 key を足したもの |
+| §4 (6) AC4 | `PlayEntryOverlay.cs`（新規）、`PlayEntryTransaction.cs`、`PlayEntryInterceptor.cs`、`PlayEntryRecord.cs`、`PlayEntryWindow.cs` | 下の「B が決めた実装詳細」 |
+| test | `ContentOverlayBuildAndReuseTests`（3 件）、`ContentOverlayStartupTests`（新規）、`SampleGameBootstrapContentComposerTests`（2 件）、`PlayEntryCandidatesTests`（1 件）、`PlayEntryLocalEditsDecisionTests`（新規）、`PlayEntryLocalEditsTransactionTests`（新規）、`PlayEntryOverlayTests`（新規）、`PlayEntryOverlayRecordTests`（新規）、`OverlayFromLocalEditsIntegrationTests` と fixture（AC8 の回） | 今ある 3 経路の test（`PlayEntryDecisionTests`・`PlayEntryTransactionTests`・`PurposeLaunchSettingsTests`・`PlayEntryRecordTests`）は変えていない（AC3 (a)） |
+
+B が決めた実装詳細（§3 の port の境界の中）:
+
+- **順序**（`PlayEntryTransaction.OnTick`、新しい経路だけ）: 未保存の asset の列挙 → 0 件なら先置きの応答を消す / 1 件以上なら確認（「やめる」は rule `LocalEditsRoute` の Reject で Blocked、何も呼ばない）→「保存して続ける」なら `AssetDatabase.SaveAssets()` → 複製の準備 → `AssetDatabase.Refresh()` → compile 中・import 中なら止める → 上書きの段 → compile 中・import 中なら止める → `plan.WithOverlay(結果)` → 1 回の ledger → `PublishPlanned` → `EnterPlaymode`。例外は今と同じ `catch` で複製を解除し、`EntryFailed` の Blocked に理由を出す。
+- **計画と上書きの結果の受け渡し**: `PublishPlanned` の署名は変えず、`PlayEntryPlan.WithOverlay` が置く値に上書きの key（登録する時だけ）、Warning に作り直せない root（組ごとに 1 行、上限 8 件で残りの件数）と記録の失敗を足した計画を作る。record はその計画の `Overlay` から上書きの欄を書く。
+- **上書きの段の規則**（`PlayEntryOverlay.Run`）: `NotRequired` と `UnbuildableOnly` は build も再利用の確かめもしない。`BuildRequired` は今回の作り直せない root の集合をそのまま認めて再利用を確かめ、無ければ build する。build の失敗は `PlayEntryOverlayException`（issue の code と対象と outcome の path を含む）、計画・再利用の確かめの例外はそのまま投げる。所要は秒で、行わなかった段は record に `not-run`。
+- **他の供給元の key**: 今準備した複製の宣言の identity のうち、SceneResourceMap の Scene 名にあるもの。
+- **確認の先置きの応答**: `SessionState` の `OSM.PlayEntry.SaveAssetsResponse.v1` に `save` か `cancel` を置く。確認の段で 1 回読んで消し、検出が 0 件の時も消す。無ければ `EditorUtility.DisplayDialog`（「Save and continue」/「Cancel」）。確認の文は未保存の asset の一覧と `PlayEntryTransaction.SaveAllAssetsNotice`（"Continuing will save all unsaved assets in the project."）を含む。
+- **未保存の asset の列挙**: §1 の実測 (c) と同じ（load 済み・persistent・Dirty・`Assets/` の下）で、`.unity` を除く。
+- **record の突き合わせ**: 入口が新しい経路で介入した Play だけ、起動の log の上書きの登録の行の identity を計画と比べる。違う identity、または計画は上書きなしで登録の行があった時は即座に、計画は上書きありで行が無い時は `[AppInit] Content resolution: ` の行（登録の後に出る）を見た時か Play の終わりに、`overlayCheck=mismatch`・`StartupFailed`・最初の失敗にする。`MarkEnteredPlay` は mismatch を `EnteredPlay` で上書きしない。素通りの Play は観測した identity だけを `overlayRegistered` に出す。
+- **AC8**: S3-2・S3-4a の実機の test に `NotInBase` の root の要求は無かったので、`OverlayFromLocalEditsIntegrationTests` に 1 回足した（base の後に T を参照する Scene D を作って map と同名の宣言の root に足し、退かす → 計画は `NotInBase`・`BuildRequired`・D は上書きに無い → 認めて build → base → 上書きで登録し、D の要求は `ContentResolutionException` の `NoCandidate`、A は上書きから編集後の T で載る）。test の上限は build 1 回分を足した。
+
+### 新しい事実と分類
+
+- **B 適応: 複製の保存は Scene の保存の hook を走らせる（(v)）。** 契約と責務配置は変えない。I-4 の許す書き込みの特定として上に書いた。V4b・V5・V7 で体積の変わる編集をすると `SceneResource` が書かれうる（§5 の注意のとおり）。
+- **後続スライス: directory の Play で、同じ object の entry を 2 回目に load すると失敗する事例。** 検証 Play（経路の one-play ledger、`Title` から起動）の中で、`AddScene("Result")`・`AddScene("HomeScene")` の後に `AddScene("Spring_Cell_0_0")` と `AddScene("Season_Spring")` が `ContentDirectoryException: Content object load failed.`（内側は Unity の `ObjectLoadOperation<Object> … is being awaited multiple times`、対象は `InGameSession` の付随 asset `DemoCellLit.mat`、`UnityContentDirectoryBackend.LoadObjectAsync` の `loadable.LoadAsync()`）で失敗した。新しい Play（経路 Built）で `InGameSession` → `Season_Spring` → `Spring_Cell_0_0` の順に要求した時は全て成功した。再現の条件と原因は確かめていない。場所は `Runtime/BuildContent` で、本書の変更（AC6 の範囲外）でも、凍結した条件の契約でもない。所有の候補は Runtime の content directory の読み口のスライス（owner の判断）。**Phase C への注意:** V1・V5 で Scene を要求する時は、親から順に要求し、失敗した時は内側の例外を記録する。
+- **Phase C への注意（環境）: Claude の shell から起動した Editor は、installed cache の見え方が起動ごとに違った。** 1 回目の Editor は `%LOCALAPPDATA%\OSM\ContentCache` に `20261110…`・`20261107…`（どちらも「この runtime と互換でない」）を見て、検証 Play が `20261122T060036035Z-…` を入れた。2 回目以降の Editor と Claude の shell は `20261119T154403156Z-…` だけを見た（LocalAppData の仮想化。memory の既知事項と同じ現象の可能性）。判定の base は、判定の担当が使う Editor で検証 Play から作り直す（§5 の初期状態のとおり）。
+
+### 規模
+
+製品 code の増分は約 877 行（既存の file に +530、新規 3 file 347 行。Framework 約 220、SampleGame 約 660）で、§3 の見込み（約 680）の約 1.3 倍。増分の多くは契約と理由の comment で、§2.5 の「大きく超える」には当たらないと判断した（責務と file の配置は §3 のまま）。`PlayEntryRecord.cs` は 307 → 445 行（§3 の 380 を超えた。500 行未満、増加 45%）。上書きの欄の DTO・観測・Console の 1 行が同じ record に増えた分で、§3 の「分けない」理由のとおり分けていない。分けるべきかは発見 C の構造レビューに委ねる。
+
+### 機械検査と未実行
+
+- Editor の compile: 成功（エラー・warning 0。今回の file に warning は無い）。
+- `pwsh tools/contract-audit.ps1`: `errors=0 warnings=0`。
+- `pwsh tools/docs-audit.ps1`: `errors=0`（warning 2 件は、本書と program の HANDOFF が残っていることの既知の注意）。
+- AC6 の `git diff --stat d176033a`: `Runtime/` の差分は `AbstractApplicationInitializer.cs` と新規の `ContentOverlayStartup.cs`（と `.meta`）だけ。`PlaySnapshot/`、asmdef、`InternalsVisibleTo` に差分なし。
+- 未実行: Unity の test（判定必須の全て）、実 Editor の AC5・AC7、動作確認。
 
 ### 動作確認
 
-未実施。
+未実施。対象は §5 の V1c・V1・V2・V3。
 
 ## 7. Phase C
 

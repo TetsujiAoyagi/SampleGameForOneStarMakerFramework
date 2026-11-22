@@ -163,7 +163,20 @@ namespace OneStarMaker.Editor.Build.Content
         /// 計画から作らなかった build では null。
         /// </summary>
         public string? OverlayKey { get; }
+        /// <summary>
+        /// 成功した上書きの build で、再利用の記録の書き込みが失敗した理由。null は失敗なし（記録を書かない build を含む）。
+        /// 値があっても build は成功で、成果物と成功の outcome は残る。次の同じ鍵の計画は記録が無いので build し直す。
+        /// </summary>
+        public string? ReuseRecordFailure { get; private set; }
         public bool IsSuccess => ContentPath != null && Issues.Length == 0;
+
+        // coordinator だけが呼ぶ。記録の失敗は outcome の file に書かない（outcome は成功の確定で、記録の更新はその後の別の試み）。
+        internal BuildContentResult WithReuseRecordFailure(string reason)
+        {
+            var copy = new BuildContentResult(Identity, PreflightPath, OutcomePath, ContentPath, ManifestPointer, MetadataPath, Summary, Issues,
+                Declaration, Mode, IndexEntries, OverlayKey) { ReuseRecordFailure = reason };
+            return copy;
+        }
 
         internal static ContentTransportIndexEntry Copy(ContentTransportIndexEntry x)
             => new ContentTransportIndexEntry { logicalKey = x.logicalKey, kind = x.kind, representation = x.representation };

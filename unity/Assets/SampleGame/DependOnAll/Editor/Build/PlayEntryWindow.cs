@@ -124,6 +124,32 @@ namespace SampleGame.DependOnAll.Editor.Build
             Row("Directory Sealed", record.sealedLog.Length == 0 ? "not observed" : "observed");
             Row("Variant Profile", record.variantProfileActive ? "active" : "none");
             DrawSnapshot(document);
+            DrawOverlay(document);
+        }
+
+        // 上書きの段の欄。作り直せない root は組ごとに全件を出す（Console の 1 行は上限で切る）。
+        private static void DrawOverlay(PlayEntryRecord.Document document)
+        {
+            var overlay = document.policy.overlay;
+            var record = document.record;
+            if (overlay.state.Length == 0 && record.overlayRegistered.Length == 0) return;
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Local Edits Overlay", EditorStyles.boldLabel);
+            Row("State", overlay.state.Length == 0 ? "-" : overlay.state);
+            Row("Overlay Roots", overlay.overlayRoots.ToString());
+            foreach (var group in new[] { PlayEntryUnbuildableGroup.LoadsFromBase, PlayEntryUnbuildableGroup.FailsOnRequest, PlayEntryUnbuildableGroup.Undetermined })
+            {
+                var roots = overlay.unbuildable.Where(x => x.group == group.ToString()).ToArray();
+                if (roots.Length == 0) continue;
+                Row(group.ToString() + " (" + roots.Length + ")", PlayEntryOverlay.GroupMessage(group) + ":\n" + string.Join("\n",
+                    roots.Select(x => x.logicalKey + " (" + x.kind + ", " + x.representation + ", " + x.reason + ")")));
+            }
+            Row("Seconds", "prepare " + overlay.prepareSeconds + " / plan " + overlay.planSeconds + " / reuse check " + overlay.reuseCheckSeconds +
+                           " / build " + overlay.buildSeconds);
+            if (overlay.identity.Length != 0) Row("Overlay", overlay.identity + "\n" + overlay.contentPath);
+            if (overlay.reuseRecordFailure.Length != 0) Row("Reuse Record", overlay.reuseRecordFailure);
+            Row("Registered At Startup", record.overlayRegistered.Length == 0 ? "not observed" : record.overlayRegistered);
+            if (record.overlayCheck.Length != 0) Row("Plan vs Startup", record.overlayCheck);
         }
 
         private static void DrawSnapshot(PlayEntryRecord.Document document)
