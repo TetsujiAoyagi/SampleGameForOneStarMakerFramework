@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4 を A1 が 2 つに分けた前半。分割の理由は §2.5）
-- status: `B`（C' の後の PR レビューの Major 1 件を、owner の裁定でこの PR で直す（§0 の引継ぎ票）。C' の 1 巡目（最終 C'）は阻害する指摘なし（§8）、revision 2 の判定 C は GO（§7）だが、implementation head が変わるのでどちらも新しい head でやり直す。A3 凍結版は revision 2。revision 1 の経緯は §5.1・§6・§7）
+- status: `D`（C' の 1 巡目（最終 C'）は阻害する指摘なし（§8）。revision 2 の判定 C は GO（§7「判定 C（revision 2、2026-11-22）」）。次は Phase D。A3 凍結版は revision 2。revision 1 の判定 C は GO にせず Phase A へ差し戻した（§7「判定 C（2026-11-22）」の D5）。revision 1 の経緯: B と発見 C の差し戻しは 3 巡（D1〜D4 は §7）、§4 の (1) の観測と実装結果は §6、A2 と外部計画レビューの採否は §5.1）
 - branch: `claude/overlay-from-local-edits`（PR の base は `develop`）
 - implementation base commit: `63f171ac`（`origin/develop` の head、2026-11-21。§1 の現況と §3 の行数はこの base）
-- implementation head commit: `ae0670664c4bf05c7414d55e4bd27f4fcae62455`（B の直しの commit で置き換わる）
+- implementation head commit: `ae0670664c4bf05c7414d55e4bd27f4fcae62455`
 - A3 凍結記録（承認者・日付・対象 revision・承認の根拠。凍結前は `未凍結`）: 承認者は owner（root、依頼者）。revision 2 は 2026-11-22。対象は revision 2（この記録を含む commit の本書の全体）。根拠は、owner の D5 の裁定（2026-11-22。§0 の引継ぎ票に記録した「両方を採る」）が revision 2 の中身を決め、本文への反映と凍結を指示したこと。A2 で採った指摘は同じ事実（manifest の bytes が増えること）の読みを補うだけで、code の変更・範囲・目的・利用者の 2 欄は裁定の外へ広げていない（§5.1「revision 2」）。revision 1 は 2026-11-21 に owner が凍結した（外部計画レビューの 3 巡の反映の後に凍結と Phase B の開始を指示。§2.8 の U1・U2 は担当の案のとおり）
 - risk: `high`（publish する manifest に欄を足す、手元に無い source を build に渡さない fail-closed の契約、依存閉包の作り方と上書きの選び方を変える）
 - owner: root（依頼者）
@@ -21,13 +21,15 @@
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C（revision 2）が implementation head で生成し、task `s3-4a-overlay-from-local-edits` に `evidence stage` した（判定用、25 file）。取得案内は進行役の共有メモ（git 管理外）にある。別の pwsh process の fetch で `passed`、XML と head を読めた。受け取り側の別 session の fetch・閲覧は未確認
 - C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（26 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。C' の packet を作る進行役の別 session が fetch して `passed`、全 file を閲覧できた（2026-11-22）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（C' の後の PR レビューの直し。B 適応）。動作確認は `対象なし`（§5）。
-  - owner の裁定（2026-11-22、PR レビュー R1）: PR #202 の owner アカウントのレビュー（2026-11-22）の Major を、S3-4b へ回さずこの PR で直す。指摘: `BuildContentCoordinator.Build` は final への移設と成功の outcome の書き込みの後、同じ `try` の中で `ContentOverlayReuse.Write` を呼ぶ。記録の書き込み（tmp の書き込み、既存の記録の削除、rename、成果物の hash）が例外になると `catch` に入り、`published` が真なので final を消して outcome を失敗で上書きする。`Write` は既存の記録を消してから移すので、その間の失敗で古い記録も失われる。凍結条件の違反ではない（記録も成果物も残らず次は作り直す。I-5 は破れない）が、補助の記録の I/O 失敗で成功した build を捨てるのは失敗の境界が逆である。
-  - 次の作業: (1) 成功の確定と再利用の記録の更新を分ける。記録の更新が失敗しても、成功の result・final・成功の outcome を保ち、失敗は診断（`Debug.LogWarning` 等）に残す。次の回は記録が無いか古いので作り直す（I-5 のまま）。(2) 記録の置き換えを可能な範囲で原子的にする（`File.Replace` か `File.Move(temp, path, overwrite: true)`）。(3) 回帰 test: 再利用の記録の置き場を書き込めなくして、build の成功・final の保持・成功の outcome が保たれ、記録が無いことを確かめる（fake の adapter で、Unity の build を伴わない単体）。直しは §3 の file（`BuildContentCoordinator.cs`、`ContentOverlayReuse.cs`、`ContentOverlayBuildAndReuseTests.cs`）の中で閉じる。§6 に「C' の後の PR レビューの直し」として書き、新しい implementation head を切る。その後は発見 C（起点 filter に、変えた型を参照する test class を足す）、判定 C（判定必須を新しい head でやり直す）、C'（2 巡目。前巡の指摘は無いので、修正差分と影響経路を中心に見る）。
-  - 読む範囲: 既定（§0〜§5、§6〜§8）。
-  - 引き継ぐ commit: この票を含む commit。SHA は起動指示と PR 状態ブロックで渡す。
-  - 必要な権限: Editor のコンパイル確認（`tools/unity-editor.cmd`）。Unity の batch test は Phase C。資格情報は要らない。
-  - 停止規則: §2.6。§3 に無い file の変更、公開 API の追加、asmdef の変更が要ると分かったら止めて返す。
+  - 次の Phase・役割: Phase D（owner の突合とマージ判断、保存・引渡し確認、harvest、後始末）。
+  - C' の結果: §8。阻害する指摘なし。判定 C（revision 2）の結果は §7。両者の突合は Phase D で初めて行う。
+  - owner の裁定（2026-11-22、D5）: 両方を採る（revision 2 の §2・§3・§4 の (7)・§5 に反映済み）。
+  - owner の裁定（2026-11-22、C' の後の PR レビュー R1）: PR #202 の owner アカウントのレビュー（2026-11-22）の Major を、この PR では直さず S3-4b の最初の作業に移す（後続スライスの入力。凍結条件の違反ではない）。指摘: `BuildContentCoordinator.Build` は final への移設と成功の outcome の書き込みの後、同じ `try` の中で `ContentOverlayReuse.Write` を呼ぶので、記録の書き込みの例外で final を消して outcome を失敗で上書きする。`Write` は既存の記録を消してから移すので、その間の失敗で古い記録も失われる。記録も成果物も残らず次は作り直すので I-5 は破れない。S3-4b の入口が再利用を使い始める前に、成功の確定と記録の更新を分け、記録の置き換えを原子的にし、記録の置き場を書き込めなくした回帰 test を足す。Phase D で program §8 の S3-4b の行へ移す。
+  - 次の作業: §7 の判定 C（revision 2）と §8 の C' を突き合わせ、マージを判断する。上の R1 を program §8 の S3-4b の行へ移す。マージ前に review-evidence の「Phase D の保存・引渡し確認」で 2 つの bundle（ローカル固定済み、未昇格）の保存と取得案内を確かめる。マージ後に §0 の harvest to へ恒久の知見を移し、本書を削除する。
+  - 読む範囲: 既定（§0、§7、§8）。
+  - 引き継ぐ commit: この票を含む commit（C' の記録 commit）。SHA は PR 状態ブロックで渡す。
+  - 必要な権限: 2 つの bundle の保存（昇格するなら資格情報）と、マージ。
+  - 停止規則: §2.6。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
