@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `C`（発見 C を終えた。現在の問いを阻害する指摘なし。次は判定 C）
+- status: `C'`（判定 C は GO。次は C'）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 1a3bf4428237cc8d5192e680bef1689c300dc4c7
@@ -18,19 +18,19 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§1、§4.3、§5.3「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」、§8 の S3-4b の行と S3-2・S3-3・S3-4a からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成（stage を使わない。発見 C は commit で固定した差分を読む）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s3-4b-overlay-play-entry` に `evidence stage` した（判定用、36 file）。取得案内は進行役の共有メモ（git 管理外）の判定用の file にある。別の pwsh process の fetch で `passed`、J3 の XML と base・head を読めた。受け取り側の別 session の fetch・閲覧は未確認
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（34 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側の fetch・閲覧の確認は C' の起動前に行う
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（発見 C は阻害する指摘なし。§7「発見 C」）。
-  - 次の作業: implementation head（§0 の欄）を GO 候補 head として、§5 の判定必須テスト（起点 filter・追加の class・最終の全 EditMode 回帰）と、AC5・AC7 の実 Editor の検証経路 V0〜V7 を行い、§2.6 で判定して §7 に記録する。evidence bundle を作る。§7「判定 C への注意」を先に読む。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit）。SHA は起動指示で渡す。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役）、使った担当・モデルと独立性を §8 に書く。高コスト証拠は無いので、この C' が最終 C' である。
+  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
+  - 読む範囲: C' は blind bundle だけ（README が目次）。本書を読まない。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit）。SHA は起動指示で渡す。
   - implementation base / head: §0 の欄のとおり。
-  - 取得案内: snapshot・bundle は未生成（上の欄）。動作確認の生の記録は §6 の「動作確認」と「動作確認（やり直し）」の最後の段落の所在。
-  - 必要な権限: Unity の batch テスト（sandbox 外の実行。他の Unity を止める）、実 Editor の `tools/unity-editor.cmd eval`。
-  - 停止規則: §2.6。B と発見 C の巡は 1（動作確認の差し戻し）で、上限 4。
-  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない。
-  - push: Phase B の出口の commit、動作確認の記録 commit、差し戻しの記録 commit、動作確認のやり直しの記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
+  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目。§7 の DR-1 は判定 C の指摘への owner の裁定なので、手順どおり C' に渡さない）。Phase A snapshot と Phase B result snapshot は作っていない（blind bundle が凍結版の §1〜§5 と、Phase B の出口の commit の §6 を収録する）。
+  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の Release build 済みの checkout）。Unity の再実行は必須でない。
+  - 停止規則: §2.6。C' の差し戻しは別に数えて上限 3 巡。
+  - 引き渡さないもの: C' に、本書（特に §6 の動作確認と差し戻しの小節、§7 の発見 C・判定 C の所見と結論、DR-1）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
+  - push: Phase B の出口の commit から、この判定 C の記録 commit までは未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 
 ## 1. 目的と対象外
 
@@ -691,6 +691,81 @@ B が決めた実装詳細（§3 の port の境界の中）:
 - 編集の作り方は §6「動作確認からの差し戻し（1 巡目）」の手順（`ValidateMaterial` を通す）で行う。V1 と同じ値は前の動作確認の上書きが再利用されうるので、§6 で使った値（(0.25, 0.5, 0.75)、(0.2, 0.4, 0.8)）と違う値にする。
 - 拒否された Play の後は先置きの応答を消してからやり直す（F2）。
 - 上書きの build の間の状態読みの `eval` は timeout して Console に Error を残す（§6 の観測の注意）。
+
+### 判定 C（2026-11-22）
+
+- 種別: 判定 C。結論は **GO**（§2.6 の AC1〜AC8 が全て合格。AC7 の全 EditMode は owner の決定 DR-1 による読み。NO-GO (i)〜(iv) に当たる観測は無い）。高コスト証拠は無いので、次の C' が最終 C' である。
+- 対象: implementation base `d176033a`、GO 候補 head `1a3bf4428237cc8d5192e680bef1689c300dc4c7`。完全 diff は `git diff d176033a 1a3bf442`（commit で固定）。
+- 担当・モデル: AI（Claude Code、Anthropic、claude-opus-5-5）。発見 C・B の差し戻しと同じモデルで、`独立性制約あり`。実行担当と判断担当は同じ session。
+- 引継ぎの照合: 起動指示の SHA `6e9d5d9e` と HEAD が一致し、作業ツリーは既知の untracked の `*.pdb.meta` 5 つだけ。implementation head `1a3bf442` は HEAD の祖先で、HEAD までの差分は本書だけ。PR の状態ブロックは Phase A の値のまま（§0 の push の欄のとおり未 push）。
+- evidence bundle: 判定用と C' blind bundle を同じ head と同じ生結果から作った（§0 の欄。取得案内は進行役の共有メモ）。判定用は 36 file（base・head、完全 diff・stat・name-status、凍結版（`03dd1732`）と `6e9d5d9e` の本書、`contract-audit`・`docs-audit`・AC6 の stat、J1・R1・R2・J2・J3 の XML・step・Unity の log・runner の標準出力、実 Editor の V0〜V7 の記録の zip、executor-note、stall の記録、失敗した test の run ごとの表、head の変更 file の zip）。C' blind bundle は 34 file（目次の README、凍結版の §1〜§5、Phase B の出口の commit の §6、本書を除いた diff、head の変更 file の zip、機械検査、5 run の生結果、V0〜V7 の記録、executor-note）。実 Editor の生の記録は進行役の共有メモの `judgement-c-1a3bf44/` にも置いた。
+
+**構造適合**
+
+- 製品 code は発見 C が読んだ head から変わっておらず、発見 C の構造の結論（§3 との照合、AC6、行数の警報の判断）と食い違う点は無い。
+- 機械検査: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（検査 1〜9）。`pwsh tools/docs-audit.ps1` は errors 0（warning 2 件は本書と program の HANDOFF が残っていることの既知の注意）。AC6 の `git diff --stat d176033a 1a3bf442 -- unity/Assets/OneStarMaker/Scripts/Runtime/` は `AbstractApplicationInitializer.cs`・新規の `ContentOverlayStartup.cs`・その `.meta` だけ。asmdef・`AssemblyInfo`・`Editor/PlaySnapshot/` に差分は無い。
+
+**実 Editor の検証経路（V0〜V7、head の checkout、Unity 6000.6.9f1、Editor PID 41128、`eval` だけ）**
+
+- base: 検証 Play でこの checkout から作った revision `20261122T120314990Z-d219…`（manifest SHA-256 `cbcd0c43…`、cache root `artifacts/bs4/players`）。Variant profile を外して行い、最後に `Production.asset` と経路 `Source` に戻した。
+- 基準: git status 空、Dirty の asset なし、`Title` が開いていて Dirty でない、`playModeStartScene` null、ledger なし、複製の置き場なし、`artifacts/bs2b/reports` は 83。
+- 編集は §6「動作確認からの差し戻し（1 巡目）」の作り方（`ValidateMaterial` を通す）で `DemoCellLit.mat` の `_BaseColor` を変えた（V1c・V1 は (0.6, 0.3, 0.1)、V5 は (0.1, 0.7, 0.3)、V7 は (0.9, 0.2, 0.6)。HEAD の値は (1, 1, 1)）。要求は Play の中で `InGameSession` → `Season_Spring` → `Spring_Lighting` を `SceneDirector.AddScene` で呼び（全回で全て成功）、`Spring_Cell_*`・`Spring_Environment_*` は streaming が自動で要求した。
+
+| 回 | 観測 | 期待との差 |
+|---|---|---|
+| V0 | 経路 Built + open scenes。rule `SnapshotRoute`、置いた key 7（上書きの key なし）、`EnteredPlay`、Error 0。reports は 83 のまま、git status 空 | なし |
+| V1c | 応答 `cancel`。`Blocked`、rule `LocalEditsRoute`、reason `Play was cancelled at the unsaved assets confirmation; nothing was saved: …/DemoCellLit.mat`。前後で material の SHA-256（`5734e46c…`）と Dirty（真）、`Title` の path と Dirty（偽）が同じ。複製の置き場なし、ledger なし、`playModeStartScene` null、reports 83、git status 空、先置きの応答は消えた | なし |
+| V1 | 応答 `save`。reports 84（build 1 回、状態 `Built`、root 112）。log に `[AppInit] Content overlay registered: identity=20261122T120929261Z-e9bc… baseRevision=20261122T120314990Z-d219… path=…` の 1 行。`EnteredPlay`、Error 0、`overlayCheck=matched`、置いた key 9。`Spring_Lighting`・`Spring_Cell_0_4`・`Spring_Environment_0_4` の record は `ContentOverlay`、`Title` は `EditorSnapshot`。renderer の値は全て (0.6, 0.3, 0.1)。installed の revision の file の一覧と大きさ（256 file）は前後で同じ。停止の後、Dirty の asset なし、git status は material だけ（V1 の差分）、複製の置き場なし | なし |
+| V2 | 応答なし、確認は出なかった。reports 84 のまま、状態 `Reused`（build `not-run`）、identity は V1 と同じ。登録の行・record の供給元・値は V1 と同じ、`overlayCheck=matched`。git status は V1 の差分だけ | なし |
+| V3 | material を `git checkout` と `Refresh()` で戻した。状態 `NotRequired`、置いた key 7、上書きの登録の行なし、record は `ContentDirectory`、値 (1, 1, 1)、reports 84、git status 空 | なし |
+| V4a | `Title` の root `TitleView` を `TitleView_JC` に変えて保存しない。状態 `NotRequired`、build 0 回、`Title` は `EditorSnapshot`（複製の path）で、Play の中の root の名前は `TitleView_JC`。停止の後も `Title` は Dirty、git status 空（Scene の保存の hook は何も書かなかった） | なし |
+| V4b | `Title` を保存して Play。状態 `NotRequired`、build 0 回、root 0、複製に保存した名前が出た。git status は `Title.unity` だけ（`SceneResource` は書き換わらなかった）。record に「他の供給元」の欄は無いので、同じ状態で入口と同じ計画の呼び出しを `eval` から 1 回行い、`Supplied` は 1 件（`Title`、編集 `Title.unity`）、`OverlayRoots` 0、`NotRequired` を読んだ | なし |
+| V5 | B = `Spring_Cell_1_5`、C = `Spring_Cell_0_4`（どちらも `DemoCellLit.mat` を直接参照）。B の `.unity` と `.meta` を project の外へ移し、`Refresh()` で `Default Local Group.asset` が Dirty になり、編集の保存で書かれた（開始の差分: B の 2 file の削除、group、material）。状態 `Built`（root 111）、Warning と record に `Spring_Cell_1_5 (Scene, Full, SourceAbsent)`（組 `LoadsFromBase`）、`EnteredPlay`、`overlayCheck=matched`。B は streaming で要求され、record は `ContentDirectory`（base）、renderer の値は (1, 1, 1)。C の record は `ContentOverlay`、値は (0.1, 0.7, 0.3)。B を戻し、group と material を `git checkout` で戻して git status 空 | なし |
+| V6 | 空の Scene、環境変数 9 つ（経路 Built と同じ 7 key ＋ 上書きの path は V1 の成果物、identity は V1 の末尾を変えた値）。rule `ExplicitSetting` の素通り（置いた key 0）。起動は `AfterSceneLoad failed at stage 'register-content-directory': …ContentDirectoryException: Content root identity does not match the requested directory.` で止まり、`Content resolution: wired=true` は 0 行、record は `StartupFailed`。環境変数を消し、`Title` を開き直した | なし |
+| V7 | Reload Domain 有効（`enterPlayModeOptions = None`）。1 回目: reports 85 → 86（build 1 回、`Built`）、2 回目: 86 のまま（`Reused`、identity は同じ）。両方の log に `Reloading assemblies for play mode.`、上書きつきの登録の行、`overlayCheck=matched`、Error 0、`Spring_Cell_0_4` は `ContentOverlay`、値 (0.9, 0.2, 0.6)。設定を `DisableDomainReload` に戻し、material と `EditorSettings.asset` を `git checkout` で戻して git status 空 | なし |
+
+- 手順の外の操作: V4b の後、`Title` を `git checkout` で戻した `Refresh()` で Unity の modal「The open scene(s) have been modified externally」が出て main thread が止まった。Win32 で窓の「Reload」を押した（`Title` の SHA-256 は基準と同じに戻った）。V6 の 1 回目は環境変数を置く script の compile の失敗で変数が置かれず、空の Scene の `SnapshotNothingToCarry` の拒否になった（V6 の回に数えず、直してやり直した）。上書きの build の間の `eval` は timeout で返り Console に Error を残した（record の Error はどの回も 0）。
+- 検査の費用の記録（合否に使わない）: V1 は prepare 1.262・plan 1.573・reuse check 0.001・build 18.560 秒、root 112。V2 は 1.288・1.671・0.449 秒、build `not-run`、root 112。V3 は 1.486・1.464 秒、reuse check と build は `not-run`、root 0。検査の対象の file の推定（base の build の preflight と V1 の上書きの preflight の `rootClosures` の和集合 608 path、手元にある file は `.meta` を含めて 1,216 件・約 3.7 MB）。再利用の確かめの対象の成果物は 141 file・約 4.5 MB。
+
+**Unity の batch test（head の checkout、Unity 6000.6.9f1、`-nographics`、EditMode、sandbox 外）**
+
+始める前に Editor（PID 41128）を owner の確認を得て `EditorApplication.Exit(0)` で閉じ、`Win32_Process` に `Unity.exe` が無いことを確かめた。各 run は順に走らせ、他の Unity は同時に動いていない。
+
+| run | filter | 結果 |
+|---|---|---|
+| J1 | 空（最終の全 EditMode 回帰） | root `Failed(Child)`、total 2244、passed 2215、**failed 2**、inconclusive 25、skipped 2。`error CS` 0 件。Unity は XML の後に終わらず、PID 30944 だけを Terminate した（下） |
+| R1 | `ContentOverlayBuildAndReuseTests;OverlayRegistrationIntegrationTests` | total 23、passed 22、**failed 1**。Unity は自然に終わった |
+| R2 | 同上 | root `Passed`、total 23、passed 23、failed 0。`step.json` は `passed`・exit 0、自然に終わった |
+| J2 | 空 | root `Failed(Child)`、total 2244、passed 2213、**failed 4**、inconclusive 25、skipped 2。`error CS` 0 件。自然に終わった |
+| J3 | 空 | root `Failed(Child)`、total 2244、passed 2215、**failed 2**、inconclusive 25、skipped 2。`error CS` 0 件。自然に終わった |
+
+- 失敗は 5 run で延べ 9 件・8 test で、全て `BuildContentCoordinator.Build` の 123 行目（staging → final の `Directory.Move`）の `System.IO.IOException: Access to the path '…\TestResults\bs3-fixture\…\staging\<identity>' is denied.`（J3 の `RecordThatExceedsTheManifestLimit_…` だけは、その直後の test で build の結果が失敗だったための `Only a successful content build can be published.`）。§5 が既知の不安定とするもの。落ちる test は毎回違い（`ContentOverlayBuildAndReuseTests` 5、`OverlayRegistrationIntegrationTests` 1、`SourceClosurePublishTests` 2）、8 test とも落ちていない回では Passed（bundle の `failed-tests-cross-run.txt`）。J2 の 4 件は 10 秒の間に集中した。slice の差分は coordinator の move の前後を変えていない（変えたのは成功の outcome の後の記録の書き込みだけ）。Windows Defender のリアルタイム保護は有効だった。
+- 判定必須の class の収録（J3、全て Passed）: `ContentOverlayBuildAndReuseTests` 22、`ContentOverlayStartupTests` 14、`PlayEntryDecisionTests` 48、`PlayEntryTransactionTests` 26、`PlayEntryLocalEditsDecisionTests` 19、`PlayEntryLocalEditsTransactionTests` 16、`PlayEntryOverlayTests` 12、`PlayEntryOverlayRecordTests` 7、`PlayEntryCandidatesTests` 9、`PlayEntryRecordTests` 21、`PurposeLaunchSettingsTests` 18、`ContentDeliveryPlayBridgeTests` 11、`SampleGameBootstrapContentComposerTests` 5、`ContentOverlayPlannerTests` 35、`ContentOverlaySessionTests` 26、`OverlayFromLocalEditsIntegrationTests` 1、`OverlayRegistrationIntegrationTests` 1、`EditorSnapshotCandidateIntegrationTests` 1、`EditorPlaySnapshotStartupPlanTests` 11（計 303）。inconclusive 25 は全て `SampleGame.Tests.Rendering.Vfx`（`-nographics` の既知。§5）、skipped 2 は `OneStarMaker.Tests.Editor.Build` の 2 件で、どの run でも同じ。
+- J1 の Unity の終了: XML の完成（21:54:43、+09:00）の後、PID 30944 が thread 1 本で UserModeTime を増やし続けた（21:55:16 の 653.2 s → 21:59:19 の 884.4 s、1 分あたり約 58 s。`tools/Harness/README.md` の既知の native 終了 stall と同じ形）。約 5.5 分待って 22:00:27 にその PID だけを `Win32_Process` の Terminate で止めた（5 秒後に消滅）。`step.json` の `process.exitCode` 0 はこの Terminate が作った値で、自然終了ではない（step は failed 2 で `failed`）。停止規則に従い原因の調査はしていない。
+- **DR-1（owner の決定、2026-11-22）:** AC7 の最終の全 EditMode 回帰は、3 回の全 EditMode のどれも failed 0 にならなかったが、失敗が全て上の既知の環境の不安定（staging の `Directory.Move` の access denied とその直接の結果）で、落ちた test が全て他の回で通り、判定必須の 19 class が J3 で全て通ったことから、合格と読む。判定 C の担当が、事実（3 回の結果、失敗の原因の一致、run ごとの表、slice の差分が move を変えていないこと）を示して確認し、owner が選んだ。凍結した §5 の「同じ head で走らせ直してよい」の範囲を超える読み（1 回の XML の failed 0 を得ていない）なので、決定として記録する。C' には渡さない（判定 C の指摘への人間の裁定は blind 入力に入れない）。
+
+**AC ごとの判定**
+
+| AC | 証拠 | 判定 |
+|---|---|---|
+| AC1 | `ContentOverlayBuildAndReuseTests` 22（J3、R2 で全て Passed。J1・R1・J2 の失敗は上の既知の不安定）。構造は発見 C の読みのとおり | 合格 |
+| AC2 | `ContentOverlayStartupTests` 14。起動の呼び分けの code の読み（発見 C）。V6 で上書きの key の照合の失敗が起動の失敗になり base だけで始まらない | 合格 |
+| AC3 | `PlayEntryDecisionTests` 48（今ある 3 経路、期待値の変更なし）、`PlayEntryLocalEditsDecisionTests` 19、`PurposeLaunchSettingsTests` 18、`ContentDeliveryPlayBridgeTests` 11 | 合格 |
+| AC4 | `PlayEntryTransactionTests` 26、`PlayEntryLocalEditsTransactionTests` 16、`PlayEntryOverlayTests` 12、`PlayEntryOverlayRecordTests` 7、`PlayEntryRecordTests` 21、`PlayEntryCandidatesTests` 9 | 合格 |
+| AC5 | V1c〜V7 の表。全回で期待との差なし。working tree は回ごとの許す差分だけで、各回の後に空へ戻した | 合格 |
+| AC6 | 上の構造適合と機械検査 | 合格 |
+| AC7 | 判定必須の既存の test（J3 で全て Passed）、全 EditMode（DR-1）、V0 | 合格（DR-1） |
+| AC8 | `OverlayFromLocalEditsIntegrationTests` 1（J1〜J3 で Passed。`NotInBase` の root D の要求の回を含む） | 合格 |
+
+- NO-GO の確認: (i) 入口の tick からの上書きの build が開いている Scene を変えた観測は無い（V1・V5・V7 の前後で `Title` の path と Dirty が同じ）。(ii) Reload Domain 有効の Play → 停止 → Play で登録が成功した（V7）。(iii) AC6 の外の変更は無い。(iv) 部分 checkout（V5）で Play が止まらなかった。
+
+**現在の問いを阻害する指摘: なし。**
+
+**後続スライスの入力・記録（阻害しない。違反する凍結済み条件・常時契約なし）:**
+
+- J1（入力）: coordinator の staging → final の `Directory.Move` の access denied は、今回は全 EditMode 3 回で毎回 2〜4 件出た（S3-2 の判定 C では 1 回目に 1 件）。build を伴う test が多い今の全 EditMode では、1 回の run で failed 0 を得にくくなっている。所有は BuildSystem の後続（move の前に handle が離れるのを待つか再試行するかなど）か、判定の環境（`TestResults` の Defender の除外）。owner の判断。
+- J2（記録）: V4b の「計画の他の供給元」は record に欄が無く、計画を `eval` から作り直して読んだ。AC4 の (i) の単体 test が持つので不足ではない。
+- J3（記録）: `Title` を開いたまま `git checkout` で戻すと、Unity の modal（外部で変更された Scene）が `eval` を止める。判定の手順は、戻す前に別の Scene を開くか、戻した後に dialog に答える必要がある（実 Editor の判定の手順の注意。本書の受け入れ条件ではない）。
 
 ## 8. Phase C'
 
