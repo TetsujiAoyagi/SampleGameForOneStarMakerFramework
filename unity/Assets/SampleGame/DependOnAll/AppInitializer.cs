@@ -6,11 +6,14 @@ using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
 using OneStarMaker.Runtime.CameraSystem.Cinemachine;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
+using OneStarMaker.Runtime.DebugCommands;
+using OneStarMaker.Runtime.DebugSocketServices;
 using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.Common.Rendering.Vfx;
+using SampleGame.DependOnAll.DebugCommands;
 using SampleGame.InGame.Streaming;
 using System;
 using System.Collections.Generic;
@@ -47,6 +50,9 @@ namespace SampleGame.DependOnAll
         private bool _profilerQuittingHandlerRegistered;
         private bool _useBs4PlayerMode;
 
+        // DebugStudio の debug.set-active が書き換えてよい唯一の GameObject。Editor の Play でだけ作る。
+        private readonly DebugVerificationTargetHost _debugVerificationTarget = new();
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void Sub()
         {
@@ -54,6 +60,7 @@ namespace SampleGame.DependOnAll
             s_instance.ReleaseCameraSystem();
             s_instance.ReleaseRenderEnvironment();
             s_instance.ReleaseProfilerTelemetry();
+            s_instance._debugVerificationTarget.Release();
             s_instance._useBs4PlayerMode = false;
             BootstrapSubsystemRegistration(s_instance);
         }
@@ -199,6 +206,60 @@ namespace SampleGame.DependOnAll
             ReleaseCameraSystem();
             ReleaseRenderEnvironment();
             ReleaseProfilerTelemetry();
+            _debugVerificationTarget.Release();
+        }
+
+        /// <summary>
+        /// Editor のときだけ、DebugStudio の <c>debug.set-active</c> を登録した catalog の dispatcher を返す。
+        /// Player（DebugSocket を有効にした場合を含む）では既定の dispatcher のままにし、コマンドを出さない。
+        /// この呼出しは DebugSocketService の構築中（BeforeSceneLoad）なので、service と検証用 GameObject は handler の実行時に読む。
+        /// </summary>
+        protected override IDebugCommandDispatcher CreateDebugCommandDispatcher()
+        {
+            var catalog = new DebugCommandCatalog();
+            if (!SetActiveDebugCommand.Register(
+                    catalog,
+                    Application.isEditor,
+                    () => DebugSocket,
+                    () => _debugVerificationTarget.Target))
+            {
+                return base.CreateDebugCommandDispatcher();
+            }
+
+            return new CatalogDebugCommandDispatcher(catalog);
+        }
+
+        /// <summary>
+        /// DebugSocket の起動後に、Editor のときだけ検証用 GameObject を UICommon の scene の root に作る。
+        /// UICommon は App 常駐で SceneDirector の管理外なので、Play の終わりまで hierarchy に出続ける。
+        /// </summary>
+        protected override UniTask OnServicesInitializing(CancellationToken ct)
+        {
+            CreateDebugVerificationTarget();
+            return UniTask.CompletedTask;
+        }
+
+        private void CreateDebugVerificationTarget()
+        {
+            // Player では UICommon の検索も警告もしない（生成の可否自体は host が isEditor で決める）。
+            if (!Application.isEditor)
+            {
+                return;
+            }
+
+            var uiCommon = UnityEngine.Object.FindAnyObjectByType<OneStarMaker.Runtime.UISystem.UICommon>();
+            if (uiCommon == null)
+            {
+                Debug.LogWarning(
+                    "[AppInit] UICommon が見つからないため、DebugStudio の検証用 GameObject を作りません。");
+                return;
+            }
+
+            if (_debugVerificationTarget.TryCreate(Application.isEditor, uiCommon.gameObject.scene))
+            {
+                // scene の load / unload を伴わない生成なので、購読中の DebugStudio へ hierarchy の再送を明示的に要求する。
+                DebugSocket?.NotifyHierarchyChanged();
+            }
         }
 
         private void InitializeCameraSystem()

@@ -1,6 +1,7 @@
 #nullable enable
 
 using OneStarMaker.Foundation.DebugSocket;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace OneStarMaker.Runtime.DebugSocketServices
@@ -69,6 +70,24 @@ namespace OneStarMaker.Runtime.DebugSocketServices
             }
 
             session.Enqueue(framedMessage!);
+        }
+
+        /// <summary>
+        /// 呼び手が持つ GameObject が直近の hierarchy capture で受けた NodeId を返す。main thread で呼ぶ。
+        ///
+        /// <para>
+        /// 読み取り専用の逆引きで、NodeId から GameObject を返す口は公開しない。
+        /// 未 capture（hierarchy を購読するセッションが無い等）、capture で見えなくなって prune 済み、
+        /// WPF の接続が替わって registry が reset された後、破棄済みの GameObject は false。
+        /// capture・prune・reset と同じ <c>_gate</c> の中で読むので、途中の token 空間を返さない。
+        /// </para>
+        /// </summary>
+        public bool TryGetHierarchyNodeId(GameObject gameObject, out long nodeId)
+        {
+            lock (_gate)
+            {
+                return _runtimeNodeRegistry.TryGetNodeIdUnsafe(gameObject, out nodeId);
+            }
         }
 
         private byte[] CreateHierarchySnapshotFrame()

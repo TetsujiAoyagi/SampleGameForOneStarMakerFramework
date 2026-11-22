@@ -30,6 +30,27 @@ Use a NodeId from the current Play's `hierarchy` output for `inspect`. After sto
 
 The local control listener processes connections sequentially. A read can occupy it for its request timeout. Whole-frame reception is limited to 15 seconds, response sending to 3 seconds, and socket close to 3 seconds. A CLI process disappearing need not be detected immediately; request subscriptions end on observed disconnection or their deadline.
 
+### Setting the SampleGame verification object's activeSelf
+
+In normal Editor Play only, SampleGame creates one root GameObject named `[DebugStudioVerificationTarget]` (Transform only) in the UICommon scene and registers the command `debug.set-active`. It is the only GameObject this command can change. Players do not create the object or register the command.
+
+Find the object in `hierarchy`, then send its NodeId as a JSON number with an explicit value. The payload has exactly two fields, both required: `nodeId` (positive integer) and `active` (`true` or `false`). The command sets the value; it does not toggle.
+
+```powershell
+debugstudio-cli send --command debug.set-active --payload '{"nodeId":9,"active":false}'
+debugstudio-cli inspect 9
+```
+
+Reading the result (send output and exits are unchanged):
+
+- `success=true` with payload `{"nodeId":9,"activeSelf":false}` (exit `0`): applied to the verification object with that NodeId; `activeSelf` is the value after the change.
+- `success=false` with a message starting `rejected: ` (exit `1`): rejected before any change. Reasons are `invalid-payload` (unparseable, `nodeId` missing or below 1, `active` missing or not a boolean), `target-unavailable` (no live verification object, no DebugSocket, or its NodeId is not in the current hierarchy capture), and `not-verification-target` (the NodeId is not the verification object's current NodeId).
+- Any other `success=false` (handler exception, unregistered command) and any ending without a `CommandResult` line (timeout exit `2`, other failures exit `1`) is unknown: the change may or may not have been applied, and this is not resolved later. A timeout does not mean the command did not run. The CLI never resends automatically.
+
+After an unknown result, `inspect` shows the value at the time of reading, not evidence that the request ran. To reach the value you want, rerun `hierarchy` to read the NodeId again and send the explicit value again; because the value is explicit, resending does not flip it back.
+
+Known limitation: matching uses only the verification object's current NodeId. If a NodeId from a previous Play happens to equal the verification object's NodeId in the next Play, the send is applied to the verification object. GameObjects other than the verification object are rejected in every Play.
+
 ## Offline comparison
 
 ```sh
