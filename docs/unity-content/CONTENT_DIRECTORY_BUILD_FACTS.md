@@ -4,7 +4,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 **範囲:** Unity 6000.6.0f1、StandaloneWindows64、loose file（`BuildCompression.Uncompressed`、`BuildContentOptions.None`。`CleanBuildCache` を付けた build を含む）、1 台の PC と 1 つの `Library`、SampleGame を使わない小さな fixture。登録と load の事実は、さらに Editor の Play（Domain Reload 無効）に限る。Unity の版を上げたら、下の「測り直し」で確かめ直すか、この文書を直すか消す。
 
-**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書は Player を測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。「同じ file を持つ 2 つの directory の登録」と「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の 2 節は、2026-11-18 に 6000.6.9f1 で測り直して同じだった（下の「6000.6.9f1 での上書きと登録の測り直し」）。
+**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書は Player を測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。「同じ file を持つ 2 つの directory の登録」と「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の 2 節は、2026-11-18 に 6000.6.9f1 で測り直して同じだった（下の「6000.6.9f1 での上書きと登録の測り直し」）。下の「部分 checkout の上書き（6000.6.9f1）」は最初から 6000.6.9f1 で測った。
 
 ## 出力の形
 
@@ -170,6 +170,20 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.NoStamp.NoStam
 - **native の登録と Play の終わり:** Play の中で native に 2 つ登録し、解除せずに Play を終えると、一覧（`ContentLoadManager.GetContentDirectories`）に 2 件残った。Domain Reload 無効でも有効でも同じだった。続けて script の reload（`EditorUtility.RequestScriptReload`）を起こすと、reload の後の一覧は 0 件だった。Domain Reload 有効では、domain reload は Play に入る時に起き、Play を終える時には起きなかった。残った 2 件は、一覧から取った handle の `UnregisterContentDirectory` で解除できた。
 
 測っていないもの（結果を変えうる）: Play に入る時の domain reload が、前の Play で残った native の登録を消すか（script の reload が消すことだけを見た）。reload で static が消えた後の OS の file handle の扱い。Scene の rename、Scene 以外の asset の移動。Player、別の PC・`Library`。
+
+## 部分 checkout の上書き（6000.6.9f1）
+
+担当外の source の一部が手元に無い checkout で、製品の build 経路の上書きを作って base に重ねた（2026-11-21〜22、S3-4a、PR #202、Unity 6000.6.9f1、Active Build Target は StandaloneWindows64 の Player、Enter Play Mode は Domain Reload 無効）。fixture は合成 1 つで、Scene `A`（Full と Whitebox の 2 表現。Whitebox の Scene を以下 `AWhitebox`）と Scene `B` が texture `T` を Light の cookie として直接参照し、Scene `C` が material `M`（texture `U`）を使う。base は宣言の選ぶ `A`（Full）・`B`・`C` を `Full` で build・publish・install した。file を退かす時は `.meta` と一緒に `Assets` の外へ移して `AssetDatabase.Refresh` した。最初の観測は対象を限定した Editor 操作で取り、同じ答えを、製品の上書きの計画を通す test（下の「測り直し」）の判定の run で確かめた。
+
+- **root の Scene の file が無い project の build:** `B` と `AWhitebox` を退かした project で、`A` だけの上書きを製品の coordinator で build でき、成功した。下の clean な checkout でも成功した。
+- **上書きに入らなかった root の直接参照:** base と `A` だけの上書き（`T` を編集後の色）を base → 上書きの順に登録した Play で、`A` は上書きから載って（record は上書き）cookie の pixel は編集後の色、`B` は base から載って（record は base）cookie の pixel は base の build の時の色、`C` は base だった。上の「Scene の直接参照」と同じく、Scene の直接参照は Scene のある directory の中で解決されたと読める。
+- **依存の file だけが無い時の `GetDependencies`:** `M` だけを退かすと、`AssetDatabase.GetDependencies(C, true)` は `C` 自身だけを返し、`M` の path も、`M` からしか届かない `U` も返さなかった。materialize は欠けを見つけず、手元の閉包が小さく見えるだけだった。依存の欠けを見分けるには、base の build の時点の閉包（publish の `sourceClosure`）の asset が手元で解決するかを見る必要がある。その記録の無い base では、依存の file だけが欠けた root は見分けられない。
+- **退かしている間の AssetDatabase:** 退かしている間も、一度 import した `Library` の `AssetDatabase.GUIDToAssetPath` と `AssetPathToGUID` は、消えた asset の GUID と path の対応を返し続けた。手元で解決するかは file の有無で決める必要がある。materialize では、この状態の root は `UnresolvedRootGuid` ではなく `MissingRootAsset`（欠けを許す口では `RootFileMissing`）の欠けになる。退かして戻した `B`・`AWhitebox`・`M` の GUID と、`C` の依存は元のままだった。
+- **一度も import していない `Library`（clean な checkout）:** 新しい worktree（`Library` の無い checkout）に、`B` と `AWhitebox` を除く fixture の file を `.meta` ごと写してから初めて import した。`B` と `AWhitebox` の GUID は `GUIDToAssetPath` が空を返し、写した file の GUID は元の checkout と同じだった。元の checkout が build・publish した base を install し、この checkout で計画すると、`T` が base と同じ内容なら上書き不要（作り直せない root も無い）、`T` を変えると `A` が上書き、`B` が作り直せない root になり、`A` だけの上書きを build でき、Play で `A` は手元の色、`B` は base の色だった。Unity の API で作った Scene の file は object の id が毎回変わって同じ内容を 2 回作れないので、2 つの checkout で同じ bytes と GUID にするには file を写す。
+
+測っていないもの（結果を変えうる）: Player、別の PC の base（2 つの checkout は同じ PC）、実データ（SampleGame）、Domain Reload 有効の Play、上書きにある id の物を base の root から id で引いた時の版（上の節で上書きの版）、prefab や material を挟んだ参照の Play での版（`T` は Scene から直接参照した。`U` の編集は build までで Play では見ていない）、作り直せない root がどれくらいの頻度で生じるか。
+
+測り直し: 1 つの checkout で file を退かす回は `unity/Assets/SampleGame/Tests/Editor/Build/OverlayFromLocalEditsIntegrationTests.cs` で、全 EditMode 回帰に入る（Content Directory の build を 5 回伴う）。clean な checkout の答えは同じ folder の `OverlayFromLocalEditsR8Tests` の `[Explicit]` の 2 つの test を、同じ head の 2 つの checkout で順に名前の filter で選んで走らせる（手順は test の class の comment）。後半の test は、初回の import を含む Unity process が XML を書いた後に終わらないことがある（[Harness README](../../tools/Harness/README.md) の既知の終了 stall）ので、XML で読む。
 
 ## 確かめていないこと
 
