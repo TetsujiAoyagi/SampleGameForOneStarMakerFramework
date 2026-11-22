@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `B`（Phase B の後の動作確認のやり直しを終えた。期待との差なし。次は発見 C）
+- status: `C`（発見 C を終えた。現在の問いを阻害する指摘なし。次は判定 C）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 1a3bf4428237cc8d5192e680bef1689c300dc4c7
@@ -21,16 +21,16 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（Phase B の後の動作確認は 2 回目で期待との差なし。§6「動作確認（やり直し）」）。
-  - 次の作業: implementation base から head までの差分を発見 C として読み、§5 のテストとレビュー計画に沿って所見を §7 に記録する。動作確認の 1 回目の差し戻し（§6）は発見 C と同じ巡に数える。
+  - 次の Phase・役割: 判定 C（発見 C は阻害する指摘なし。§7「発見 C」）。
+  - 次の作業: implementation head（§0 の欄）を GO 候補 head として、§5 の判定必須テスト（起点 filter・追加の class・最終の全 EditMode 回帰）と、AC5・AC7 の実 Editor の検証経路 V0〜V7 を行い、§2.6 で判定して §7 に記録する。evidence bundle を作る。§7「判定 C への注意」を先に読む。
   - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（動作確認のやり直しの記録 commit）。SHA は起動指示で渡す。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit）。SHA は起動指示で渡す。
   - implementation base / head: §0 の欄のとおり。
   - 取得案内: snapshot・bundle は未生成（上の欄）。動作確認の生の記録は §6 の「動作確認」と「動作確認（やり直し）」の最後の段落の所在。
-  - 必要な権限: §5 と発見 C の手順のとおり。
-  - 停止規則: §2.6。
-  - 引き渡さないもの: なし。
-  - push: Phase B の出口の commit、動作確認の記録 commit、差し戻しの記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
+  - 必要な権限: Unity の batch テスト（sandbox 外の実行。他の Unity を止める）、実 Editor の `tools/unity-editor.cmd eval`。
+  - 停止規則: §2.6。B と発見 C の巡は 1（動作確認の差し戻し）で、上限 4。
+  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない。
+  - push: Phase B の出口の commit、動作確認の記録 commit、差し戻しの記録 commit、動作確認のやり直しの記録 commit、この記録 commit は未 push（push は owner の確認の後。PR の状態ブロックは push の時に更新する）。
 
 ## 1. 目的と対象外
 
@@ -655,7 +655,42 @@ B が決めた実装詳細（§3 の port の境界の中）:
 
 ## 7. Phase C
 
-未着手。
+### 発見 C
+
+- 種別: 発見 C（1 回目）。2026-11-22。担当は AI（Claude Code、Anthropic、claude-opus-5-5）。**独立性制約あり:** B の差し戻しの session も同じモデル（claude-opus-5-5）で、B の出口の session のモデルは §6 に記録が無い。新規 session で、B・動作確認の会話は読んでいない。
+- 対象: implementation base `d176033a` → head `1a3bf4428237cc8d5192e680bef1689c300dc4c7`。commit で固定した完全 diff（stat・name-status は `git diff d176033a 1a3bf442`）。引き継いだ commit は `ef7e716e`（head からの差分は本書だけ。照合は一致）。作業ツリーは既知の untracked の `*.pdb.meta` 5 つだけ（§6 の動作確認と同じ。diff に関わらない）。evidence bundle は作っていない（テスト未実行の発見 C）。
+- PR の状態ブロックは Phase A の値のまま（§0 の push の欄のとおり未 push）。照合は渡された SHA と HEAD と §0 の欄で行った。
+- 機械検査: `pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`（検査 1〜9）。`pwsh tools/docs-audit.ps1` は `errors=0`（warning 2 件は本書と program の HANDOFF が残っていることの既知の注意）。編集・新規の `.cs` は全て先頭に `#nullable enable`、`record`・`Task.Delay`・`Thread.Sleep` なし。追加行の `?.`・`??` は全て `UnityEngine.Object` でない型。
+- 実行したテスト: なし。理由: 所見の再現・修正確認に要るものが無い。判定必須テストは判定 C が GO 候補 head で行う（B も Unity の test を走らせていない。§6）。
+
+**構造レビュー（§3 との照合）。** 変更 file・配置・依存・公開面は §3 の責務マップのとおり。
+
+- AC6: `Runtime/` の差分は `Bootstrap/AbstractApplicationInitializer.cs`（1305 → 1326）と新規の `Bootstrap/ContentOverlayStartup.cs`（91 行、型は全て internal）と `.meta` だけ。`ContentResolution/`・`BuildContent/`・`AssetManagement/`・`SceneSystem/`・`Editor/PlaySnapshot/`・asmdef・`InternalsVisibleTo` に差分なし。`Runtime/` の外の Framework の public の面は `BuildContentResult.ReuseRecordFailure`（`get; private set;`）と `ContentOverlayPlayConfig`（定数 3 つ）だけ。
+- 行数の警報: `PlayEntryRecord.cs` 307 → 445（§3 の見込み 380 を超えた。500 未満、増加 45%）。分けない: 足したのは上書きの DTO・起動の log の観測（登録の行と要求時解決の行）・Console の 1 行の上書きの部分で、§3 の理由（同じ record の欄が増えた時に 3 つが一緒に変わる）がそのまま当たり、観測の解析は既存の snapshot の観測と同じ `ObserveLog` の枝に並ぶ。`SampleGameContentBuild.cs` 148 → 234（増加 58%、§3 の見込み 215）。分けない: 足した `OverlayPorts` は既存の `MapPath`・`Resolve`・`ComposeBootstrap` を使う同じ host の配線で、変わる理由（SampleGame の宣言から materialize・選択・合成を呼ぶ手順）が同じ。他の file は 500 行未満・増加 50% 未満（`AbstractApplicationInitializer.cs` は既存の超過で、所有は RUNTIME_REFACTOR の HANDOFF）。
+- 新しい中核の規則（`ContentOverlayStartup.Decide`、`PlayEntryOverlay.Run`、判定表の行、順序）は Unity なしの単体 test で全分岐を持てる形に置かれている。
+
+**受け入れ条件との照合（code の読み。合否ではない）。**
+
+- AC1: 記録の置き換えは `File.Replace`（既存を先に消す段なし）、別名は `finally` で消す。coordinator は成功の outcome の後、`try` の外で記録を書き、例外は `WithReuseRecordFailure` に写して成功を返す（final を消さず outcome を書き換えない）。(a)〜(c)(e) の test あり。
+- AC2: `Decide` の分岐は (a)〜(f)(j) と一致し、呼び出しは `ReadContentDirectoryConfiguration` の先頭（Player の分岐と addressables の `return null` より前。(h)）。`Overlay` は `Decide` が installed の pair を要するので検証済みの base の分岐だけに渡り、起動は `RegisterVerifiedWithOverlay` の例外を握らず、base だけの登録へやり直さない（(g)）。(i) は Runtime の internal の定数を Framework の Editor が公開し直し、SampleGame は公開の定数だけを参照する。
+- AC3: 新しい rule は `SnapshotRoute` の後に足し、行の順は変えていない。明示設定の判定（`HasAny`）に上書きの 2 key が入り、実効 mode は mode の 3 key のまま。(e-1)〜(e-4) は別々の test。
+- AC4: 順序は (a) のとおり（列挙 → 確認 → 保存 → 複製 → `Refresh` → compile 中の検査 → 上書きの段 → compile 中の検査 → ledger → 公開 → `EnterPlaymode`）。拒否・facts の失敗では新しい port を呼ばない。失敗は今の `catch` で複製を解除して `Blocked`。検査を省いた結果を作らない（(n)）。作り直せない root は今回の計画の集合を 3 つの組で出し（(f)(m)）、Console は上限 8 件で残りの件数を出す（(j)）。表示や確認を止める設定は無い（(k)(p)）。record の突き合わせは (l) のとおり（新しい経路で介入した Play だけ）。
+- AC8: `OverlayFromLocalEditsIntegrationTests` に `NotInBase` の root D の要求の回を足した（§6）。
+
+**現在の問いを阻害する指摘: なし。**
+
+**後続スライスの入力・記録（阻害しない。違反する凍結済み条件・常時契約なし）:**
+
+- F1（nit、semantic）: `PlayEntryRecord.ContentResolutionLogMarker`（`"[AppInit] Content resolution: "`）は Runtime の文字列の複写である。AC2 の (i) が求める正本の一本化は上書きの key と登録の marker で、こちらは突き合わせの区切りに使う既存の行の先頭なので対象外と読む。Runtime の文言が変わると、計画した上書きの登録の行が無い時の不一致は Play の終わり（`StopObserving`）でだけ記録される（取りこぼしはしない）。所有の候補は S5（観測）。修正しない。
+- F2（記録）: 判定用の先置きの応答（`OSM.PlayEntry.SaveAssetsResponse.v1`）は、判定が確認の段より前で拒否した Play では消えずに残る（§6「動作確認（やり直し）」の準備の取りこぼしで観測済み）。AC4 の (p) は「確認の段に着いた時に読んで消す」で、その文言のとおりの動きである。判定用の口なので、判定 C の担当が拒否の後に応答を消す運用で足りる。修正しない。
+- F3（記録）: program §8 の S3-4b の行の状態は「次は Phase B」のまま。Phase D の harvest で更新する。
+
+**判定 C への注意:**
+
+- 判定用の base は判定 C の担当が使う Editor で検証 Play から作り直す（§5 の初期状態。§6 の LocalAppData の見え方の注意）。検証 Play は `Title` が開いている時と Variant profile が有効な時に拒否される（§6 の動作確認の準備）。
+- 編集の作り方は §6「動作確認からの差し戻し（1 巡目）」の手順（`ValidateMaterial` を通す）で行う。V1 と同じ値は前の動作確認の上書きが再利用されうるので、§6 で使った値（(0.25, 0.5, 0.75)、(0.2, 0.4, 0.8)）と違う値にする。
+- 拒否された Play の後は先置きの応答を消してからやり直す（F2）。
+- 上書きの build の間の状態読みの `eval` は timeout して Console に Error を残す（§6 の観測の注意）。
 
 ## 8. Phase C'
 
