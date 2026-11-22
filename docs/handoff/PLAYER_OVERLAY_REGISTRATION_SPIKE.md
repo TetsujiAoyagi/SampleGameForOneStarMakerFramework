@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `B`（Phase A の revision 0 を 2026-11-23 に凍結した。Phase B は未着手）
+- status: `C`（Phase B を 2026-11-23 に終えた。発見 C は未着手）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビューの 3 巡目が見た commit `2c24044d` の本書と program に、凍結の記録・引継ぎ票・3 巡目の記録・承認済みの語への置き換えだけを足した物で、目的・条件・責務マップは変えていない）。承認の根拠: 外部計画レビューが 3 巡目で阻害する指摘なしとして凍結へ進むことを勧め、owner が凍結と Phase B の開始を指示した。この指示で、凍結の時に承認するものとして本書が挙げていた 2 点（§1 の目的・利用者の文言、§2.4 の S4 の分割）も承認された
 - risk: `high`（製品 code は変えない。結論が S4 の後続の行の形（実機へ編集を届ける方式）を決め、Player を build して起動する harness はこの project で初めてで、独立して失敗しうる未知が複数ある。§5）
 - owner: root（依頼者）
@@ -21,13 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §3 の新規 file を §4 の順序で実装する。写す元の S2-1 の harness は `git show a304963b:<path>` で読む（checkout しない）。Unity は、Editor でのコンパイルの確認まで行う（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) の規則）。Unity の test の実行、content と Player の build、Player の起動は行わず、§6 に未実行として書く（Phase C の担当）。出口で §6 を書き、status と本票を発見 C 向けに改めて commit する。動作確認は `対象なし`（§5）。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/player-overlay-registration-spike` であること。上の implementation head 欄が `未固定` で、A3 凍結記録に承認者・日付・対象 revision があり、本票の次の担当が Phase B であること。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-0-player-overlay-registration-spike` で確かめる）。
-  - 読む範囲: 既定（§0〜§5。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示と PR #209 の状態ブロックで渡す）。
-  - 必要な権限: Unity Editor の起動とコンパイルの確認。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら、実装を進めずに止まって返す。§4 の「禁止」は B 適応にしない。設計判断を増やさず、§3 に無い file・asmdef・参照・製品の変更を足さない。
+  - 次の Phase・役割: Phase C（発見 C）。
+  - 次の作業: implementation head の差分を、§3 の責務マップ、§2.1 の不変条件・成立条件、§2.2 の受け入れ条件、§4 の禁止と照らす。判定必須テスト（§5）は Phase C の実行担当が実行する（Phase B では Unity の test・content と Player の build・Player の起動を一つも実行していない。§6 の未実行）。§6 の「B 適応と判断の記録」の各項は、§4 の B 適応の範囲に入るかを確かめる対象である。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/player-overlay-registration-spike` であること。上の implementation head 欄が「この票を含む commit」で、`git diff --stat HEAD^ HEAD` に `docs/handoff/` 以外の file があること（implementation head は HEAD 自身）。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-0-player-overlay-registration-spike` で確かめる）。
+  - 読む範囲: 既定（§0〜§8。§5.1 は読まなくてよい）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の出口。SHA は起動指示と PR #209 の状態ブロックで渡す）。
+  - 必要な権限: Unity の batch test、test が行う content と Player の build、test が起動する Player の process（sandbox 外の承認済み経路。§5 の初期状態）。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たる所見は Phase A へ、harness・fixture・環境の所見は B へ返す。答えの向きを理由に差し戻さない（§2 の判定定義）。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -423,7 +423,31 @@
 
 ## 6. Phase B 実装結果
 
-未着手
+2026-11-23。§3 の新規 file だけを §4 の順序で作った（製品の file、§3 以外の asmdef・参照・define 制約の変更は無い）。S2-1 の harness は `git show a304963b:<path>` で読んで写した。
+
+**作った file（行数）:** `Tests/Editor/Spikes/PlayerOverlay/` に `PlayerOverlayExpected.cs`（131）、`PlayerOverlayVerdict.cs`（617）、`PlayerOverlayVerdictTests.cs`（496）、`PlayerOverlayInventory.cs`（236）、`PlayerOverlayFixture.cs`（314）、`PlayerOverlayProjectScope.cs`（101）、`PlayerOverlayBuilds.cs`（486）、`PlayerOverlayLaunch.cs`（182）、`PlayerOverlayEditorControl.cs`（115）。`Tests/Spikes/PlayerOverlayProbes/` に probe の 3 型（各 20）と asmdef（参照・define 制約・platform の指定なし、`autoReferenced` false）。`Tests/Spikes/PlayerOverlayRunner/` に `PlayerOverlayRunner.cs`（507）、`PlayerOverlayObservations.cs`（120）、`PlayerOverlayRecord.cs`（106）と asmdef（参照は `OneStarMaker.Runtime` と `UniTask` だけ、`autoReferenced` false）。全て先頭に `#nullable enable`、`record` 型なし。合計 3,471 行（計画は約 3,600 行）。
+
+**計画の行数を超えた file（非分割のまま）:** `PlayerOverlayVerdict.cs` は 617 行（計画 490）、`PlayerOverlayRunner.cs` は 507 行（計画 400）。前者は 1 つの判定の写像の表で、§3 の非分割の判断の理由（1 つの写像）がそのまま当たる。後者は round の手順と操作の開始・結果の行を 1 つの `MonoBehaviour` に持ち、観測の読み取りと record の書き出しは §3 どおり別の file にある。責務の数は計画と同じなので分けていない。
+
+**B 適応と判断の記録（§4 の B 適応の範囲として行った。発見 C が範囲に入るかを確かめる）:**
+
+- **環境変数の名前:** `OSM_POV_ROUND`・`OSM_POV_LABEL`・`OSM_POV_ORDER`・`OSM_POV_DIR_BASE`・`OSM_POV_DIR_OVERLAY`・`OSM_POV_FACTS`・`OSM_POV_RECORD`・`OSM_POV_RUN`・`OSM_POV_HEAD`・`OSM_POV_LIMIT`（Editor の対照だけ `OSM_POV_DOMAIN_RELOAD_DISABLED`）。登録の順は launcher が `PlayerOverlayVerdict.RegisterOrder` から渡し、runner は渡された順に登録する。
+- **record の形:** runner は行の種類ごとに名前の付いた欄を JSON で書き（`header`・`round-start`・`p0`・`p4`・`op-start`・`op-result`・`ids`・`scene`・`texture`・`components`・`count`・`keep-edited`・`held`・`directories`・`log`・`limit-exceeded`・`end`）、Editor 側は全ての欄の和の型 `PovLine`（`PlayerOverlayInventory.cs`）に `JsonUtility` で読む。欄の名前が 2 つの assembly に分かれる（期待値ではなく行の形）。runner が読む fixture の事実の file の型も同じく 2 か所にある。「壊れた」の比べる相手（load 直後の列）は、runner が保持を始めた直後に stage `loaded` の `held` 行として書き、判定の写像が確認点の行と比べる。
+- **上限:** runner の上限 180 秒、終了行の後の猶予 30 秒、「終わらない」を読む無音 60 秒（既定どおり）。launcher の上限は runner の上限 + 60 秒で、launcher の file の `second-start` 行に残る。launcher は frame を進めながら約 1 秒ごとに record の終了行を見て、止めた後は `Process.WaitForExit(10000)` で終了の signal を待つ。
+- **一時 root の名前:** `TestResults/pov/<MMddHHmmss>/`、出力の folder は `base`・`ovl`・`ply`、Player は `Pov.exe`（IL2CPP の backup の folder の path を短くするため）。第 1 process の `player-build-start` 行に exe の path の長さと、最も深い path の見積もりを残す。
+- **`previousBuildReportDirectories` に渡す directory:** base の build の `Library/BuildHistory/<session>`（`ContentLayout.json`・`ScriptsOnlyCache.yaml`・`.buildreport` がある folder）を渡した。§3 の「base の build report の directory」と §1 の公開文書の事実（型は build report の directory の `ScriptsOnlyCache.yaml` に記録される）に合わせた。**製品の `UnityContentDirectoryAdapter` は content の出力 folder を渡しており、ここは製品と違う。** P4 で `ProbeBaseOnly` か `ProbeBoth` が Player に無ければ、§5 の u3 のとおり B が渡し方を直す（型を残す仕掛けは足さない）。第 1 process の `inventory` 行に、渡した directory と `ScriptsOnlyCache.yaml` の有無を残す。
+- **Addressables の設定の読み書き:** reflection（`AddressableAssetSettingsDefaultObject.Settings` の `BuildAddressablesWithPlayerBuild`）。復元の後に `AssetDatabase.SaveAssets` し、`ProjectSettings.asset` と Addressables の設定の asset を変える前の bytes に書き戻し、後者は import し直す。
+- **scripting assembly の一覧:** Player の `Pov_Data/ScriptingAssemblies.json` の名前、無ければ build report の managed の file。
+- **Error として数える log の種類:** `Error`・`Exception` に `Assert` を含めた（Unity の Error 水準の log。含めると「同じ」「違うが成り立つ」に入りにくくなる側で、答えを甘くしない）。
+- **「script が無い」log の行:** round の段の log のうち、文面に `script` と `missing` を含む行を数えて答えに添える（判定には使わない。§2 の (f) の記録）。
+- **Editor の対照の Scene:** 保存しない一時の Scene に runner の GameObject を作って Play に入る（file を作らない）。Domain Reload が有効、または 2 つの directory が第 1 process の出力と違う時は、Play に入らずに test を失敗にする（設定は変えない）。
+- **runner の保持:** load は成功したが期待の root（`Keeper`・`Marker_*`）が Scene に無い時も保持の対象に入れ、確認点で `object.null`（壊れた）として書く。
+- **probe と runner の `.meta`:** probe の 3 型と runner の script の GUID を固定値で書いた（fixture が MonoScript を GUID から引き、P1 は layout の一覧の path を GUID と結びつけて照合する）。他の `.meta` は Editor が生成した。
+- **補助の判定の file:** 第 2 process は `verdict-second.json`、Editor の対照は `verdict-<label>.json` を run の root に書く（launcher の file には `verdict` の行として file 名と結論だけを書き、観測の行は書かない）。答えが「同じ」でない時、Editor の対照の record が揃うまで補助の判定は未判定（理由に `AC6`）と出る。
+
+**未実行（Phase C の担当）:** `PlayerOverlayVerdictTests` を含む Unity の test を一つも実行していない。content と Player の build、Player の起動、Editor の対照も実行していない。§5 の u1〜u5 は全て未確認のまま。判定の写像の test が期待どおり通るかも未確認である。
+
+**確認したこと:** Unity 6000.6.9f1 の Editor でコンパイルが成功した（`compilationFailed` false。eval で、probe の 3 型・runner・判定の写像・launcher・Editor の対照・test の型が読み込まれ、probe と runner の固定 GUID が script の path に解決することを確かめた）。Editor は自分で起動し、未保存の Scene が無いことを確かめてから終了した。終了の後の `git status --porcelain` は新規 file だけで、`ProjectSettings/` に差分は無い。`pwsh tools/contract-audit.ps1` は合格（errors 0、warnings 0、検査 9 の path の長さを含む）。
 
 ### 動作確認
 
