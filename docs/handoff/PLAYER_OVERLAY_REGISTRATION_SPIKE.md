@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `A`（A3 の統合案。A2 の 3 件と、外部計画レビューの 1 巡目、凍結前の見直しを反映した。未凍結）
+- status: `A`（A3 の統合案。A2 の 3 件と、外部計画レビューの 1 巡目・2 巡目、凍結前の見直しを反映した。未凍結）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
 - implementation head commit: 未固定
@@ -105,6 +105,7 @@
   - **違うが成り立つ:** 3 つの process の全てで、操作の失敗が無く、X3 が 0 件で、Q2 正しい、Q4 無傷、Q1 が強か弱、Q3 が一致か「収まるが違う」であり、「同じ」に当たらない。Editor と違った点（Q1 の弱、Q3 の数、X1、X2、process の間の観測の違い）を全て挙げる。
   - **成り立たない:** 上のどちらでもない。Q1 の不成立、Q2 の誤り、Q3 が超える、Q4 の壊れた、round の段の Error・Exception（X3）、「答えにできる失敗」のどれかが、1 つの process にでもある時である。どの process のどの問・どの操作がどう外れたかと、その log を添える。
   - process ごとに答えが違う時は、最も悪い答え（同じ < 違うが成り立つ < 成り立たない）を採る。
+  - **process の間の違いの扱い:** 主の順で process の間の観測が違った時は、答えがどれでも、答えに「process の間で観測が違う」の印を付け、違った観測ごとに 3 つの process の値を並べ（どの round の、どの root・どの物が、どう違ったか）、3 つの process で同じだった観測も挙げる。同じ条件の再実行で結果が変わることは、Editor の実測に無い事実で、Q1 の弱や実体の数の違いのような「契約に取り込める違い」とは別に扱う（下の後続の表）。
 - 判定定義。スパイクの合否は「答えが証拠付きで出たか」で決め、答えの向きは合否に使わない（S2-0b・S2-1 と同じ）。
   - **process の間の一致:** 同じ round の 3 つの process で、観測の行（版、id が等しいか、class の列と値、数、確認点ごとの壊れた項目、操作の成否、段ごとの Error・Exception の件数）が一致すること。`EntityId` の値そのもの、時刻、pid は比べない。単独の基準では一致を求め（しなければ未判定）、主の順では、一致しないこと自体を答えに入れる（上の「スパイクの答え」）。
   - **単独の基準が成り立つ:** AC2 の 3 つの round の全ての process で、終了行があり、操作が全て成功し、round の段の Error・Exception が 0 件で、観測（版、class の列と値、pixel、数と列挙の照合、確認点ごとの壊れた項目）が fixture の定義と一致し、process の間で一致すること（下の「型の欠落」に当たる所を除く）。
@@ -121,8 +122,9 @@
 | 答え・観測 | 後続 |
 |---|---|
 | 同じ | S4-2（上書きを Windows の Player に載せて起動する）の A1 を、この範囲の実測を前提に始められる。13 章の禁止は S4-2 が、製品の登録の口と検証済みの base で確かめてから解く |
-| 違うが成り立つ | 同上。違った点を S4-2 の契約の入力にする |
-| 成り立たない（外れたのが Q2 だけで、その原因が型の欠落だけ。Q2 以外は「同じ」か「違うが成り立つ」の条件を満たす） | 上書きの形そのものの反証ではない。S4-2 の A1 を始められ、S4-2 が、上書きが使う型を Player に残す方法（上書きの build の型の記録と Player の型の照合、開発用の Player の stripping）を決める |
+| 違うが成り立つ（process の間の観測は一致） | 同上。違った点を S4-2 の契約の入力にする |
+| 主の順で process の間の観測が違う（答えが「違うが成り立つ」の時を含む。答えがどれでも） | S4-2 を自動では始めない。観測ごとの揺れ方（常に同じだった観測、揺れた root・物、Editor の対照の 3 回の結果）を添えて owner へ返し、S4-2 が何を前提にしてよいか・進め方を owner が裁定する |
+| 成り立たない（外れたのが Q2 だけで、その原因が型の欠落だけ。Q2 以外は「同じ」か「違うが成り立つ」の条件を満たし、process の間の観測は一致） | 上書きの形そのものの反証ではない。S4-2 の A1 を始められ、S4-2 が、上書きが使う型を Player に残す方法（上書きの build の型の記録と Player の型の照合、開発用の Player の stripping）を決める |
 | 成り立たない（それ以外。round の段の Error・Exception だけが外れた時を含む） | owner へ返す。実機へ編集を届ける方式（目的 build の作り直し、CI での作り直し等）を見直すかは owner が裁定する。S4-2 は裁定まで始めない |
 | 単独の基準が成り立たない（未判定。base だけで、操作が失敗した・壊れた・Error が出た・process の間で違った） | 上書きに固有でない、Player の 1 つの directory の問題である。harness の誤りでないことを B が確かめた上で Phase A へ戻し、結果を owner へ返して S4-1 の入力にする（本スライスの問いに答えを出せるかは、その時に owner が裁定する） |
 | P4 で `ProbeOverlayOnly` が Player にある | 「base の build report を渡して build した Player に、base が使う型と同じ assembly にある、base が使わない `MonoBehaviour` が残った」という、この構成での事実。別の assembly・組み込みの型へ広げない |
@@ -165,14 +167,14 @@
 - **AC5（E3、Q4）寿命:** 主の順の round で、次の列を順に行い、各段の後に、その時点で保持している物（Scene の probe と Renderer の material・texture、`Loadable` の物）の生の値を記録する。(1) 上書きの `SceneEdit` を先に、`SceneKeep` を後に load し（AC4 と逆の順）、base の root から `SharedPrefab`、上書きの root から `EditedTex` を load して保持し、AC4 と同じ 7 つの物の実体の数を記録する。(2) `SceneEdit` を unload し `UnloadUnusedAssets`。(3) `SceneEdit` を load し直し、版を記録する。(4) `SceneKeep` を unload し `UnloadUnusedAssets`。(5) `SceneKeep` を load し直す。(6) `Loadable` を Release し、両 Scene を unload し、上書き → base の順に解除して、登録の一覧の件数を記録する（0 件が Q4 の条件）。(6) の間の log は (1)〜(5) と分けて記録する（どちらも X3 が数える）。
   - 境界: 「解除まで」は (6) の解除の完了と終了行までを指す。終了行の後の process の終わり方は答えに使わない（記録して添える）。
   - 合格例: 終了行があり、その後 process が終わらず launcher が止めた。観測は有効で、終わり方は添えるだけ。答えにできる失敗の例 (A): 2 つの登録は成功し、(3) の `SceneEdit` の load が例外で失敗し、runner が失敗の行を書いて後始末をし、終了行まで書いた。単独の基準は成り立っている。答えは「成り立たない（load できない）」。答えにできる失敗の例 (B): record の最後の行が (3) の load の開始で、終了行が無く、単独の基準は成り立っている。答えは「成り立たない（落ちた）」。X3 の例: 観測の値は全て期待どおりだが、(6) の解除の段に Error が 1 件ある。答えは「成り立たない（解除の段の Error）」。未判定の例: record に 1 つ目の登録の成功の行が無い。
-- **AC6（I-2。Editor の対照。条件付き）:** スパイクの答えが「同じ」でなかった時（「答えにできる失敗」と「型の欠落」を含む）だけ、同じ runner を、同じ 2 つの directory に対して Editor の Play（project の今の設定である Domain Reload 無効のまま。設定は record に残し、違えば未判定。その Unity の process の最初の Play、graphics あり、`SAMPLEGAME_` の環境変数を除いた状態）で、主の順の 3 つの round について 1 回ずつ走らせ、record に残す。Editor の対照が Editor の実測（現況の (a)〜(e)）を再現すれば、Player との差は host の差として結論に書く。再現しなければ未判定で、B へ戻す（runner の誤りを探す）。B が runner の誤りを見つけられない時は Phase A へ戻す（Editor の対照の条件は、比べる相手の実測と、製品の起動の状態と graphics の有無が違う）。答えが「同じ」の時は実行しない（Player の観測が、fixture の定義と Editor の実測の両方に一致しているので、runner の誤りがそれを偶然に作る道は考えにくい）。
-  - 合格例: Player の Q3 が「収まるが違う」（共通の material が 1）で、Editor の対照は 2。差は host にある。不合格例: Editor の対照でも 1。Editor の実測（2）を再現しないので未判定。
+- **AC6（I-2。Editor の対照。条件付き）:** スパイクの答えが「同じ」でなかった時（「答えにできる失敗」と「型の欠落」を含む）だけ、同じ runner を、同じ 2 つの directory に対して Editor の Play（project の今の設定である Domain Reload 無効のまま。設定は record に残し、違えば未判定。その Unity の process の最初の Play、graphics あり、`SAMPLEGAME_` の環境変数を除いた状態）で、主の順の 3 つの round について 1 回ずつ走らせ、record に残す。主の順で process の間の観測が違った時は、3 回ずつ走らせる（どの回も別々の Unity の process）。Editor の対照が、走らせた全ての回で Editor の実測（現況の (a)〜(e)）を再現すれば、Player との差（process の間の違いを含む）は host の差として結論に書く。1 回でも再現しなければ未判定で、B へ戻す（runner の誤りを探す）。B が runner の誤りを見つけられない時は Phase A へ戻す（Editor の対照の条件は、比べる相手の実測と、製品の起動の状態と graphics の有無が違う）。答えが「同じ」の時は実行しない（Player の観測が、fixture の定義と Editor の実測の両方に一致しているので、runner の誤りがそれを偶然に作る道は考えにくい）。
+  - 合格例: Player の Q3 が「収まるが違う」（共通の material が 1）で、Editor の対照は 2。差は host にある。不合格例: Editor の対照でも 1。Editor の実測（2）を再現しないので未判定。process の間の違いの例: Player で、base の root の id から要求した `SceneEdit` が 3 つの process で v2・v1・v2、上書きの root の id からは 3 つとも v2、他は全て期待どおり。答えは「違うが成り立つ」に「process の間で観測が違う」の印が付く。Editor の対照を 3 回ずつ走らせ、3 回とも v2 なら、揺れは Player に固有と結論に書く。後続は owner の裁定で、S4-2 は自動では始めない。
 - **AC7（I-2）数え方の成立:** 単独の基準（AC2 の (1) と、(2) の (1) の計数の時点）で、参照をたどった `EntityId` の集合が列挙の集合と一致する。一致しなければ未判定（数え方が Player で成り立っていない）。主の順（AC3、AC4、AC5 の (1)）で 2 つが違う時は、未判定にせず、多い方の数で Q3 と X1 を読み、違いを挙げる。
 - **AC8（I-2）Player の観測であること:** AC2〜AC5 の全ての round の record の先頭が、`Application.isEditor` が偽・backend が IL2CPP で、Unity の版・実行 id・head・`Application.buildGUID` が第 1 process の record と同じで（Unity の版は、project の `ProjectVersion.txt` の版として record に残す）、P0 が成り立ち、P4 の 3 つの値がある。launcher の file に、観測の行が無い。
   - 失敗経路の例: Player の log の起動の段に製品の `AfterSceneLoad` の 1 行が無い（製品の起動が成功して動いている）。登録の前に登録中の directory が 1 件以上ある。どちらも未判定。
 - **AC9（I-3）製品の無変更と後始末:** base から head までの Phase B の commit が変える file が、本書と program を除いて、§3 の新規 file と `.meta` だけである。`pwsh tools/contract-audit.ps1` が合格する。次の 2 つの時点で確かめる。**(1) Unity の process の中:** 第 1 process の record に、変える前と復元の後の scripting backend・managed stripping の水準・Addressables の設定の値が同じで、`ProjectSettings/ProjectSettings.asset` と Addressables の設定の asset の bytes の hash が同じであること（scope は、値を戻して保存した後、2 つの file を変える前の bytes に書き戻す。Unity の再 serialize による無関係な差分を残さない）、fixture の folder が無いこと。**(2) 各 Unity の process が終わった後（強制終了した時を含む）:** Phase C の実行担当が取る `git status --porcelain` が実行の前と同じで、record にある Player の pid が全て終わっていること。marker の無い残りがあれば何も消さずに止まる。
   - 合格例・不合格例: (1) が合格でも、Unity の終了の後に `ProjectSettings.asset` に差分があれば不合格。その時は、実行担当がその file だけを `git restore` で戻して記録し、その実行は判定に使わない。
-- **AC10（I-1・I-2）判定の写像:** Unity を使わない test が、(a)〜(q) のうち入力で表せる誤り（P の不成立、Editor の先頭を持つ record、`buildGUID` の不一致、順の違う登録、型の集合は同じで位置だけ入れ替わった入力、期待の列より短い component の列、process の間の観測の不一致、P0 の log の行の欠落、X1・X2・X3 のそれぞれが違う入力、終了行のある round の異常な終了 code、開始行の無い round、1 つ目の登録より前で切れた record、2 つ目の登録の後で切れた record、行が増え続けたまま上限で止めた record、単独の基準が成り立たない時の主の順の失敗、型の欠落の 2 つの場合と、その時の Q4 と、基準に共通の Error の扱い、主の順で load の操作が全て成功しているのに 0 の物がある入力、版がどちらでもない入力）を「同じ」にせず、定義どおりの答えか未判定にすることを確かめる。あわせて、否定の結果が未判定に落ちないことを確かめる: 登録の段にだけ Error がある入力、AC5 の (6) の段にだけ Error がある入力、観測の値は全て期待どおりで X3 だけが外れた入力（3 つとも「成り立たない」で、「違うが成り立つ」にならない）、主の順の load が失敗して終了行のある入力と、同じ失敗で終了行の無い入力（どちらも「成り立たない（load できない）」）、2 つ目の登録が無効な handle を返した入力、主の順の 1 つ目の登録が失敗した入力（未判定）、主の順で参照をたどった数と列挙の数が違う入力（未判定にならず、多い方で読む）、主の順で process の間の観測が違う入力（未判定にならず、最も悪い答え）、単独の基準で同じことが起きた入力（未判定）。
+- **AC10（I-1・I-2）判定の写像:** Unity を使わない test が、(a)〜(q) のうち入力で表せる誤り（P の不成立、Editor の先頭を持つ record、`buildGUID` の不一致、順の違う登録、型の集合は同じで位置だけ入れ替わった入力、期待の列より短い component の列、process の間の観測の不一致、P0 の log の行の欠落、X1・X2・X3 のそれぞれが違う入力、終了行のある round の異常な終了 code、開始行の無い round、1 つ目の登録より前で切れた record、2 つ目の登録の後で切れた record、行が増え続けたまま上限で止めた record、単独の基準が成り立たない時の主の順の失敗、型の欠落の 2 つの場合と、その時の Q4 と、基準に共通の Error の扱い、主の順で load の操作が全て成功しているのに 0 の物がある入力、版がどちらでもない入力）を「同じ」にせず、定義どおりの答えか未判定にすることを確かめる。あわせて、否定の結果が未判定に落ちないことを確かめる: 登録の段にだけ Error がある入力、AC5 の (6) の段にだけ Error がある入力、観測の値は全て期待どおりで X3 だけが外れた入力（3 つとも「成り立たない」で、「違うが成り立つ」にならない）、主の順の load が失敗して終了行のある入力と、同じ失敗で終了行の無い入力（どちらも「成り立たない（load できない）」）、2 つ目の登録が無効な handle を返した入力、主の順の 1 つ目の登録が失敗した入力（未判定）、主の順で参照をたどった数と列挙の数が違う入力（未判定にならず、多い方で読む）、主の順で process の間の観測が違う入力（未判定にならず、最も悪い答え）、主の順で process の間の観測が違い、どの process も「成り立つ」側の範囲にある入力（答えは「違うが成り立つ」で、「process の間で観測が違う」の印と、違った観測ごとの 3 つの値が出る）、単独の基準で同じことが起きた入力（未判定）。
 
 ### 2.3 ここでは答えない問いと所有する後続
 
@@ -202,7 +204,7 @@
 |---|---|---|---|
 | S4-0（本スライス） | base → 上書きの登録が、Windows の Player で Editor の実測と同じ答えになるか | high | 最初。答えが後続の形を決める。製品 code を変えない |
 | S4-1 | content directory から起動して操作を続けられる Player の構成を、動作確認の Player の契約と protected config・fail-closed を弱めずに持てるか | high | S4-0 の Phase D の後（S4-0 の答えがどちらでも要る。上書きが成り立たなくても、作り直した content を実機で遊んで確かめる Player は要る。ただし Player に上書きの差込口を残すかは S4-0 の答えで変わるので、後に置く）。Player の起動を変えるので、Player の実機の非退行（元の S4 の gate）をここで確かめる |
-| S4-2 | 編集する開発者が、検証済みの base を載せた遊べる Player に、自分の編集の上書きを重ねて起動できるか | high | S4-0 の答えが「同じ」か「違うが成り立つ」か「型の欠落だけが原因の、成り立たない」で、S4-1 が終わった後。それ以外の「成り立たない」の時は owner の裁定の後に行を置き直す。A1 の最初の gate に、別の `Library` の base を載せた Player での答えと、S4-1 の構成が S4-0 と違う時の測り直しを置く |
+| S4-2 | 編集する開発者が、検証済みの base を載せた遊べる Player に、自分の編集の上書きを重ねて起動できるか | high | S4-0 の答えが「同じ」か「違うが成り立つ」か「型の欠落だけが原因の、成り立たない」で、主の順の process の間の観測が一致しており、S4-1 が終わった後。それ以外の「成り立たない」の時と、process の間の観測が違った時は、owner の裁定の後に行を置き直す。A1 の最初の gate に、別の `Library` の base を載せた Player での答えと、S4-1 の構成が S4-0 と違う時の測り直しを置く |
 | S4-3（元の名前 `LOCAL_LAN_PROVIDER` を引き継ぐ） | Local の installed cache / local の publish 済み / LAN の供給元を段階化し、Play の入口の prefetch と base の選び方を持てるか | normal | 実機の経路が決まった後。A1 の最初の gate に、別の PC で build した base の実測（Editor）を置く。元の S4 の gate（Local hit / miss、LAN timeout、tamper、cancel、immutable revision、cache lease、publish 成功だけで Play 可能と宣言しない）を持つ。Local と LAN、prefetch と base の選び方をさらに分けるかは、この行の A1 が決める |
 | S4-4 | 要求の時点の install と登録（起動の順序を含む）を、登録の契約を弱めずに持てるか | high | S4-3 の後。13 章は load の後の登録を未測定のため禁止しているので、A1 の最初の gate にその実測を置く。登録の寿命に関わる未測定（Play の間の script の compile、reload と native の登録の残り）もここで持つ。後者は S4-3 に依らず、今ある Editor の上書きの Play に関わるので、owner が先に切り出してよい |
 | S4-5 | 上書きを Android・iOS の Player に載せられるか | high | S4-2 の後で、着手の時期は owner が決める。target の固定（manifest・cache・起動）を解くことと、実機への転送を含む |
@@ -222,7 +224,7 @@
 - **Player の構成は IL2CPP・managed stripping High の 1 つ。** 今ある製品の Player（BS4）の構成で、content と Player の型の食い違いが最も出やすい側である。他の構成は、開発用の Player の構成を決める S4-1 と、その構成で測り直す S4-2 が持つ。
 - **起動は `-batchmode` で、`-nographics` を付けない。** 実際に使う Player は graphics の device を持つので、そちらに合わせる（窓は出ない）。比べる相手の Editor の実測は `-nographics` で、観測は CPU 側の値だけなので、device の有無で答えが変わる道は考えにくいが、変数が一緒に変わることは範囲に明記する（§2 の成果の範囲）。
 - **登録と load は Unity の公開 API を runner が直接呼ぶ。** 製品の wrapper（internal）は Player の assembly から見えず、見えるようにするには製品の変更が要る。wrapper が足すのは型の検査と例外の変換だけで、native の呼び出しは同じである（現況）。
-- **Editor の対照は、答えが「同じ」でない時だけ。** 相手は 2026-11-18 に 6000.6.9f1 で測り直し済みで、製品 code はその後 native 層を変えていない。Player の観測が fixture の定義と Editor の実測の両方に一致した時は、同じ runner を Editor で走らせても答えは変わらない。差が出た時は、差が host にあるのか runner にあるのかを分ける必要があるので、同じ runner を Editor の Play で走らせる（AC6）。runner の設定を環境変数で渡すので、Editor でも同じ runner がそのまま動く。
+- **Editor の対照は、答えが「同じ」でない時だけ。** 相手は 2026-11-18 に 6000.6.9f1 で測り直し済みで、製品 code はその後 native 層を変えていない。Player の観測が fixture の定義と Editor の実測の両方に一致した時は、同じ runner を Editor で走らせても答えは変わらない。差が出た時は、差が host にあるのか runner にあるのかを分ける必要があるので、同じ runner を Editor の Play で走らせる（AC6）。runner の設定を環境変数で渡すので、Editor でも同じ runner がそのまま動く。主の順で process の間の観測が違った時だけは、Editor の対照も 3 回ずつ走らせ、揺れが Player に固有かを見る。
 - **登録の順が上書き → base の対照は測らない。** owner の入力と目的が、比べる相手を主の順に限っている。
 - **base だけの寿命の round を、単独の基準に無条件で入れる。** 主の順の寿命の失敗を上書きのせいと読む前に、同じ操作の列が 1 つの directory で成り立つことが要る。Player の起動 3 回で済む。
 - **Player の build を高コスト証拠に分類しない。** 外部への作用が無く、この PC で何度でも作り直せる。分類すると、判定の入力が判定 C の前に 1 つも無い形になる（§5）。
@@ -291,7 +293,7 @@
 
 - 単体テスト: `PlayerOverlayVerdictTests`。
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests`。
-- 判定必須テスト（GO 候補 head）: 次の 3 つを順に、それぞれ別の Unity process で実行する。(1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests`。(2) `-Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayBuilds.FirstProcess`。(3) `-Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayLaunch.SecondProcess`（(2) の出力を読み、base だけ・base だけの寿命・上書きだけ・読まれる側・class と実体の数・寿命の 6 つの round を 3 つの process ずつ、計 18 回 Player を起動する）。**条件付き:** (3) の record から読んだスパイクの答えが「同じ」でなかった時だけ、(4) `pwsh tools/run-tests.ps1 -WithGraphics -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayEditorControl.<round>` を、主の順の 3 つの round について 1 つずつ、それぞれ別の Unity process で実行する（Enter Play Mode の設定は project の今の値（Domain Reload 無効）のままで、変えない）。(1)〜(3) の各 XML の total が 1 以上で failed 0、root result `Passed`、(3) の launcher の file に全 round の process の起動と終わり方がある。ここまでは harness が最後まで動いたことの確認で、その後に判定 C が §2 の定義を record に当てて答えを読む。**Unity の process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は、[Harness README](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) の規則に従い、XML と record で判定する。第 1 process を強制終了した時は、AC9 の (2) を必ず確かめる）。
+- 判定必須テスト（GO 候補 head）: 次の 3 つを順に、それぞれ別の Unity process で実行する。(1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests`。(2) `-Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayBuilds.FirstProcess`。(3) `-Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayLaunch.SecondProcess`（(2) の出力を読み、base だけ・base だけの寿命・上書きだけ・読まれる側・class と実体の数・寿命の 6 つの round を 3 つの process ずつ、計 18 回 Player を起動する）。**条件付き:** (3) の record から読んだスパイクの答えが「同じ」でなかった時だけ、(4) `pwsh tools/run-tests.ps1 -WithGraphics -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayEditorControl.<round>` を、主の順の 3 つの round について 1 つずつ、それぞれ別の Unity process で実行する（主の順で process の間の観測が違った時は、round ごとに 3 回。Enter Play Mode の設定は project の今の値（Domain Reload 無効）のままで、変えない）。(1)〜(3) の各 XML の total が 1 以上で failed 0、root result `Passed`、(3) の launcher の file に全 round の process の起動と終わり方がある。ここまでは harness が最後まで動いたことの確認で、その後に判定 C が §2 の定義を record に当てて答えを読む。**Unity の process の自然終了をゲートにしない**（XML の完成後に Unity が終わらない既知の終了 stall は、[Harness README](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) の規則に従い、XML と record で判定する。第 1 process を強制終了した時は、AC9 の (2) を必ず確かめる）。
 - 全 EditMode 回帰の適用除外: **適用除外する。** 理由: 製品 code を変えず（AC9）、build と Player の起動を行う `[Explicit]` の実験 test は通常の回帰に混ぜない。足すのは、どこからも参照されない asmdef 2 つと、その中の、環境変数が無ければ動かない型だけである。代替証拠: AC9、Unity のコンパイル確認、`contract-audit`、(1) の単体テスト。
 - 操作・実行時・目視条件の検証経路: 全て上の 3 コマンド（と条件付きの (4)）で閉じる（Unity の batch と、その test が起動する Player で、Phase C の実行担当が sandbox 外の承認済み経路で実行する）。初期状態は Editor を閉じ、Active Build Target が StandaloneWindows64、作業ツリーが clean、他の Unity が動いておらず、同じ製品名の Player（前の実行の物を含む。user の folder を共有する）が動いていない。事前に `git status --porcelain` を取る。観測は record・launcher の file・Player の log・XML・Unity の log。事後に、各 Unity の process が終わってから `git status --porcelain` を取り、launcher の file にある pid が全て終わっていることを CIM で確かめる（AC9 の (2)）。目視は無い。証拠は record・launcher の file・Player の log・XML・各 build の `ContentLayout.json` の写し・Player の build の結果を evidence bundle に入れる。動作確認は `対象なし`（offline のテストで閉じない条件は全て Unity の batch と Build で、Phase C が担当する）。
 - 未知の操作経路の疎通: 次の 5 つは未確認で、**初回確認は Phase C**（理由: Unity の test と Build の実行は Phase C の責任。担当: Phase C の実行担当）。Phase A では code を読むことと、この PC に IL2CPP の Player の support があることだけを確かめた。
@@ -301,7 +303,7 @@
   - (u4) `-batchmode` の IL2CPP の Player（Phase C の実行担当の環境で graphics の device を作れること）で、読める texture の pixel、material、`FindObjectsOfTypeAll`、`EntityId`、`JsonUtility.ToJson` が観測に使えるか。確認地点: record の先頭の graphics の device の種類と、単独の基準（AC2 の (1) の版・class・pixel・数と列挙の照合）と AC7。不成立時: device を作れない環境なら、`-nographics` を足して観測できるかを見て、Phase A へ戻して範囲の語を改める。API が使えないなら Phase A へ戻す。
   - (u5) Player の build が、同じ `Library` の後続の content の build と、戻すべき設定に残す影響。確認地点: 上書きの棚卸しの P2・P3、AC9 の 2 つの時点。不成立時: 設定の残りは B が復元を直す。content の出力が変わるなら Phase A へ戻す。
 - 人間の判断が必要な条件: なし（結論を受けた方式の採否は Phase D で owner）。
-- 高コスト証拠: なし。Player の build は外部への作用が無く、この PC で繰り返せる（所要は未記録で、初回の実行で record に残る）。build は content 2 回と Player 1 回、Player の起動は 18 回、Unity の起動は 3 回（条件付きの Editor の対照で 3 回増える）。
+- 高コスト証拠: なし。Player の build は外部への作用が無く、この PC で繰り返せる（所要は未記録で、初回の実行で record に残る）。build は content 2 回と Player 1 回、Player の起動は 18 回、Unity の起動は 3 回（条件付きの Editor の対照で 3 回、process の間の観測が違った時は 9 回増える）。
 - 判定 C の照合 script の方式: なし。判定 C は record の行を AC ごとに読む。`PlayerOverlayVerdict` の出力は補助である。
 - 機械検査: `contract-audit`、`docs-audit`。
 - A0/A1 主担当: 本 session（Claude Fable 5.2、Anthropic）。A0 は program §8 の S4 の行と「S4 の A1 への入力（2026-11-23）」、各「移送した入力」の S4 の項目、実測の事実、13 章を入力とした。
@@ -376,7 +378,7 @@
 | m-11 | 振り分けの細部（S2-0b の結論と対照の順は本スライスが測らない、類似事例の表の「S4」、13 章の「S4」、S4-2 の開始条件、S4-4 の混在、program の変更箇所の列挙） | 採用 | §0 の harvest、§2.3、§2.4、program の S4-2・S4-4 の行と振り分けの項 |
 | m-12 | `InternalsVisibleTo` の相手に `OneStarMaker.Editor` もある | 採用 | 現況を直した |
 
-**影響する A2 観点の再レビューの要否:** A2 の指摘の反映は、判定の定義と責務マップを広く変えた（X1〜X3、答えにできる失敗の条件、生の値と判定の分担、asmdef を 2 つにしたこと、Editor の対照）。その統合版は A2 の担当に戻さず、Draft PR の外部計画レビューが最初に見た。下の 1 巡目の反映と凍結前の見直しは、判定の定義だけを変え、責務マップ・asmdef・build の順・S4 の分割は変えていない。A2 の担当には戻さず、次の外部計画レビューの巡が、直した定義を見る。
+**影響する A2 観点の再レビューの要否:** A2 の指摘の反映は、判定の定義と責務マップを広く変えた（X1〜X3、答えにできる失敗の条件、生の値と判定の分担、asmdef を 2 つにしたこと、Editor の対照）。その統合版は A2 の担当に戻さず、Draft PR の外部計画レビューが最初に見た。下の 1 巡目・2 巡目の反映と凍結前の見直しは、判定の定義と後続の開始条件だけを変え、責務マップ・asmdef・build の順・S4 の行の割り方は変えていない。A2 の担当には戻さず、外部計画レビューの次の巡が、直した定義を見る。
 
 **外部計画レビュー（Draft PR #209）:**
 
@@ -386,6 +388,12 @@
 |---|---|---|
 | 1. Error・Exception があっても「同じ」「違うが成り立つ」になれる。X3 が数えるのは観測の段だけで、登録の段と AC5 の (6) の段は数えない。「違うが成り立つ」は X3 の不一致を許す | 採用 | X3 を round の全ての段（開始の印から終了行まで）に広げ、「同じ」と「違うが成り立つ」の両方の条件にした。1 件でもあれば「成り立たない」で、owner へ返す側に入る。「無害な既知の log」の一覧は持たない。代わりに、同じ操作を 1 つの directory で踏む単独の基準が Error 0 件であることを求め（外れれば未判定）、主の順にだけ出た Error を 2 つの directory の登録に帰せる形にした。製品の起動の log（開始の印より前）と、終了行より後の log は、今までどおり数えない。型の欠落の時に上書きだけの基準にも共通に出る Error だけは、型の欠落に伴う log として数えない。AC10 に 3 つの入力を足した |
 | 2. 主の順で load が失敗し、runner が失敗を記録して終了行まで書いた時、Q3 の 0 が未判定になり、「成り立たない」へ進めない。終了行の有無で答えが変わる | 採用 | 操作ごとの開始と結果の行と、失敗の定義（§2 の「操作と、その失敗」）を足した。「答えにできる失敗」を、(A) 操作の失敗が record にある、(B) record が途中で切れている、の 2 つにし、終了行の有無に依らず同じ条件で読む。Q3 の 0 を未判定にするのは、load の操作が全て成功している時だけにした。AC5 に例を、AC10 に入力を足した |
+
+2 巡目（2026-11-23。PR の総評コメント 1 件。対象は commit `31c95977` の本書。レビュー担当のモデル系列は、コメントに書かれていない）。1 巡目の major 2 件は解消したと判断し、「主の順でだけ起きる異常を捨てずに答えにする」方針も支持した。その上で major 1 件。S4 の分割と他の判定の修正に、新しい阻害する指摘は無い。
+
+| 指摘 | 採否 | 理由と反映 |
+|---|---|---|
+| process の間の不一致を「違うが成り立つ」として、S4-2 に無条件で送れる。同じ条件の再実行で base の root の解決が揺れることは、Q1 の弱を許すかという契約の選択とは違い、S4-2 が何を前提にしてよいかを決める必要がある | 採用 | 答えの 3 つの分類は増やさず、主の順で process の間の観測が違った時は、答えに印を付け、違った観測ごとに 3 つの process の値を並べて添える（§2「process の間の違いの扱い」）。後続の表で別の行にし、S4-2 を自動では始めず、owner が進め方を裁定する。S4-2 の開始条件（§2.4、program の S4-0・S4-2 の行）に「process の間の観測が一致」を足した。この時だけ、Editor の対照を round ごとに 3 回走らせ、揺れが Player に固有かを切り分ける（AC6）。AC10 に入力を足した |
 
 **凍結前の見直し（2026-11-23。owner の指示: 挙動を測るという目的への難点と、Phase C で指摘されそうな点を見直す）:** 1 巡目の 2 件と同じ型（主の順でだけ起きた実際の挙動が、未判定か「成り立つ」側へ落ちる）と、凍結した文をそのまま読むと必ず外れる・読み手で割れる条件を、本 session が洗い直した。
 
