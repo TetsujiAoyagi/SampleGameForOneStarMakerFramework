@@ -25,6 +25,49 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         // どちらも「索引なし」。install と再検証は JSON の型だけを見て、版と値の意味は ContentPurposeIndex だけが見る
         // （索引の版を上げても、古い runtime が manifest 全体を install・再検証できるようにするため）。
         public ContentTransportIndex index = new();
+        // 任意。base の build の時点の root ごとの依存閉包（手元の編集から上書きを決める Editor の計画だけが読む）。
+        // index と同じく JsonUtility が欄を省けないので、記録を持たない publish も version 0 の空の欄を書く。
+        // install と再検証はこの欄を見ない（版を上げても古い runtime が install できるように、型の検査も足さない）。
+        public ContentSourceClosure sourceClosure = new();
+    }
+
+    // 閉包の記録。root の表、asset の表、所属の組の表からなる。asset は自分を閉包に持つ root の集合（所属の組）を番号で指し、
+    // 同じ集合は組の表に 1 回だけ置く（広く共有された asset の分だけ大きさが閉包の大きさの和にならないように）。
+    // hash は持たず、asset の path で manifest の sourceFiles と突き合わせる。値の規則は Editor の読み口だけが持つ。
+    [Serializable]
+    public sealed class ContentSourceClosure
+    {
+        // 0 は記録なし、1 はこの形。2 以上は読み手が「未対応」として使わない。
+        public int version;
+        public ContentSourceClosureRoot[] roots = Array.Empty<ContentSourceClosureRoot>();
+        public ContentSourceClosureAsset[] assets = Array.Empty<ContentSourceClosureAsset>();
+        public ContentSourceClosureGroup[] groups = Array.Empty<ContentSourceClosureGroup>();
+    }
+
+    // index の entry と同じ (logical key, kind, 表現) に、root の asset の GUID を足したもの。
+    [Serializable]
+    public sealed class ContentSourceClosureRoot
+    {
+        public string logicalKey = "";
+        public string kind = "";
+        public string representation = "";
+        public string guid = "";
+    }
+
+    // 閉包の asset 1 つ。group は groups の番号。
+    [Serializable]
+    public sealed class ContentSourceClosureAsset
+    {
+        public string guid = "";
+        public string path = "";
+        public int group;
+    }
+
+    // この組を指す asset を閉包に持つ root の番号（roots の番号）の集合。
+    [Serializable]
+    public sealed class ContentSourceClosureGroup
+    {
+        public int[] roots = Array.Empty<int>();
     }
 
     [Serializable]

@@ -187,8 +187,8 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 ### 上書きの build と逆引き（現況）
 
 取得した目的 build（base）に、手元で編集した asset の影響を受ける root だけを build した上書きを重ねるための Editor の入口
-（S2-2）。base と上書きを重ねる登録は internal の登録の口が持ち（S3-2）、上書きを Play に載せる入口は無い（S3-4）。登録の契約は
-[13 章](13-resource-system.md)「base と上書きの登録契約」。
+（S2-2）。base と上書きを重ねる登録は internal の登録の口が持ち（S3-2）、手元の編集から上書きを決めて作る計画は下の「手元の編集からの計画」
+（S3-4a）、上書きを Play に載せる入口は無い（S3-4b）。登録の契約は [13 章](13-resource-system.md)「base と上書きの登録契約」。
 
 - **逆引き:** `ContentOverlaySelection.Select(plan, snapshot, editedPaths)` は I/O を持たない。編集した path を正規化し
   （`\` を `/`、`X.meta` を `X`、その後の重複を 1 件）、plan の selected の root のうち、snapshot の依存閉包に編集を 1 つでも含む root を選ぶ。
@@ -213,8 +213,81 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 - **report の追加の欄:** preflight と outcome の両方に `overlay`（上書きの印）。preflight だけに `overlayBase`
   （`contentSet`・`revision`・`target`・`manifestDigest`・`declarationName`）、`overlayEdits`、`overlayRoots`（`stableKey`・`logicalKey`・`edits`）、
   `overlayUnmatched`（`path`・`reason`）、`overlaySharedAssets`。上書きでない build では印が false、配列が空、`overlayBase` の各欄が空文字。
+  計画から作った上書きの build は、preflight に `overlayUnbuildable`（root・理由・編集・足りない file）・`overlaySupplied`・`overlayKey`、outcome に
+  `overlayKey` も書く。全ての build の preflight は `rootClosures`（root ごとの閉包）・`sourceHashRecord`（1 が下の hash の記録の印）・`sourceHashes` を持つ。
 - **publish の拒否:** `ContentTransportPublisher.Publish` は、outcome の `overlay` か、preflight の `excluded` に `NotInSubset` があれば拒む。
   上書きと、selected を絞っただけの build は配らない。
+- **build の前後の hash（全ての build）:** coordinator は preflight の前に、projection の閉包の file と `.meta` の SHA-256 を取り、Unity の build の後に
+  取り直す。1 つでも違えば、上書きでなくても `SourceChangedDuringBuild` で失敗にし、成果物の directory を残さない（publish の `sourceFiles` と閉包の記録は
+  この build の前の値を書くので、hash の後から Unity が読むまでに変わった source が記録と食い違わないように）。hash の時点で無い file は「無い」と記録し、
+  前後とも「無い」なら等しい（上書きでない build は、今までどおり閉包の file が無くても失敗にしない）。build の間に書き換えて Unity の後までに
+  元へ戻した変更は見分けない。build の間に source を変えないことは呼び手の前提である。
+- **手元の編集からの計画（S3-4a）:** `ContentOverlayPlanner.Plan(baseInstall, plan, snapshot, suppliedSceneKeys, overlayContentSet, artifactsRoot,
+  declaration, requirements)` は、install した base の記録と手元の file だけから、開発者が編集を入力せずに、上書きが要るか、上書きに入れる root、
+  編集の影響を受けるが手元で作り直せない root を build の前に決める。build を起こさず、利用者の source、installed cache、base の directory を書かない。
+  上の `ContentOverlaySelection.Select` は public のまま残り、計画はその中身を対象の root を絞って使う。
+  - **base の読み方:** `ContentInstallResult` の `RevisionRoot` の `transport.json` の bytes を 1 回読み、上限・digest（install の値）・UTF-8 の JSON かを
+    `ContentPurposeIndex.Read` と同じ規則で、contentSet・revision・target を install の結果と照合してから、その bytes だけを使う。照合に落ちた manifest は
+    例外で、閉包の記録の「壊れている」に読み替えず、`sourceFiles` も使わない。read lease は取らない（読んだ後の差し替えは登録の照合が拒む）。
+  - **呼び手の順と前提:** 欠けを許す materialize → 選択 → 合成 → `Plan`。合成は欠けの記録を引き継ぐ（引き継がない合成は、閉包も欠けの記録も無い
+    selected の root で `ArgumentException`）。計画は disk の file の内容で決めるので、保存していない編集を file に書くこと、import
+    （`AssetDatabase.Refresh`）を済ませること、計画から build が終わるまで source を変えないことは呼び手の前提である。
+  - **欠けを許す materialize:** `SceneResourceContentMaterializer.MaterializeAllowingAbsentSources` は、root の GUID が解決しない（`RootUnresolved`）・
+    root の file が無い（`RootFileMissing`）・Unity が返した依存の path の file が無い（`DependencyMissing`）payload（宣言が選ばない表現、到達しない node、
+    付随 asset を含む）を、閉包を持たない候補として残し（stable key は path を使わないので今と同じ）、`BuildMaterializationSnapshot.Absences` に
+    欠けの記録（stable key・logical key・root の GUID と path・理由・足りない path）を付ける。選択は今の規則で全ての候補を見るので、宣言が選ばない
+    表現が欠けても除外されるだけである。構造の失敗（GUID と path の不一致、衝突、graph の欠損、map の null）は今と同じく issue で snapshot は null。
+    今の `Materialize` は変えていない（欠けがあれば snapshot は null）。この snapshot を上書きでない build に渡さない（閉包の無い selected の root は
+    projection が止める）。
+  - **編集の検出:** 種類は `Changed`（file か `.meta` の SHA-256 が `sourceFiles` の値と違う。`.meta` だけの変更も本体の path で出る）、`Moved`
+    （閉包の記録の asset が手元では base と違う path にある。大文字小文字だけの違いは数えない）、`Added`（selected の root の手元の閉包にあり、記録に
+    GUID が無い file）。記録のある base では GUID で突き合わせるので、移動が「追加」と「欠け」に割れない。記録が無い・未対応・壊れている base では、
+    selected の root の手元の閉包の file を path で `sourceFiles` と比べる（`sourceFiles` に path が無い file は `Added`）。除外した候補の閉包だけに
+    ある file は見ない。手元に無い file は編集に数えず（削除と未 checkout を区別できない）、source の欠けとして分類に使う。手元で解決するかは
+    `GUIDToAssetPath` に加えて file の有無で決める（一度 import した `Library` は、file を退かした後も GUID と path の対応を返し続ける。
+    [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「部分 checkout の上書き（6000.6.9f1）」）。
+  - **分類:** 手元の選択の selected の root と閉包の記録の root のうち、閉包（手元の閉包か記録の閉包）に編集を 1 つでも含む root は、「上書きに入れる」
+    「他の供給元が届ける」「作り直せない」のちょうど 1 つに入る。source の欠けた root は、欠けの記録を持つ root か、記録の閉包の asset が手元で
+    解決しない root である（依存の file だけが欠けても Unity はその path を返さないので、後者で見分ける）。優先は、root の file が手元に無い →
+    作り直せない、root の file がある Scene で logical key が `suppliedSceneKeys` にある → 他の供給元（依存が欠けていても。開いている Scene は snapshot が
+    手元の版で届ける。key は Scene の node の全ての表現に効き、付随 asset の root には効かない）、残りの source の欠けた root → 作り直せない、
+    それ以外 → 上書き。記録が「あり」で、その root の集合に無い root（手元で足した root）は、編集が無くても上書きに入れる（source が欠ければ
+    作り直せない）。記録が「あり」で、欠けた root の記録の閉包に編集が無ければ、その root はどこにも出ない（認めを求めない）。どの root の閉包にも
+    当たらない編集は `UnmatchedEdits` に残り、状態を変えない。
+  - **作り直せない root の理由（`ContentOverlayUnbuildableReason`）:** `SourceAbsent`（source の欠けた selected の root で、記録の閉包に編集を含む）、
+    `NotInBase`（source の欠けた selected の root で、記録に無い。base にも上書きにも無い root になる）、`RecordMissing` / `RecordUnsupported` /
+    `RecordInvalid`（記録が無い・未対応の版・壊れている base では、欠けた selected の root を、編集が 0 件に見えても全て作り直せない root にする）、
+    `NotInLocalSelection`（記録にあって手元の選択に無い root で、記録の閉包に編集を含む。root の file が手元にある Scene で key が渡されていれば
+    他の供給元）。作り直せない root は、当たった編集と手元に無い file（materialize が見た欠けと、記録の asset のうち手元で解決しない物の base の path）
+    を持つ。
+  - **状態と認める口:** 状態は `NotRequired`（上書きに入れる root も作り直せない root も無い）、`BuildRequired`、`UnbuildableOnly`（上書きに入れる root が
+    無く、作り直せない root がある。build は要らないが、編集の影響を受ける root が base の版で動くので `NotRequired` と同じに扱わない）。他の供給元と
+    当たらなかった編集はどの状態でも残る。build の request（`BuildContentRequest(ContentOverlayPlan)`）と前回の上書きの受け取り
+    （`ContentOverlayPlan.GetReusableResult`）は `BuildRequired` の計画からだけ作れる。作り直せない root が 1 つでもあれば、その集合と完全に一致する
+    集合を `Acknowledge` で認めた計画でなければ、report も成果物も作る前に `InvalidOperationException` になる。集合の同一性は logical key・kind・
+    表現・root の GUID で、部分集合や前の計画の集合は `ArgumentException` で拒む。作り直せない root は上書きに版を持たず、base の entry から載る
+    （[13 章](13-resource-system.md)「base と上書きの登録契約」）。通知して続けるか止めるかは呼び手が決める。
+  - **計画から作った上書きの build:** mode は `Full`。Unity を呼ぶ前に selected の閉包の file が全て手元にあることを確かめ（無ければ
+    `SourceFileMissing` で失敗し、Unity を呼ばない）、Unity の後に取り直した hash を build の前の値に加えて計画の時の値とも比べ、違えば
+    `SourceChangedDuringBuild` で失敗にする。
+  - **再利用:** 上書きの入力の鍵（SHA-256）は、base の識別の 5 欄、上書きの contentSet、target、build する Editor の Unity の版、root に写る宣言の値、
+    上書きの root ごとの stable key・logical key・表現・root の GUID と path、上書きの閉包の全ての file の GUID・path・file と `.meta` の SHA-256、
+    鍵の版の定数（`ContentOverlayReuse.KeyVersion`）から作る。認めた集合は入れない（上書きの中身を変えないので。認めは受け取りの口が毎回求める）。
+    成功した上書きの outcome に鍵を書き、成果物の root の下の `overlay/<contentSet>.json`（`reports/`・workspace・publish 先・installed cache の外）に、
+    contentSet ごとの最後の成功 1 件として、鍵と `content/<identity>/` の全ての file の相対 path と SHA-256 を記録する。`GetReusableResult` は呼んだ時に、
+    鍵が同じで、outcome が同じ鍵の成功した `Full` の上書きで、記録した file が全て同じ内容で残る時だけ前回の結果を返す。それ以外（記録か outcome が
+    読めない、file が欠けた・書き換わった）は null で、呼び手は build する。記録に無い file が増えただけでは拒まない。返す結果の preflight は前回の
+    build の記録で、今回の分類と理由の正本は今回の計画である。鍵に入らない入力（script、project の設定、package）は既知の制約で、Framework の
+    build の code の意味を変えた時は `KeyVersion` を上げる。
+  - **検出に現れないもの（既知の制約）:** 閉包が持たない依存（script、`Packages/`、import 時の依存、project の設定）。削除（消した asset は source の
+    欠けになり、他の編集が当たれば作り直せない root になる）。記録の無い base で、依存の file だけが欠けた root と、既にある asset だけを指す root の
+    宣言を手元で足した場合（後者は base にも上書きにも無い root になり、Play では解決の失敗になる。古い版は出ない）。build の間に書き換えて戻した
+    変更。偽の編集（改行の違い、取得していない LFS の pointer）と base より古い checkout は、編集として計画に出る（黙らないが、上書きが要らずに
+    大きくなる）。検出と鍵は計画のたびに閉包の file を hash する（速くする cache は無い）。古い上書きの directory は掃除しない。
+  - **既知の不具合（再利用の記録の書き込み）:** coordinator は成功の outcome を書いた後、同じ `try` の中で再利用の記録を書くので、記録の書き込みの
+    例外は、成功した上書きの成果物を消して outcome を失敗で上書きする。記録の置き換えは既存の記録を消してから移すので、その間の失敗で古い記録も
+    失われる。記録も成果物も残らず次は作り直すので、古い上書きは出ない。上書きを Play に載せる入口が再利用を使う前に、成功の確定と記録の更新を
+    分け、記録の置き換えを原子的にする（program の S3-4b の最初の作業）。
 - **Scene に焼き込む prefab と model の編集:** `UnityContentDirectoryAdapter` は Scene の file と `.meta`、既にある利用者の
   file を書かない（build の間も後も。除くのは製品の `AssetDatabase.Refresh()` が作る `.meta` と、adapter が所有する生成 folder
   だけ）。Scene に焼き込まれた prefab と model の編集が同じ `Library` の差分 build の出力に入ることは、Unity（6000.6.3f1 以降、
@@ -272,8 +345,11 @@ publish 先も staging も作らずに `InvalidOperationException` で拒否す�
 `<final の親>/.staging/<guid32>` に作り、staging の各 path が final の同じ file の path より長くならないようにする
 （同じ volume の move で確定し、失敗時は staging だけを消す）。
 BuildReport の内容を配信層で独自に再検証するものではない。manifest の `files` は配信する content subtree の
-完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包を
-path/hash で案内する metadata であり、転送先 path、Unity load identity、Runtime 起動条件には使わない。
+完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包（file と `.meta`）を
+path/hash で案内する metadata で、手元の編集から上書きを決める Editor の計画の比較の相手でもある。転送先 path、Unity load identity、
+Runtime 起動条件には使わない。hash は coordinator が build の前に取った値（preflight の `sourceHashes`）を書き、publish の時点の disk を読まない
+（build の後に source を変えてから publish しても、記録が build した中身と食い違わない）。hash の記録の無い旧 preflight だけ publish の時点で取る。
+どちらも、その時点で在る file だけを書く。
 
 publish は manifest に、その目的 build が含む root の一覧を任意の欄 `index`
 （`ContentTransportIndex { version, entries }`）として書く。entry は build が root に書いた entry と同じ
@@ -285,6 +361,29 @@ coordinator が一覧を記録した outcome（`indexRecord` が 1）からは�
 （同じ `(logical key, kind, 実効表現)` の重複、空白だけの値など）公開先を作らずに拒む。索引を足しても manifest の
 `version` と `rootSchemaVersion` は変わらない。索引の読みと選択の規則は
 [13 章](13-resource-system.md)「目的 build の索引と選択」にある。
+
+publish は manifest に、base の build の時点の root ごとの依存閉包を任意の欄 `sourceClosure`
+（`ContentSourceClosure { version, roots, assets, groups }`）として書く。読むのは手元の編集から上書きを決める Editor の計画
+（上の「上書きの build と逆引き」）だけで、install と再検証（`ContentManifestValidation.ValidateRequiredFields`）はこの欄を見ず、型も検査しない
+（版を上げても古い runtime が install できるように）。欄を足しても manifest の `version` と `rootSchemaVersion` と `index` の版は変わらない。
+
+- **形（版 1）:** root の表（`index` の entry と同じ `(logicalKey, kind, representation)` に root の asset の GUID）、asset の表（GUID・path・所属の組の番号）、
+  所属の組の表（その組の asset を閉包に持つ root の番号の集合を 1 回だけ）。hash は持たず、asset の path で `sourceFiles` と突き合わせる。
+  大きさは閉包の大きさの和ではなく、asset の数と異なる所属の組の大きさの和で決まる（広く共有された asset は 1 組）。並びは値から決まる。
+- **値の規則:** Editor の `ContentSourceClosureRecord` だけが持つ。GUID は小文字 16 進 32 字で重複せず、path は空でなく大文字小文字を無視して重複せず
+  `sourceFiles` にあり、番号は範囲内で、root の集合は `index`（版 1）の entry の集合と等しく、各 root は自分の閉包に root の GUID を持つ。
+  欄が無いか版 0 は「記録なし」、版 2 以上は「未対応」、規則に合わない記録は「壊れている」で、どれも閉包を返さない。
+- **書く条件:** build の前の hash が閉包の全ての file と `.meta` で取れ、索引が版 1 の時だけ版 1 を書く。hash の記録の無い旧 preflight、hash の時点で
+  無い file がある build、索引が版 0 の publish は版 0（記録なし）にする。書いた bytes を読み口で読み直し、期待の状態でなければ公開しない。
+  manifest が上限（4 MiB。読み直しの `ContentPurposeIndex.Read` の `TooLarge`）を超える時は、記録を版 0 にして `Debug.LogWarning` を出して publish する
+  （CI は manifest の版で読める）。版 0 でも超える manifest は今までどおり失敗する。記録の無い base では、部分 checkout の計画が欠けた selected の
+  root を全て作り直せない root にする（全ての source がある checkout は `sourceFiles` との path の比較で今までどおり決まる）。
+- **manifest の大きさ:** JsonUtility は入れ子の欄を省けないので、記録を持たない manifest も版 0 の空の欄を書く（compact な JSON で
+  `,"sourceClosure":{"version":0,"roots":[],"assets":[],"groups":[]}` の 65 bytes。publisher の整形した出力ではそれより大きい）。記録を持つ manifest は
+  さらに大きい。manifest の bytes に依る判定は、この増分で境目の答えが変わりうる: install の予約（`ContentInstaller` は manifest の bytes を予約に
+  数えるので、境目の install は `BudgetUnsatisfied` に変わりうる）、installed の `transport.json` を含む cache の使用量と追い出し（`ContentCacheStore`。
+  追い出される revision が変わりうり、pin で追い出せない時は `BudgetUnsatisfied` に変わりうる）、publish の読み直しの上限（記録を版 0 にしても、
+  元の manifest が上限の手前の増分の幅にあった publish は失敗に変わりうる）。予約と使用量の数え方、予算と上限の検査は変えていない。
 
 consumer は manifest の contentSet/revision、固定 target `StandaloneWindows64-Player`、互換 schema と
 受信 bytes の digest を照合する。配信層は logical key、Variant、Unity Object の依存解決を再実装せず、
@@ -403,7 +502,7 @@ Scene 側の Payload リストに参照と Variant を宣言し、通常経路�
 ## 6. 既知の制約・落とし穴
 
 - transport v1 の SHA-256 pin は bytes 同一性を保証するが、配信元の真正性を単独では保証しない。署名、認証、latest channel、delta/resume、CDN、他 target は後続範囲である。
-- sourceFiles は案内 metadata である。Runtime は source AssetDatabase、materialization、checkout report を再走査しない。
+- sourceFiles と sourceClosure は案内と Editor の上書きの計画のための metadata である。Runtime は source AssetDatabase、materialization、checkout report を再走査しない。
 - `AssetDescription` を SO に変えてはいけない（埋め込み構造が壊れる、§3 参照）。
 - フィールド名変更時は `[FormerlySerializedAs]` を必ず付け、Editor 側の `FindPropertyRelative` は新名へ追従させる。
 - Payload は primary GUID のみ宣言。通常 build の子依存は §4 の materialization snapshot と Content Directory build で扱う。

@@ -64,9 +64,14 @@ namespace OneStarMaker.Editor.Build.Content
             // Unity I/O の前に plan と snapshot を照合し、失敗でも preflight を残す。
             // ここで止めた場合は成功 directory を作らず、構造化 issue を outcome に記録する。
             var projection = BuildContentProjection.Create(request.Plan, request.Snapshot);
+            // 閉包の file と .meta を build の前に hash する。publish の sourceFiles と閉包の記録はこの値を書き、Unity の build の後に
+            // 取り直した値と違う build は成功にしない（hash の後から Unity が読むまでに変わった source が記録と食い違うので）。
+            // hash の時点で無い file は「無い」と記録し、前後とも「無い」なら等しい（上書きでない build は今までどおり失敗にしない）。
+            var sourceHashes = ContentSourceHashes.Capture(projectRoot, projection.Files.Select(x => x.Path));
             BuildContentReport.WritePreflight(preflight, identity, TargetName, request.ContentSet, request.Plan, projection,
-                request.Requirements, request.Overlay);
+                request.Requirements, request.Overlay, sourceHashes);
             var isOverlay = request.Overlay != null;
+            var overlayPlan = request.Overlay?.Plan;
             if (!projection.IsValid)
             {
                 var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
@@ -81,9 +86,23 @@ namespace OneStarMaker.Editor.Build.Content
                 // Full は workspace の中身を消してから Unity を呼ぶ。消せなければ（リンク、他 process の lock）
                 // Unity の build を始めずに下の失敗として記録する。workspace 自体は残す。
                 // 作成より先に検査し、途中の segment がリンクなら CreateDirectory でリンク先に書かない。
+                if (overlayPlan != null)
+                {
+                    // 計画から作った上書きは、手元に無い source を Unity の build に渡さない（計画が欠けた root を外した後に消えた file も含む）。
+                    var missing = projection.Files.Select(x => x.Path).Where(x => sourceHashes[x] == null).ToArray();
+                    if (missing.Length != 0)
+                        throw new BuildIssueException(new BuildContentIssue(BuildContentIssueCode.SourceFileMissing, missing[0],
+                            missing.Length + " closure file(s) of the overlay are missing locally: " + string.Join(", ", missing)));
+                }
                 if (request.Mode == BuildContentMode.Full) ClearWorkspace(boundary, workspace);
                 Directory.CreateDirectory(workspace);
                 var built = _adapter.Build(projection, identity, workspace, request.Declaration, request.Overlay?.BaseIdentity, request.ContentSet);
+                var after = ContentSourceHashes.Capture(projectRoot, projection.Files.Select(x => x.Path));
+                var changed = ContentSourceHashes.Differences(sourceHashes, after);
+                if (changed.Count == 0 && overlayPlan != null) changed = ContentSourceHashes.Differences(overlayPlan.PlanHashes, after);
+                if (changed.Count != 0)
+                    throw new BuildIssueException(new BuildContentIssue(BuildContentIssueCode.SourceChangedDuringBuild, changed[0],
+                        changed.Count + " source file(s) changed during the build: " + string.Join(", ", changed)));
                 // Unity report が成功でも、manifest と metadata が所定 workspace に無ければ公開しない。
                 // adapter から返る path の包含も調べ、別の directory を誤って配布しない。
                 if (!Directory.Exists(workspace) || !File.Exists(built.ManifestPointer) ||
@@ -111,9 +130,20 @@ namespace OneStarMaker.Editor.Build.Content
                 var success = new BuildContentResult(identity, preflight, outcome, final,
                     Path.Combine(final, Path.GetRelativePath(workspace, built.ManifestPointer)),
                     Path.Combine(final, Path.GetRelativePath(workspace, built.MetadataPath)), built.Summary,
-                    Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode, indexEntries);
+                    Array.Empty<BuildContentIssue>(), request.Declaration, request.Mode, indexEntries, overlayPlan?.Key);
                 BuildContentReport.WriteOutcome(outcome, success, isOverlay);
+                // 成功した計画の上書きだけを再利用の記録に残す（失敗した build と、計画を通さない上書きは記録を変えない）。
+                if (overlayPlan != null) ContentOverlayReuse.Write(root, request.ContentSet, overlayPlan.Key!, success);
                 return success;
+            }
+            catch (BuildIssueException ex)
+            {
+                if (Directory.Exists(staging)) Directory.Delete(staging, true);
+                if (published && Directory.Exists(final)) Directory.Delete(final, true);
+                var failure = new BuildContentResult(identity, preflight, outcome, null, null, null,
+                    ex.Issue.Detail, new[] { ex.Issue }, request.Declaration, request.Mode);
+                BuildContentReport.WriteOutcome(outcome, failure, isOverlay);
+                return failure;
             }
             catch (Exception ex)
             {
@@ -126,6 +156,13 @@ namespace OneStarMaker.Editor.Build.Content
                 BuildContentReport.WriteOutcome(outcome, failure, isOverlay);
                 return failure;
             }
+        }
+
+        // 構造化した issue で build を止める（文言でなく code で分岐できる失敗）。Unity の例外の BuildFailure と分ける。
+        private sealed class BuildIssueException : Exception
+        {
+            public BuildIssueException(BuildContentIssue issue) : base(issue.Detail) => Issue = issue;
+            public BuildContentIssue Issue { get; }
         }
 
         // 上書きの build を、report を書く前に拒む条件。

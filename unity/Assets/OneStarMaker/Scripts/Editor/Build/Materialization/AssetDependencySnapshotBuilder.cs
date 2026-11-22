@@ -14,10 +14,30 @@ namespace OneStarMaker.Editor.Build.Materialization
         public AssetDependencySnapshotBuilder(IAssetDatabaseGateway gateway) => _gateway = gateway;
 
         public BuildDependencySnapshot? Build(string rootGuid, string subjectKey, ICollection<BuildMaterializationIssue> issues)
+            => Build(rootGuid, subjectKey, issues, null);
+
+        // 欠け（root の GUID が解決しない・root の file が無い・依存の file が無い）を issue にせず結果として分けて返す。
+        // closure と absence のどちらか一方が値を持つか、構造の失敗（GUID と path の不一致、不正な path、依存の GUID が無い、衝突）で
+        // issue が足されて両方 null になる。構造の失敗は欠けの記録に読み替えない。
+        public BuildDependencySnapshot? BuildAllowingAbsence(string rootGuid, string subjectKey, ICollection<BuildMaterializationIssue> issues,
+            out (BuildMaterializationAbsenceReason Reason, string? RootPath, IReadOnlyList<string> MissingPaths)? absence)
+        {
+            var sink = new List<(BuildMaterializationAbsenceReason Reason, string? RootPath, string? Path)>();
+            var before = issues.Count;
+            var closure = Build(rootGuid, subjectKey, issues, sink);
+            absence = null;
+            if (sink.Count == 0 || issues.Count != before) return issues.Count != before ? null : closure;
+            absence = (sink[0].Reason, sink[0].RootPath, sink.Where(x => x.Path != null).Select(x => x.Path!).ToArray());
+            return null;
+        }
+
+        private BuildDependencySnapshot? Build(string rootGuid, string subjectKey, ICollection<BuildMaterializationIssue> issues,
+            List<(BuildMaterializationAbsenceReason Reason, string? RootPath, string? Path)>? absences)
         {
             var rootPath = Normalize(_gateway.GuidToPath(rootGuid));
             if (string.IsNullOrEmpty(rootPath))
             {
+                if (absences != null) { absences.Add((BuildMaterializationAbsenceReason.RootUnresolved, null, null)); return null; }
                 Add(issues, BuildMaterializationIssueCode.UnresolvedRootGuid, subjectKey, rootGuid);
                 return null;
             }
@@ -33,6 +53,7 @@ namespace OneStarMaker.Editor.Build.Materialization
             }
             if (!_gateway.FileExists(rootPath))
             {
+                if (absences != null) { absences.Add((BuildMaterializationAbsenceReason.RootFileMissing, rootPath, rootPath)); return null; }
                 Add(issues, BuildMaterializationIssueCode.MissingRootAsset, subjectKey, rootGuid, rootPath);
                 return null;
             }
@@ -51,7 +72,8 @@ namespace OneStarMaker.Editor.Build.Materialization
             {
                 if (!_gateway.FileExists(path))
                 {
-                    Add(issues, BuildMaterializationIssueCode.MissingDependencyAsset, subjectKey, rootGuid, path);
+                    if (absences != null) absences.Add((BuildMaterializationAbsenceReason.DependencyMissing, rootPath, path));
+                    else Add(issues, BuildMaterializationIssueCode.MissingDependencyAsset, subjectKey, rootGuid, path);
                     continue;
                 }
                 var guid = NormalizeGuid(_gateway.PathToGuid(path));
@@ -69,6 +91,7 @@ namespace OneStarMaker.Editor.Build.Materialization
                 guidPaths[guid] = path;
                 entries.Add(new BuildDependencyEntry(guid, path));
             }
+            if (absences != null && absences.Count != 0) return null;
             return new BuildDependencySnapshot(rootGuid, rootPath, entries);
         }
 
