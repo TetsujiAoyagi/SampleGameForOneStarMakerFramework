@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S3-4b の行）
-- status: `A`（A3 の統合案。A2 の 4 件を反映した。未凍結。Draft PR で外部計画レビューを受ける）
+- status: `A`（A3 の統合案。A2 の 4 件と、外部計画レビューの 1 巡目を反映した。未凍結）
 - branch: `claude/overlay-play-entry`（PR の base は `develop`）
 - implementation base commit: `d176033a`（`origin/develop` の head、2026-11-22。§1 の現況と §3 の行数はこの base）
 - implementation head commit: 未固定
@@ -14,7 +14,7 @@
 - owner: root（依頼者）
 - created: 2026-11-22
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
-- harvest to: [18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（経路 Built + local edits、順序、作り直せない root の通知、record）と「上書きの build と逆引き」（再利用の記録の書き込みの契約。「既知の不具合」の項を消す）、[13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（入口は配線済み、Domain Reload 有効の Play の実測）、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6・§4.7（上書きの起動の設定と失敗）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（§4 の (1) の観測）、program §5.3（見直しの条件 (1)〜(3) の結論と、暫定の public の値の扱い）・§8
+- harvest to: [18-asset-description.md](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（経路 Built + local edits、順序、作り直せない root の通知、record）と「上書きの build と逆引き」（再利用の記録の書き込みの契約。「既知の不具合」の項を消す）、[13-resource-system.md](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」（入口は配線済み、Domain Reload 有効の Play の実測）、[04-app-startup.md](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6・§4.7（上書きの起動の設定と失敗）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（§4 の (1) の観測）、program §5.3（見直しの条件 (1)〜(3) の結論と、暫定の public の値の扱い）・§8（S5 への入力: 検査の費用の記録から分かった、省ける処理と今は省けない処理）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（A0。§1、§4.3、§5.3「上書きの方式を選ぶ理由と見直しの条件」「編集の種類ごとの扱い」、§8 の S3-4b の行と S3-2・S3-3・S3-4a からの移送）、[ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md)（所有境界の正本）
 - Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・照合 script は無い。§5）
 - Phase B result snapshot の取得案内・状態: 未生成
@@ -22,7 +22,7 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A の A3（外部計画レビューと owner の凍結判断）。凍結していないので、Phase B の担当はまだ居ない。
-  - 次の作業: owner が Draft PR で外部計画レビューを依頼する。主担当は指摘ごとに採否の案を §5.1 に書き、owner が裁定する。owner は §2.8 の U1〜U6 を確かめ、凍結を判断する。凍結の時に、A3 凍結記録・対象 revision・次担当 B をこの欄に書く。
+  - 次の作業: 外部計画レビューの 1 巡目の採否は §5.1 にある（owner は 2026-11-22 に U2 と U6 の案を承認し、修正の push を指示した）。owner は、§2.8 の残り（U1・U3・U4・U5）を裁定し、次の巡のレビューか凍結を判断する。凍結の時に、A3 凍結記録・対象 revision・次担当 B をこの欄に書く。
   - 引き継ぐ commit: この票を含む commit（A3 の統合案）。SHA は PR 状態ブロックで渡す。
   - 必要な権限: なし（文書のみ）。
   - 停止規則: §2.6。凍結の前に Phase B を始めない。
@@ -94,21 +94,23 @@
   - 保存した編集だけで確かめる。保存していない asset の編集を計画が見ず、「編集なし」で base の版が出る。
   - 利用者の層に残った上書きの key が、今ある経路の Play に黙って重なる。
   - Player の構成での拒否を、Editor の分岐だけで確かめる。
+  - Warning が出て Play に入れたことを、「編集を確かめられた」と数える。作り直せない root が base の版のままであることと、base にも無い root が要求の時に失敗することを見ない。
+  - 「build 0 回」を、Play の前の検査の費用が無いことと読む。
 
 ### 2.1 進める最低条件
 
-用語: 「上書きの Play」は、入口が上書きを登録すると決めて上書きの key を置いた Play、または起動の config に上書きの key がある Play を指す。「作り直せない root」は 18 章の計画の分類（`Unbuildable`）である。目的の「上書きを作れない時」は、計画の例外と build の失敗を指し、一部の root が作り直せないことは含まない（その時は示して Play に入る）。「編集」は、入口が Dirty の asset を保存した後の disk の file と、base の記録の比較で決まる（開いている Scene の保存していない内容は複製が届ける）。「示す」は、Console の Warning、record、詳細窓の 3 つである。「明示設定」は、JSON・環境変数・コマンドラインの層に利用者が置いた値で、経路の選択より優先する（入口は素通りして値を書かない）。
+用語: 「上書きの Play」は、入口が上書きを登録すると決めて上書きの key を置いた Play、または起動の config に上書きの key がある Play を指す。「作り直せない root」は 18 章の計画の分類（`Unbuildable`）である。目的の「上書きを作れない時」は、計画の例外と build の失敗を指し、一部の root が作り直せないことは含まない（その時は示して Play に入る）。「編集」は、入口が Dirty の asset を保存した後の disk の file と、base の記録の比較で決まる（開いている Scene の保存していない内容は複製が届ける）。「示す」は、Console の Warning、record、詳細窓の 3 つである。「明示設定」は、JSON・環境変数・コマンドラインの層に利用者が置いた値で、経路の選択より優先する（入口は明示設定の行で素通りして値を書かない。その行より前にある安全のための拒否は、明示設定にも今と同じに掛かる）。
 
 **不変条件（起きてはいけないこと）**
 
 - **I-1 上書きの Play は base だけで始まらない。** 上書きの Play は、base → 上書きの 2 層が登録された Play か、理由を示した失敗（入口の `Blocked` か、起動の失敗）のどちらかになる。入口が「上書きが要る」と計画した後に、上書きの key を置かずに Play に入ることも無い。
-  - 主張を崩しうる経路: (1) 入口の tick の `catch`（`PlayEntryTransaction.cs` 134〜139 行目）と、計画・build の結果を受ける新しい段。失敗を握って次へ進む実装。(2) build の結果の `IsSuccess` を見ずに `ContentPath` を使う。(3) 起動の `InstallConfiguredContentDirectoryAsync` の呼び分け。key を読む前に `RegisterVerified` で登録する、検証済みでない base（`directoryPath` の明示。`Register` は managed に見える path を検証し直して `RegisterVerified` へ回す）で key を無視する、登録の例外を握って base だけを登録し直す。(4) BeforeSceneLoad が addressables と決めて config を返さない時（1096 行目）に key が残る。(5) 1 回の ledger（`ContentDeliveryPlayBridge`）が、Play に入る前の idle で値を戻す、または key の一部だけを置く。(6) 再入の行（`SnapshotReentry`・`OnePlayLedger`）が、上書きの段を通らない 2 回目の `ExitingEditMode` を通す。(7) build の後、Play の前に上書きの directory が消える・別の物になる。(8) Play 停止で解除に失敗した層が、次の Play の登録の前の再試行で片付かない時（登録は拒まれ、base だけにはならない。S3-2 の `ContentOverlaySessionTests` が持つ）。(9) build の adapter が中で `AssetDatabase.Refresh()` を呼んだ後に compile が始まり、Play に入る前に domain reload が起きる（環境変数と ledger は reload を越えて残るので base だけにはならないが、Play に至るかは決まらない。入口は ledger の直前にも compile 中・import 中を見て止める）。(10) record が「上書きあり」を入口の計画だけから作り、起動の観測と突き合わせない。
+  - 主張を崩しうる経路: (1) 入口の tick の `catch`（`PlayEntryTransaction.cs` 134〜139 行目）と、計画・build の結果を受ける新しい段。失敗を握って次へ進む実装。(2) build の結果の `IsSuccess` を見ずに `ContentPath` を使う。(3) 起動の `InstallConfiguredContentDirectoryAsync` の呼び分け。key を読む前に `RegisterVerified` で登録する、検証済みでない base（`directoryPath` の明示。`Register` は managed に見える path を検証し直して `RegisterVerified` へ回す）で key を無視する、登録の例外を握って base だけを登録し直す。(4) BeforeSceneLoad が addressables と決めて config を返さない時（1096 行目）に key が残る。(5) 1 回の ledger（`ContentDeliveryPlayBridge`）が、Play に入る前の idle で値を戻す、または key の一部だけを置く。(6) 再入の行（`SnapshotReentry`・`OnePlayLedger`）が、上書きの段を通らない 2 回目の `ExitingEditMode` を通す。(7) build の後、Play の前に上書きの directory が消える・別の物になる。(8) Play 停止で解除に失敗した層が、次の Play の登録の前の再試行で片付かない時（登録は拒まれ、base だけにはならない。S3-2 の `ContentOverlaySessionTests` が持つ）。(9) build の adapter が中で `AssetDatabase.Refresh()` を呼んだ後に compile が始まり、Play に入る前に domain reload が起きる（環境変数と ledger は reload を越えて残るので base だけにはならないが、Play に至るかは決まらない。入口は ledger の直前にも compile 中・import 中を見て止める）。(10) record が「上書きあり」を入口の計画だけから作り、起動の観測と突き合わせない。(11) 検査が重い・失敗した時に、入口が検査を省いて `NotRequired` や `Reused` と答える、または Built + open scenes と同じ値へ自動で切り替える。
   - 探索した境界: 入口の 5 file、`PurposeLaunchSettings`、`ContentDeliveryPlayBridge` の適用と復元、起動の BeforeSceneLoad の config の読みから AfterSceneLoad の `wire-content-resolution` まで、登録の口の失敗の code。未確認: `ContentDeliveryPlayBridge.HandleIdle` が Domain Reload の途中で走る順（Reload の有効な Play で、静的 constructor が値を戻す時点と起動の config の読みの前後）。(7) は登録が内容の hash を見ないので、消えた時（path が無い）だけが失敗になり、書き換えは見分けない（§2.3）。
-- **I-2 今ある経路と明示設定は変わらない。** 上書きの key がどの層にも無い時、経路 Source・Built・Built + open scenes、明示設定の素通り、Play As、検証 Play、Delivery の Play は、上書きの計画も build も起こさず、置く key と判定の結果が今と同じである。上書きでない build の成果物と report は変わらない。Player の構成は上書きの key を起動の失敗にする。上書きの key が利用者の層にある時だけは動きが変わり、それは明示設定として扱う: 入口はどの経路でも素通りして値を書かず、計画も build もせず、起動が key を読む（照合つきで登録するか、起動の失敗にする。黙って無視しない）。
+- **I-2 今ある経路と明示設定は変わらない。** 上書きの key がどの層にも無い時、経路 Source・Built・Built + open scenes、明示設定の素通り、Play As、検証 Play、Delivery の Play は、上書きの計画も build も起こさず、置く key と判定の結果が今と同じである。上書きでない build の成果物と report は変わらない。Player の構成は上書きの key を起動の失敗にする。上書きの key が利用者の層にある時だけは動きが変わり、それは明示設定として扱う: 入口は、今の判定表の明示設定の行で素通りして値を書かず、計画も build もせず、起動が key を読む（照合つきで登録するか、起動の失敗にする。黙って無視しない）。判定表の行の順は変えない。明示設定の行より前の行（batch、Test Runner、再入、directory と再利用しうる Scene の拒否、1 回の ledger）は、上書きの key があっても今と同じに先に当たる。明示の directory に上書きの key を足しても、起動が再利用しうる Scene が開いていれば今と同じく拒否する（program の G18 の保護を保つ）。
   - 主張を崩しうる経路: (1) `PlayEntryDecision.Decide` の行の順（新しい行を足す位置）。(2) Editor の process の環境変数に上書きの key が既にある（別の host の入口が付けた、shell から引き継いだ）状態で、今ある経路や launcher を使う。判定の `HasExplicitSetting` は mode の 3 key だけを見る（`PlayEntryDecision.cs` 149 行目）ので、key を明示設定に含めなければ、入口は介入して自分の値を置き、起動が利用者の意図しない上書きを重ねる。launcher（Play As、検証 Play、Delivery）は上書きの key を見ない。この時は起動が読む（addressables なら起動の失敗、directory なら照合つきの登録）。(3) `SampleGameBootstrapContentComposer` の変更（欠けの記録の引き継ぎ）が、欠けを許さない materialize の build に効く。(4) coordinator の変更が上書きでない build の成功・失敗の扱いを変える。(5) 起動が、上書きの key が無い時の登録の呼び方を変える。(6) 新しい経路を選んだ後に古い code へ戻す。保存した経路の値は `Source` と読まれる（`PlayEntrySettings.cs` 32 行目。上書きは起きず、今ある経路の動きも変わらない）。
   - 探索した境界: 上の 6 つ。launcher の前提条件の検査に上書きの key は足さない（launcher の file を変えない。起動が fail-closed に読む）。
-- **I-3 作り直せない root を黙って混ぜない。** 作り直せない root がある Play は、その root と理由を、Play のたびに Console と record に出す。出すのは今回の計画の集合である。黙らせる設定は無い。
-  - 主張を崩しうる経路: (1) 再利用の経路。`GetReusableResult` が返す preflight は前回の build の記録で、今回の集合ではない。(2) 状態 `UnbuildableOnly`（build が無い）で、上書きの段が「何もしない」として表示を飛ばす。(3) Console の 1 行の長さの制限で一覧を切り、切ったことを示さない。(4) record を Play に入った後の観測で上書きして、計画の欄を消す。
+- **I-3 作り直せない root を黙って混ぜない。** 作り直せない root がある Play は、その root と理由を、Play のたびに Console と record に出す。出すのは今回の計画の集合である。黙らせる設定は無い。出す時に、Play で何が起きるかの違う 3 つの組を分けて示す: base の版で載る root（理由が `SourceAbsent`・`NotInLocalSelection`）、base にも上書きにも無く要求すると失敗する root（`NotInBase`）、base に閉包の記録が無いのでどちらか見分けられない root（`RecordMissing`・`RecordUnsupported`・`RecordInvalid`）。
+  - 主張を崩しうる経路: (1) 再利用の経路。`GetReusableResult` が返す preflight は前回の build の記録で、今回の集合ではない。(2) 状態 `UnbuildableOnly`（build が無い）で、上書きの段が「何もしない」として表示を飛ばす。(3) Console の 1 行の長さの制限で一覧を切り、切ったことを示さない。(4) record を Play に入った後の観測で上書きして、計画の欄を消す。(5) 理由の違う root を 1 つの「作り直せない」の一覧にまとめ、「base の版で動く」とだけ書く（`NotInBase` には載る base の entry が無い）。
   - 探索した境界: `PlayEntryRecord` の policy と record の作り方、計画の public の面。
 - **I-4 入口は利用者の物を壊さない。** 新しい経路の Play は、開いている Scene の file・Dirty・path を変えず、installed cache と base の directory を書かず、明示設定を書き換えない。source に書くのは、Play の前の Dirty の asset の保存と、今の経路 Built + open scenes の複製の準備が既に起こしている書き込み（Scene の保存の hook が走るなら、その書き込み。§4 の (1) で特定して §6 に列挙する）だけである。他に書くのは、成果物の root の下、複製の置き場、1 回の ledger である。
   - 主張を崩しうる経路: (1) 対話の Editor での Content Directory の build が、開いている Scene を閉じる・保存を求める・Dirty を倒す（未確認 (i)）。(2) `AssetDatabase.SaveAssets()` が Scene を保存する、または保存の対象でない物を書く。(3) build の adapter の `AssetDatabase.Refresh()` が複製の置き場に効く（未確認 (iv)）。(4) 失敗した後の後始末が複製の解除を飛ばす。(5) 複製の保存が Scene の保存の hook（`SceneVolumeSaveHook`）を走らせ、開いている Scene の `SceneResource` を書く（未確認 (v)）。走るなら、今の Built + open scenes でも起きている書き込みで、本書は増やしも減らしもしない。その `SceneResource` は SceneResourceMap の root の閉包に入るので、計画には編集として出る。(6) 入口が、判定が拒否した Play でも Dirty の asset を保存する。
@@ -120,11 +122,11 @@
 **成立条件（起きなければならないこと）**
 
 - **S-1** 経路 Built + local edits で、開いていない Scene から見える asset を編集して Play を押すと、開発者の入力なしに上書きが作られ、base → 上書きの順に登録された Play に入り、その Scene は手元の版で載る（record は上書きを指す）。
-- **S-2** 開いている Scene だけの編集では、上書きを build せずに Play に入る（program §5.3 の見直しの条件 (1)）。
+- **S-2** base と違う file が開いている Scene の file だけの時（保存した編集）と、開いている Scene の保存していない編集だけの時は、上書きを build せずに Play に入る（program §5.3 の見直しの条件 (1)）。Scene の保存が他の asset（`SceneResource` 等）を書き換えた時は、その asset の編集として計画に出るので、S-2 の対象ではない（§2.9）。
 - **S-3** 編集の無い Play は build 0 回で、上書きを登録しない。同じ編集のままの再 Play は build 0 回で、前回の上書きを登録する（見直しの条件 (2)）。
 - **S-4** Reload Domain の無効と有効の両方で、上書きの Play → 停止 → 上書きの Play が成り立つ。
-- **S-5** 作り直せない root がある部分 checkout で、Play に入り、その root は base から載る。
-- **S-6** 入口は、上書きに入れた root の数、作り直せない root の数、計画の所要、build の所要を Console と record に出す。Framework も入口も閾値を持たない。
+- **S-5** 作り直せない root がある部分 checkout で、Play に入る。base に entry がある root（理由が `SourceAbsent`・`NotInLocalSelection`）は、要求すると base から載り、その直接参照は base の build の時の版で出る。base にも上書きにも無い root（`NotInBase`）は、要求すると解決の失敗になり、古い版も別の物も出ない。Play に入れたことは、編集が全ての root に反映されたことを意味しない。
+- **S-6** 入口は、上書きに入れた root の数、作り直せない root の数（組ごと）と、Play の前の検査の所要を 4 つに分けて Console と record に出す: 選択の準備（materialize・選択・合成）、計画（編集の検出・分類・鍵。計画の 1 回の呼び出しで、中は分けない）、再利用の確かめ、build。Framework も入口も閾値を持たない。
 - **S-7** 再利用の記録の書き込みが失敗した build は成功を返し、失敗の理由を結果に持つ。入口はそれを示して Play に入る。
 
 ### 2.2 受け入れ条件
@@ -148,14 +150,19 @@ AC1〜AC4 と AC6 は EditMode の単体 test と機械検査、AC5 と AC7 の�
   - (g) 起動は (b) の時だけ `RegisterVerifiedWithOverlay` を呼び、その例外を握らない。base だけの登録へやり直さない。登録に成功した時は、上書きの path・identity・base の revision の 1 行を log に出す。
   - (h) (e) の検査は、addressables の時に config を返さない分岐より前にある（code の読み）。
   - (i) key の名前と log の marker の正本は Runtime の internal の定数で、Framework の Editor の public の定数がそれを公開し直す。SampleGame と別の host は public の定数だけを使い、文字列を複写しない（構造レビュー）。
-  - 不合格例: (c)〜(f) で key を無視して base だけを登録する。
+  - (j) mode も installed の pair も無く（今の起動が失敗にする設定）、上書きの key だけがある: 起動の失敗。key を無視して進まない。
+  - 不合格例: (c)〜(f) と (j) で key を無視して base だけを登録する、または上書きなしで起動を続ける。
 - **AC3 判定表と置く値（I-2）。** `PlayEntryDecision` と `PurposeLaunchSettings` の単体 test。
   - (a) 今ある 3 経路の既存の test が、期待値の変更なしで通る。
   - (b) 新しい経路は、Built + open scenes と同じ拒否（扱えない設定、候補なし、載せる Scene なし、扱えない Scene）を同じ順で返し、通った時だけ新しい rule になる。
   - (c) 再入の行は、新しい経路でも、入口が準備した session と 1 回の ledger が揃った時だけ通る。
   - (d) 上書きを登録する Play が置く値は、Built + open scenes の値に上書きの key 2 つを足したものである。上書きを登録しない Play（計画が `NotRequired` か `UnbuildableOnly`）が置く値は、Built + open scenes と同じで、上書きの key を含まない。
-  - (e) 上書きの key が JSON・環境変数・コマンドラインのどこかに既にあれば、4 つの経路のどれでも、明示設定の行で素通りし、値を書かない。合格例: 経路 Built で環境変数に上書きの key がある時、rule は `ExplicitSetting` で、置く値は空。不合格例: 同じ状態で `BuiltRoute` の介入になる。
-  - (f) 入口自身が 1 回の ledger で置いた上書きの key は、再入の 2 回目の `ExitingEditMode` で明示設定と読まれない（今の mode の key と同じ扱い）。
+  - (e) 上書きの key は明示設定の判定に入る。判定表の行の順は変えない。次の 4 つを別々の test にする（(e-1)〜(e-3) は 4 つの経路のそれぞれで、(e-4) は新しい経路で）。
+    - (e-1) 再利用しうる Scene が無く、環境変数に directory の mode・installed の pair・上書きの key がある: rule は `ExplicitSetting` の素通りで、置く値は空。
+    - (e-2) `Title` が開いていて、同じ明示設定がある: rule は今と同じ `DirectoryWithReusableScenes` の拒否（上書きの key の有無で変わらない）。
+    - (e-3) mode の key が無く、上書きの key だけがある: rule は `ExplicitSetting` の素通りで、置く値は空（入口は介入しない。起動が AC2 で失敗にする）。
+    - (e-4) 入口自身が 1 回の ledger で上書きの key を置いた後の再入の 2 回目の `ExitingEditMode`: 今と同じ再入の行（`SnapshotReentry`）で通り、`ExplicitSetting` にならない。
+    - 不合格例: (e-1) で `BuiltRoute` の介入になる。(e-2) で素通りになる。
 - **AC4 入口の上書きの段（I-1、I-3、S-2、S-3、S-5、S-6、S-7）。** port を fake にした単体 test（`PlayEntryTransactionTests` と、新しい段の test）。
   - (a) 順序は、再判定（新しい経路の介入と決まる）→ Dirty の asset の保存 → 複製の準備 → import の反映 → 計画 → 認める → 再利用か build → 1 回の ledger → 計画の公開 → `EnterPlaymode`。今ある経路では、保存・import の反映・計画のどの port も呼ばれない。新しい経路でも、判定が拒否した時と facts の採取が失敗した時は、保存を含むどの port も呼ばれない。
   - (b) 計画が `NotRequired`: build 0 回、上書きの key なし、record の上書きの状態は `NotRequired`。
@@ -168,21 +175,40 @@ AC1〜AC4 と AC6 は EditMode の単体 test と機械検査、AC5 と AC7 の�
   - (i) 計画に渡す「他の供給元が届ける Scene」は、複製にして載せる Scene のうち SceneResourceMap にあるものの logical key だけである。
   - (j) Console の 1 行は root の一覧を上限で切る時、残りの件数を出す。詳細窓は全件を出す。
   - (k) 作り直せない root の表示を止める設定・保存された「今後表示しない」が code に無い（構造レビュー）。
-  - (l) record は、計画した上書きの identity と、起動の log の上書きつきの登録の行の identity を突き合わせる。計画は上書きありで、観測を閉じる時までに一致する行が無ければ、record は不一致を示し、状態を `StartupFailed` にする（`PlayEntryRecordTests`）。計画が上書きなしで登録の行があった時も不一致を示す。
+  - (l) 入口が新しい経路で介入した Play では、record は、計画した上書きの identity と、起動の log の上書きつきの登録の行の identity を突き合わせる。見る区間は、今の record が起動の log（封じの行、取り込みの行）を観測する区間と同じである。計画は上書きありで、その区間に identity の一致する行が無い時と、計画は上書きなしで登録の行があった時は、record は不一致を最初の失敗として示し、状態を `StartupFailed` にする（`PlayEntryRecordTests`）。入口が素通りした Play（明示設定など）では突き合わせず、観測した登録の行だけを出す。
+  - (m) 作り直せない root の 6 つの理由は、I-3 の 3 つの組に分かれて Warning と record に出る。`NotInBase` の root を含む計画でも Play に入り、その root は「要求すると失敗する」の組に出て、「base の版で載る」の組に出ない。
+  - (n) 計画の例外、再利用の確かめの例外、所要の長さのどれでも、入口は検査を省いた結果（`NotRequired`・`Reused`）を作らず、Built + open scenes と同じ値で Play に入らない（(g) と同じく `Blocked`）。
+  - (o) record は S-6 の 4 つの所要を別々の欄で持つ。行わなかった段（再利用できた時の build 等）は、0 ではなく「行っていない」と読める値にする。
   - 合格例: (f) で前回の build の時は作り直せない root が 1 つ、今回は 2 つなら、2 つが出る。不合格例: (g) の後に Built + open scenes の値で Play に入る。
 - **AC5 実 Editor の縦断（S-1〜S-5、I-1、I-4）。** SampleGame、経路 Built + local edits、§5 の V1〜V7。判定用の base は、判定の担当が候補 head の checkout から検証 Play で作る。
-  - V1: 開いていない Scene から見える asset を編集し、保存せずに Play。入口が保存し、build 1 回、起動の log に上書きつきの登録の 1 行、その Scene の要求の record が上書きを指し、編集した値が Play の中で手元の値で読める（HEAD の値と違う）。
+  - V1: 開いていない Scene から見える asset を編集し、保存せずに Play。入口が保存し、build 1 回、起動の log に上書きつきの登録の 1 行、その Scene の record（`SceneDirector.GetContentLoadRecord`）の供給元が `ContentOverlay` で、編集した値が Play の中で手元の値で読める（HEAD の値と違う）。
   - V2: 停止 → そのまま再 Play。build 0 回、状態 `Reused`、V1 と同じ登録と値。
   - V3: 編集を元に戻す → Play。状態 `NotRequired`、上書きの key なし、上書きの登録の行なし。
-  - V4: 開いている Scene を編集し、保存せずに Play。build 0 回、状態 `NotRequired`、その Scene は複製から載り（record は `EditorSnapshot`）、編集が Play の中で読める。停止の後、Scene は Dirty のままである。開いている Scene を保存した編集で上書きを作らないことは、AC4 の (i) と S3-4a の実機の test（他の供給元の key）が持つ。
-  - V5: 開いていない Scene B を `.meta` と一緒に `Assets` の外へ退かし、B と、手元にある開いていない Scene C の両方の閉包に入る asset を編集 → Play。C は上書き、B は作り直せない root として Warning と record に出て、Play に入る。B を要求すると base から載る（record は base を指す）。後で B を戻す。
+  - V4a: 開いている Scene を編集し、保存せずに Play。build 0 回、状態 `NotRequired`、その Scene は複製から載り（record は `EditorSnapshot`）、編集が Play の中で読める。停止の後、Scene は Dirty のままである。
+  - V4b: 続けて同じ編集を保存して Play。build 0 回、状態 `NotRequired`、計画の「他の供給元」にその Scene が 1 件あり、上書きの root は 0 件。編集は、Scene の保存の hook が他の asset を書き換えないもの（GameObject の名前）にする。保存で `SceneResource` などが書き換わった時は、V4b を不合格にせず、その事実を §7 に書いて owner に返す（S-2 の対象外の場合に当たる）。
+  - V5: 開いていない Scene B を `.meta` と一緒に `Assets` の外へ退かし、B と、手元にある開いていない Scene C の両方の閉包に入る asset を編集 → Play。C は上書き、B は作り直せない root（base の版で載る組、理由 `SourceAbsent`）として Warning と record に名前つきで出て、Play に入る。B を要求すると base から載る（record は base を指す）。編集した asset の値を、C の参照から読むと手元の値、B の参照から読むと base の build の時の値（HEAD の値）である。つまり V5 は、Play に入れることに加えて、B が意図して古い版のままであることと、開発者がそれを Warning と record から B の名前で識別できることを観測する。後で B を戻す。
   - V6: 空の Scene だけを開いた明示設定の Play。経路 Built が置くのと同じ key（mode・installed の pair・build の identity・表現・初回 Scene）に上書きの key 2 つを足して環境変数に置き、上書きの path は V1 の成果物、identity は別の値にする。起動は登録の失敗で止まり（失敗の code は log のものを記録する）、要求時解決の配線の行（`Content resolution: wired=true`）が出ず、record は `StartupFailed`。base だけの Play として始まらない。登録の失敗の code ごとの照合（`OverlayBaseMissing`・`OverlayBaseMismatch`・`InvalidRoot`）は S3-2 の `ContentOverlaySessionTests` が持つ。
-  - V7: Reload Domain を有効にして V1 → V2 を行う。2 回とも上書きつきの登録が成功する。
-  - 各回の初期条件は、`git status --porcelain` が空で、Dirty の asset がその回の予定した編集だけであること。各回の後、予定した編集（入口が保存したもの）と、§6 に列挙した複製の準備の書き込み（未確認 (v) の結果）の他の差分があれば不合格である（V5 は B を戻した後）。各回の前後で、開いている Scene の path と Dirty が同じことも確かめる。V1 では installed の revision の file の一覧と大きさが前後で同じことも確かめる。
+  - V7: Reload Domain を有効にして、V1 と同じ手順を V1 と違う値の編集で行い（鍵が変わるので build 1 回）、停止してそのまま再 Play する（build 0 回、`Reused`）。2 回とも上書きつきの登録が成功し、値が手元の値で読める。
+  - working tree の読み方: base の準備（検証 Play）の後に 1 回、`git status --porcelain` が空で Dirty の asset が無いこと（基準）を記録する。以後は、回ごとに「開始の時にあってよい差分」と「終了の時にあってよい差分」を下の表で固定し、それ以外の差分が 1 つでもあれば不合格である。「複製の書き込み」は、今ある経路の V0 で判定の担当が観測した、複製の準備が source に書く file の種類（Scene の保存の hook の書き込み等。無ければ空）を指す。V0 に無い種類の書き込みは、どの回でも許さない（§6 の B の列挙は参考で、許す範囲を決めるのは V0 の観測である）。回は表の順に行う。
+
+    | 回 | 準備 | 開始の時にあってよい差分 | 終了の時にあってよい差分 | 復元 |
+    |---|---|---|---|---|
+    | V0 | なし | なし | 複製の書き込み | 複製の書き込みを戻す |
+    | V1 | material の色を変える（保存しない） | なし（Dirty は material だけ） | material の file（入口が保存した）、複製の書き込み。この一覧を「V1 の差分」として記録する | しない |
+    | V2 | なし | V1 の差分 | V1 の差分と同じ | しない |
+    | V3 | material と複製の書き込みを戻す | なし | 複製の書き込み | 複製の書き込みを戻す |
+    | V4a | `Title` を Dirty にする（保存しない） | なし（Dirty は `Title` だけ） | 複製の書き込み（`Title` の file は変わらない） | しない |
+    | V4b | `Title` を保存する | `Title` の file、複製の書き込み | 開始の差分と同じ | `Title` と複製の書き込みを戻し、`Title` を開き直す |
+    | V5 | B を退かす、material の色を変える（V1 と違う値） | B の `.unity` と `.meta` の削除、Addressables の設定（退かした時に書き換わった file。一覧を記録） | 開始の差分、material の file、複製の書き込み | B を戻し、material と Addressables の設定と複製の書き込みを戻す。空に戻ったことを確かめる |
+    | V6 | 空の Scene を開く、環境変数を置く | なし | なし | 環境変数を消す。`Title` を開き直す |
+    | V7 | Reload Domain を有効にする、material の色を変える（V1・V5 と違う値。保存しない） | Enter Play Mode の設定の file（変わるなら） | 開始の差分、material の file、複製の書き込み（2 回の Play の後） | material と Enter Play Mode の設定と複製の書き込みを戻す。設定が元の値で、空に戻ったことを確かめる |
+
+  - 各回の前後で、開いている Scene の path と Dirty が同じことも確かめる（準備と復元の操作を除く）。V1 では installed の revision の file の一覧と大きさが前後で同じことも確かめる。
+  - 検査の費用の記録（合否に使わない）: V1・V2・V3 で、record の 4 つの所要、上書きに入れた root の数、計画が読む file の件数と総 bytes、再利用の確かめが読む成果物の file の件数と総 bytes を記録する。件数と bytes は、判定の担当が計画の契約から数える（base の閉包の記録の file のうち手元にあるものと、手元の selected の root の閉包の和集合。`.meta` を含む。成果物は `content/<identity>/` の下）。計画の code に計測を足さない。絶対の秒数と閾値は判定に使わない。
   - 読み方: 「build 0 回」は、成果物の root の `reports/` に新しい directory が増えないことで読む（report の directory は preflight の段で必ず作られる）。V1〜V6 は Reload Domain 無効（project の既定）で行う。
 - **AC6 変更の範囲（I-2、program §5.3 の見直しの条件 (3)）。** `git diff --stat <implementation base>..<head>` で次を確かめる。
   - `unity/Assets/OneStarMaker/Scripts/Runtime/` の差分は、`Bootstrap/AbstractApplicationInitializer.cs` と、起動の設定を読む新しい file 1 つ（と `.meta`）だけ。`ContentResolution/`・`BuildContent/`・`AssetManagement/`・`SceneSystem/` に差分が無い。
-  - `Runtime/` に足す型は internal で、public の型・member・enum の値を足さない。
+  - `Runtime/` に足す型は internal で、public の型・member・enum の値を足さない。`Runtime/` の外の Framework に足す public の面は、`BuildContentResult` の読み取り専用の欄 1 つと、Framework の Editor の定数の型 1 つだけである。
   - asmdef と `InternalsVisibleTo` に差分が無い。
   - `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` が通る。
 - **AC7 今ある経路の非退行（I-2）。** 判定必須の既存の test（§5）と最終の全 EditMode 回帰が通る。実 Editor で経路 Built + open scenes の Play を 1 回行い（§5 の V0）、成果物の root に新しい report が増えず、置いた key に上書きの key が無く、Play に入ることを確かめる。
@@ -198,6 +224,9 @@ AC1〜AC4 と AC6 は EditMode の単体 test と機械検査、AC5 と AC7 の�
 | Play の間の script の compile（Domain Reload）で session が失われた後の扱い | S4（登録の寿命。1 directory の Play と同じ性質） |
 | 上書きを重ねた Play の結論を Player で確かめ直すか | S4（Player の実機の非退行） |
 | base より古い checkout と偽の編集の見分け、検出の所要を減らす工夫、古い上書きの掃除、再利用の記録を複数持つこと | S4・S5（S3-4a が移送済み） |
+| Play の前の検査を、正しさを失わずに軽くすること。第一の候補は「変わったものだけを確かめる」道（初回の全量の照合で基準を作り、Editor の import・asset の変更の通知から GUID を追い、確実に変わっていない file の hash を省く。再利用の成果物の確かめも、確かめ済みで変わらない成果物に限って省く）。通知だけを「変更が無い証拠」にせず、Editor を閉じている間の checkout・外部の編集・移動・削除・base や Unity や import の条件の変更・記録の破損で基準を捨てて全量へ戻す。正しさは、全量の判定と同じ計画・鍵・作り直せない集合になることの差分の test で持つ | S5（Phase D が、AC5 の検査の費用の記録から「省ける処理」と「今は省けない処理」を S5 の入力として program に書く。本書の受け入れ条件にしない） |
+| 全量の検査をしない Play。今は、利用者が明示的に Source・Built・Built + open scenes を選ぶことがその道である。完全性を保証しない速い Play を足す時は、結果の保証の範囲（確かめた・一部・分からない）を区別して設計し、owner が裁定する | S5 |
+| `NotInBase` の root がある時に、Play の前に止めるか（U2 は止めない）。記録の無い base の欠けた root が base にあるかを manifest の `index` から見分けること | S4（base の選び方。base が checkout より古い時に生じる） |
 | 上書きのために S3-2 が足した暫定の public の値を確定するか | Phase D が、見直しの条件 (1)〜(3) の結果を program §5.3 に書く。本書の受け入れ条件にしない |
 
 入口は、明示 close が失敗した session を捨てる経路を作らない（S3-2 からの移送への答え。Play 停止と登録の巻き戻しの再試行は S3-2 のまま）。
@@ -214,7 +243,7 @@ AC1〜AC4 と AC6 は EditMode の単体 test と機械検査、AC5 と AC7 の�
   - P2-b: `EditorPlaySnapshotBridge` と同じ static の bridge。delegate を渡す snapshot には要るが、文字列 2 つには、置き直しの仕組みと「key はあるが bridge が無い」の失敗の分だけ余分である。
   - P2-c: `content:overlayPath` などを `content:` に足す。Player の protected の集合と baked の値に欄が増える。
 - **P3 作り直せない root がある時（program が本書に割り当てた決定）。**
-  - P3-a（採る）: 止めずに Play に入り、Play のたびに Warning と record に出す。黙らせる設定は作らない。計画の集合をそのまま認める。
+  - P3-a（採る）: 止めずに Play に入り、Play のたびに Warning と record に出す。黙らせる設定は作らない。計画の集合をそのまま認める。base にも上書きにも無い root（`NotInBase`）がある時も止めず、「要求すると失敗する」と分けて示す。この root は、map に root が足された後の checkout で、その source が手元に無く、base がそれより古い時に生じる。入口で止めると、新しい base が届くまで、その root に触れない Play も全て止まる。要求した時は解決の失敗になり（必須の Scene の失敗は fail-closed。program §4.1）、古い版や別の物は出ない。
   - P3-b: 止めて、確認を取ってから入る。共有 asset を編集するたびに確認が要り、program が見直しの引き金とした「日常的な共有 asset の編集のたびに Play を止める」に当たる。
   - P3-c: 止めるか続けるかを設定で選ばせる。利用者の入力が増え、止める側を選ぶ理由を目的から示せない（止めても手元では作り直せない）。
 - **P4 順序。**
@@ -260,19 +289,20 @@ AC1〜AC4 と AC6 は EditMode の単体 test と機械検査、AC5 と AC7 の�
 - 機械向けのデータ（期待値の一覧、baseline）を git に入れない。
 - Unity の版は `unity/ProjectSettings/ProjectVersion.txt`（6000.6.9f1）。
 - SampleGame の所要の秒数を、方式や閾値の判断に使わない。入口は所要を出すだけで、閾値を持たない。
+- 入口は、Play の前の検査（materialize、編集の検出、鍵、再利用の成果物の確かめ）を省かない。検査が重い時・失敗した時に、確かめていない `NotRequired`・`Reused` を作らず、他の経路の値へ自動で切り替えない。検査を軽くする工夫は足さない（S5）。計測のために計画の code と core の public の面を変えない。
 - 上書きは Editor の Play だけで使う。base 1 つと上書き 0 か 1 つ、登録は最初の load より前、解除は Play の終わり（13 章の契約を変えない）。
 - Phase B は Unity の test と batch の build を走らせない。§4 の (1) の観測は、開いている Editor の `tools/unity-editor.cmd eval` で行う。
 
 ### 2.8 owner の裁定が要る点と、担当が決めた点
 
-owner の裁定が要る点（担当の案を書く。凍結の時に、覆す行だけを指せばよい）:
+owner の裁定が要る点（担当の案を書く。凍結の時に、覆す行だけを指せばよい）。U2 と U6 は、外部計画レビュー 1 巡目の後、owner が 2026-11-22 に下の案のとおり承認した。U1・U3・U4・U5 は未了である:
 
 - **U1 目的と利用者の文言**（§1）。
-- **U2 作り直せない root がある時は、止めずに Play に入り、毎回示す**（§2.4 P3-a、§2.9）。program が本書に割り当てた決定で、S3-4a の担当の見立てと同じである。
+- **U2 作り直せない root がある時は、止めずに Play に入り、毎回示す**（§2.4 P3-a、§2.9）。program が本書に割り当てた決定で、S3-4a の担当の見立てと同じである。base にも上書きにも無い root（`NotInBase`）がある時も止めず、「要求すると失敗する」と分けて示す（外部計画レビュー 1 巡目の Major 3。入口で拒否する案との裁定）。
 - **U3 経路を 1 つ足す**（§2.4 P1-a）。今の Built + open scenes には上書きを足さない。
 - **U4 入口が Play の前に Dirty の asset を保存する**（§2.4 P5-a）。新しい経路の副作用として 18 章に書く。
 - **U5 見直しの条件 (3) の読み。** 「2 層のための Runtime の特例」は、解決・session・gate の中の分岐と public の値を指し、program の行が本書に割り当てた起動の配線（config の key 2 つの読みと、登録の口の呼び分け）は数えない。AC6 がこの読みで範囲を固定する。
-- **U6 利用者の層にある上書きの key は明示設定として扱う**（I-2、AC3 の (e)）。今ある経路でも、その key がある時だけ入口は素通りし、起動が key を読む。
+- **U6 利用者の層にある上書きの key は明示設定として扱い、Scene の混在の安全のための拒否は明示設定より先に掛ける**（I-2、AC3 の (e)）。判定表の行の順は変えない。その key がある時、入口は明示設定の行で素通りし、起動が key を読む。明示の directory と上書きの key があっても、再利用しうる Scene が開いていれば今と同じく拒否する。別の host の明示の上書きに限って混在を許す案は採らない（外部計画レビュー 1 巡目の Major 1 の裁定）。
 
 担当が決めた点:
 
@@ -305,17 +335,18 @@ program は、入口の配線の前に、部分 checkout で Play を止めざ�
 | A 開いている Scene 自体 | 複製が届ける。build なし | 入る |
 | B 局所的な asset。参照する root が全て手元にある | 上書きを build（参照する root の分） | 入る |
 | C 広く共有された asset。参照する root が全て手元にある | 上書きを build（重い）。root の数と所要が出る | 入る |
-| D 広く共有された asset。参照する root の一部が手元に無い | 手元にある root は上書き、無い root は作り直せない root として毎回出る | 入る（U2） |
+| D 広く共有された asset。参照する root の一部が手元に無い | 手元にある root は上書き、無い root は作り直せない root として毎回出る。無い root は base の版のままで、編集は反映されない | 入る（U2） |
 | E 新しい asset を参照に足す | 上書きを build | 入る |
 | F 共有 asset の繰り返しの調整 | 開いている Scene から見える分は複製が手元の版で出す（S3-3 の O-1・O-2）。開いていない root は C か D | 入る |
 
-**結論:** U2 の規則の下では、A〜F のどれも Play を止めない。部分 checkout で日常的に起きるのは「止まる」ことではなく、D の通知が毎回出ることと、C・D の build の重さである。この評価に反する観測が出たら §2.6 の NO-GO (iv) で止める。
+**結論:** U2 の規則の下では、A〜F のどれも Play を止めない。これは「止めずに続ける」と選んだ結果であり、Play に入れることと、編集が期待した全ての root に反映された状態で確かめられることは別である。A・B・C・E は全ての root に反映される。D は手元にある root にだけ反映され、手元に無い root は base の版のままで、どの root がそうかが毎回示される。部分 checkout で日常的に起きるのは「止まる」ことではなく、D の通知が毎回出ること、D の root を手元では確かめられないこと、C・D の build の重さである。上書きの方式を続けるかの判断の材料として、AC5 の V5 が、base に残った Scene の依存が意図して古い版であることと、それを開発者が識別できることを観測する。この評価に反する観測が出たら §2.6 の NO-GO (iv) で止める。
 
 **構造から分かる体験の弱点（止めはしないが、導入先が評価するもの）:**
 
 - 記録の無い base（S3-4a より前に publish した build）と部分 checkout の組では、編集が無くても、欠けた root が全て作り直せない root として毎回出る（計画の契約）。記録を持つ base に替われば消える。
 - base より古い checkout と偽の編集は、編集として計画に出て、要らない上書きが作られる。入口は root の数と所要を出すので気づける。見分けは S4。
-- 計画は Play のたびに閉包の file を hash する。所要は project の規模で決まり、入口が出す。速くする工夫は S5。
+- 計画は Play のたびに閉包の file を hash し、再利用の確かめは成果物の file を全て hash する。「build 0 回」の Play でも、検査の読み込みは 0 ではない。所要は project の規模で決まり、入口が 4 つに分けて出す（S-6）。大きな project では、build 0 回でも Play の体験が成り立たない可能性がある。本書は正しい全量の判定を基準として保ち、軽くする道は S5 が設計する（§2.3）。費用が許せない利用者は、今ある経路を明示的に選ぶ。
+- base にも上書きにも無い root（`NotInBase`）は、base が checkout より古い時に生じ、要求すると失敗する。入口は分けて示す。base の選び方は S4。
 - 開いている Scene を保存した時に、保存の hook が `SceneResource` を書き換えると、それは SceneResourceMap の root の編集として計画に出て、上書きが作られる（Scene だけの編集ではなくなる）。複製の保存でも hook が走るなら（未確認 (v)）、保存していない Scene の編集でも同じことが起きる。その時は §6 に書き、見直しの条件 (1) の読み方を owner に返す。
 
 ## 3. 責務マップ
@@ -330,7 +361,7 @@ path は `unity/Assets/` からの相対。行数は base `d176033a` の `wc -l`
 | `OneStarMaker/Scripts/Runtime/Bootstrap/ContentOverlayStartup.cs`（新規、名前は B が決めてよい） | 起動の config と起動の状態（Editor の Play か、mode、検証済みの base か、Player の構成か）から、上書きなし・上書きつきの登録・失敗の理由のどれかを返す。Unity を呼ばない。key の名前と log の marker の定数の正本を持つ | AC2 | 起動 1 回。状態を持たない | `AppConfig` の読みだけ | internal | Unity を使わない単体 test | 0 → 約 75 |
 | `OneStarMaker/Scripts/Editor/` の下の新規 file 1 つ（asmdef `OneStarMaker.Editor`。名前と folder は B が決めてよい） | 上の定数を public の定数で公開し直す。logic を持たない | AC2 (i)。SampleGame と別の host が文字列を複写しないため | — | Runtime（今ある `InternalsVisibleTo`） | public の定数 | 定数が Runtime の値と等しいことの単体 test | 0 → 約 20 |
 | `OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs` | 上の結果で登録の口を呼び分け、1 行の log を出す。判断を持たない | AC2 | session は今と同じく initializer が持ち、`AssetManagement` に install する | `ContentDirectorySession`（今と同じ assembly） | 変えない | 実 Editor（AC5） | 1305 → 約 1335 |
-| `SampleGame/DependOnAll/Editor/Build/PlayEntryOverlay.cs`（新規） | 入口の上書きの段の規則。port が返す計画の要約（状態、上書きの root、作り直せない root と理由、他の供給元、当たらなかった編集）から、再利用か build かを決めて port を呼び、結果の要約（`NotRequired` / `Reused` / `Built` / `UnbuildableOnly`、所要、記録の失敗、置く key）を返す。計画の object（`ContentOverlayPlan`）と build は port の向こうに置き、この file は SampleGame 側の小さな要約の型だけを扱う | S-1〜S-3、S-5〜S-7、I-1、I-3 | tick 1 回。状態を持たない | port（計画、認めて再利用、認めて build、時計） | internal | port を fake にした単体 test（Framework の計画の object を作らない） | 0 → 約 180 |
+| `SampleGame/DependOnAll/Editor/Build/PlayEntryOverlay.cs`（新規） | 入口の上書きの段の規則。port が返す計画の要約（状態、上書きの root、作り直せない root と理由、他の供給元、当たらなかった編集）から、再利用か build かを決めて port を呼び、結果の要約（`NotRequired` / `Reused` / `Built` / `UnbuildableOnly`、作り直せない root の 3 つの組、4 つの所要、記録の失敗、置く key）を返す。計画の object（`ContentOverlayPlan`）と build は port の向こうに置き、この file は SampleGame 側の小さな要約の型だけを扱う | S-1〜S-3、S-5〜S-7、I-1、I-3 | tick 1 回。状態を持たない | port（計画、認めて再利用、認めて build、時計） | internal | port を fake にした単体 test（Framework の計画の object を作らない） | 0 → 約 180 |
 | `…/PlayEntryTransaction.cs` | 順序の状態機械。新しい経路の時だけ、保存 → 複製 → import の反映 → 上書きの段を、ledger の前に呼ぶ。判定の出力の値に上書きの段の key を足して `ApplyForOnePlay` に渡し、上書きの要約を `PublishPlanned` に渡す（合わせるのはここだけ） | AC4 (a)(g) | 今と同じ | port | internal | `PlayEntryTransactionTests` | 170 → 約 205 |
 | `…/PlayEntryDecision.cs` | 判定表。経路の値と rule を 1 つずつ足し、明示設定の key に上書きの key 2 つを足す。上書きの中身は知らず、上書きのための一般の拡張点を持たない。候補の型 `PlayEntryCandidate`（この file にある）が、検証した install の結果（`ContentInstallResult`）を持つ | AC3 | 純粋 | 今と同じ | internal | `PlayEntryDecisionTests` | 316 → 約 355 |
 | `…/PlayEntryInterceptor.cs` | Unity の callback と port の実物の配線 | 新しい port | 今と同じ | — | — | — | 230 → 約 265 |
@@ -349,7 +380,7 @@ path は `unity/Assets/` からの相対。行数は base `d176033a` の `wc -l`
 ## 4. 実装計画
 
 - 順序:
-  1. **未確認 (i)〜(v) の観測**（開いている Editor の `eval`。Unity の test と batch の build は走らせない）。(i) Dirty を含む Scene を開いたまま、tick から Content Directory の build を 1 回起こし、前後で開いている Scene の path・Dirty・内容（root の数と、Dirty にした値）を比べる。(ii) tick の中で `AssetDatabase.SaveAssets()` と `Refresh()` を呼んだ直後の `isCompiling`・`isUpdating` と、同じ tick で build に進めるか。(iii) Reload Domain 有効で、directory の Play → 停止 → Play に入った直後の native の登録の一覧（13 章の実測と同じ読み方）。(iv) 複製の置き場に Scene がある状態の build の preflight の閉包と、複製の file の hash。(v) Dirty の Scene を開いたまま複製を準備し（今の経路 Built + open scenes の準備と同じ呼び出し）、前後の `git status --porcelain` で、複製の準備が書いた source を特定する（Scene の保存の hook を含む）。結果を §6 に書き、§2.6 の NO-GO (i)(ii) に当たれば実装を積まずに owner に返す。順序の入れ替えで済むもの（例: 保存と複製の順）は B 適応として §6 に書く。
+  1. **未確認 (i)〜(v) と観測の経路 (vi) の確認**（開いている Editor の `eval`。Unity の test と batch の build は走らせない）。(i) Dirty を含む Scene を開いたまま、tick から Content Directory の build を 1 回起こし、前後で開いている Scene の path・Dirty・内容（root の数と、Dirty にした値）を比べる。(ii) tick の中で `AssetDatabase.SaveAssets()` と `Refresh()` を呼んだ直後の `isCompiling`・`isUpdating` と、同じ tick で build に進めるか。(iii) Reload Domain 有効で、directory の Play → 停止 → Play に入った直後の native の登録の一覧（13 章の実測と同じ読み方）。(iv) 複製の置き場に Scene がある状態の build の preflight の閉包と、複製の file の hash。(v) Dirty の Scene を開いたまま複製を準備し（今の経路 Built + open scenes の準備と同じ呼び出し）、前後の `git status --porcelain` で、複製の準備が書いた source を特定する（Scene の保存の hook を含む）。(vi) 今ある経路の directory の Play の中で、`eval` から `SceneDirector` の instance に届き、`AddScene` と `GetContentLoadRecord` を呼べるか（AC5 の V1・V5 の観測の経路）。届かなければ、届く口を足さずに Phase A へ返す。結果を §6 に書き、§2.6 の NO-GO (i)(ii) に当たれば実装を積まずに owner に返す。順序の入れ替えで済むもの（例: 保存と複製の順）は B 適応として §6 に書く。
   2. 再利用の記録の修正と test（AC1）。
   3. 起動の設定の型と定数、Framework の Editor の public の定数、test、起動の呼び分け（AC2）。
   4. SampleGame の host の関数と合成の引き継ぎ。
@@ -368,15 +399,15 @@ path は `unity/Assets/` からの相対。行数は base `d176033a` の `wc -l`
 - 統合・Unity テスト: build を伴う既存の実機の test は、他の Unity が同時に動くと失敗した既知の事例がある（program §8）ので、判定 C は他の Unity を止めて走らせる。batch の後の Unity の終了 stall は既知（`tools/Harness/README.md`）で、XML の完成で判定する。coordinator の staging の `Directory.Move` の access denied の既知の不安定に当たった時は、同じ head で走らせ直してよく、その事実を §7 に記録する。
 - 操作・実行時・目視条件の検証経路（AC5・AC7 の実 Editor）:
   - 担当と環境: 判定 C の実行担当。候補 head の checkout の Editor（`tools/unity-editor.cmd status` が `ready`）。他の Unity を止める。操作は `tools/unity-editor.cmd eval <UTF-8 Base64>`。build 中と Play の移行中の `eval` は timeout して Console に Error を残すので、その行を App の Error と区別して読む（18 章「観測の注意」）。
-  - 初期状態: `git status --porcelain` が空で、Dirty の asset が無い。RunPurpose は `spring-full`。検証 Play（`Tools/OSM/Content/Verify Play/spring-full` と同じ段）で、候補 head の checkout から base を build・publish・install する。開く Scene は、V0〜V5・V7 が `Title`（保存済み）、V6 が空の Scene。経路は V0 が Built + open scenes、V1〜V5・V7 が Built + local edits、V6 は経路に依らない（明示設定）。`EditorSettings.enterPlayModeOptions` は V7 だけ Reload Domain 有効。
+  - 初期状態: `git status --porcelain` が空で、Dirty の asset が無い。RunPurpose は `spring-full`。検証 Play（`Tools/OSM/Content/Verify Play/spring-full` と同じ段）で、候補 head の checkout から base を build・publish・install する。開く Scene は、V0〜V5・V7 が `Title`（保存済み）、V6 が空の Scene。V4 は V4a と V4b の 2 回である。経路は V0 が Built + open scenes、V1〜V5・V7 が Built + local edits、V6 は経路に依らない（明示設定）。`EditorSettings.enterPlayModeOptions` は V7 だけ Reload Domain 有効。
   - Play の始め方と止め方: `EditorApplication.EnterPlaymode()` と `ExitPlaymode()`（入口の `ExitingEditMode` を通る。Toolbar の Play と同じ判定に入る）。
   - 対象の Scene の選び方と要求: V1 の対象は、宣言が選び、開いておらず、`Title` を開いた Play で `SceneDirector` が要求する Scene（開いている Scene の親、または起動の後の最初の遷移で載る Scene）から選ぶ。自動で要求されない Scene を使う時は、Play の中で `eval` から `SceneDirector.AddScene` を呼んで要求する。どちらで要求したかを記録する。この経路は初回 Scene を置かないので、開いていない Scene は要求しない限り載らない。
-  - 編集の作り方: V1 は、対象の Scene の閉包に入り、`Title` の閉包に入らない `Assets/` の material を 1 つ選び（base の build の preflight の `rootClosures` から選ぶ）、色の property を `eval` で変える。保存はしない（入口の保存を通す）。V3 は Play を止めた後に `git checkout -- <path>` と `AssetDatabase.Refresh()` で戻す。V4 は `Title` の GameObject の名前を 1 つ変えて Scene を Dirty にし、保存しない。V4 の後は Scene を保存せずに開き直して Dirty を捨てる。V5 は、同じ material を閉包に持つ 2 つの Scene（B と C）を `rootClosures` から選び、B の `.unity` と `.meta` を project の外の一時 folder へ移して `Refresh()` する。SampleGame の Scene は Addressables の entry なので、退かすと group の asset が書き換わりうる。V5 の後に B を戻して `Refresh()` し、編集した material と、書き換わった Addressables の設定の file を `git checkout` で戻し、`git status --porcelain` が空に戻ることを確かめる。戻した file の一覧を記録する。該当する Scene の組が無い時と、空に戻せない時は、その事実を §7 に書いて owner に返す（fixture で代えるかは Phase A の裁定）。
+  - 編集の作り方: V1 は、対象の Scene の閉包に入り、`Title` の閉包に入らない `Assets/` の material を 1 つ選び（base の build の preflight の `rootClosures` から選ぶ）、色の property を `eval` で変える。保存はしない（入口の保存を通す）。V3 は Play を止めた後に `git checkout -- <path>` と `AssetDatabase.Refresh()` で戻す。V4a は `Title` の GameObject の名前を 1 つ変えて Scene を Dirty にし、保存しない。V4b はその Scene を保存する。V4b の後は `Title` の file を `git checkout` で戻し、Scene を開き直す。V5 と V7 の material の値は、V1 と違う値にする（同じ値では V1 の上書きが再利用されうる）。V5 は、同じ material を直接参照する 2 つの Scene（B と C）を `rootClosures` から選び、Play の中で B と C を要求して、それぞれの参照から material の値を読む。準備では、B の `.unity` と `.meta` を project の外の一時 folder へ移して `Refresh()` する。SampleGame の Scene は Addressables の entry なので、退かすと group の asset が書き換わりうる。V5 の後に B を戻して `Refresh()` し、編集した material と、書き換わった Addressables の設定の file を `git checkout` で戻し、`git status --porcelain` が空に戻ることを確かめる。戻した file の一覧を記録する。該当する Scene の組が無い時と、空に戻せない時は、その事実を §7 に書いて owner に返す（fixture で代えるかは Phase A の裁定）。
   - V6 の値: mode は `directory`、installed の pair・build の identity・表現は installed の receipt と V1 の起動の log（`Content resolution: wired=true` の行）から取り、初回 Scene は `Title`、上書きの path は V1 の record の成果物の path、上書きの identity は V1 の identity の末尾を変えた値にする。環境変数は `SAMPLEGAME_` + key（`:` を `__`、大文字）で置き、V6 の後に消す。
-  - 観測と合否: 各回で次を保存する。(1) `SessionState` の record の JSON（`OSM.PlayEntry.Record.v1`）。上書きの状態、root の数、作り直せない root、所要、置いた key、起動の観測との突き合わせ。(2) Editor の log のうち `[AppInit]` の行（上書きつきの登録の行、`Content resolution` の行、`ContentRequest` の record の行）。(3) Play の中で `eval` で読んだ、編集した material の property の値（HEAD の値と並べる）と、対象の Scene の record の供給元。(4) 成果物の root の `reports/` の directory の一覧（回の前後）。(5) 回の前後の開いている Scene の path と `isDirty`、`git status --porcelain`。合否は AC5・AC7 の各行の文で読む。値と構造の検査だけで判断し、画像は使わない。
+  - 観測と合否: 各回で次を保存する。(1) `SessionState` の record の JSON（`OSM.PlayEntry.Record.v1`）。上書きの状態、root の数、作り直せない root（組ごと）、4 つの所要、置いた key、起動の観測との突き合わせ。(2) Editor の log のうち `[AppInit]` の行（上書きつきの登録の行、`Content resolution` の行）。(3) Play の中で `eval` で読んだ、編集した material の property の値（HEAD の値と並べる）と、対象の Scene の `SceneDirector.GetContentLoadRecord` の供給元（`ContentOverlay`・base の directory・`EditorSnapshot` のどれか）。(4) 成果物の root の `reports/` の directory の一覧（回の前後）。(5) 回の前後の開いている Scene の path と `isDirty`、`git status --porcelain`。合否は AC5・AC7 の各行の文で読む。値と構造の検査だけで判断し、画像は使わない。
   - 対象版と受け渡し: 候補 head の SHA を各回の記録に書く。保存した記録は判定の evidence bundle に入れ、C' には同じ生の記録を blind bundle で渡す。
   - 動作確認（Phase B の後）: V1・V2・V3 を各 1 回。入口が起こす上書きの build は操作そのものなので含める。base は installed cache に既にある検証済みの revision を使い、無ければ `未実施` として判定 C が用意する。
-- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: **未確認。初回確認は Phase B の最初の作業（§4 の (1)）と Phase C。** 対象は §1 の未確認 (i)〜(v)、V1 の「開いていない Scene を Play の中で要求する」操作、V5 の「実 project の Scene を一時的に退かして戻す」操作（Addressables の設定が元に戻るかを含む）である。理由は、Unity の build を伴う試行を Phase A で行わないため。`eval` での Editor の操作、検証 Play の段、経路 Built + open scenes の実 Editor の Play と record の読みは、S0-d と S3-3 の判定 C で成立した経路である。不成立の時は §2.6 の NO-GO で owner に返す。V5 だけが作れない時は、合成 fixture の実機の test（`OverlayFromLocalEditsIntegrationTests` と同じ部分 checkout の fixture を、起動の設定から通す形）で代えるかを Phase A で決め直す。
+- 未知の操作経路の疎通結果と、必要な検証支援・確認地点: **未確認。初回確認は Phase B の最初の作業（§4 の (1)）と Phase C。** 対象は §1 の未確認 (i)〜(v)、V1 の「開いていない Scene を Play の中で要求する」操作と「Play の中で `eval` から `SceneDirector` に届いて record を読む」操作、V5 の「実 project の Scene を一時的に退かして戻す」操作（Addressables の設定が元に戻るかを含む）である。理由は、Unity の build を伴う試行を Phase A で行わないため。`eval` での Editor の操作、検証 Play の段、経路 Built + open scenes の実 Editor の Play と record の読みは、S0-d と S3-3 の判定 C で成立した経路である。不成立の時は §2.6 の NO-GO で owner に返す。V5 だけが作れない時は、合成 fixture の実機の test（`OverlayFromLocalEditsIntegrationTests` と同じ部分 checkout の fixture を、起動の設定から通す形）で代えるかを Phase A で決め直す。
 - 人間の判断が必要な条件と合意した担当・証拠の受け入れ方: なし。
 - 高コスト証拠: なし（Player の build も不可逆な操作も無い。検証 Play の base の build は判定の準備で、やり直せる）。
 - 判定 C の照合 script の方式: なし（test の XML と、保存した記録を判定 C の担当が読む）。
@@ -426,7 +457,24 @@ path は `unity/Assets/` からの相対。行数は base `d176033a` の `wc -l`
   | 目的レビュー | 作り直せない Scene の確認の dialog、強制 rebuild の切替、編集を選ぶ UI を作らない | 一致（初稿のまま） | §2.4 P3、UC-1 |
 
 - 影響する A2 観点の再レビュー: 行わない。採った指摘は、A2 の担当が示した形（明示設定への組み入れ、定数の置き場、port の境界、検証経路の手順）をそのまま入れたもので、新しい責務・依存・公開面は Framework の Editor の定数の file 1 つだけである。外部計画レビューが統合案の全体を読む。
-- A3 統合担当: AI（Claude Code、Anthropic）。外部計画レビューと owner の裁定は未了。
+- A3 統合担当: AI（Claude Code、Anthropic）。
+- 外部計画レビュー 1 巡目（2026-11-22、PR #203 の owner のアカウントのコメント 2 件。対象 head `bd64ccf6`。レビューの担当の系列は、本書の担当からは確かめていない）。下は主担当の採否の案で、owner は 2026-11-22 に、裁定を求められた 2 点（Major 1 と Major 3 の案。§2.8 の U6 と U2）を承認し、修正の push を指示した。指摘の根拠は 3 件とも base の code で確かめた（判定表の行の順は `PlayEntryDecision.cs` 163〜190 行目、`NotInBase` の定義は `ContentOverlayPlan.cs` 81〜82 行目）。
+
+  | 指摘 | 案 | 反映 |
+  |---|---|---|
+  | Major 1: AC3 の (e) の「明示設定なら 4 経路とも素通り」は、今の判定の順（再入、directory と再利用しうる Scene の拒否、1 回の ledger が明示設定より前）と衝突する。行を繰り上げると安全の拒否を迂回し、今の順のままでは (e) に不合格 | 採用。裁定の案は「明示設定でも Scene の混在の安全の拒否を優先する」（行の順を変えない） | I-2、§2.1 の用語、AC3 の (e-1)〜(e-4)、§2.8 U6 |
+  | Major 2: 「各回 `git status` が空」は V1 → V2 → V3 と両立しない（V1 の保存が V2 と V3 の開始に残る） | 採用 | AC5 の回ごとの表（基準、開始と終了の時にあってよい差分、復元。V7 の Enter Play Mode の設定を戻すことを含む） |
+  | Major 3: 「作り直せない root は base から載る」は `NotInBase` には成り立たない。「警告して続ける」と「その root を要求しても成り立つ」は別の主張 | 採用。裁定の案は「止めずに続け、要求すると失敗する root を分けて示す」 | I-3（3 つの組）、S-5、AC4 の (m)、§2.4 P3-a、§2.8 U2、§2.9、§2.3（入口で止めるかと、記録の無い base の見分けは S4） |
+  | 補足: Play に入れることと、編集が全ての root に反映されて確かめられることを分ける。V5 で、base に残った Scene の依存が意図して古い版であることと、開発者がそれを識別できることを観測する | 採用 | §2.9 の結論、S-5、AC5 の V5、誤って YES を出す道 |
+  | 追加 1: 全量の判定を基準として保ち、確かめていない `NotRequired`・`Reused` や自動の縮退を足さない。軽くするためだけに本書の責務を増やさない | 採用（初稿と同じ向き。文にした） | I-1 の経路 (11)、AC4 の (n)、§2.7 |
+  | 追加 2: AC5 の実 Editor の証拠に、検査の費用の内訳（所要、file の件数と総 bytes、root の数）を残す。合否にしない | 採用。編集の検出・分類・鍵は計画の 1 回の呼び出しなので、所要は 4 つ（選択の準備、計画、再利用の確かめ、build）に分け、計画の中は分けない。件数と bytes は判定の担当が計画の契約から数える（計画の code を変えないという指摘の条件のため） | S-6、AC4 の (o)、AC5 の「検査の費用の記録」、§3 |
+  | 追加 3: S5 の第一の候補は「変わったものだけを確かめる」道。通知だけを証拠にしない、失効の条件、全量との差分の test | 採用（後続の入力） | §2.3 |
+  | 追加 4: 全量をしない Play は、利用者が明示的に今ある経路を選ぶ道として残す。新しい経路の中で黙って省かない。完全性を保証しない速い Play は保証の範囲を区別して設計する | 採用（後続の入力） | §2.3、§2.9 |
+  | Phase D で、省ける処理と今は省けない処理を S5 に渡す | 採用（harvest に置く。判定の結果に依る文書なので受け入れ条件にしない） | §0 の harvest to、§2.3 |
+
+  push の前に、主担当が Phase C・C' の読み手の立場で受け入れ境界を読み直し、次を直した（指摘の採否ではなく、読み違いと実行できない手順の手当て）: S-2 の対象（保存が他の asset を書き換えた時を除く）、AC2 の (j)（mode の無い設定）、AC3 の (e-4) の適用範囲、AC4 の (l) の観測の区間と素通りの Play の扱い、AC5 の V4 を V4a・V4b に分けたこと（他の供給元の key の配線を実 Editor で 1 回通す）、V5・V7 の編集の値を V1 と変えること（同じ値では再利用になる）、record の読み方（`SceneDirector.GetContentLoadRecord`。log の行ではない）とその経路の確認 (vi)、「複製の書き込み」の許す範囲を B の列挙ではなく判定の担当の V0 の観測で決めること、AC6 の `Runtime/` の外の public の面の列挙。
+
+  目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは無い。影響する A2 観点の再レビュー: 行わない。変えたのは、判定の順に合わせた AC の読み、表示の組分け、検証経路の手順、record の所要の欄で、責務・依存・公開面は増えていない（AC4 の (m)(o) は `PlayEntryOverlay` と `PlayEntryRecord` の中に収まる）。
 
 ## 6. Phase B 実装結果
 
