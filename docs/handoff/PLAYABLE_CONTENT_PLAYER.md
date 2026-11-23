@@ -8,7 +8,7 @@
 - status: `C`（Phase B を 2026-11-23 に完了した。発見 C は未着手）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
-- implementation head commit: この票を含む commit
+- implementation head commit: `eb8e4e06007f44a04ddefe5609d0129fa5dafde9`（Phase B の出口の commit。その後の進行役の記録 commit は `docs/handoff/` だけを変える）
 - A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビューの 2 巡目まで統合した commit `68f71368` の本書に、凍結の記録・status・引継ぎ票・§5.1 の凍結の行と、A3 の統合で落としていたテンプレートの §6〜§9 の空欄を足し、凍結の前に merge した `develop`（S5-0）に合わせて implementation base・§5 の全 EditMode 回帰の読み方・(u1b)・§2.3 の 1 行を改めた物で（program の S4-1 の行の状態も改めた）、目的・条件・責務マップは変えていない）。承認の根拠: 外部計画レビューの 2 巡目までを A3 で統合した後に、owner が凍結を指示した（「Freeze it」）。§2.5 の 4 点と、2 巡目の後の追記（`content:playerKind` を必須にしたこと、名前の改め、C' の予約、AC6 (5)）も、この指示で承認された
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`）と Player の protected config を変える。動作確認の Player（BS4）の契約を壊すと、BS4 を起動して receipt を読む担当と Artifacts の Player の保存の経路が黙って変わる。Player を遊べる形で起動するのはこの project で初めてで、独立して失敗しうる未知が複数ある。§5）
 - owner: root（依頼者）
@@ -23,12 +23,14 @@
 - 引継ぎ票:
   - 次の Phase・役割: 発見 C（一次レビュー。動作確認は `対象なし` なので Phase B の次は発見 C）。
   - 次の作業: 実装 diff（implementation base と implementation head の間）を §3 の責務マップ・§2 の条件・§4 の禁止と照らす構造レビューと、§5 の判定必須テストのうち発見 C で走らせる範囲の実行。Player の build と起動を伴う (2)〜(10) は判定 C の実行担当が凍結済みのコマンドで行う（§5。AC6 は owner が押す）。Phase B の実装の要点・HANDOFF との差・未実行は §6。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄が「この票を含む commit」で、HEAD と親の差分（`git diff --stat HEAD^ HEAD`）に `docs/handoff/` 以外の file があること（無ければ停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄の commit と HEAD の差分（`git diff --stat <implementation head> HEAD`）が `docs/handoff/` の file だけであること（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
   - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（実装と票を 1 つにした Phase B の出口の commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、その欄に渡された SHA を書く（句を引き継がない）。
+  - 引き継ぐ commit: この票を含む commit（Phase B の出口の commit の後に、進行役が本票へ Phase C の担当の系列と AC6 の実施時期を足した記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、その欄に渡された SHA を書く（句を引き継がない）。
   - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session）。push は公開点の規則に従う（C と C' の後）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: なし。
+  - Phase C の担当の系列（2026-11-23、owner の指示）: 発見 C・B の修正・判定 C（実行担当と判断担当）は Phase B と同じ Anthropic の系列（Claude Opus）が担当する。Phase C に OpenAI の系列を使えない（C' に予約）ため、発見 C と判定 C の担当は §7 に `独立性制約あり` と書き、理由（B と同じ系列）と残存リスク（同じ系列の見落としが重なりうる。C' の OpenAI の系列で補う）を記録する。
+  - AC6 の実施時期（2026-11-23、owner の指示）: owner が PC の前に戻るまで (10) `T.LaunchPlayableHuman` を起動しない。判定 C の実行担当は (10) 以外を先に進め、(10) は進行役が owner の在席を確かめてから起動する。
 
 ## 1. 目的と対象外
 
