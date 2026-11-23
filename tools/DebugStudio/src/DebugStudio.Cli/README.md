@@ -52,7 +52,7 @@ Reading the result (send output and exits are unchanged):
 - `success=false` with a message starting `rejected: ` (exit `1`; this line goes to stderr): nothing was changed. Reasons are `invalid-payload` (unparseable, `nodeId` missing or below 1, `active` missing) and `node-not-found` (the NodeId does not point to a live GameObject in the current hierarchy, or no DebugSocket).
 - Any other `success=false` (handler exception, unregistered command) and any ending without a `CommandResult` line (timeout exit `2`, other failures exit `1`) is unknown: the change may or may not have been applied. A timeout does not mean the command did not run. The CLI never resends automatically.
 - After an unknown result, `inspect` shows the value at the time of reading, not evidence that the request ran. To reach the value you want, rerun `hierarchy` and send the explicit value again; because the value is explicit, resending does not flip it back.
-- Write `active` as JSON `true` or `false`. Other values are not guaranteed to be rejected: in measurement, `"false"` and `null` were applied as `false`. Read the applied value from the result's `activeSelf`.
+- Write `active` as JSON `true` or `false`. Other values are not guaranteed to be rejected: in measurement, `"false"` and `null` were applied as `false`, and `"true"` as `true`. Read the applied value from the result's `activeSelf`.
 - NodeIds across Plays: after restarting Play, rerun `hierarchy` before sending. A NodeId from a previous Play can be applied to a different GameObject that has the same number in the next Play. Check which GameObject was changed with the result's `name`.
 
 ## Offline comparison
