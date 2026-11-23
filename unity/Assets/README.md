@@ -148,7 +148,7 @@ OTel 互換の TraceId/SpanId を持つ軽量スパン計測。JSONL ファイ�
 LFU + 時間減衰の常駐キャッシュ `AssetResidentCache`（AssetType 別バジェット）を内蔵。要求時に候補を探して由来を残す `Runtime/ContentResolution/` はこの上の任意の層で、所有と解放は `IAssetManagement` の既存 API を使う。Editor の directory Play では、検証済みの installed revision から登録した directory を供給元にして既定で配線され、`SceneDirector` が読む Scene の record は実際に読んだ directory の identity と表現を指す。Player と Addressables の起動では配線しない。詳細は [13-resource-system.md](Docs/Architecture/13-resource-system.md)。
 
 ### Content Directory / Delivery（Editor ツール）
-Editor directory Play は Content Directory build 後の transport publish と DIST Delivery の verified install を使う。Editor Play 向け publish 入口は未整備。BS4 Player は Player build 内で publish する別経路。
+Editor directory Play は Content Directory build 後の transport publish と DIST Delivery の verified install を使う。Editor Play 向け publish 入口は未整備。BS4 Player（動作確認）と遊べる Player は Player build 内で publish する別経路（[§04 §4.7](Docs/Architecture/04-app-startup.md#47-設定の読み込みappconfig)「Player の種類」）。
 旧 Hybrid / Remote / Variant Player overlay は案内のみ。詳細は [20-variant-checkout-workflow.md](Docs/Architecture/20-variant-checkout-workflow.md)。
 
 ### UpdateSystem（フレームスケジューラ）

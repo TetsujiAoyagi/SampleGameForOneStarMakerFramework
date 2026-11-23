@@ -102,6 +102,14 @@ namespace OneStarMaker.Runtime
         private EditorSnapshotProvider? _snapshotProvider;
 #endif
         private PlayerBakedContentConfiguration? _bakedPlayerContent;
+
+        /// <summary>
+        /// 失敗の通知が読む Player の種類。<see cref="BuildConfig"/> が baked の生の値から、baked の検証より前に決める。
+        /// <see cref="BootstrapBeforeSceneLoad"/> の冒頭で Smoke に戻し、<see cref="ReleaseAll"/> では消さない:
+        /// 失敗の通知は ReleaseAll の後（BeforeSceneLoad の失敗）にも呼ばれ、その時 baked は既に消えているため。
+        /// 起動の分岐はこの latch ではなく検証済みの baked を読む。
+        /// </summary>
+        private PlayerContentKind _latchedPlayerKind = PlayerContentKind.Smoke;
         private Exception? _beforeSceneLoadFailure;
         private bool _beforeSceneLoadSucceeded;
 
@@ -191,6 +199,7 @@ namespace OneStarMaker.Runtime
         {
             instance._beforeSceneLoadSucceeded = false;
             instance._beforeSceneLoadFailure = null;
+            instance._latchedPlayerKind = PlayerContentKind.Smoke;
             try
             {
                 instance.InitializeBeforeSceneLoad();
@@ -468,11 +477,24 @@ namespace OneStarMaker.Runtime
                 }
 #endif
 
-                if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0
-                    && !RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration))
-                    await LoadEditorFirstSceneAsync(progress, ct);
-                else if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
-                    await RunPlayerContentSmokeAsync(progress, ct);
+                if (_contentDirectoryConfiguration != null && _contentDirectoryConfiguration.FirstScene.Length != 0)
+                {
+                    // 種類は検証済みの baked から読む（重ねた後の値は Resolve が baked と同じことを確かめ済み）。
+                    switch (RouteFirstScene(UseRequiredPlayerFileConfiguration, ReadBakedPlayerKind()))
+                    {
+                        case PlayerFirstSceneRoute.Editor:
+                            await LoadEditorFirstSceneAsync(progress, ct);
+                            break;
+                        case PlayerFirstSceneRoute.Smoke:
+                            await RunPlayerContentSmokeAsync(progress, ct);
+                            break;
+                        case PlayerFirstSceneRoute.Playable:
+                            await LoadPlayerFirstSceneAsync(progress, ct);
+                            break;
+                        default:
+                            throw new InvalidOperationException("Unknown first scene route.");
+                    }
+                }
 
                 success = true;
             }
@@ -511,6 +533,30 @@ namespace OneStarMaker.Runtime
             // 検証 Play の観測点。Unity の Scene のロードではなく SceneDirector の Stable を出す。
             Debug.Log($"[AppInit] Editor content directory first scene: scene={firstScene} " +
                       $"identity={_contentDirectoryConfiguration!.BuildIdentity} stable={_sceneDirector!.IsSceneStable(firstScene)}");
+        }
+
+        /// <summary>
+        /// 遊べる Player の初回 Scene。load して Stable を 1 行の log に出し、load したまま起動を終える。
+        /// 動作確認の尾（fixture・unload・close・receipt・Quit）は走らせず、成功の hook も無い（遊べる Player は成功を receipt に書かない）。
+        /// load の失敗は起動の失敗で、例外は握らず <see cref="InitializeAfterSceneLoad"/> の catch へ出す。
+        /// </summary>
+        private async UniTask LoadPlayerFirstSceneAsync(StartupProgress progress, CancellationToken ct)
+        {
+            var firstScene = _contentDirectoryConfiguration!.FirstScene;
+            progress.Stage = "load-player-first-scene:" + firstScene;
+            await _sceneDirector!.AddScene(firstScene, null, ct);
+            // 起動の到達を外から読む印（Player の log）。文言は判定の照合が探すので変えない。
+            Debug.Log($"[AppInit] Player content first scene: scene={firstScene} " +
+                      $"identity={_contentDirectoryConfiguration!.BuildIdentity} kind=playable stable={_sceneDirector!.IsSceneStable(firstScene)}");
+        }
+
+        /// <summary>Player の構成なら検証済みの baked の種類。Editor は baked が無く、分岐は種類を見ない。</summary>
+        private PlayerContentKind ReadBakedPlayerKind()
+        {
+            if (!UseRequiredPlayerFileConfiguration) return PlayerContentKind.Smoke;
+            var baked = _bakedPlayerContent ?? throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                "Baked Player content configuration is unavailable.");
+            return baked.PlayerKind;
         }
 
 #if UNITY_EDITOR
@@ -658,9 +704,9 @@ namespace OneStarMaker.Runtime
         /// </summary>
         private async UniTask CleanupAfterStartupFailureAsync(StartupProgress progress, Exception ex)
         {
-            // 初回 Scene の unload は Player の smoke の失敗経路だけ（receipt の前に token を返す）。
+            // 初回 Scene の unload は Player の失敗経路だけ（動作確認・遊べるの両方。receipt・Quit の前に token を返す）。
             // Editor は ReleaseAll と Play の終了に任せる。
-            if (RunsPlayerContentSmoke(UseRequiredPlayerFileConfiguration)
+            if (UnloadsFirstSceneOnStartupFailure(UseRequiredPlayerFileConfiguration)
                 && _sceneDirector != null && _contentDirectoryConfiguration != null
                 && _contentDirectoryConfiguration.FirstScene.Length != 0
                 && _sceneDirector.IsSceneLoaded(_contentDirectoryConfiguration.FirstScene))
@@ -692,21 +738,46 @@ namespace OneStarMaker.Runtime
                     Debug.LogError($"[AppInit] Content directory cleanup after startup failure also failed: {closeException}");
                 }
             }
+            // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
+            // その後段（SceneDirector 構築・初回シーン追加）の失敗では通常の終了処理まで残り続ける。
+            // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
+            // 所有者である派生クラスへ限定的な回収機会を渡す。その後に Player の失敗を通知する。
+            var stage = progress.Stage;
+            await RunStartupFailureHooksAsync(
+                () => OnAfterSceneLoadInitializationFailed(stage, ex),
+                ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration)
+                    ? () => OnPlayerContentStartupFailedAsync(stage, ex, progress.PlayerContentStages.ToArray())
+                    : null,
+                // 元の起動失敗を隠さず、後始末の失敗は追加情報としてだけ記録する。
+                (hook, hookException) => Debug.LogError(
+                    $"[AppInit] Cleanup after failed AfterSceneLoad initialization also failed ({hook}): {hookException}"));
+        }
+
+        /// <summary>
+        /// 起動の失敗の後の派生への通知の順と失敗境界。派生の後始末 → Player の失敗の通知の順に、<b>別々の</b> try で呼ぶ。
+        /// 派生の後始末が投げても失敗の通知（派生はその中で exit code を確定して Quit する）を必ず呼ぶ。
+        /// 1 つの try にすると、後始末の例外で Quit に届かず、起動に失敗した Player が動き続ける。
+        /// 失敗の通知が null（Editor）なら呼ばない。どちらの例外も log に出すだけで、呼び出し元へ投げない。
+        /// </summary>
+        internal static async UniTask RunStartupFailureHooksAsync(
+            Action derivedCleanup, Func<UniTask>? notifyPlayerFailure, Action<string, Exception> logFailure)
+        {
             try
             {
-                // 派生側が OnServicesInitializing で常駐リソースを確保している場合、
-                // その後段（SceneDirector 構築・初回シーン追加）の失敗では通常の終了処理まで残り続ける。
-                // Framework 自身の ReleaseAll をここで呼ぶと診断用状態まで一律に失うため、
-                // 所有者である派生クラスへ限定的な回収機会を渡す。
-                OnAfterSceneLoadInitializationFailed(progress.Stage, ex);
-                if (ShouldNotifyPlayerContentFailure(UseRequiredPlayerFileConfiguration))
-                    await OnPlayerContentStartupFailedAsync(progress.Stage, ex, progress.PlayerContentStages.ToArray());
+                derivedCleanup();
             }
             catch (Exception cleanupException)
             {
-                // 元の起動失敗を隠さず、後始末の失敗は追加情報としてだけ記録する。
-                Debug.LogError(
-                    $"[AppInit] Cleanup after failed AfterSceneLoad initialization also failed: {cleanupException}");
+                logFailure("derived cleanup", cleanupException);
+            }
+            if (notifyPlayerFailure == null) return;
+            try
+            {
+                await notifyPlayerFailure();
+            }
+            catch (Exception notifyException)
+            {
+                logFailure("player content failure notification", notifyException);
             }
         }
 
@@ -919,6 +990,9 @@ namespace OneStarMaker.Runtime
                 var captured = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 new RequiredJsonFileConfigProvider(GetRequiredPlayerConfigurationPath()).Load(captured);
                 var required = new AppConfig(new IConfigProvider[] { new CapturedConfigProvider(captured) });
+                // latch は検証より前に生の値で決める。検証（必須・値の範囲）が投げても、失敗の通知は種類に合う形で出せる。
+                _latchedPlayerKind = PlayerBakedContentConfiguration.LatchPlayerKind(
+                    required.GetString(PlayerBakedContentConfiguration.PlayerKindKey, string.Empty));
                 _bakedPlayerContent = new PlayerBakedContentConfiguration(required);
                 providers.Add(new CapturedConfigProvider(captured));
             }
@@ -946,6 +1020,8 @@ namespace OneStarMaker.Runtime
 
         private void OnApplicationQuitting()
         {
+            // quit の始まりの境。Player の log をこの行で「閉じる前」と「閉じた後」に分けて読む（Editor の Play の停止でも出る）。
+            Debug.Log("[AppInit] Application quitting.");
             ReleaseAll();
         }
 
@@ -1074,7 +1150,7 @@ namespace OneStarMaker.Runtime
         protected virtual string GetConfigFilePath()
             => string.Empty;
 
-        /// <summary>BS4 Player だけが Addressables 前に必須 plain JSON を読む。</summary>
+        /// <summary>Player の構成（動作確認・遊べるの両方）だけが Addressables 前に必須 plain JSON を読む。</summary>
         protected virtual bool UseRequiredPlayerFileConfiguration => false;
 
         protected virtual string GetRequiredPlayerConfigurationPath()
@@ -1240,9 +1316,26 @@ namespace OneStarMaker.Runtime
         internal static bool ShouldNotifyPlayerContentFailure(bool useRequiredPlayerFileConfiguration) =>
             useRequiredPlayerFileConfiguration;
 
-        /// <summary>初回 Scene の後の smoke（検証・unload・close・receipt）と、失敗時の初回 Scene の unload は Player だけ。</summary>
-        internal static bool RunsPlayerContentSmoke(bool useRequiredPlayerFileConfiguration) =>
-            useRequiredPlayerFileConfiguration;
+        /// <summary>初回 Scene の後の行き先。Editor は load したまま Play を続け、Player は baked の種類で動作確認の尾か、load したまま起動を終えるかを選ぶ。</summary>
+        internal enum PlayerFirstSceneRoute { Editor, Smoke, Playable }
+
+        /// <summary>
+        /// 初回 Scene の後の分岐。Player の構成でなければ種類を見ずに Editor。Player では Playable の時だけ遊べる経路で、他は動作確認の尾。
+        /// 2 段の bool 判定にすると、Player の Playable が Editor の経路に落ちうるので 3 値で返す。
+        /// </summary>
+        internal static PlayerFirstSceneRoute RouteFirstScene(bool isPlayerConfiguration, PlayerContentKind kind) =>
+            !isPlayerConfiguration ? PlayerFirstSceneRoute.Editor
+            : kind == PlayerContentKind.Playable ? PlayerFirstSceneRoute.Playable
+            : PlayerFirstSceneRoute.Smoke;
+
+        /// <summary>失敗時の初回 Scene の unload は Player の構成だけ（種類によらない）。Editor は ReleaseAll と Play の終了に任せる。</summary>
+        internal static bool UnloadsFirstSceneOnStartupFailure(bool isPlayerConfiguration) => isPlayerConfiguration;
+
+        /// <summary>
+        /// 派生に見せる Player の種類の latch。失敗の通知（ReleaseAll の後にも呼ばれる）で、遊べる Player は receipt を書かないために読む。
+        /// baked が読めなかった・種類が欠け・不正な値の時は偽（動作確認の扱い）。
+        /// </summary>
+        protected bool IsPlayablePlayerKind => _latchedPlayerKind == PlayerContentKind.Playable;
 
         /// <summary>Editor directory Play の初回 Scene。config に無ければ空で、従来どおり初回 content Scene をロードしない。</summary>
         internal static string ReadEditorFirstScene(AppConfig config) =>

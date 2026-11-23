@@ -5,6 +5,7 @@ using System.Linq;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Foundation.Config;
 using SampleGame.DependOnAll.Editor.Build;
 using UnityEditor;
 
@@ -66,15 +67,87 @@ namespace OneStarMaker.Tests.Editor.Build
         public void RuntimeJson_CopiesContentSetRepresentationAndCompanionSetFromDeclaration()
         {
             // baked config は宣言から写す（AC14 の期待値 `cellCompanionSet` と `representation` の出どころ）。
-            var json = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.Bs4SpringFull, "token");
+            var json = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.Bs4SpringFull, "token", "smoke");
             Assert.That(json, Does.Contain("\"contentSet\": \"bs4-spring-full\""));
             Assert.That(json, Does.Contain("\"representation\": \"Full\""));
             Assert.That(json, Does.Contain("\"cellCompanionSet\": \"Full\""));
             Assert.That(json, Does.Contain("\"runtimeMode\": \"directory\""));
 
-            var planner = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.SpringPlannerWhitebox, "token");
+            var planner = SampleGamePlayerBuildCoordinator.RuntimeJson("identity", SampleGameBuildPurposes.SpringPlannerWhitebox, "token", "smoke");
             Assert.That(planner, Does.Contain("\"cellCompanionSet\": \"Planner\""));
             Assert.That(planner, Does.Contain("\"representation\": \"Whitebox\""));
+        }
+
+        // 動作確認の Player の baked config は、今の 12 の値に content:playerKind = smoke を足した 13 で、他は変えない。
+        [Test]
+        public void RuntimeJson_SmokeKind_IsTheExistingTwelveValuesPlusPlayerKind()
+        {
+            var settings = SampleGamePlayerBuildCoordinator.SettingsOf(PlayerBuildKind.Smoke);
+            var values = Flatten(SampleGamePlayerBuildCoordinator.RuntimeJson("identity", settings.Declaration, "token", settings.PlayerKindValue));
+            Assert.That(values, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                ["content:schemaVersion"] = "1",
+                ["content:runtimeMode"] = "directory",
+                ["content:buildIdentity"] = "identity",
+                ["content:contentSet"] = "bs4-spring-full",
+                ["content:target"] = "StandaloneWindows64-Player",
+                ["content:relativeDirectory"] = "content",
+                ["content:firstScene"] = "Title",
+                ["content:representation"] = "Full",
+                ["content:probeToken"] = "token",
+                ["content:playerKind"] = "smoke",
+                ["debugSocket:enabled"] = "false",
+                ["telemetry:profiler:enabled"] = "true",
+                ["world:cellCompanionSet"] = SampleGameBuildPurposes.CellCompanionSetOf(SampleGameBuildPurposes.Bs4SpringFull),
+            }));
+        }
+
+        // 遊べる Player は同じ 13 の key で、probe なしの spring-full・probeToken 空・playerKind = playable。
+        [Test]
+        public void RuntimeJson_PlayableKind_HasTheSameKeysWithPlayableValues()
+        {
+            var settings = SampleGamePlayerBuildCoordinator.SettingsOf(PlayerBuildKind.Playable);
+            Assert.That(settings.UsesProbe, Is.False);
+            var values = Flatten(SampleGamePlayerBuildCoordinator.RuntimeJson("identity", settings.Declaration, string.Empty, settings.PlayerKindValue));
+            Assert.That(values, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                ["content:schemaVersion"] = "1",
+                ["content:runtimeMode"] = "directory",
+                ["content:buildIdentity"] = "identity",
+                ["content:contentSet"] = "spring-full",
+                ["content:target"] = "StandaloneWindows64-Player",
+                ["content:relativeDirectory"] = "content",
+                ["content:firstScene"] = "Title",
+                ["content:representation"] = SampleGameBuildPurposes.SpringFull.Representation.Primary,
+                ["content:probeToken"] = "",
+                ["content:playerKind"] = "playable",
+                ["debugSocket:enabled"] = "false",
+                ["telemetry:profiler:enabled"] = "true",
+                ["world:cellCompanionSet"] = SampleGameBuildPurposes.CellCompanionSetOf(SampleGameBuildPurposes.SpringFull),
+            }));
+        }
+
+        [Test]
+        public void SettingsOf_SelectsDeclarationProbeAndArtifactsRootPerKind()
+        {
+            var smoke = SampleGamePlayerBuildCoordinator.SettingsOf(PlayerBuildKind.Smoke);
+            Assert.That(smoke.Declaration.Name, Is.EqualTo("bs4-spring-full"));
+            Assert.That(smoke.UsesProbe, Is.True);
+            Assert.That(smoke.PlayerKindValue, Is.EqualTo("smoke"));
+
+            var projectRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "osm-s41-root", "unity");
+            var artifacts = System.IO.Path.GetFullPath(System.IO.Path.Combine(projectRoot, "..", "artifacts"));
+            Assert.That(SampleGamePlayerBuildCoordinator.ArtifactsRootOf(projectRoot, PlayerBuildKind.Smoke),
+                Is.EqualTo(System.IO.Path.Combine(artifacts, "bs4")));
+            Assert.That(SampleGamePlayerBuildCoordinator.ArtifactsRootOf(projectRoot, PlayerBuildKind.Playable),
+                Is.EqualTo(System.IO.Path.Combine(artifacts, "playable")));
+        }
+
+        private static Dictionary<string, string> Flatten(string json)
+        {
+            var values = new Dictionary<string, string>(StringComparer.Ordinal);
+            JsonConfigFlattener.Flatten(json, values);
+            return values;
         }
 
         private static BuildContentCandidate Candidate(string stable, string logical, string physical) =>

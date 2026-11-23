@@ -162,8 +162,18 @@ namespace SampleGame.DependOnAll
             Exception exception,
             IReadOnlyList<PlayerContentStage> completedStages)
         {
-            PlayerContentSmoke.WriteReceipt(false, stage, completedStages.Select(ToReceiptStage).ToArray(), exception);
-            Application.Quit(1);
+            try
+            {
+                // 遊べる Player は receipt を書かない（失敗は Player の log と exit 1 で示す）。
+                // 種類が読めなかった Player（baked の欠け・壊れ・不正な値）は動作確認の扱いで receipt を書く。
+                if (!IsPlayablePlayerKind)
+                    PlayerContentSmoke.WriteReceipt(false, stage, completedStages.Select(ToReceiptStage).ToArray(), exception);
+            }
+            finally
+            {
+                // receipt の書き込みが投げても Quit する。届かないと、起動に失敗した Player が動き続ける。
+                Application.Quit(1);
+            }
             return UniTask.CompletedTask;
         }
 

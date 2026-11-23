@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
 using OneStarMaker.Runtime;
@@ -98,11 +100,142 @@ namespace OneStarMaker.Tests.BuildContent
         public bool FailureNotification_IsLimitedToRequiredPlayerMode(bool required) =>
             AbstractApplicationInitializer.ShouldNotifyPlayerContentFailure(required);
 
-        // Editor directory Play は初回 Scene をロードしたまま続け、Player の smoke と失敗時の unload は Player だけが行う。
+        // 初回 Scene の後の行き先: Editor は種類を見ずに Editor、Player は baked の種類で smoke か playable。
+        // internal の enum は public の test の引数・戻り値にできないので、種類は bool、行き先は名前で表す。
+        [TestCase(false, false, ExpectedResult = "Editor")]
+        [TestCase(false, true, ExpectedResult = "Editor")]
+        [TestCase(true, false, ExpectedResult = "Smoke")]
+        [TestCase(true, true, ExpectedResult = "Playable")]
+        public string RouteFirstScene_SelectsByConfigurationAndKind(bool isPlayer, bool playable) =>
+            AbstractApplicationInitializer.RouteFirstScene(isPlayer, playable ? PlayerContentKind.Playable : PlayerContentKind.Smoke).ToString();
+
+        // 失敗時の初回 Scene の unload は Player の構成だけ（種類によらない）。Editor は ReleaseAll と Play の終了に任せる。
         [TestCase(true, ExpectedResult = true)]
         [TestCase(false, ExpectedResult = false)]
-        public bool PlayerContentSmoke_IsLimitedToRequiredPlayerMode(bool required) =>
-            AbstractApplicationInitializer.RunsPlayerContentSmoke(required);
+        public bool FirstSceneUnloadOnFailure_IsLimitedToRequiredPlayerMode(bool isPlayer) =>
+            AbstractApplicationInitializer.UnloadsFirstSceneOnStartupFailure(isPlayer);
+
+        [TestCase("smoke", ExpectedResult = "Smoke")]
+        [TestCase("playable", ExpectedResult = "Playable")]
+        public string PlayerKind_ValidRawValue_IsRead(string raw) =>
+            PlayerBakedContentConfiguration.ParsePlayerKind(raw).ToString();
+
+        [TestCase("")]
+        [TestCase("Playable")]
+        [TestCase("SMOKE")]
+        [TestCase("x")]
+        public void PlayerKind_EmptyOrInvalidRawValue_IsRejected(string raw)
+        {
+            var error = Assert.Throws<ContentDirectoryException>(() => PlayerBakedContentConfiguration.ParsePlayerKind(raw));
+            Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+        }
+
+        [Test]
+        public void BakedConfiguration_MissingPlayerKind_IsRejected()
+        {
+            var error = Assert.Throws<ContentDirectoryException>(() =>
+                new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player", playerKind: null)));
+            Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+        }
+
+        [TestCase("smoke", true)]
+        [TestCase("playable", false)]
+        public void BakedConfiguration_KeepsRawAndReadPlayerKind(string raw, bool isSmoke)
+        {
+            var baked = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player", playerKind: raw));
+            Assert.That(baked.PlayerKindRaw, Is.EqualTo(raw));
+            Assert.That(baked.PlayerKind, Is.EqualTo(isSmoke ? PlayerContentKind.Smoke : PlayerContentKind.Playable));
+        }
+
+        // protected の比較は baked の生の値と重ねた後の値の ordinal 比較（大小違いの override も拒む）。
+        [TestCase("smoke", null, true)]
+        [TestCase("playable", null, true)]
+        [TestCase("smoke", "playable", false)]
+        [TestCase("playable", "smoke", false)]
+        [TestCase("playable", "Playable", false)]
+        public void Resolve_PlayerKindOverride_IsComparedWithTheRawBakedValue(string baked, string? overridden, bool accepted)
+        {
+            var root = Path.Combine(Path.GetTempPath(), "osm-s41-config", Guid.NewGuid().ToString("N"));
+            var bakedConfig = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player", playerKind: baked));
+            var merged = Overlay(baked,
+                overridden == null ? new Dictionary<string, string>() : new Dictionary<string, string> { ["content:playerKind"] = overridden });
+            if (accepted)
+            {
+                Assert.DoesNotThrow(() => PlayerContentConfiguration.Resolve(bakedConfig, merged, root, "StandaloneWindows64-Player"));
+                return;
+            }
+            var error = Assert.Throws<ContentDirectoryException>(() =>
+                PlayerContentConfiguration.Resolve(bakedConfig, merged, root, "StandaloneWindows64-Player"));
+            Assert.That(error!.Code, Is.EqualTo(ContentDirectoryFailureCode.InvalidConfiguration));
+            Assert.That(error.Message, Is.EqualTo("Protected Player content configuration was overridden."));
+        }
+
+        // 今の 9 つの protected key の override の拒みは、種類の key を足しても変わらない。
+        [TestCase("content:schemaVersion", "2")]
+        [TestCase("content:runtimeMode", "addressables")]
+        [TestCase("content:buildIdentity", "other")]
+        [TestCase("content:contentSet", "other-set")]
+        [TestCase("content:target", "other-target")]
+        [TestCase("content:representation", "Whitebox")]
+        [TestCase("content:firstScene", "Home")]
+        [TestCase("content:relativeDirectory", "other")]
+        [TestCase("content:probeToken", "other-token")]
+        public void Resolve_ExistingProtectedKeyOverride_IsStillRejected(string key, string value)
+        {
+            var bakedConfig = new PlayerBakedContentConfiguration(Config("content", "StandaloneWindows64-Player"));
+            var merged = Overlay("smoke", new Dictionary<string, string> { [key] = value });
+            var error = Assert.Throws<ContentDirectoryException>(() =>
+                PlayerContentConfiguration.Resolve(bakedConfig, merged, Path.GetTempPath(), "StandaloneWindows64-Player"));
+            Assert.That(error!.Message, Is.EqualTo("Protected Player content configuration was overridden."));
+        }
+
+        // 失敗の通知の latch は生の値が ordinal に playable の時だけ Playable（欠け・大小違い・smoke は動作確認の扱い）。
+        [TestCase("playable", ExpectedResult = true)]
+        [TestCase(null, ExpectedResult = false)]
+        [TestCase("", ExpectedResult = false)]
+        [TestCase("smoke", ExpectedResult = false)]
+        [TestCase("Playable", ExpectedResult = false)]
+        public bool Latch_IsPlayableOnlyForTheExactRawValue(string? raw) =>
+            PlayerBakedContentConfiguration.LatchPlayerKind(raw) == PlayerContentKind.Playable;
+
+        [Test]
+        public async Task StartupFailureHooks_DerivedCleanupThrows_StillNotifiesOnceAndLogsBoth()
+        {
+            var order = new List<string>();
+            var logged = new List<string>();
+            await AbstractApplicationInitializer.RunStartupFailureHooksAsync(
+                () => { order.Add("cleanup"); throw new InvalidOperationException("cleanup failed"); },
+                () => { order.Add("notify"); throw new InvalidOperationException("notify failed"); },
+                (hook, exception) => logged.Add(hook + ":" + exception.Message));
+            Assert.That(order, Is.EqualTo(new[] { "cleanup", "notify" }));
+            Assert.That(logged, Is.EqualTo(new[] { "derived cleanup:cleanup failed", "player content failure notification:notify failed" }));
+        }
+
+        [Test]
+        public async Task StartupFailureHooks_NoFailure_CallsBothInOrderWithoutLogging()
+        {
+            var order = new List<string>();
+            var logged = new List<string>();
+            await AbstractApplicationInitializer.RunStartupFailureHooksAsync(
+                () => order.Add("cleanup"),
+                () => { order.Add("notify"); return UniTask.CompletedTask; },
+                (hook, exception) => logged.Add(hook));
+            Assert.That(order, Is.EqualTo(new[] { "cleanup", "notify" }));
+            Assert.That(logged, Is.Empty);
+        }
+
+        [Test]
+        public async Task StartupFailureHooks_NullNotification_OnlyRunsCleanup()
+        {
+            var order = new List<string>();
+            var logged = new List<string>();
+            await AbstractApplicationInitializer.RunStartupFailureHooksAsync(
+                () => { order.Add("cleanup"); throw new InvalidOperationException("cleanup failed"); },
+                null,
+                (hook, exception) => logged.Add(hook));
+            Assert.That(order, Is.EqualTo(new[] { "cleanup" }));
+            Assert.That(logged, Is.EqualTo(new[] { "derived cleanup" }));
+        }
 
         [Test]
         public void EditorFirstScene_IsReadFromConfig_AndEmptyWhenAbsent()
@@ -129,16 +262,29 @@ namespace OneStarMaker.Tests.BuildContent
             Assert.Throws<InvalidOperationException>(() => StageHarness.Validate(0, 99));
         }
 
-        private static AppConfig Config(string relative, string target, string contentSet = "set") => new(new IConfigProvider[]
+        private static AppConfig Config(string relative, string target, string contentSet = "set", string? playerKind = "smoke") =>
+            new(new IConfigProvider[] { new DictionaryProvider(Values(relative, target, contentSet, playerKind)) });
+
+        private static Dictionary<string, string> Values(string relative, string target, string contentSet, string? playerKind)
         {
-            new DictionaryProvider(new Dictionary<string, string>
+            var values = new Dictionary<string, string>
             {
                 ["content:schemaVersion"] = "1", ["content:relativeDirectory"] = relative,
                 ["content:buildIdentity"] = "identity", ["content:target"] = target,
                 ["content:runtimeMode"] = "directory", ["content:contentSet"] = contentSet,
                 ["content:representation"] = "Full", ["content:firstScene"] = "Title",
-            }),
-        });
+            };
+            if (playerKind != null) values["content:playerKind"] = playerKind;
+            return values;
+        }
+
+        // baked の上に環境変数・command line の値を重ねた形（後の provider が勝つ）。
+        private static AppConfig Overlay(string? playerKind, IReadOnlyDictionary<string, string> overrides) =>
+            new(new IConfigProvider[]
+            {
+                new DictionaryProvider(Values("content", "StandaloneWindows64-Player", "set", playerKind)),
+                new DictionaryProvider(overrides),
+            });
 
         private sealed class DictionaryProvider : IConfigProvider
         {

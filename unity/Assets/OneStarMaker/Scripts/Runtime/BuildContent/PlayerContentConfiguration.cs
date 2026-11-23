@@ -21,7 +21,9 @@ namespace OneStarMaker.Runtime.BuildContent
 
         internal static PlayerContentConfiguration Resolve(PlayerBakedContentConfiguration baked,AppConfig merged,string installRoot,string target)
         {
-            if(baked.SchemaVersion!=merged.GetInt("content:schemaVersion",0)||baked.RuntimeMode!=merged.GetString("content:runtimeMode","")||baked.BuildIdentity!=merged.GetString("content:buildIdentity","")||baked.ContentSet!=merged.GetString("content:contentSet","")||baked.Target!=merged.GetString("content:target","")||baked.Representation!=merged.GetString("content:representation","")||baked.FirstScene!=merged.GetString("content:firstScene","")||baked.RelativeDirectory!=merged.GetString("content:relativeDirectory","")||baked.ProbeToken!=merged.GetString("content:probeToken",""))
+            if(baked.SchemaVersion!=merged.GetInt("content:schemaVersion",0)||baked.RuntimeMode!=merged.GetString("content:runtimeMode","")||baked.BuildIdentity!=merged.GetString("content:buildIdentity","")||baked.ContentSet!=merged.GetString("content:contentSet","")||baked.Target!=merged.GetString("content:target","")||baked.Representation!=merged.GetString("content:representation","")||baked.FirstScene!=merged.GetString("content:firstScene","")||baked.RelativeDirectory!=merged.GetString("content:relativeDirectory","")||baked.ProbeToken!=merged.GetString("content:probeToken","")
+               // 種類も protected。baked の生の値と比べる（読んだ enum と比べない）ので、大小違いの override も拒む。
+               ||!string.Equals(baked.PlayerKindRaw,merged.GetString(PlayerBakedContentConfiguration.PlayerKindKey,""),StringComparison.Ordinal))
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Protected Player content configuration was overridden.",baked.BuildIdentity,target);
             var root=merged.GetString("content:installedRevisionPath","");var digest=merged.GetString("content:manifestSha256","");
             if((root.Length==0)!=(digest.Length==0))throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,"Installed revision path and manifest digest must be provided together.",baked.BuildIdentity,target);
