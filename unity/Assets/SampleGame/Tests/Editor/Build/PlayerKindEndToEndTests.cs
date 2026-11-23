@@ -247,11 +247,16 @@ namespace OneStarMaker.Tests.Editor.Build
             return hits.ToArray();
         }
 
+        // record の時刻は Utc の "o"（末尾 Z）、game の log の Timestamp は +00:00 などの offset 付きで書かれる。
+        // 両方を UTC の DateTime に直して比べるため AdjustToUniversal を使い、offset の無い文字列は UTC とみなす。
+        // RoundtripKind は AdjustToUniversal・AssumeUniversal と組めず、.NET が ArgumentException で拒むので混ぜない。
+        private const DateTimeStyles UtcTimestampStyles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+
         private static GameLogLine[] ReadGameLog(string directory, string quitObservedUtc)
         {
             if (!Directory.Exists(directory)) return Array.Empty<GameLogLine>();
             DateTime? quit = quitObservedUtc.Length == 0 ? null
-                : DateTime.Parse(quitObservedUtc, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind | DateTimeStyles.AdjustToUniversal);
+                : DateTime.Parse(quitObservedUtc, CultureInfo.InvariantCulture, UtcTimestampStyles);
             var lines = new List<GameLogLine>();
             foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
             {
@@ -267,8 +272,7 @@ namespace OneStarMaker.Tests.Editor.Build
                     if (!isError && !GameLogProbes.Any(probe => message.Contains(probe))) continue;
                     var timestamp = Value(values, "Timestamp");
                     var beforeQuit = true;
-                    if (quit.HasValue && DateTime.TryParse(timestamp, CultureInfo.InvariantCulture,
-                            DateTimeStyles.RoundtripKind | DateTimeStyles.AdjustToUniversal, out var at))
+                    if (quit.HasValue && DateTime.TryParse(timestamp, CultureInfo.InvariantCulture, UtcTimestampStyles, out var at))
                         beforeQuit = at < quit.Value;
                     lines.Add(new GameLogLine
                     {
