@@ -357,7 +357,7 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
   - V6: `editor_stop`（03:43:01Z）。WPF に `CloseMainWindow`（戻り値 True、03:43:02.66Z）、保持 handle は signal（WaitForExit true）、実終了コード 0（03:43:02.82Z）。Play 停止後の Untitled は dirty=False、root は 2 つとも active、`Assets/` の Dirty asset 0。`git status` は変更なし（既知の `UniversalRenderPipelineGlobalSettings.asset` の差分も今回は出なかった）。Editor は自分で通常終了した: eval の `delayCall` 経由の `EditorApplication.Exit(0)` は idle のため動かず、直接の `EditorApplication.Exit(0)`（03:43:25Z。eval の応答は `Invalid response format`）で終了し、`unity open` は exit 0 で戻った。native stall なし、Lockfile なし、終了後も tracked の変更なし。
 - 検証経路の期待と違う観測と、B への差し戻し: なし。V3〜V5 の stdout / stderr / exit、結果の payload、eval の独立値、inspect の rawValue、hierarchy の NodeId 2 の有無は §5.4 の期待どおりだった。V1 の 1 回目の exit 1 は 60 秒の待ちの内側。
 - `未実施` の条件: なし。
-- PR 状態ブロック: 開始時点で PR #204 の状態ブロックは Phase A の出口（引き継ぐ commit `67f04618`）のままで、B の完了が反映されていなかった。起動指示が引き継ぐ commit `b3f105e1` を明示していたので、その SHA・HEAD・§0 の照合（implementation head は HEAD 自身で、HEAD^ との差分に `docs/handoff/` 以外がある）で引き継いだ。この出口で状態ブロックを更新する。push はしていない（`b3f105e1` とこの記録 commit は未 push）。
+- PR 状態ブロック: 開始時点（03:39Z より前）の PR #204 の状態ブロックは Phase A の出口（引き継ぐ commit `67f04618`）のままだったが、起動指示が引き継ぐ commit `b3f105e1` を明示していたので、その SHA・HEAD・§0 の照合（implementation head は HEAD 自身で、HEAD^ との差分に `docs/handoff/` 以外がある）で引き継いだ。作業中（03:41:50Z）に `b3f105e1` が push され、状態ブロックは B の完了（引き継ぐ commit `b3f105e1`）に更新されていた。この出口で状態ブロックを動作確認の完了へ更新する。この記録 commit は push していない。
 
 ## 7. Phase C
 
