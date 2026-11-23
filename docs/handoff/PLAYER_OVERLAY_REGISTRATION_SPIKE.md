@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `D`（C' の 1 巡目（最終 C'）が 2026-11-23 に blocker なしとした。次は Phase D。§8）
+- status: `D`（2026-11-23、Phase D が Evidence の保存・引渡しを確認し、判定 C と C' を突き合わせ、harvest した。次の commit で本書と spike の code を消す。§9）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
 - implementation head commit: `b101b3820f7538f9e6e8779332d1405e32b316b5`
@@ -582,4 +582,30 @@
 
 ## 9. Phase D
 
-未着手
+### Evidence の保存・引渡し確認（2026-11-23）
+
+- 担当: Phase D の session（新規。B・C・C' の会話は読んでいない）。開始時の照合（HEAD が引き継いだ `42ad9fa0`、作業ツリーが clean、implementation head が HEAD の祖先で差分は本書だけ、PR の状態ブロックの `引き継ぐ commit` と implementation base / head が一致）は全て成立した。PR の timeline に `42ad9fa0` の後の新着は無かった。
+- 判定用 evidence bundle: 受け取り側の別 session として、取得案内（進行役の共有メモ、git 管理外）の reference と期待 packageSha256 で非仮想化の pwsh から fetch し `passed`。README、(1)〜(3) の XML（root `Passed`、total 48・1・1、failed 0）、record の zip（45 entry）を読めた。状態: **確認済み**（ローカル固定、未昇格）。
+- C' blind bundle: 同じく fetch で `passed`。同じ file を読めた。状態: **確認済み**（ローカル固定、未昇格）。
+- 昇格しない理由: 読み手は全て同じ PC・同じ Windows ユーザーの session で、Cloud・別 host の読み手は無く、owner の昇格の指示も無い（review-evidence「保存先とリモートへの配布」の既定は同一 PC では `evidence stage` と `fetch`）。保持は Storage の条件（task 終了 + 30 日）に従う。
+- 未保存分: 無い。判定 C と C' の所見、AC の根拠、J1・J2・CP1・CP2 は本書（git 履歴）にあり、harvest 先と program §8 に後続の入力として移した。C' の入力の packet は C' blind bundle を加工せずに使っている（§0）。
+- Evidence の日次清掃 job: `pwsh tools/artifacts.ps1 evidence schedule status` が `passed`（登録あり、次回 2026-11-24 03:00）。job 自身の前回の結果は `partial`（blocked 7）で、この確認の基準（`passed`）の外なので直していない。
+
+### 判定 C と C' の突き合わせ
+
+- 答え: 判定 C（§7）は GO・「同じ」、C'（§8）も記録から「同じ」と読み、補助の `verdict-second.json`（GO・same）とも一致した。AC1〜AC10 の読みも食い違いが無い（判定 C は AC6 を対象外、C' も条件付きの (4) を対象外とした）。
+- 指摘の対応: 判定 C の P4 の事実（`ProbeOverlayOnly` が Player にあった）と C' の CP1 は同じ事実で、どちらも別の assembly・組み込みの型へ広げないと書く。S4-2 の入力にした。判定 C の J1（S4-1）と J2（harness の運用）は C' に無く、C' の CP2（`docs-audit` の出力が blind bundle に無い）は判定 C に無いが、どちらも答えに使わない。
+- 読みが分かれうる点: Player の log の 5 つにある `Curl error 42: Callback aborted` の native の行を、判定 C は X3 の数える対象（Unity の Error・Exception）に当たらないと読み、C' は開始の印の後に Error・Exception は無いと書いた。どちらも X3 は 0 件で、答えは変わらない。
+- 阻害する指摘: 両方とも無し。
+
+### PR のレビューへの対応
+
+- owner のインライン（`PlayerOverlayVerdict.cs` の `ValidatePlayer` が header の pid と launcher の pid の一致、`platform`、graphics device を照合しない。AC8）: harness は Phase D で消すので code は直さず、生の証拠の全件照合で閉じた。この session でも C' blind bundle の `pov-run` の写しで照合し直し、launcher の file の 18 entry の全てで header の `pid` が launcher の `Pid` と一致、`platform` が `WindowsPlayer`、`graphics` が `Direct3D11`、`label` が一致、`isEditor` が false だった（18/18。進行役の照合と同じ）。
+- cursor[bot] と owner のレビューの残り（2 bundle の保存・引渡しの確認、J1・J2・CP1 を追跡できる形で残すこと、PR 本文の「検証」を最終の head に合わせること）: 上の確認、program §8「S4-0 から移送した入力」、PR 本文の更新で扱った。
+
+### harvest と後始末
+
+- harvest: [CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) に「Windows の Player での上書きの登録（6000.6.9f1）」の節と「測り直し」の harness（commit `b101b382`）を足し、上書きの節と 6000.6.9f1 の測り直しの節の「測っていないもの」の Player の語を直した。[13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」の「範囲」と「測った設定」を実測の範囲に合わせ（禁止は解かない）、「S4」の送り先を分割後の行の名前（S4-1・S4-3・S4-4）に直した。program §5.3 に結論、§8 に S4-0 の行の完了と分割の確定、「S4-0 から移送した入力」を書いた。
+- 削除: spike の code（`Tests/Editor/Spikes/PlayerOverlay/`、`Tests/Spikes/PlayerOverlayProbes/`、`Tests/Spikes/PlayerOverlayRunner/` と folder の `.meta`）と本書を、次の commit で消す。git 履歴の `b101b382` に残る。
+- task の終了（`workflow-task.ps1 end`）: owner の task の完了指示を受けてから行う。この時点では未実施。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。
