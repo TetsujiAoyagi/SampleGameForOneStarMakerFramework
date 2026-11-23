@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: Phase C 完了（revision 4 の判定 C 完了。次は C′）
+- status: Phase C′ 完了（revision 4。判定 C は GO、最終 C′ は阻害する指摘なし。次は Phase D。決定記録 2 件は owner の裁定待ち）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: b3f105e14d1997deab5300448e67d8099b5a3b00
@@ -16,13 +16,11 @@
 - Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 の判定 C と C′ の共通 bundle（GO 候補 head `b3f105e1`。凍結版 HANDOFF、B 結果、完全 diff、Git の原出力、両 audit、全 EditMode の生記録、§5.4 V0〜V6 の原記録。所見を含まない）を判定 C が生成した。ローカル固定済み（未昇格）、別 session の取得・閲覧を確認済み。取得案内は task の手元引渡し先（git 管理外）にあり、所見を含まないのでそのまま C′ の取得案内として渡せる。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は Phase C′（独立監査、1 巡目）。
-  - 作業: implementation base `9de34cc2`・head `b3f105e1` の上の共通 bundle（判定 C と同じもの）だけを入力に、凍結版 HANDOFF（bundle 内の `67f04618` 版）の I1〜I3・E1 と受け入れ条件 AC1〜AC4 に照らして独立に監査し、阻害する指摘と後続へ移送する指摘を分けて返す。同じテストの再実行は必須にしない。高コスト証拠なしなので、この C′ が最終 C′。
-  - 読む範囲: C′ は可変な本 HANDOFF も PR も読まない。入力は bundle の取得案内と bundle の中身だけ（bundle の `README-bundle.md` から始める）。
-  - 必要な権限: Artifact Storage の `fetch`（同じ PC、非仮想化の pwsh、Artifacts の Release build がある checkout から。network・資格情報は使わない）。Unity・実操作は要らない。
-  - 担当の条件: B・発見 C・判定 C はすべて同じ系列（Anthropic）なので、C′ は別の系列で新規 session にする（A2 で使わずに残した予約の系列がある。§5.1）。
-  - 停止規則: bundle の取得・hash 照合・閲覧ができなければ監査を始めず、理由を返す。凍結済み条件・常時契約への違反根拠の無い指摘でスコープを広げない。
-  - 引き渡さないもの: 発見 C・判定 C の所見と結論（本 HANDOFF §7）、PR の会話、可変な HANDOFF 全文。PR 状態ブロックには「判定 C 完了」の事実だけを書く。
+- 引継ぎ票: 次は Phase D（主担当）。
+  - 作業: (1) owner に §8 の CP1・CP2 を決定記録として裁定してもらい §9 に書く。(2) `osm-workflow` の Phase D（保存・引渡し確認、harvest、HANDOFF 削除、task 終了）を行う。harvest 先の CLI README と `12-telemetry.md` §10.5 は B の差分で更新済みで、Phase D は過不足だけを見る。(3) PR 本文の要約と状態ブロックを最終 head に合わせ、マージは owner が判断する。
+  - 読む範囲: 既定（§0、§6〜§9）。
+  - 必要な権限: commit・push・PR 本文の更新（push は owner に確認する）、Artifact Storage の通常操作。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -445,7 +443,16 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
 
 ## 8. Phase C'
 
-revision 4 では未着手。
+**1 巡目（最終 C′。2026-11-23）**
+
+- 担当: cursor-agent の Grok 4.7（`grok-4.7-high`、`--mode=ask`、新規 session）。B・発見 C・判定 C（Anthropic）と別の系列で、A2 で使わずに残した予約の系列。
+- 入力（blind）: 判定 C と同じ共通 bundle を主担当が `fetch`（package SHA-256 `0331346d2dc31c5ad772c3895109f6b547fdbce50f08769c27f3a6cbace4f774` を照合）し、無改変で写したもの。加えて `ops.zip` の展開（Grok の shell が使えない場合に備えた。bundle 内の file は加工していない）、head `b3f105e1` の変更箇所の `git archive`、head の `AGENTS.md` と workflow の参照文書。発見 C・判定 C の所見、PR、可変な HANDOFF は渡していない。packet と生出力は Git 外の `D:/repositories/unity/ds3-evidence/rev4-cprime/`。
+- 結論: **阻害する指摘なし。** I1〜I3・E1・AC1〜AC4 と常時契約に違反は無いとした。V1〜V5 の原記録（`ops-unzipped/`）、標準 run の XML（`SetActiveDebugCommandTests` 25 件・`DebugSocketServiceHierarchyLookupTests` 1 件 Passed）、AC3 の diff 検査、README を条件ごとに照合した。
+- 後続への入力（違反ではない）:
+  - CP1: 全 EditMode の 4 run に、全件・`status=passed`・`exitCode=0`・強制終了でない取得は無い。§5.2 の読み方では合格していないが、失敗（content build の `Directory.Move` の access denied 3 件、`-nographics` の VFX Inconclusive 25 件）は base..head の 14 file の外で、最低条件・受け入れ条件・常時契約の違反を示さないので blocker にしない。読み方の確定は決定記録、修正の所有は content build と VFX テストの側。
+  - CP2: AC3 の「SampleGame の差分に `new GameObject`・`Instantiate` が無い」は、AC1 が求める EditMode fixture の 2 行（`SetActiveDebugCommandTests.cs`）と同時に読める。Runtime は 0、実機の root は増えていない。テストを含めるかは合否を変えない決定記録の対象。
+- 残存リスク・監査できなかった範囲: テストと §5.4 は再実行していない。`ops.zip` と展開のハッシュ照合はできなかった（展開に依った）。全 2270 件の本文は読んでいない。`TryGetHierarchyGameObject` の `_disposed` 確認は `_gate` の外で、別スレッドからの呼び出しは契約外で未実証。`SetActiveDebugCommand.cs` は 187 行で §3 の見込みを超える。文字列 `"true"` は true として適用される。B・C のモデル名は blind 入力に無く、モデル相違は packet だけでは確認できない（主担当が上の担当欄で記録した）。
+- 判定 C との突き合わせ（主担当）: 判定 C も GO で、J1（staging の access denied）・J2（終了時の native stall）を後続へ送った。C′ の CP1 は J1・J2 と同じ事象を同じく非 blocker とした。食い違いは無い。CP1・CP2 は決定記録の対象として owner に裁定を求める（§9）。
 
 ## 9. Phase D
 
