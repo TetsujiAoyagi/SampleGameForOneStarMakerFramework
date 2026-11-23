@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S5-0。BuildSystem の小さいスライス）
-- status: `C'`（判定 C が 2026-11-23 に GO とした。次は C'（最終 C'）。§7）
+- status: `D`（判定 C が 2026-11-23 に GO とし、C'（最終 C'）が blocker なしとした。次は Phase D。§7・§8）
 - branch: `claude/content-build-move-retry`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。A2 の固定 base と同じ）
 - implementation head commit: `d0785b2327f9795aa9c4dea78ebcbfcf51e2f31f`
@@ -19,16 +19,16 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と固定 base だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（レビューの入力は implementation head の commit。stage は使っていない）
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s5-0-content-build-move-retry` に `evidence stage` した（判定用、14 file、目次は `manifest.json`）。取得案内は git 管理外の既存の受け渡し場所（Evidence の取得案内の file 群）の判定用の file にある。別の pwsh process の fetch で `passed`、manifest の全 file の hash が一致し、XML を読めた。受け取り側の別 session の fetch・閲覧は未確認
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（11 file、目次は `manifest.json`）。取得案内は同じ場所に、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`、manifest の全 file の hash が一致した。受け取り側の fetch・閲覧の確認は C' の起動前に行う
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（11 file、目次は `manifest.json`）。取得案内は同じ場所に、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`、manifest の全 file の hash が一致した。確認済み（2026-11-23、進行役が C' の起動前に別の pwsh process で fetch して `passed`。取得した file は `manifest.json` を含めて 12 で、本書の 2 版の blob は凍結版 `f6a6e594`・B の記録 `b295763d` の本書と一致した。C' の後も全 file の blob は変わっていない）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目。高コスト証拠は無いので最終 C'）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役。`cursor-agent` を使うなら Grok 系だけ）、使った担当・モデルと独立性を §8 に書く。
-  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
-  - 読む範囲: C' は blind bundle だけ（`manifest.json` が目次。凍結した条件は bundle の中の凍結版の本書の §0〜§5、Phase B の結果は B の記録の本書の §6）。可変な本書を読まない。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
+  - 次の Phase・役割: Phase D（harvest と後片付け）。C'（最終 C'）は blocker なしで終えた（§8）。判定 C の GO と合わせ、implementation head は GO である。
+  - 次の作業: owner の指示を受けてから、§0 の harvest to の 3 箇所へ書き移し、本書を削除する（osm-workflow の Phase D）。push と PR の公開点も owner の指示に従う。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（C' の記録 commit。SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
   - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない）。
-  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の 3 project の Release build 済みの checkout）。Unity の再実行は必須でない。push はしない（公開点は C' の後）。
-  - 停止規則: C' の規則（osm-workflow の phase-c-prime.md）。C' の差し戻しは別に数えて上限 3 巡。
-  - 引き渡さないもの: C' に、本書（特に §7 の発見 C・判定 C の所見と結論）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
+  - 必要な権限: push は owner に毎回聞く。
+  - 停止規則: osm-workflow の Phase D。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -293,3 +293,16 @@
 - 判定必須のうち未実行: なし（AC8 は 1 run で合格の条件が揃った）。
 - 未確認事項: bundle の受け取り側の別 session の fetch・閲覧（送り側の別 process の fetch では、どちらの bundle も `passed` で manifest の全 file の hash が一致した）。ChatGPT の監視は止めていないので、run1 の 3 回の再試行のどれが Unity Hub と ChatGPT のどちらの open によるかは分けていない（AC8 は分けることを求めない）。J1 の「直前に閉じた後の失敗」の形を AC1 が代表するかは §2 のとおり答えないが、run1 の 3 回はどれも 2 回目で通った。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。Phase B・発見 C と同じモデルで、`独立性制約あり`（owner 受容。進行役の指定）。
+
+## 8. Phase C'
+
+### C' 1 巡目（最終 C'、2026-11-23）
+
+- 担当・モデル: Codex CLI（0.171.0）、`gpt-5.6-luna`、reasoning effort medium（OpenAI）。§5 の予約どおり Phase A〜C に関与していない系列で、新規 session。独立性の制約なし。記録は進行役が C' の出力から書いた。
+- 入力: C' blind bundle（§0 の欄。`manifest.json` を含む 12 file、無加工の写し）、implementation head `d0785b23` の source の写し（`git archive` の `unity/Assets/OneStarMaker`・`AGENTS.md`・`unity/Assets/README.md`）、osm-workflow の `phase-c-prime.md`・`phases-and-handoff.md`・`review-evidence.md`（判定 C の記録 commit `5be3892a` の版）。可変な本書、§7 の発見 C・判定 C の所見と結論、判定用の bundle、PR の本文と会話は渡していない。
+- 結論: 現在の問いを阻害する指摘なし。
+- AC8 の照合: `run1/results.xml` の root `Passed`、total 2263、passed 2261、failed 0、Inconclusive 0、skipped 2。`step.json` は `passed`・exit 0・`withGraphics=true`・空 filter・EditMode。`unity.log` に staging の access denied・共有違反・後片付けの失敗は無く、`[ContentStagingMove]` の 3 行はどれも 2 回目で通っている。1 run で (1)(2) を満たした。
+- AC1〜AC7・常時契約: `ContentStagingMove.cs` の 38〜91 行（共有の移動、述語、`staging`・`final` の fail-closed の検査、50 ms・2,000 ms・41 回の上限、上限時の `IOException`）、`BuildContentCoordinator.cs` の 123 行・`ContentTransportPublisher.cs` の 156 行（共有の関数の呼び出し）、`ContentOverlayReuse.cs` の 105〜127 行と `BuildContentCoordinator.cs` の 170 行（`ReuseRecordFailure` への反映）を照合し、違反なし。Runtime の asmdef・公開 API・依存の向き・`record`・nullable に反する変更なし。contract-audit は errors 0・warnings 0。
+- 後続スライスの入力（現スライスの blocker ではない。凍結した本書の §2 の後続が所有する）: 上限超えの後に呼び手の `Directory.Delete(staging, true)` も拒まれた時の outcome・例外の扱い、Runtime の `ContentInstaller`・`ContentCacheStore` と SampleGame の `PlayerBuildPublisher` への同じ再試行の適用、同じ identity を複数の Editor が同時に build する競合、移動をやめて完了の印を置く方式。新規の後続はない。
+- 残存リスク: AC8 は 1 run で止めた（AC8 の停止規則どおり）。再試行の 3 回は判定の補助の観測で、合否を決めない。ChatGPT は止めておらず、run 中に別 project の Unity が起動したが、run の XML は failed 0・Inconclusive 0。
+- 監査できなかった範囲: Unity は再実行していない（bundle の XML・log・step.json・diff・機械検査の出力を使った）。bundle の外の原記録は読んでいない。skipped の 2 件は AC8 の条件の外。
