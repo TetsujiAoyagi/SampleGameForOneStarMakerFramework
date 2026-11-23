@@ -23,6 +23,7 @@
 - 引継ぎ票:
   - 次の Phase・役割: Phase D（C と C' の突合とマージ判断、harvest）。最終 C' は 2026-11-23 に 2 巡で完了し、阻害する指摘は残らなかった（§8）。判定 C は GO 候補（§7）。
   - 次の作業: §7 と §8 を突き合わせ、§2.3 の後続へ送る入力（§7 の F1・F3・F4、§8 の C' の (B)）を program へ移し、§0 の harvest to の先へ harvest して、本書を削除する。CP2（AC11 の読み方）は進行役の読み方の確認なので、owner が覆すかを Phase D で確かめる。push と PR の Ready は owner の確認の後。
+  - 外部レビュー（2026-11-23、push 後の head `dd0f03ae`）: cursor[bot] の 2 件と owner の account の再レビュー 1 件（PR #211 の timeline と review）。どれも阻害する指摘なし（owner が確認）。Phase D は非阻害の注記を読み、PR 本文の要約を実装の内容に替え、他の注記（BeforeSceneLoad の失敗通知の例外、`ReadGameLog` の parse できない行の level など）は §2.3 の後続へ送る入力として program へ移すか、理由を書いて採らない。owner の指示（2026-11-23）: Phase D を終えたら push し、進行役がマージと後始末をする。
   - 読む範囲: 既定（§0〜§9）。
   - 引き継ぐ commit: この票を含む commit（判定 C の完了の記録 commit `83cf3822` の後に、進行役が C' の結果を §8 に書いた記録 commit。SHA は PR #211 の状態ブロックで渡す）。
   - 必要な権限: push と PR の更新（owner の確認の後）。Artifact Storage の evidence の昇格は review-evidence の規則に従う。
