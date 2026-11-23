@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S5-0。BuildSystem の小さいスライス）
-- status: `A`（A3 統合案。A2 の 2 件と外部計画レビューの 1 巡目（2 件）を §5.1 で採否した。未凍結）
+- status: `B`（Phase A revision 0 を凍結した。次は Phase B）
 - branch: `claude/content-build-move-retry`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。A2 の固定 base と同じ）
 - implementation head commit: `未固定`
-- A3 凍結記録: `未凍結`
+- A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビュー 2 巡目が見た commit `0ae53f8c` の本書に、2 巡目の採否・凍結前の自己点検・凍結の記録・Phase B 宛ての票を足した物）。承認の根拠: 外部計画レビュー 2 巡目が凍結を妨げる指摘なしとし、owner が凍結と Phase B への引き渡しを指示した。§5.1 の採否は、この指示で承認された。
 - risk: `normal`（Editor の 2 つの公開点の移動と、再利用の記録の書き込みの失敗の扱いだけを変える。公開 API・asmdef・所有者・寿命・Runtime は変えない。§5）
 - owner: root（依頼者）
 - created: 2026-11-23
@@ -21,12 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（外部計画レビューの採否と、owner の凍結判断）。凍結までは Phase B を始めない。
-  - 次の作業: Draft PR の外部計画レビューの指摘を §5.1 の A3 の採否に足し、目的・利用者の欄を変えたら §5.1 の規則で目的レビューをやり直す。owner の凍結判断を上の A3 凍結記録に書き、票を Phase B 宛てに書き換えて凍結版を commit する。
-  - 読む範囲: 既定（Phase A は全節）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: なし（Unity を使わない。push は公開点の規則に従う）。
-  - 停止規則: 凍結前に Phase B を始めない。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: §4 の順序で §3 の変更を実装し、AC1〜AC7 の test を書き、§5 の起点 filter で通す。AC2 の観測値と AC6 の後片付けの観測を §6 に写す。実装 commit を切り、その SHA を implementation head 欄に書き、§6 を埋め、票を発見 C 宛てに書き換えて記録 commit を切る（出口の書き方は osm-workflow の phases-and-handoff.md「引継ぎ票」の (a)）。動作確認は `対象なし`（§5）。
+  - 読む範囲: 既定（§0〜§5。§5.1 は読まなくてよい）。
+  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head 欄は `未固定` で、B は渡された commit の本書で、上の A3 凍結記録・対象 revision 0・この票の次担当 B を照合する。
+  - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない。`pwsh tools/workflow-task.ps1 status -Task s5-0-content-build-move-retry` で確かめる）。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1 -Filter …`、sandbox 外）。新しい worktree では初回の import に時間がかかる。push はしない（実装の push は判定 C と C' の後の公開点で行う）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、osm-workflow の architecture-gates.md の Phase B の停止条件。判定必須の全 EditMode 回帰（AC8）は B では走らせない（判定 C の仕事）。
   - 引き渡さないもの: なし（C' の入力はまだ無い）。
 
 ## 1. 目的と対象外
@@ -69,14 +70,14 @@
     - **S2:** Unity Hub が `D:\repositories\unity` を監視している PC で、GO 候補 head の全 EditMode 回帰を 1 回の run で failed 0（Inconclusive 0）にでき、どの run でも staging の移動が上限を超えて落ちない（AC8）。
 - 受け入れ条件:
   - **AC1（S1、I1）:** 共有の移動の関数の単体 test。`staging` に file を置き、その file を `FileShare.ReadWrite | FileShare.Delete` で開いたまま移動を呼び、注入した待ちの 1 回目でその handle を閉じる。移動は成功し、`final` に元の file が全て同じ内容であり、`staging` は無く、試行は 2 回である。時間は注入で進め、`Task.Delay` / `Thread.Sleep` を使わない。開いた handle で directory の移動が失敗するのは Windows の振る舞いなので、この test は Windows だけで走らせ（`[Platform(Include = "Win")]` 等）、Windows 以外では注入した移動で同じ試行の回数と分岐を確かめる test が走る。
-  - **AC2（S1 の前提）:** AC1 の 1 回目の失敗の例外の型と `HResult` を test の中で確かめて記録し、§3 の述語（Windows で、`IOException` の `HResult` が `0x80070005`・`0x80070020`・`0x80070021` のもの、または `UnauthorizedAccessException`）がその失敗を一時的と読むことを確かめる。観測した値が §3 の述語に入らない時は、述語に足さずに §4 の差し戻しにする（別の volume・path が無い時の `IOException` と同じ値かもしれず、足すと I2 を崩しうるため）。
+  - **AC2（S1 の前提）:** AC1 の 1 回目の失敗の例外の型と `HResult` を test の中で確かめ（観測した値は test の出力に書き、B が §6 に写す）、§3 の述語（Windows で、`IOException` の `HResult` が `0x80070005`・`0x80070020`・`0x80070021` のもの、または `UnauthorizedAccessException`）がその失敗を一時的と読むことを確かめる。観測した値が §3 の述語に入らない時は、述語に足さずに §4 の差し戻しにする（別の volume・path が無い時の `IOException` と同じ値かもしれず、足すと I2 を崩しうるため）。
   - **AC3（I1、失敗経路）:** 移動が一時的な失敗になった後の検査（待ちの前、または待ちの後で次の移動の前）の時点で `staging` と `final` の両方がある時（その間に誰かが `final` を作った）、移動を呼ばずに失敗を返し、`final` の bytes は変わらず、`staging` は残る（片付けは呼び手の catch・finally の仕事のまま）。
   - **AC4（I1、失敗経路）:** 移動が失敗した後の検査（待ちの前、または待ちの後で次の移動の前）で `staging` が無い時は、`final` の有無によらず、移動を呼ばずに最後の失敗を返す。(a) `staging` も `final` も無い時と、(b) `staging` が無く `final` がある時の両方を test し、どちらも成功とは報告せず、(b) の `final` の bytes は変わらない（その `final` の帰属は確かめられないので消さない。I1 の (b)）。
-  - **AC5（I2、失敗経路）:** (a) 1 回目の移動が成功する時は待ちも時計も呼ばず、今と同じ 1 回の移動である。(b) 一時的でない失敗（別の volume など、§3 の述語に入らない `IOException`）は 1 回で失敗し、待ちを呼ばない。(c) 一時的な失敗が続く時は、試行の前と待ちの前に時計を見る: 試行を始める時点の経過が 2,000 ms 以上ならその試行を始めず、待ちを始める時点で「経過 + 50 ms」が 2,000 ms を超えるなら待たずに止める。止まった時は、最後の失敗を内側に持ち、文言に試行の回数を含む例外を返す。待ちの合計（要求した待ちの量。`Thread.Sleep` が要求より長く寝た分は数えない）は 2,000 ms を超えない。時計が進まない時も試行は 41 回を超えず、41 回目の失敗の後は待たずに止まる（待ちは最大 40 回）。合格例: 経過 1,960 ms で失敗したら待たずに止まる。時計が進まず 41 回目が失敗したら待たずに止まる。不合格例: 経過 1,960 ms で失敗して 50 ms 待ってから止まる。41 回目の失敗の後に 1 回待つ。
-  - **AC6（I1 の (c)）:** coordinator と publisher の移動は共有の関数を通り、上限を超えた失敗は今と同じ catch・finally に入り、成功は返らず、`final` は作られない。後片付け（coordinator の catch と publisher の finally の `Directory.Delete(staging, true)`）が成功するとは保証しない: 上限まで handle が閉じなかった時はその削除も拒まれうり、coordinator は outcome を書かずに例外を外へ投げ、publisher は元の失敗を後片付けの例外で覆いうる（今の code の振る舞いで、本スライスは変えない。後続の項）。B は AC5 の (c) の test で、閉じない handle を持ったまま上限に達した後に `Directory.Delete(staging, true)` を呼んだ時の観測（例外の型と、`staging` が残るか）を記録し、§6 に書く。既存の coordinator・publisher の test が変更なしで通ることで確かめ、移動の失敗を起こす新しい統合 test は足さない（AC1〜AC5 が関数で確かめ、呼び出しは 1 行の置き換えなので、構造レビューが call site を照合する）。
-  - **AC7（I3、失敗経路）:** `ContentOverlayReuse.Write` の置き換えと別名の削除を注入で両方失敗させる単体 test。`Write` が投げる例外の `Message` と、coordinator 経由の `ReuseRecordFailure` の両方に、元の失敗の文言、別名を消せなかったこと、別名の絶対 path の 3 つが含まれる（`AggregateException`、または 3 つを本文に書いた 1 つの例外で返す）。3 つのどれかが内側の例外にしか無い結果は不合格。既存の記録の bytes は変わらない。置き換えは成功したが別名が残っていてその削除が失敗する時も、`Write` は同じ 3 つを本文に書いた例外を返し、coordinator は build を成功のまま `ReuseRecordFailure` に写す（注入で確かめる）。置き換えだけが失敗して削除は成功する時は、今と同じく元の失敗だけを返し、別名は残らない（既存の `ContentOverlayBuildAndReuseTests.RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept` が変更なしで通る）。
-  - **AC8（S2）:** GO 候補 head で、Unity Hub が動いている（`Get-CimInstance Win32_Process` に `Unity Hub.exe` があり、Hub の `%APPDATA%\UnityHub\projects-v1.json`（J1 の調査が読んだ file）の `containingFolderPath` に `D:\repositories\unity` がある）PC で、`pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、EditMode）を続けて最大 3 run 走らせる。合格は次の 2 つが両方成り立つ時だけである。(1) XML の root result が `Passed`、failed 0、Inconclusive 0 の run が 1 つある。(2) 走らせた全 run で、staging（`…\staging\…`・`…\.staging\…`）の path を指す access denied・共有違反で落ちた test が 0 件である。共有の関数を通った上限超え（文言に試行の回数がある）だけでなく、試行の回数の無い生の失敗（共有の関数を通らない移動の置き忘れ）と、後片付けの削除の失敗も数える。(1) と (2) を満たした時点で残りの run は走らせない。Timeout など staging と無関係な失敗のある run は (1) に数えないが、それだけで不合格にはしない（その失敗は §7 に記録する）。(2) が 0 件のまま 3 run とも (1) に届かない時は、合格にも NO-GO にも Phase A の再開にもせず、判定 C を完了と記録しないで §7 に記録し、run を足すか打ち切るかを owner が決める。不合格例:ある run で staging の移動が上限を超えて落ちた（他の run が failed 0 でも不合格。上限が足りない証拠なので §4 に従って戻す）。failed 0 だが Inconclusive が 1 以上の run しかない。各 run の前に、Unity Hub と ChatGPT の process の有無と、同時に動く他の Unity の process を記録する。ChatGPT を止めることは求めない（止めたなら記録する）。
-- 判定の補助の観測（合否に使わない）: 移動が再試行の後に成功した時、共有の関数は 1 行の情報 log（`[ContentStagingMove]`、試行の回数と `final`）を出す。判定 C は AC8 の各 run の Editor log からその行の数と試行の回数を数え、「機構を通った観測」（この行）と「全回帰が通った観測」（XML）を分けて §7 に書く。0 でも AC8 の合否は変えない（監視の open と移動が重ならなかった run でも、J1 の原因に耐えることは AC1 が持つ。J1 の 47 回のうち移動の時点で開いていたと確かめたのは 4 回で、残り 43 回は直前に閉じた後の失敗なので、AC1 の開いた handle が全ての失敗の形を代表するとは言わない。この行の数がその差を埋める観測になる）。
+  - **AC5（I2、失敗経路）:** (a) 1 回目の移動が成功する時は待ちも時計も呼ばず、今と同じ 1 回の移動である。(b) 一時的でない失敗（別の volume など、§3 の述語に入らない `IOException`）は 1 回で失敗し、待ちを呼ばない。(c) 一時的な失敗が続く時は、試行の前と待ちの前に時計を見る: 試行を始める時点の経過が 2,000 ms 以上ならその試行を始めず、待ちを始める時点で「経過 + 50 ms」が 2,000 ms を超えるなら待たずに止める。止まった時は、最後の失敗を内側に持つ `IOException` を返し、その文言に試行の回数、`staging` と `final` の path、最後の失敗の文言を含める（型を `IOException` にするのは、呼び手の catch・finally と、publisher の例外を受ける呼び手の振り分けを今と変えないため。文言に path を含めるのは AC8 の (2) の数え方のため）。待ちの合計（要求した待ちの量。`Thread.Sleep` が要求より長く寝た分は数えない）は 2,000 ms を超えない。時計が進まない時も試行は 41 回を超えず、41 回目の失敗の後は待たずに止まる（待ちは最大 40 回）。合格例: 経過 1,960 ms で失敗したら待たずに止まる。時計が進まず 41 回目が失敗したら待たずに止まる。不合格例: 経過 1,960 ms で失敗して 50 ms 待ってから止まる。41 回目の失敗の後に 1 回待つ。
+  - **AC6（I1 の (c)）:** coordinator と publisher の移動は共有の関数を通り、上限を超えた失敗は今と同じ catch・finally に入り、成功は返らず、`final` は作られない。後片付け（coordinator の catch と publisher の finally の `Directory.Delete(staging, true)`）が成功するとは保証しない: 上限まで handle が閉じなかった時はその削除も拒まれうり、coordinator は outcome を書かずに例外を外へ投げ、publisher は元の失敗を後片付けの例外で覆いうる（今の code の振る舞いで、本スライスは変えない。後続の項）。B は、Windows だけで走る test を 1 つ足し、`staging` の中の file を開いたまま（閉じない）注入した時計で上限に達させ、共有の関数が `IOException` を返すことだけを確かめた後、同じ handle を開いたまま `Directory.Delete(staging, true)` を呼んだ時の観測（例外の型・文言と、`staging` が残るか）を test の出力に書き、§6 に写す。この観測は合否に使わず、assert しない。既存の coordinator・publisher の test が変更なしで通ることで確かめ、移動の失敗を起こす新しい統合 test は足さない（AC1〜AC5 が関数で確かめ、呼び出しは 1 行の置き換えなので、構造レビューが call site を照合する）。
+  - **AC7（I3、失敗経路）:** `ContentOverlayReuse.Write` の置き換えと別名の削除を注入で両方失敗させる単体 test。`Write` が投げる例外の `Message` と、coordinator 経由の `ReuseRecordFailure` の両方に、元の失敗の文言、別名を消せなかったこと、別名の絶対 path の 3 つが含まれる（`AggregateException`、または 3 つを本文に書いた 1 つの例外で返す）。3 つのどれかが内側の例外にしか無い結果は不合格。既存の記録の bytes は変わらない。置き換えは成功したが別名が残っていてその削除が失敗する時は（置き換えの失敗は無いので）、`Write` は「別名を消せなかったこと（削除の失敗の文言）」と「別名の絶対 path」の 2 つを本文に書いた例外を返し、coordinator は build を成功のまま `ReuseRecordFailure` に写す。置き換えた記録の bytes は今回の build の記録で、`TryGet` が今回の鍵で読み戻せる（注入で確かめる。架空の「元の失敗」の文言を作らない）。置き換えだけが失敗して削除は成功する時は、今と同じく元の失敗だけを返し、別名は残らない（既存の `ContentOverlayBuildAndReuseTests.RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept` が変更なしで通る）。
+  - **AC8（S2）:** GO 候補 head で、Unity Hub が動いている（`Get-CimInstance Win32_Process` に `Unity Hub.exe` があり、Hub の `%APPDATA%\UnityHub\projects-v1.json`（J1 の調査が読んだ file）の `containingFolderPath` に `D:\repositories\unity` がある）PC で、`pwsh tools/run-tests.ps1 -WithGraphics`（空 filter、EditMode）を続けて最大 3 run 走らせる。合格は次の 2 つが両方成り立つ時だけである。(1) XML の root result が `Passed`、failed 0、Inconclusive 0 の run が 1 つある。(2) 走らせた全 run で、staging（`…\staging\…`・`…\.staging\…`）の path を指す access denied・共有違反で落ちた test が 0 件である。共有の関数を通った上限超え（文言に試行の回数がある）だけでなく、試行の回数の無い生の失敗（共有の関数を通らない移動の置き忘れ）と、後片付けの削除の失敗も数える。(1) と (2) を満たした時点で残りの run は走らせない。Timeout など staging と無関係な失敗のある run は (1) に数えないが、それだけで不合格にはしない（その失敗は §7 に記録する）。(2) が 0 件のまま 3 run とも (1) に届かない時は、合格にも NO-GO にも Phase A の再開にもせず、判定 C を完了と記録しないで §7 に記録し、run を足すか打ち切るかを owner が決める。不合格例: ある run で staging の移動が上限を超えて落ちた（他の run が failed 0 でも不合格。上限が足りない証拠なので §4 に従って戻す）。failed 0 だが Inconclusive が 1 以上の run しかない。各 run の前に、Unity Hub と ChatGPT の process の有無と、同時に動く他の Unity の process を記録する。ChatGPT を止めることは求めない（止めたなら記録する）。
+- 判定の補助の観測（合否に使わない）: 移動が再試行の後に成功した時、共有の関数は 1 行の情報 log（`[ContentStagingMove]`、試行の回数と `final`）を出す。判定 C は AC8 の各 run の Editor log（`run-tests.ps1` が XML・`step.json` と同じ出力先に `-logFile` で書く file）からその行の数と試行の回数を数え、「機構を通った観測」（この行）と「全回帰が通った観測」（XML）を分けて §7 に書く。0 でも AC8 の合否は変えない（監視の open と移動が重ならなかった run でも、J1 の原因に耐えることは AC1 が持つ。J1 の 47 回のうち移動の時点で開いていたと確かめたのは 4 回で、残り 43 回は直前に閉じた後の失敗なので、AC1 の開いた handle が全ての失敗の形を代表するとは言わない。この行の数がその差を埋める観測になる）。
 - ここでは答えない問いと所有する後続スライス:
   - Runtime の `ContentInstaller` の staging → final の移動と、`ContentCacheStore.DeleteRevision` の tombstone への移動に同じ再試行を入れるか（Player の cache の置き場が監視される時）。test は temp の下で動き、全 EditMode 回帰の問いに関わらない。→ program §8 の S4（Player へ content を届ける経路と install を設計する行）の入力。
   - 移動の失敗の後に呼び手の後片付け（`Directory.Delete(staging, true)`）も失敗した時に、coordinator が outcome を書けない・publisher が元の失敗を覆うこと（今の code の振る舞い）。→ [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「BuildSystem の後続」の入力。AC8 の (2) が後片付けの失敗も数えるので、本スライスの判定には出る。
@@ -85,7 +86,7 @@
   - 直前に閉じた後の失敗で参照を持っていたものと、監視を止めた時に失敗が消えるか。再試行がそれらにも効く限り答えない。→ 所有しない（AC8 が不合格の時に §4 の差し戻しで再び問う）。
   - 全 EditMode 回帰の他の不安定（Timeout、他の Unity の同時実行）。→ 本スライスの外。AC8 の run に出たら §7 に記録し、program の「BuildSystem 側の入力」に足す。
 - スライス分割の判断: 契機は「独立した変更理由が混在する」（移動の再試行と、再利用の記録の別名の削除の失敗）。分割しない。どちらも program が S5-0 の 1 行に入れた BuildSystem の公開の失敗の扱いで、同じ 2 つの file 群（`Scripts/Editor/Build/Content/` と `Tests/Editor/Build/`）に閉じ、AC7 は AC8 の全 EditMode 回帰と同じ run で判定できる。分けると判定 C・C' を 2 回走らせる費用だけが増える。
-- 判定定義: GO は AC1〜AC8 が全て満たされた時。NO-GO は AC のどれかが満たされない時（AC8 で上限を超えた移動の失敗が出たら、§4 の差し戻しに従う）。スパイクではないので CONDITIONAL ACCEPT は使わない。
+- 判定定義: GO は AC1〜AC8 が全て満たされた時。NO-GO は AC のどれかが満たされない時（AC8 で上限を超えた移動の失敗が出たら、§4 の差し戻しに従う）。AC8 の (2) が 0 件のまま 3 run とも (1) に届かない時だけは、GO にも NO-GO にもせず、AC8 の定めどおり owner が run を足すか打ち切るかを決める。スパイクではないので CONDITIONAL ACCEPT は使わない。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
 - A3 後の例外承認: なし
 - 決定記録: なし
@@ -148,7 +149,7 @@
 - A2 独立レビューごとの観点・担当・モデル・ベンダー、入力版:
   - **アーキテクチャゲート**（architecture-gates.md の Phase A の 1〜7、不変条件の破り方、曖昧な AC の合格例・不合格例、現況の事実の照合。計画の変更は実装済みと仮定する枠を指示書で固定した）: cursor-agent、Grok 4.7 high（xAI）、2026-11-23。入力版: 固定 base `d926e3b6b40dafab086b293e6d60784e304ecf4c` から関係 path を取り出した写しと、A1 の HANDOFF copy（sha256 `6f8ee0abe84a5b09c45178049fdf4fd9c6fd533c1f2d540056da982a6be32364`）。結論: ゲート 1〜7 は満たす（`ContentStagingMove` は分割しない、asmdef・公開面・Runtime は増えない）。指摘 6 件（blocker 1、major 2、minor 3）と事実の誤り 6 件。
   - **目的レビュー**（目的と利用者の 2 欄の原文だけを渡し、問いは「何を保証すべきか」「何を作らないべきか」の 2 つ。HANDOFF・code・他の欄は読ませていない）: Claude の subagent、Claude Opus 5.5（Anthropic）、2026-11-23。入力版: 原文の sha256 `bc042ba699d9c64f886bd3a92ebff8c0eafe19c3b4bc602bdca3a92cf2067095`。
-- A3 統合担当・モデル・採否: 統合は A1 と同じ担当（Claude Opus 5.5）。owner の凍結判断は外部計画レビューの後。
+- A3 統合担当・モデル・採否: 統合は A1 と同じ担当（Claude Opus 5.5）。owner は外部計画レビュー 2 巡目の後に凍結した（§0）。
   - アーキテクチャゲート 1（blocker、I1 の (b) を AC4 が合格にしていた）: A2 の時点では採用し、`staging` が無く `final` がある時は成功で戻す分岐を入れた。外部計画レビュー 1 巡目の 2 件目の R1 で**覆し、不採用にした**（下記）。I1 の (b) の順序は「失敗を返した移動が実は済んでいた」を前提にするが、Windows の同期の rename ではその前提が起きず、存在だけでは `final` の帰属を確かめられないので、成功で戻すと I1 の「失敗した build を成功にしない」をかえって崩しうる。
   - アーキテクチャゲート 2（major、AC2 の括弧書きが述語を広げる）: **採用。** 観測値が §3 の述語に入らなければ足さずに §4 の差し戻しにする（AC2）。
   - アーキテクチャゲート 3（major、AC8 の終わりと優先が割れる）: **採用。** 最大 3 run、合格は (1) failed 0・Inconclusive 0 の run が 1 つと (2) 全 run で移動の上限超えが 0 件の両方、満たした時点で止める（AC8、S2）。
@@ -162,7 +163,9 @@
   - 目的レビュー「再利用の記録の書き込みも、監視の open が重なっても壊さず読み戻せる状態で終える」: **不採用（現スライスでは）。** 記録の置き換えは今も 1 回の `File.Replace` で、失敗しても既存の記録は前の bytes のまま読める（壊れない）。監視による置き換えの失敗は J1 の 3 run・調査の記録に 1 件も無く、起きても build は成功のまま `ReuseRecordFailure` に出る。ただし既存の test の一部は `ReuseRecordFailure` が null であることを確かめるので、AC8 の run でこの失敗が出たら §7 に記録し、§4 の差し戻しの入力にする。
   - 目的レビュー「残った別名を自動で掃除する機構は作らない」: **採用（計画どおり）。** 次の `Write` が同じ名前を上書きする今の振る舞いのままで、掃除の機構は足さない。
   - 目的レビュー「判定 C に監視の有無を記録させる手順を足さない」: **不採用。** AC8 は「監視が動いたまま failed 0」を確かめる条件で、Unity Hub の process と登録の有無の記録が無いと、監視の無い run の failed 0 と区別できない。記録は `Get-CimInstance` と file の読み取りの機械の確認で、利用者の入力は増えない。
-  - **外部計画レビュー 1 巡目**（Draft PR #210、対象 commit `2d325893`）。1 件目は cursor のレビュー（R1〜R8）、2 件目は PR に投稿された外部計画レビュー（R1〜R3）。採否は A3 の統合担当の案で、owner が凍結の時に裁定する。
+  - （A2 の採否の時点）目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは要らない。
+  - （A2 の採否の時点）A2 の再レビュー: 要らない。採用した変更はアーキテクチャゲートが自分で示した修正案（分岐・述語・AC8・時計の位置・AC7・役割の列）をそのまま入れたもので、責務マップの file・依存・公開面は変えていない。外部計画レビューが変更後の版を見る。
+  - **外部計画レビュー 1 巡目**（Draft PR #210、対象 commit `2d325893`）。1 件目は cursor のレビュー（R1〜R8）、2 件目は PR に投稿された外部計画レビュー（R1〜R3）。採否は A3 の統合担当の案で、owner が凍結で承認した（§0 の A3 凍結記録）。
     - 1 件目 R1（AC8 で、上限超え 0 のまま 3 run とも failed 0 に届かない時の行き場が無い）: **採用。** 合格・NO-GO・A の再開のどれにもせず、判定 C を完了と記録しないで §7 に記録し、run を足すか打ち切るかを owner が決める（AC8）。最低条件未達で終了しない停止規則と両立する。
     - 1 件目 R2（4 分岐を待ちの前だけでなく、移動の例外の直後と待ちの後にも置く。`staging` が無く `final` があれば成功で戻す）: **一部採用。** 検査を待ちの前と待ちの後（次の移動の前）の両方に置き、AC3 の時期の括弧を直した。`staging` が無く `final` がある時に成功で戻す部分は、2 件目 R1 により不採用。種類の判定と状態の検査の順序は、再試行しない分岐が全て失敗を返すので結果が変わらず、§3 の書き方のままにする。
     - 1 件目 R3（時計が進まない時、41 回目の失敗の後は待たない。`Thread.Sleep` の寝過ごしは待ちの合計に数えない）: **採用。** AC5 の (c) と §3。
@@ -175,6 +178,12 @@
     - 2 件目 R2（上限まで handle が閉じない時、呼び手の後片付けも拒まれ、AC6 の「`staging` を消して失敗の outcome を書く」は今の code と合わない）: **採用。** AC6 から後片付けの成功の保証を外し、B がその経路の観測を test で記録して §6 に書く。後片付けの失敗で outcome が書けない・元の失敗が覆われることは今の code の振る舞いで、本スライスでは直さず「BuildSystem の後続」へ送る。AC8 の (2) は後片付けの失敗も数えるので、上限が足りない時は判定に出る（上限の妥当性の判定は失われない）。
     - 2 件目 R3（「機構を通った」観測と「全回帰が通った」観測を分けて残す）: **採用。** 判定の補助の観測で、log の行の数と試行の回数を XML の結果と分けて §7 に書かせる。合否には使わない（結果に依存する条件を合否に入れると、監視の open と移動が重ならなかった run で原理的に未達になるため）。J1 の小さい再現を同じ環境で走らせ直すことは求めない（再現の script は repo に無く、AC1 と log の行で足りる）。
     - A2 の再レビュー: 要らない。変えたのは AC と §3 の分岐の書き方で、責務マップの file・依存・公開面・asmdef は変えていない。2 件目 R1 の採用で分岐は A1 の初稿に近い形（`staging` があり `final` が無い時だけ再試行する）に戻った。目的・利用者の 2 欄は変えていない。
-  - 目的・利用者の 2 欄は変えていないので、目的レビューのやり直しは要らない。
-  - A2 の再レビュー: 要らない。採用した変更はアーキテクチャゲートが自分で示した修正案（分岐・述語・AC8・時計の位置・AC7・役割の列）をそのまま入れたもので、責務マップの file・依存・公開面は変えていない。外部計画レビューが変更後の版を見る。
+  - **外部計画レビュー 2 巡目**（PR #210 に投稿された外部計画レビュー、対象 commit `0ae53f8c`）。結論は「1 巡目の R1・R2 は解決、R3 は対応済み、凍結を妨げる指摘は無い」。
+    - 軽微な確認（AC7 の、置き換えは成功して別名の削除だけが失敗する場合に「元の失敗」が無い）: **採用。** その場合の期待値を「削除の失敗の文言」と「別名の絶対 path」の 2 つと、置き換えた記録が今回の鍵で読み戻せることに分けた（AC7）。
+  - **A3 の統合担当の凍結前の自己点検**（Phase C で読み違いや抜けとして突かれそうな点。設計・責務マップは変えていない）:
+    - 上限を超えた時に返す例外の型と文言を固定した（`IOException`、試行の回数・`staging` と `final` の path・最後の失敗の文言。AC5 の (c)）。型が決まっていないと AC6 の「今と同じ catch・finally」を確かめられず、path が文言に無いと AC8 の (2) で staging の失敗を数えられない。
+    - AC2 の観測値と AC6 の後片付けの観測の書き先（test の出力と §6）と、AC6 の観測の test を assert しない観測として定義した（観測を合否に混ぜない）。
+    - AC8 の判定保留（(2) が 0 件のまま 3 run とも (1) に届かない）を判定定義にも書いた（AC8 と判定定義の食い違いを防ぐ）。
+    - 判定 C が読む Editor log の所在（`run-tests.ps1` の `-logFile`）を書いた。`Unity Hub.exe` の process 名をこの PC で確かめた（2026-11-23）。
+    - 外部計画レビューの再レビュー: 要らない。2 巡目の指摘の文言の調整と、上の自己点検の精度の修正だけで、どの条件の意味も広げていない。
 - 公開の方式の候補の比較（A1 の主担当）: (a) 一時的な lock の失敗に限って移動を短い上限で再試行する（採用）。J1 の調査で、失敗のほぼ全てが直後の移し直しで通ることを再現で確かめている。変更は 2 行の置き換えと小さい関数で、「final があれば公開済み」という読み手の契約を変えない。(b) 移動をやめ、final へ直接書いて完了の印を最後に置く。読み手の全て（再利用の受け取り、publisher、選択、Player の install）の「final がある」の読みを「印がある」へ変え、途中で止まった final の片付けを新しく要する。(a) で足りない証拠が無い今、費用に見合わない（§2 の後続）。(c) test の出力先を監視の外へ出す。owner の入力（Unity Hub は消せない）と、製品の経路（開発者の project の下への build）が直らない点で採らない。
