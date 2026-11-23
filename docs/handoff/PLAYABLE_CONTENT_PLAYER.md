@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `C`（Phase B を 2026-11-23 に完了した。発見 C は未着手）
+- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C は未着手）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
 - implementation head commit: `eb8e4e06007f44a04ddefe5609d0129fa5dafde9`（Phase B の出口の commit。その後の進行役の記録 commit は `docs/handoff/` だけを変える）
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（一次レビュー。動作確認は `対象なし` なので Phase B の次は発見 C）。
-  - 次の作業: 実装 diff（implementation base と implementation head の間）を §3 の責務マップ・§2 の条件・§4 の禁止と照らす構造レビューと、§5 の判定必須テストのうち発見 C で走らせる範囲の実行。Player の build と起動を伴う (2)〜(10) は判定 C の実行担当が凍結済みのコマンドで行う（§5。AC6 は owner が押す）。Phase B の実装の要点・HANDOFF との差・未実行は §6。
+  - 次の Phase・役割: 判定 C（実行担当と判断担当）。発見 C は阻害する指摘なしで完了した（§7）ので、implementation head 欄の commit が GO 候補 head である。
+  - 次の作業: GO 候補 head で §5 の判定必須テスト (1)〜(11) を §5 のコマンドと順で実行し（全てで同じ `S41_RUN_ID`。(1) も自分で走らせ、発見 C の run を判定の入力にしない）、record・log・receipt・XML で AC1〜AC11 を §5「判定の読み方」に従って判定する。最初の run で strip の検出語と実際の log の文言を照らして §7 に書く（§2.2）。AC6 の (1) は record の `quitObservedUtc` と `endedUtc` の差で読む（§7 の F2）。(u1)〜(u5)・(u1b) の初回確認と不成立時の扱いは §5。判定 evidence bundle（§5 の検証経路の証拠一式と XML、owner の screenshot と観察記録）を同じ head から作って stage し、C' 用の blind bundle は所見を含めずに別に作る。結果を §7 の「判定 C」に書く。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄の commit と HEAD の差分（`git diff --stat <implementation head> HEAD`）が `docs/handoff/` の file だけであること（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
   - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（Phase B の出口の commit の後に、進行役が本票へ Phase C の担当の系列と AC6 の実施時期を足した記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、その欄に渡された SHA を書く（句を引き継がない）。
-  - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session）。push は公開点の規則に従う（C と C' の後）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
-  - 引き渡さないもの: なし。
+  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、implementation head 欄の SHA をそのまま残す。
+  - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session。`run-tests.ps1` は最初から sandbox の外で起動する）。Artifact Storage の evidence の stage。push は公開点の規則に従う（C と C' の後）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。高コスト証拠を除く操作・実行時・目視の条件（AC6 を含む）の証拠が揃うまで判定 C を完了と記録せず、C' 用の bundle を作らない。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
+  - 引き渡さないもの: §7 の発見 C・判定 C の所見と結論を C' に渡さない（blind bundle と C' の取得案内に入れない）。
   - Phase C の担当の系列（2026-11-23、owner の指示）: 発見 C・B の修正・判定 C（実行担当と判断担当）は Phase B と同じ Anthropic の系列（Claude Opus）が担当する。Phase C に OpenAI の系列を使えない（C' に予約）ため、発見 C と判定 C の担当は §7 に `独立性制約あり` と書き、理由（B と同じ系列）と残存リスク（同じ系列の見落としが重なりうる。C' の OpenAI の系列で補う）を記録する。
   - AC6 の実施時期（2026-11-23、owner の指示）: owner が PC の前に戻るまで (10) `T.LaunchPlayableHuman` を起動しない。判定 C の実行担当は (10) 以外を先に進め、(10) は進行役が owner の在席を確かめてから起動する。
 
@@ -359,7 +359,28 @@
 
 ## 7. Phase C
 
-未着手。
+### 発見 C（2026-11-23）
+
+- 種別: 発見（GO 判定はしない。C' は起動しない）
+- 対象: implementation base `32d3e043` / head `eb8e4e06`。開始時の照合（起動指示の SHA `7de3d850` = HEAD、clean、ブランチ、`git merge-base --is-ancestor`、`git diff --stat eb8e4e06 HEAD` が本書だけ、PR #211 の状態ブロック）は全て一致した。PR の timeline の指摘は全て凍結の前の計画レビュー宛てで、実装 head 宛ての新着は無かった。
+- 使用した evidence bundle の取得案内・状態: 使っていない（判定 evidence bundle は未生成）。発見 C の入力は固定した commit の完全 diff・stat・name-status、下の機械検査、下の起点 filter の run で、run の生ログ・XML は repo の `TestResults/` に置いたまま（未保存、ignore の対象）。判定 C は GO 候補 head で自分の run から bundle を作り、この run を判定と C' の入力にしない。
+- 構造適合: §3 の責務マップと一致する。
+  - 変更 file は §3 の表の 8 つ（と HANDOFF・program）だけで、新しい asmdef・参照は無い。足した公開面は protected `IsPlayablePlayerKind` と menu 1 つだけ。Runtime の新しい型（`PlayerContentKind`・`PlayerFirstSceneRoute`）は internal。Editor の `PlayerBuildKind`・`PlayerBuildKindSettings`・`PlayerBuildResult` は Editor の asmdef の internal。`UnityEditor.Build` は Editor の asmdef だけが使う。Game → Framework の向きは変わらない。
+  - §4 の禁止に当たる変更は無い（`PlayerContentSmoke`・`BuildReceipt`・receipt の schema と file 名・`bs4` の名・`ContentOverlayStartup`・`WireContentResolution`・Delivery・Artifacts は diff に無い）。動作確認の Player の build の値（宣言 `bs4-spring-full`、probe、`artifacts/bs4`、mutation の IL2CPP・High・Addressables の off）は共通関数に移っただけで変わらず、`RuntimeJson` に `playerKind` が足されただけである（AC3 のテストで 13 の key の全集合を固定）。
+  - 行数の超過（`AbstractApplicationInitializer` 1419（予想 1380）、`PlayerKindEndToEndTests` 445（予想 320））は §6 に記録済みで、責務の混在は無い。前者は §3 の非分割の判断の範囲（足したのは末尾の分岐・失敗境界・latch の隣）。後者は判定用の 1 つの責務（build と起動と観測）の test。
+  - 照らした失敗経路: I1 (a)〜(i)、I2 (a)〜(f)、I3 (a)〜(f)、I4 (a)〜(c) の各経路を diff で辿り、計画どおり塞がれていることを確かめた。要点: 分岐と latch は重ねる前の baked を読み、`Resolve` は生の値の ordinal 比較で、AC2 と AC7 (a) の override はどちらも `BeforeSceneLoad` で `Protected Player content configuration was overridden.` になる。latch は `RequiredJsonFileConfigProvider` の読みの後・baked の ctor（必須の検査）の前に決まり、`ReleaseAll` で消えない。`RunStartupFailureHooksAsync` は 2 つの hook を別々の try で呼ぶ。SampleGame の `Application.Quit(0)` は `OnPlayerContentShutdownCompletedAsync` だけにあり、それを呼ぶのは `RunPlayerContentSmokeAsync` だけ。AC10 の backend と stripping は、`PlayerBuildProjectMutation` の ctor が設定した後・`BuildPlayer` の直前に読んでいる。
+  - 常時契約: `#nullable enable`、`record` 不使用、test で `Task.Delay`/`Thread.Sleep` を使わない（`Process.WaitForExit(500)` の刻み）、Runtime に Editor のコードを置かない。破棄されうる `UnityEngine.Object` に `?.`/`??` を使う所は diff に無い。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings（どれも凍結済み条件・常時契約への違反根拠を持たない）:
+  - F1（Phase D の harvest の入力）: `unity/Assets/Docs/Architecture/18-asset-description.md:491` が、このスライスで消した `RunsPlayerContentSmoke` のテストを名前で書いている（過去のスライスのテストの隙間の記録）。§0 の harvest 先の 04 章を書く時に、この 1 行を `RouteFirstScene` の表に合わせるか、過去の記録として残すかを決める。
+  - F2（判定 C の読み方の注記。条件の追加ではない）: `LaunchPlayableHuman` は exit を 1800 秒まで待つだけで、AC6 (1) の「quitting の行から 120 秒以内」は record の `quitObservedUtc` と `endedUtc` の差で判定 C が読む。`quitObservedUtc` は test が 500 ms の刻みで初めて行を見た時刻で、§2.2 の定義どおりである（実際の quit から最大で約 0.5 秒遅れる分は「閉じる前」に入る）。
+- 機械検査（HEAD `7de3d850` で実行。`eb8e4e06` との差は本書だけ）: `pwsh tools/contract-audit.ps1` は errors 0・warnings 0（検査 1〜9、検査 8 は not-applicable）。`pwsh tools/docs-audit.ps1` は errors 0・warnings 2（本書と program の §7・§8 の「未着手。」を記入済みと数える検査 3 の警告で、内容の欠陥ではない）。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: `pwsh tools/run-tests.ps1 -Filter 'OneStarMaker.Tests.BuildContent.PlayerContentConfigurationTests;OneStarMaker.Tests.BuildContent.PlayerContentSmokeSequenceTests;OneStarMaker.Tests.Editor.Build.Bs4FixtureComposerTests'`（§5 の起点 filter のまま。AC3・AC9 の単体テストと既存の smoke の列。sandbox の外で起動した。invocation `cb4a3698-c87c-4bf0-9f09-995cb6fb1082`、Unity 6000.6.9f1、約 47 秒）。
+- テスト結果: exit 0、step.json `passed`、XML `Passed` total 63・passed 63・failed 0・skipped 0・inconclusive 0。内訳は `PlayerContentConfigurationTests` 48（AC9 (1)〜(6) の表の全 case を含む）、`PlayerContentSmokeSequenceTests` 5、`Bs4FixtureComposerTests` 10（AC3 の `RuntimeJson_SmokeKind_IsTheExistingTwelveValuesPlusPlayerKind`・`RuntimeJson_PlayableKind_HasTheSameKeysWithPlayableValues`・`SettingsOf_SelectsDeclarationProbeAndArtifactsRootPerKind` を含む）。実行後の `git status --porcelain` は空。
+- 判定必須のうち未実行: (1) を除く全て（(2)〜(11)。Player の build と起動、全 EditMode 回帰）。発見 C では差し戻しの指摘が無く、(1) も判定 C が GO 候補 head で自分で走らせる。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: (u1)〜(u5)・(u1b) は全て未確認で、初回確認は判定 C（§5）。strip の検出語と実際の log の文言の照合（§2.2）も判定 C の最初の run で行う。
+- 担当・モデル: 本 session（Claude Opus 5.5、Anthropic）。`独立性制約あり`: Phase B と同じ系列（owner の指示。§0 の引継ぎ票）。残存リスク: 同じ系列の見落としが B と重なりうる。C' の OpenAI の系列で補う。
 
 ## 8. Phase C'
 
