@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `A`（Phase A の revision 0。A2 の独立レビュー 3 件と外部計画レビューの 1 巡目・2 巡目を A3 で統合し、§2.5 の 4 点は owner が決めた。**凍結していない**）
+- status: `B`（Phase A の revision 0 を 2026-11-23 に凍結した。Phase B は未着手）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
-- implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
+- implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
 - implementation head commit: 未固定
-- A3 凍結記録: 未凍結
+- A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビューの 2 巡目まで統合した commit `68f71368` の本書に、凍結の記録・status・引継ぎ票・§5.1 の凍結の行と、A3 の統合で落としていたテンプレートの §6〜§9 の空欄を足し、凍結の前に merge した `develop`（S5-0）に合わせて implementation base・§5 の全 EditMode 回帰の読み方・(u1b)・§2.3 の 1 行を改めた物で（program の S4-1 の行の状態も改めた）、目的・条件・責務マップは変えていない）。承認の根拠: 外部計画レビューの 2 巡目までを A3 で統合した後に、owner が凍結を指示した（「Freeze it」）。§2.5 の 4 点と、2 巡目の後の追記（`content:playerKind` を必須にしたこと、名前の改め、C' の予約、AC6 (5)）も、この指示で承認された
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`）と Player の protected config を変える。動作確認の Player（BS4）の契約を壊すと、BS4 を起動して receipt を読む担当と Artifacts の Player の保存の経路が黙って変わる。Player を遊べる形で起動するのはこの project で初めてで、独立して失敗しうる未知が複数ある。§5）
 - owner: root（依頼者）
 - created: 2026-11-23
@@ -21,12 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（owner の凍結判断。外部計画レビューの 3 巡目を行うなら、その指摘の採否）。
-  - 次の作業: 3 巡目を行うなら指摘を §5.1 の表へ採否として足す（OpenAI の系列は C' に予約したので使わない）。凍結するなら A3 凍結記録・本票（次の担当を Phase B へ）・PR の状態ブロックを改めて、凍結版を commit する。
-  - 読む範囲: 全節。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: なし（文書だけ）。push は公開点の規則に従う。
-  - 停止規則: 目的・利用者の欄を変える指摘は owner が裁定し、変えたら目的レビューをやり直す（§5.1）。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: §3 の file を §4 の順序で実装する。Unity は Editor でのコンパイルの確認まで行う（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) の規則）。Unity の test の実行、content と Player の build、Player の起動は行わず、§6 に未実行として書く（Phase C の担当）。出口で §6 を書き、status と本票を発見 C 向けに改めて commit する。動作確認は `対象なし`（§5）。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。上の implementation head 欄が `未固定` で、A3 凍結記録に承認者・日付・対象 revision があり、本票の次の担当が Phase B であること。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player` で確かめる）。
+  - 読む範囲: 既定（§0〜§5。§5.1 は読まなくてよい）。
+  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示と PR #211 の状態ブロックで渡す）。
+  - 必要な権限: Unity Editor の起動とコンパイルの確認。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら、実装を進めずに止まって返す。§4 の「禁止」は B 適応にしない。設計判断を増やさず、§3 に無い file・asmdef・参照・製品の変更を足さない。Phase B・C の担当に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -46,7 +47,7 @@
   - InGame の world の中身の遊び心地、性能、streaming の所要。
   - 描画の細部の正しさ（lighting・VFX・post process の見た目）。AC6 (5) が見るのは、Title と InGame の画面が出て真っ黒・マゼンタでないことだけである。
   - 製品の起動の設定を Addressables から読む経路（Player の構成に入らない Player。S4-0 の J1 の失敗の形）。
-- 現況（base `9de34cc2`）:
+- 現況（base `9de34cc2`。凍結の base `32d3e043` との差は §0 の implementation base の行）:
   - **owner が受けた入力（program §8「S4 の A1 への入力（2026-11-23）」の (1)）:** 起動が動作確認（`AbstractApplicationInitializer.RunPlayerContentSmokeAsync`: 初回 Scene の load → fixture → 初回 Scene の unload → directory の close → 完了通知）に入るのは、directory の設定があり、初回 Scene が空でなく、`UseRequiredPlayerFileConfiguration` が真の 3 つが揃う時である。SampleGame の BS4 の Player は 3 つとも満たし、完了通知の override（`AppInitializer.OnPlayerContentShutdownCompletedAsync`）が `Application.Quit` で終える。初回 Scene を置く Player には、content を載せたまま操作を続ける構成が無い。
   - **program §8 の S4-1 の行:** 問いは「content directory から起動して、動作確認をして終了するのではなく操作を続けられる Player の構成を、動作確認の Player（BS4）の receipt と exit code の契約、protected config、fail-closed を弱めずに持てるか。開発用の Player の構成（backend、stripping、development build）をどうするか」。gate は「遊べる Player で初回 Scene から操作を続けられる。動作確認の Player の契約が変わらない。Player の実機の非退行（S3-1 の配線と、S3-2 の session・gate の層の化を含めて、6000.6.9f1 で確かめる）」。S4-2 の行は、S4-1 が決めた開発用の Player の構成が S4-0 と違う時に S4-0 の harness で測り直す、と書く。
   - **S4-0 から移送した入力（S4-1 分）:** Addressables の data の無い IL2CPP・High の Player で、製品の起動の設定の読み込み（`JsonFileConfigProvider` → `AddressableBackend.LoadAssetSync`）が `ResourceManager+CompletedOperation<TextAsset>` の既定の constructor の strip で `MissingMethodException` になった。
@@ -132,6 +133,7 @@
 - Mono、他の stripping の水準、development build、`-nographics` の Player: 所有する後続なし（program §10 に未所有として足す）。要る時に owner が行を置く。
 - 遊べる Player を Artifacts の保存系列へ入れること（今の系列は target と backend・stripping だけで決まり、種類を区別しない）: [BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md) の入力。遊べる Player は `artifacts/playable/` に出し、`artifacts/bs4/` と混ぜない。
 - 起動を終えた後の game の code の失敗を Player で網羅すること（`Player ready` の先の移動、streaming の Cell の出入り、VFX、Spring 以外の Season への操作）、性能: 所有する後続なし（program §10 に未所有として足す）。AC6 が見るのは Title → Home → InGame の `Player ready` までである。
+- `PlayerBuildPublisher` の staging → final の移動に S5-0 の再試行を通すこと: 所有する後続なし（program §8 の「S5-0 から移送した入力」と同じ形の BuildSystem の入力。program §10 に未所有として足す）。
 - Android・iOS の Player: **S4-5**。
 - 遊べる Player の DebugSocket（DebugStudio の接続）: 遊べる Player の baked config は動作確認の Player と同じく `debugSocket:enabled` を既定で偽にする（protected ではないので環境変数で真にできる。保護は足さない）。DebugStudio からの操作を検証に使うことは、所有する後続なし（program §10 に未所有として足す）。
 
@@ -192,7 +194,7 @@
   - (2)(3) は Project Auditor の post-build 監査で `step.json` が `failed` になりうる（S4-0 の J2）ので、合否は XML（`Passed` と実行した test 名・件数）と record で読む。`step.json` の `failed` だけを NO-GO の根拠にしない。XML が無い・`Passed` でないのは不合格。
   - (4)〜(10) の XML の `Passed` は record を書き終えたことだけを示す。各 AC の合否は record の行で読み、XML の合否で読み替えない。
   - 起動の case の再実行で前の結果を上書きしない。再実行する時は別の `S41_RUN_ID` で (2) からやり直し、両方の run の record を evidence に残し、どちらの run で判定したかと、前の run を判定に使わない理由を §7 に書く。
-  - 全 EditMode 回帰は既知の staging の `Directory.Move` の access denied（program §8 の S5-0）で落ちうる。落ちた test が他の回で通るかの読みは判定 C の担当が record に書く（このスライスで読み方を変えない）。
+  - 全 EditMode 回帰の staging の `Directory.Move` の access denied は、S5-0（PR #210）が content の build と transport の publish に再試行を入れて、1 run で failed 0 になった。それでも落ちた時は、落ちた test と log の `[ContentStagingMove]` の行を record に書き、S5-0 の後続の入力として owner へ返す（このスライスで読み方を変えない）。
   - E4 の「6000.6.9f1」は AC1 の `unityVersion` で読み、6000.6.9f1 の run だけを AC1 の合格に数える。別の版の run は追加の証拠として記録し、その版の Player の非退行を言う時は program §8 の S4-1 の行の版の要求を owner が改める（このスライスで読み替えない）。
   - game の log の Error 以上の行: AC1 の基準と同じ category・message の行は既存として record に書いて owner へ返し、AC4・AC6 (3) の違反に数えない。基準に無い行は違反に数える。基準は起動から Title までしか無いので、InGame の行は全て違反に数える。
   - 閉じる前と閉じた後: §2.2 の冒頭の境で分け、閉じた後の行は E3 の参考として record に残すだけにする（合否は exit code と時間）。
@@ -204,6 +206,7 @@
   - 動作確認（Phase B の後）: `対象なし`（offline のテストで閉じない条件は全て Player の build を要し、Phase C が担当する）。
 - 未知の操作経路の疎通: 次は未確認で、**初回確認は Phase C**（理由: Unity の test と Build の実行は Phase C の責任。担当: Phase C の実行担当）。
   - (u1) 製品の coordinator を EditMode の test から呼んで、6000.6.9f1 で動作確認の Player を build・起動できるか（S4-0 は自作の runner の Player を test から build した。製品の coordinator の test からの build は前例が無い）。確認地点: (2) と (4)。不成立時: 環境の不備（toolchain 等）は実行担当が原因を記録し、担当の権限で直せない物は owner へ返す。test から coordinator を呼べないことが原因なら Phase A へ戻す。AC1 の失敗が S4-1 の変更に依らない退行（S3-1・S3-2 の後の起動）かを切り分けるには、base `9de34cc2` の別の worktree で、menu と同じ `SampleGamePlayerBuildCoordinator.Build()` を Editor の eval（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)）で呼んで build し、同じ起動（`-batchmode`、環境変数なし）で receipt と exit code を見る。base でも同じなら owner へ返す（このスライスで直すかは owner が決める）。
+  - (u1b) Player の publish（`PlayerBuildPublisher` の staging → `players/<identity>` の `Directory.Move`）は S5-0 の再試行を通らない（`ContentStagingMove` は internal で、`SampleGame.DependOnAll.Editor` からは見えない）。repo が監視される PC では、(2)(3) がこの移動の access denied で落ちうる。確認地点: (2)(3) の XML と log。落ちた時: 環境の失敗として record に書き、§5「判定の読み方」の再実行の規則（別の run id で build からやり直し、両方を残す）に従う。このスライスで publisher に再試行を足さない（参照の追加は設計判断。§2.3）。
   - (u2) Title の先（Home → InGame）が IL2CPP・High で動くか。確認地点: AC6。不成立時: SampleGame の asmdef の型の欠けは B 適応（§4）、それ以外は Phase A へ戻す。
   - (u3) directory を登録したままの quit が Player で exit 0 になるか（Title の上と、InGame の native の load・unload が動く上）。確認地点: AC5 と AC6 (1)。不成立時: Phase A へ戻す（`ContentDirectorySession` の終了の経路を変えるかは設計判断）。戻った時に検討する候補（採るかは戻った時に決める）: Player だけ `Application.wantsToQuit` で quit を保留し、正規の unload → `CloseContentDirectoryAsync` の後に `Application.Quit` を呼ぶ（Editor の Play 停止では使えないので `CompletePlayStop` は残す）。Unity の Editor の終了の stall（[Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）とは分けて記録する。
   - (u4) 窓を出した Player を Unity の batch の test から起動し、`CloseMainWindow` で閉じられるか。確認地点: (6)。不成立時: 窓の無い環境なら実行担当が記録して owner へ返す。
@@ -321,3 +324,33 @@
 | P3（key の既定） | key が無ければ `Smoke` が守る相手はいない（build identity は毎回新しく、baked は同じ build の exe と対） | 採用 | key を必須にした（§2.1、AC9 (1)(2)(6)）。「key の無い baked」の特別扱いが消えた |
 | P3（latch の範囲） | latch が `Smoke` のまま残るのは不正な値より広い（file の欠け・壊れ） | 採用 | §2.1 の latch と §0 の harvest の文言を広げた。動作は変えない |
 | P3（名前） | `PlayerContentSession` が既存の session の語と紛れる | 採用 | key を `content:playerKind`、enum を `PlayerContentKind`（Runtime）・`PlayerBuildKind`（Editor）に改め、語の注記を §2.1 に書いた。1 巡目までの表の旧名はそのまま残す |
+
+**凍結（2026-11-23）:** owner が外部計画レビューの 2 巡目までの統合を見て凍結を指示した。3 巡目は行っていない。
+
+## 6. Phase B 実装結果
+
+- 実装:
+- HANDOFF との差:
+- 未実行:
+- implementation head commit:
+- Phase B 担当・モデル・ベンダー:
+
+### 動作確認
+
+- 対象 head:
+- 条件ごとの実行担当・環境・実行したコマンド:
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態:
+- 検証経路の期待と違う観測と、B への差し戻し:
+- `未実施` の条件と理由・担当: `対象なし`（§5）
+
+## 7. Phase C
+
+未着手。
+
+## 8. Phase C'
+
+未着手。
+
+## 9. Phase D
+
+未着手。
