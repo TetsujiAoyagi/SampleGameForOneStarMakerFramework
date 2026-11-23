@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `C'`（判定 C が 2026-11-23 に GO とした。スパイクの答えは「同じ」。次は C'（最終 C'）。§7）
+- status: `D`（C' の 1 巡目（最終 C'）が 2026-11-23 に blocker なしとした。次は Phase D。§8）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
 - implementation head commit: `b101b3820f7538f9e6e8779332d1405e32b316b5`
@@ -19,19 +19,16 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s4-0-player-overlay-registration-spike` に `evidence stage` した（判定用、21 file）。取得案内は進行役の共有メモ（git 管理外）の判定用の file にある。別の pwsh process の fetch で `passed`、README・(3) の XML・record の zip を読めた。受け取り側の別 session の fetch・閲覧は未確認
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（19 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側の fetch・閲覧の確認は C' の起動前に行う
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（19 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。2026-11-23、進行役が C' の packet を作る時に別の pwsh process で fetch して `passed`、file を加工せずに使った（manifest の file の hash は fetch 直後と一致）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役。`cursor-agent` を使うなら Grok 系だけ）、使った担当・モデルと独立性を §8 に書く。高コスト証拠は無いので、この C' が最終 C' である。
-  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
-  - 開始時の照合: C' は PR を読まない。bundle の README の base・head と、取得案内の base・head が一致すること。fetch が期待 packageSha256 で `passed` になること。食い違えば監査せずに止まる。
-  - 読む範囲: C' は blind bundle だけ（README が目次）。本書を読まない。
-  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示と PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
-  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目）。Phase A snapshot と Phase B result snapshot は作っていない（blind bundle が凍結版 `ae1e1614` の本書全文と、Phase B の出口の commit `16328d4d` の §6 を収録する）。
-  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の Release build 済みの checkout）。Unity の再実行は必須でない。push はしない。
-  - 停止規則: C' の規則（osm-workflow の phase-c-prime.md）。C' の差し戻しは別に数えて上限 3 巡。
-  - 独立性: Phase A〜C は全て Anthropic の系列（A2 と外部計画レビューの系列は §5.1）。C' は未関与のベンダーを優先し、残らない時は独立性の制約を §8 に記録する。
-  - 引き渡さないもの: C' に、本書（特に §6 の差し戻しの小節、§7 の発見 C・判定 C の所見と結論）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
-
+  - 次の Phase・役割: Phase D（マージ判断。owner）。
+  - 次の作業: 実装の push（公開点。owner の承認を得てから）と PR 本文の変更内容・状態ブロックの更新。その後、§7 の判定 C と §8 の C' を突き合わせ、Evidence の保存・引渡し（判定用と C' blind の 2 bundle は未昇格）を確かめ、harvest（§0 の harvest to）と本書の削除を行い、task を終える。§7 の J1・J2 と §8 の CP1 は後続の入力で、本スライスを広げない。
+  - 開始時の照合: 自分の HEAD がこの票を含む commit で、作業ツリーが clean、ブランチが `claude/player-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。
+  - 読む範囲: 既定（§0〜§9）。
+  - 引き継ぐ commit: この票を含む commit（C' の記録 commit。SHA は PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
+  - 必要な権限: push（owner の承認）、Evidence の昇格・fetch（事前承認の通常操作）。
+  - 停止規則: Phase D の規則（osm-workflow）。C' の指摘を理由に D で実装を変えない（変えるなら B へ戻す）。
+  - 引き渡さないもの: なし。
 ## 1. 目的と対象外
 
 - 目的: 取得した 1 つの目的 build（base）に、開発者が手元で build した上書き（自分が触った Scene と asset だけの Content Directory）を base → 上書きの順に登録した時、Windows の Player でも Editor の Play の実測と同じ答えになるか（上書きに入れた物は上書き側が読まれるか、上書きに入れていない物も含めて component に正しい class と値が付くか、同じ asset の実体の数は Editor の実測と同じか、読んだ物が登録の解除まで壊れないか）を、Unity 6000.6.9f1 の Windows の Player の実測だけで確かめる。その結果から、owner が「編集を実機へ届ける方式として、Player に上書きを重ねる形を進めるか、見直すか」を、供給元（Local / LAN）の設計に入る前に決められるようにする。
@@ -569,7 +566,18 @@
 
 ## 8. Phase C'
 
-未着手
+### 1 巡目（最終 C'、2026-11-23）
+
+- 担当・モデル: cursor-agent CLI の Grok 4.7 High（xAI、`--model grok-4.7-high` を明示）。新規の起動で、本書・PR・発見 C と判定 C の所見を見ていない。所要約 12 分。
+- 独立性: Phase A（A2 の独立レビュー）・B・発見 C・判定 C は全て Anthropic の系列で、C' は未関与のベンダーの xAI である。**独立性制約あり**: 凍結前の外部計画レビューの系列は記録に無い（§5.1 の 3 巡とも、レビュー担当のモデル系列がコメントに書かれていない）。外部計画レビューが Grok 系だった場合、C' は Phase A に関与した系列と重なる。他の未関与の系列を選べなかった理由: Codex CLI（OpenAI）はクレジット上限で使えず、Google 系の経路はこの環境に無い。
+- 入力: C' blind bundle（§0 の欄。19 file、fetch `passed`）を加工せずに置き、bundle の外に、bundle の 2 つの zip を変えずに展開した写し、implementation head `b101b382` の tree の写し（`git archive`。本書を除く。framework・spike の harness・設計文書・program・`AGENTS.md`）、C' の規則（phase-c-prime.md、phases-and-handoff.md、review-evidence.md、`AGENTS.md`）、英語の指示書を置いた。指示書には結果の解釈を書かず、生の記録と凍結の定義から答えを自分で読み、補助の判定の file と最後に突き合わせるよう書いた。git・shell・network は使わせていない。
+- 結論: **blocker なし。** 記録から読んだスパイクの答えは「同じ」（主の順の 3 process 全てで Q1 強・Q2 正しい・Q3 一致・Q4 無傷、X1〜X3 が Editor の実測と同じ、process 間の観測が一致）。補助の `verdict-second.json`（GO・same・process 差なし）と食い違いは無い。AC1〜AC10 を生の record・log・XML の行で全て「成立」と読んだ。
+- 指摘:
+  - **CP1（後続の入力、S4-2）:** base の build report を渡した IL2CPP・stripping High の Player に、base が使わない `ProbeOverlayOnly` が残った（18 process の P4 が 3 型とも true、probe の assembly が scripting assembly の一覧にある）。Q2 が正しかったのは型が解決できた状態での観測で、別の assembly や組み込みの型へ広げない。型の残し方は S4-2 が決める。
+  - **CP2（非阻害）:** 凍結 §5 の機械検査のうち `docs-audit` の出力が blind bundle に無く、C' は実行を確かめられなかった。Player の答えには使わない。
+- 残存リスク（C' の記述の要約）: 起動の段の Addressables の Error・Exception は X3 に数えない（凍結どおり）。runner は record の `log` 行だけを X3 に数えるので、callback に乗らず file にだけ出る Error は補助の写像では拾えない（今回の Player log には開始印の後の Error・Exception は無い）。(2) の `step.json` は `failed` で、ゲートは XML と record。`PlayerOverlayVerdict.cs`（624 行）と `PlayerOverlayRunner.cs`（507 行）は計画の行数を超える（§6 に理由）。答えが「同じ」なので Editor の対照は走っておらず、差が出た時に host と runner を分ける材料はこの head に無い。
+- 監査できなかった範囲: 記録の head（`2ecd8fff`）と implementation head の差（executor-note は本書だけと書く）、`docs-audit`、build の出力の binary（digest の一致は record で読んだ）、pixel の sha256 の定義の色からの再計算、条件付きの (4)（「同じ」なので対象外）、user の folder（凍結の範囲外）。
+- 差し戻し: なし（C' の巡の数は 1）。
 
 ## 9. Phase D
 
