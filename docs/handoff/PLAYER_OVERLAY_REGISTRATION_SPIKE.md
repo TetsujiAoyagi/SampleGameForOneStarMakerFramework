@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（スパイク。[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-0。S4 の A1 として S4 の行の分割も持つ。§2.4）
-- status: `C`（発見 C の 2 回目が 2026-11-23 に阻害する findings なしとした。implementation head は GO 候補。次は判定 C。§7）
+- status: `C'`（判定 C が 2026-11-23 に GO とした。スパイクの答えは「同じ」。次は C'（最終 C'）。§7）
 - branch: `claude/player-overlay-registration-spike`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base は 1 つ前の `214806c1` で、2 つの差は program の S5-0 の行の 1 行だけである）
 - implementation head commit: `b101b3820f7538f9e6e8779332d1405e32b316b5`
@@ -18,18 +18,19 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§8 の S4 の行と「S4 の A1 への入力（2026-11-23）」）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（比べる相手の Editor の実測と harness の所在）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s4-0-player-overlay-registration-spike` に `evidence stage` した（判定用、21 file）。取得案内は進行役の共有メモ（git 管理外）の判定用の file にある。別の pwsh process の fetch で `passed`、README・(3) の XML・record の zip を読めた。受け取り側の別 session の fetch・閲覧は未確認
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（19 file）。取得案内は進行役の共有メモに、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`。受け取り側の fetch・閲覧の確認は C' の起動前に行う
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（GO 候補 head。implementation head 欄の commit）。動作確認は `対象なし`（§5）。
-  - 次の作業: §5 の判定必須テスト (1)〜(3) を順に、それぞれ別の Unity process で実行する（(1) は発見 C の 2 回目が同じ head で通したが、判定の証拠は判定 C が取り直す）。(3) の record・launcher の file・Player の log から §2 の定義を AC1〜AC9 ごとに読み、スパイクの答えが「同じ」でなければ条件付きの (4) を実行する。§5 の u1〜u5 の初回確認もここで行い、不成立なら §5 の各「不成立時」に従う（B へ戻すなら判定 C を完了と記録しない）。判定必須の証拠が揃ったら、§0 と review-evidence の規則で implementation head から evidence bundle と C' blind bundle を作り、§7 に「判定 C」を書き、票を C' へ更新する。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/player-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が `docs/handoff/` の本書だけであること。PR #209 の状態ブロックの `引き継ぐ commit` が渡された SHA と一致すること。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-0-player-overlay-registration-spike` で確かめる）。
-  - 読む範囲: 既定（§0〜§8。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の 2 回目の記録 commit。SHA は起動指示と PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）、content と Player の build、Player の起動（18 回）、条件付きで `-WithGraphics` の Editor の対照、Artifacts の evidence 操作（tools/Artifacts/README.md の事前承認の範囲）。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
-  - 停止規則: 判定 C の規則（osm-workflow の phase-c.md）と §4 の「Phase A へ差し戻す条件」、§2 の未判定の定義に従う。判定 C で B へ戻す時は巡の数を 2 巡目として数える（上限 4 巡）。Unity の終了 stall は Harness README の停止規則に従い、XML と record で判定する。stall は起きる前提で動く: XML と record の終了行を監視し、揃った後も Unity の process が残れば `Get-CimInstance Win32_Process` で確かめて `Invoke-CimMethod -MethodName Terminate` で止め、時刻・PID・CPU の数値を §7 の note に残す。`Get-Process` の「見つからない」は終了の証拠にしない。
-  - 独立性: 判定 C は Phase B と同じ系列で行う。§7 に「独立性制約あり（owner 受容）」と記録する。
-  - 引き渡さないもの: 発見 C の 1 回目・2 回目の所見を C' に渡さない（§7 の発見 C の節を C' 用 bundle に入れない）。
+  - 次の Phase・役割: C'（独立監査、1 巡目）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役。`cursor-agent` を使うなら Grok 系だけ）、使った担当・モデルと独立性を §8 に書く。高コスト証拠は無いので、この C' が最終 C' である。
+  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
+  - 開始時の照合: C' は PR を読まない。bundle の README の base・head と、取得案内の base・head が一致すること。fetch が期待 packageSha256 で `passed` になること。食い違えば監査せずに止まる。
+  - 読む範囲: C' は blind bundle だけ（README が目次）。本書を読まない。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示と PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
+  - 入力の snapshot・bundle: C' blind bundle（上の欄）。C' 用決定記録は無い（1 巡目）。Phase A snapshot と Phase B result snapshot は作っていない（blind bundle が凍結版 `ae1e1614` の本書全文と、Phase B の出口の commit `16328d4d` の §6 を収録する）。
+  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の Release build 済みの checkout）。Unity の再実行は必須でない。push はしない。
+  - 停止規則: C' の規則（osm-workflow の phase-c-prime.md）。C' の差し戻しは別に数えて上限 3 巡。
+  - 独立性: Phase A〜C は全て Anthropic の系列（A2 と外部計画レビューの系列は §5.1）。C' は未関与のベンダーを優先し、残らない時は独立性の制約を §8 に記録する。
+  - 引き渡さないもの: C' に、本書（特に §6 の差し戻しの小節、§7 の発見 C・判定 C の所見と結論）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
 
 ## 1. 目的と対象外
 
@@ -511,6 +512,60 @@
 - 未確認事項: Player 上の挙動の全て（u1〜u5）。`Application.buildGUID` と build report の `summary.guid` の照合の形（1 回目の記録のとおり）。
 - 巡の数: 差し戻し 1 巡目が収束した（上限 4 巡）。
 - 担当・モデル: 判断担当と実行担当は同じ session（Claude Opus 5.5、Anthropic）。Phase B と同じモデルで、**独立性制約あり（owner 受容）**。新規 session で、B と発見 C の 1 回目の会話は読んでいない。
+
+### 判定 C（2026-11-23）
+
+- 種別: 判定 C。結論は **GO**。スパイクの答えは **「同じ」**（主の順の 3 つの round の 3 つの process の全てで Q1 強・Q2 正しい・Q3 一致・Q4 無傷、X1・X2・X3 が Editor と同じ、process の間の観測が一致）。未判定の条件（§2）に当たる観測は無い。高コスト証拠は無いので、次の C' が最終 C' である。
+- 対象: implementation base `d926e3b6b40dafab086b293e6d60784e304ecf4c`、implementation head `b101b3820f7538f9e6e8779332d1405e32b316b5`。実行した checkout の HEAD は引き継いだ `2ecd8fffeb9b7a185493bd38e614eec80d25d754` で、head との差は本書だけ（`git diff --stat` で確認）。record の `head` 欄は `2ecd8fff` で、第 1 process と 18 個の Player の record で同じ（AC8 の照合は第 1 process の record との一致）。
+- evidence bundle: 判定用と C' blind bundle を同じ head・同じ生結果から作った（§0 の欄）。判定用は 21 file（目次の README、完全 diff・stat・name-status、凍結版 `ae1e1614` と引継ぎの `2ecd8fff` の本書、head の変更 file の zip、`contract-audit`、(1)〜(3) の XML・`step.json`・Unity の log、一時 root `TestResults/pov/1123003048/` の record・Player の log・layout の写し・facts・launcher の file・補助の判定の zip、executor-note、判定 C の読み取り script とその出力）。C' blind bundle は 19 file（目次の README、凍結版、Phase B の出口 `16328d4d` の §6、本書を除いた diff と変更 file の zip、`contract-audit`、(1)〜(3) の生結果、同じ zip、executor-note）。build の出力（`base`・`ovl`・`ply`）は入れていない（棚卸しの名前・size・sha256 は第 1 process の record にある）。
+- 構造適合: 発見 C の 2 回目と同じ diff（41 file。本書・program・§3 の新規 file と `.meta`）を自分でも照合した。製品の file と §3 以外の asmdef の変更は無い。probe の asmdef は参照・define 制約・platform の指定なし・`autoReferenced` false、runner の asmdef は参照が `OneStarMaker.Runtime` と `UniTask` だけ。spike の `.cs` の全てが先頭に `#nullable enable` を持ち、`[Preserve]`・`link.xml`・probe の型の `typeof`・型引数・`[RuntimeInitializeOnLoadMethod]`・`Task.Delay`・`Thread.Sleep` はコメントの中にしか無い（§4 の禁止）。`pwsh tools/contract-audit.ps1` は errors 0、warnings 0、検査 1〜9。
+- 実行した判定必須テスト（§5。それぞれ別の Unity process、sandbox 外、初期状態は Editor・`Unity.exe`・`Pov.exe` が無く作業ツリー clean。各 process の後の `git status --porcelain` は全て空）:
+  - (1) `pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests`: XML の root `Passed`、total 48、passed 48、failed 0。`step.json` `passed`・exit 0、自然終了。
+  - (2) `-Filter …PlayerOverlayBuilds.FirstProcess`: XML の root `Passed`、total 1、passed 1、failed 0（test の所要 453.7 秒。Player の build は 343.6 秒）。**`step.json` は `status=failed`**（`failure` は「C# コンパイルエラーを検出しました」）。原因は test の後に Unity の中で走った Project Auditor package の post-build 監査（`ProjectAuditor:DelayedPostBuildAudit`）で、`Library/BeeAssemblyBuilder` が assembly ごとに `-langversion:9.0` で compile し直して `SampleGame.InGame`・`SampleGame.OutGame` で `error CS8773` を出し、`run-tests.ps1` がその行を拾った。spike の Player の build の結果は `Succeeded`・`totalErrors` 0 で、監査は XML の end-time（00:38:21Z）の後に始まり、XML の書き出しを 00:44:57Z まで遅らせた。§5 のゲートは XML（total 1 以上、failed 0、root `Passed`）なので、判定に影響しない。**終了 stall:** XML の完成後 5 分を過ぎても Unity（PID 41180）が残り、thread 1 本で UserModeTime が 15 秒に約 14.9 秒増え続けた（Harness README の既知の native stall と同じ形）。00:50:32Z に `Invoke-CimMethod -MethodName Terminate` で止め（ReturnValue 0）、CIM で消えたことを確かめた。数値は executor-note。強制終了の後も `git status --porcelain` は空（AC9 の (2)）。
+  - (3) `-Filter …PlayerOverlayLaunch.SecondProcess`: XML の root `Passed`、total 1、passed 1、failed 0。`step.json` `passed`・exit 0、自然終了。18 回の Player の起動は全て自分で終了（exit 0、各 2.7〜3.1 秒、launcher の停止なし）。launcher の file の 18 個の pid は、実行の後に CIM で全て存在しない。
+  - (4) Editor の対照: 答えが「同じ」なので実行しない（AC6）。
+- 読み方: §5 のとおり、判定 C が record の行を AC ごとに読んだ（照合 script の方式は「なし」）。読むために offline の読み取り script を書き、record の複製に当てた（判定用 bundle に script と出力を入れた。期待の列・値・pixel の sha256 は `PlayerOverlayExpected.cs` の fixture の定義から写し、pixel の sha256 は定義の色から計算した）。harness の補助の判定 `verdict-second.json`（`Outcome` GO、`Spike` same、`Reasons` 空）は、読み終えた後に突き合わせ、全ての項目で一致した。
+
+**受け入れ条件:**
+
+| AC | 結果 | 根拠（record の行） |
+|---|---|---|
+| AC1 | 合格 | 第 1 process の record: Active Build Target `StandaloneWindows64`、build の前の `Library` の履歴に spike の build なし。順は base（`Succeeded`）→ Player（`Succeeded`、IL2CPP、stripping High、Addressables `DoNotBuildWithPlayer`、Scene は `PovBoot` だけ、`previousBuildReportDirectories` は base の BuildHistory の 1 つ、`extraScriptingDefines` 空、build report の GUID `ff151441…`）→ v2 → 上書き（`Succeeded`）。棚卸しの digest 3 つ、layout の写し 2 つ、scripting assembly に probe の assembly あり、Player に `StreamingAssets/aa` なし、packed assets に fixture の asset なし（`packedFixtureAssets` 空）。P1: MonoScript の file は両方で id `a2a42d71…cfid`、sha256 が違い（`4a747de3…` / `2920274a…`）、base の `SourceAssets` は `ProbeBaseOnly`・`ProbeBoth`、上書きは `ProbeOverlayOnly`・`ProbeBoth`。P2: `SceneEdit`（`a6ab1e14…` / `ded39a4f…`）と `EditedTex`（`3978ff8d…` / `8917596b…`）は id が同じで sha256 が違う。P3: `SharedTex`・`SharedMat`・`SharedShader`・`EditedMat` は名前と sha256 が同じ。`preconditions` は `hold` true。fixture の folder は消えた（`fixtureFolderExists` false） |
+| AC2 | 合格 | base-alone・base-lifetime・overlay-alone の 9 process の全てで、終了行（`completed` true、`abortedAt` 空）、操作は全て成功、round の段の log は 0 行。base-alone: `SceneKeep`・`SceneEdit` は `Marker_v1`、`EditedTex` の pixel は v1、`SceneKeep`・`SceneEdit`・`SharedPrefab` の component の列は期待の列と長さ・位置・class・`_tag`・`_value` が一致し `null` なし、7 つの物の数は全て 1。base-lifetime: (1) の数は全て 1、(3) の `SceneEdit` は `Marker_v1`、保持した物は全ての確認点で load 直後の行と同じ、(6) の後の登録は 0 件。overlay-alone: `SceneEdit` は `Marker_v2` と v2 の probe の列、`EditedTex` の pixel は v2。3 つの process の観測は一致（正規化した record の差は `FindObjectsOfTypeAll` の列挙の順だけ） |
+| AC3 | 合格（Q1 強、X1 同じ） | read の 3 process: 2 つの root の `SceneEdit` の id が等しく（`1c8f9e65…`）、`EditedTex` の `LoadableObjectId` が等しい。base の root の id から load した `SceneEdit` も上書きの root の id から load した物も `Marker_v2`。`EditedTex` は 2 つの root から load して同じ `EntityId`、pixel は v2、参照をたどった集合と列挙の集合はどちらも 1 個 |
+| AC4 | 合格（Q2 正しい、Q3 一致、X2 同じ） | class の 3 process: `SceneKeep`（`ProbeBaseOnly` 101・`ProbeBoth` 102）、上書き版の `SceneEdit`（`ProbeOverlayOnly` 301・`ProbeBoth` 302）、base の root の `SharedPrefab`（`ProbeBaseOnly` 401・`ProbeBoth` 402）の列が期待どおりで Missing 0。数は `SharedMat`・`SharedTex`・`SharedShader`・`EditedMat`・`EditedTex` が 2、`SharedPrefab`・`KeepTex` が 1 で、参照をたどった集合と列挙の集合は全て一致。`SceneKeep` の Renderer が直接参照する `EditedMat` の `mainTexture` は v1 |
+| AC5 | 合格（Q4 無傷） | lifetime の 3 process: (1) の数は AC4 と同じ（2・2・2・2・2・1・1、集合は一致）。(1)〜(5) の全ての確認点で、保持した物（`SceneEdit`・`SceneKeep`・`SharedPrefab`・`EditedTex`。load し直した Scene はその load 直後の行と比べる）の物の id・material・texture の id と pixel・component の列が load 直後の行と同じ。(3) で load し直した `SceneEdit` は `Marker_v2`。(6) の Release・unload・上書き → base の解除は成功し、登録は 0 件。(6) の段の log も 0 行 |
+| AC6 | 対象外 | 答えが「同じ」 |
+| AC7 | 合格 | base-alone の計数と base-lifetime の (1) の計数で、参照をたどった `EntityId` の集合と列挙の集合が全ての物で一致 |
+| AC8 | 合格 | 18 個の record の先頭が `isEditor` false、`platform` `WindowsPlayer`、`backend` `IL2CPP`、`unityVersion` 6000.6.9f1（`ProjectVersion.txt` と同じ）、実行 id `1123003048`・head・`buildGuid`（`ff151441…`）が第 1 process の record と同じ、pid が launcher の起動の行と同じ、`graphics` は `Direct3D11`。P0: 18 個の Player の log の起動の段に製品の `AfterSceneLoad` の 1 行があり、record の `p0` は登録中の directory 0、Scene は `PovBoot` だけ、fixture の名前の物 0。P4 の 3 つの値がある。launcher の file の行の種類は `second-start`・`launch`・`exit`・`pids-after`・`verdict` だけで、観測の行は無い。第 2 process は第 1 process の出力を実行 id・head・3 つの digest で照合した（`inputMatched` true） |
+| AC9 | 合格 | 変更 file は本書・program・§3 の新規 file と `.meta` だけ。`contract-audit` 合格。(1) 第 1 process の record: 変える前と復元の後の値が同じ（Mono2x・stripping Disabled・`PreferencesValue`）、`ProjectSettings.asset`（`b52d2d16…`）と Addressables の設定の asset（`f065d1d0…`）の hash が前後で同じ、fixture の folder と `Assets/OneStarMakerGenerated` が無い。(2) 3 つの Unity process の後（(2) は強制終了の後）の `git status --porcelain` は全て空、Player の pid は全て終了 |
+| AC10 | 合格 | (1) の 48 件が全て Passed（発見 C の 2 回目が同じ test の集合を AC10 の入力と照合済み） |
+
+**§5 の未知の操作経路（初回確認）:**
+
+- (u1) 成立。EditMode の test から `BuildPipeline.BuildPlayer`（IL2CPP）を `run-tests.ps1` の batch で完走した（343.6 秒）。
+- (u2) 成立。製品の起動は 18 個とも `BeforeSceneLoad` で止まり、`AfterSceneLoad` を飛ばした。止まった所は code の読み（`content:runtimeMode` が無い）より手前で、設定の JSON の Addressables 経由の同期 load だった（Player に Addressables の data が無く、`RuntimeData is null`・`Unable to load runtime data` の Error の後、`ResourceManager+CompletedOperation<TextAsset>` の既定の constructor が無いことによる `MissingMethodException`）。起動の段の log は 18 個とも同じ 5 件（`LogError` 4、`LogException` 1。開始の印より前なので数えない）。
+- (u3) 成立。P4 で probe の 3 型が全て Player の assembly にあり、base だけの round の class は正しい。
+- (u4) 成立。graphics の device は `Direct3D11`。単独の基準の版・class・pixel・数と列挙の照合が fixture の定義と一致した。
+- (u5) 成立。上書きの棚卸しで P2・P3 が成り立ち、AC9 の 2 つの時点で設定の残りが無い。
+
+**答えと観測（実測した事実）:**
+
+- Q1 強、Q2 正しい、Q3 一致（AC4 と AC5 の (1) の両方で Editor の実測と同じ数）、Q4 無傷。X1・X2 は Editor と同じ。X3 は主の順の 9 process の全ての段で Unity の Error・Exception が 0 件（record の log の行は 0 行。Player の log の開始の印より後にも Error・Exception の stack を持つ行は無い）。
+- process の間の一致: 6 つの round の全てで、3 つの process の観測の行が一致した。正規化した record（時刻・pid・連番を除き、`EntityId` を初出の順の記号に置き換えた物）の差は、class の round の `EditedMat` と lifetime の round の `SharedTex` の `enumerated`（`FindObjectsOfTypeAll` の列挙）の並びの順だけで、集合と数は同じ。
+- P4: `ProbeOverlayOnly` も Player にあった（`OneStarMaker.Spikes.PlayerOverlayProbes`）。§2 の後続の表の最後の行の事実（base の build report を渡して build した Player に、base が使う型と同じ assembly にある、base が使わない `MonoBehaviour` が残った）で、別の assembly・組み込みの型へ広げない。
+- 添えるもの（判定に使わない）: (a) Player の log 18 個のうち 5 個（base-alone#1、class#1、overlay-alone#1・#3、read#2）で、開始の印より後、終了処理の `[Physics::Module] Cleanup current backend.` の直前の行に `Curl error 42: Callback aborted` の 1 行がある。stack trace を持たない native の行で、runner の log の捕捉（`logMessageReceivedThreaded`）には届いておらず（record の log の行は 0）、base だけの基準の round と主の順の round の両方に出ている。X3 の数える対象（Unity の Error・Exception の log）に当たらないと読んだ。(b) Warning は record に 0 件。
+- 範囲: 結論は §2 の「成果の範囲」の条件（この PC、6000.6.9f1、StandaloneWindows64、IL2CPP・High、development build でない、`-batchmode`・`Direct3D11`、loose file、合成 fixture、同じ `Library`、base の build report を渡して Player を build、上書きはその後、製品の検証を通さない base、製品の起動は失敗して常駐の service なし）に限る。仕組みの推測（なぜ base の root の id からも上書き版が出るか等）はしない。
+- 後続への含意（§2 の表で当たる行）: 「同じ」→ S4-2 の A1 を、この範囲の実測を前提に始められる。13 章の禁止は S4-2 が製品の登録の口と検証済みの base で確かめてから解く。「P4 で `ProbeOverlayOnly` が Player にある」→ 上の事実。S4-2 の開始条件（§2.4）のうち、S4-0 の側（答えと process の間の一致）は満たした。
+
+**指摘:**
+
+- 現在の問いを阻害する findings: なし。
+- 後続スライスの入力（現スライスを拡張しない。凍結済み条件・常時契約への違反根拠は無い）:
+  - **J1（S4-1 の入力）:** Addressables の data の無い IL2CPP・stripping High の Player で、製品の起動の設定の読み込み（`JsonFileConfigProvider` → `AddressableBackend.LoadAssetSync`）が、data の欠落の失敗を返す途中で `ResourceManager+CompletedOperation<TextAsset>` の既定の constructor が strip されていて `MissingMethodException` になった。本スライスでは P0 の側の事実だが、S4-1（content directory から起動して操作を続けられる Player の構成）が Addressables の無い Player の起動を設計する時に、strip による失敗の形として当たりうる。
+  - **J2（harness の運用の入力。置き場所は進行役・owner が決める）:** test の中で Player を build すると、Project Auditor package の post-build 監査が同じ Unity の中で走り、XML の書き出しを約 6 分遅らせ、`run-tests.ps1` の `step.json` を `failed`（compile error の検出）にする。製品の BS4 の Player の build を test から行う後続（S4-2 の gate の測り直し等）でも同じ形になる見込みで、ゲートを XML で書くか、監査の扱いを決める必要がある。
+- 巡の数: 判定 C で B へ戻していない（B と発見 C の差し戻しは 1 巡で収束したまま）。
+- 担当・モデル: 判断担当と実行担当は同じ session（Claude Opus 5.5、Anthropic）。Phase B と同じ系列で、**独立性制約あり（owner 受容）**。新規 session で、B と発見 C の会話は読んでいない。
 
 ## 8. Phase C'
 
