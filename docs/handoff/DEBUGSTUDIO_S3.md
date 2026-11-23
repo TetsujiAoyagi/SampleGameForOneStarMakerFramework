@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A（revision 4 の A2 入力版。§2.8 は裁定済み、A0 確認は実施済み。A2 は未着手）
+- status: A（revision 4 の A3。A2 の 2 件を受け、§5.1 に採否の主担当案を記録。owner の確認・外部計画レビュー・凍結は未実施）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: 未固定（A3 で、B が取り込む origin/develop の SHA に固定する。A1 が読んだ develop は `d926e3b6b40dafab086b293e6d60784e304ecf4c`。引継ぎ時点の origin/develop `9de34cc2` までの差分は文書 3 file（S4-0 の記録）だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: 未固定
@@ -16,12 +16,11 @@
 - Phase A snapshot の取得案内・状態: 未生成
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は A2（§5.4 の 2 件。互いの指摘を見せない）。
-  - 作業: 目的レビューは §1.1 の 2 行の原文だけを見て、目的と利用者から見た欠落・過剰を返す。アーキテクチャゲートは固定 base と、この A2 入力版の HANDOFF 固定 copy で `.agents/skills/osm-workflow/references/architecture-gates.md` に従って見る。どちらも所見を主担当へ返し、HANDOFF は編集しない。
-  - 読む範囲: 目的レビューは §1.1 の原文だけ（HANDOFF・code・PR を読まない）。アーキテクチャゲートは HANDOFF 全節と、固定 base の code・規則。
-  - 照合: アーキテクチャゲートは、固定 base `9de34cc2ec2dfe82b782f122b0012b902e98f277` の clean な detached checkout の HEAD と、主担当が依頼時に渡す HANDOFF 固定 copy の SHA-256 を、読む前に照合する。食い違えば読まずに止める。
-  - 必要な権限: 読取りだけ。Unity Editor・WPF を起動しない。
-  - 引き渡さないもの: 目的レビューには §1.1 の 2 行の原文以外を渡さない。2 件の所見を互いに渡さない。
+- 引継ぎ票: 次は A3 の続き（主担当）。
+  - 作業: (1) owner が §5.1 の採否案を確認する。(2) A3 統合案を 1 commit にして Draft PR #204 へ push し、外部計画レビューを依頼する。(3) 外部指摘の採否を §5.1 に追記し、owner の凍結判断・対象 revision・次担当 B を §0 に記録して凍結版を commit する。implementation base を B が取り込む origin/develop の SHA に固定する。
+  - 読む範囲: 既定（全節）。
+  - 必要な権限: commit・push・PR 本文の更新（push は owner に確認する）。
+  - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
 
@@ -77,11 +76,11 @@
 - 実行担当: この A1 とは別の新しい session。共有 Editor は使わない。
 - 環境・初期状態: origin/develop `9de34cc2ec2dfe82b782f122b0012b902e98f277` の clean な detached worktree（新規に作るか、clean な `D:/repositories/unity/osm-ds3-a2` を detach し直す。どちらも `unity/Library` は無い）と、その worktree の `unity/` を自分で開いた Editor 6000.6.9f1。新しい worktree は import に 10 分前後かかる。起動後、開いている scene を開き替えず、dirty でないことを確かめる。既に Editor が開いていれば所有者を確かめ、自分のものでなければ止める。
 - R0: HEAD・clean・Editor の版を記録する。`dotnet build tools/DebugStudio/src/DebugStudio.App/DebugStudio.App.csproj -c Release` と `dotnet build tools/DebugStudio/src/DebugStudio.Cli/DebugStudio.Cli.csproj -c Release`。起動前に他の DebugStudio の process が無いことを確かめ、App の Release 出力を `--listen` で直接起動して PID を記録する。
-- R1（実施時の上限は 15 秒。結果を受けて §5.3 は 60 秒に改めた）: `tools/unity-editor.cmd command` で公開名を確かめて Play を始める（無ければ eval で `UnityEditor.EditorApplication.isPlaying = true;`）。dialog や Play の中止が出たらそのまま記録する。Release 出力の `debugstudio-cli.exe hierarchy` を `hasSnapshot: true` まで読み直し（総計 15 秒以内）、全 root の名前・NodeId・flags と、開いていた scene の名前を記録する。
+- R1（実施時の上限は 15 秒。結果を受けて §5.4 は 60 秒に改めた）: `tools/unity-editor.cmd command` で公開名を確かめて Play を始める（無ければ eval で `UnityEditor.EditorApplication.isPlaying = true;`）。dialog や Play の中止が出たらそのまま記録する。Release 出力の `debugstudio-cli.exe hierarchy` を `hasSnapshot: true` まで読み直し（総計 15 秒以内）、全 root の名前・NodeId・flags と、開いていた scene の名前を記録する。
 - R2: 開いていた scene の root で名前が 1 つだけのもの（基準では `Directional Light`）を X とし、その NodeId で `inspect` して `GameObject.ActiveSelf` の rawValue を記録する。eval で、読み込み済みの scene の root からその名前の数、`UnityEngine.EntityId.ToULong(go.GetEntityId())`、activeSelf を読む（eval の C# は UTF-8 の Base64 で渡す。作らない、書かない）。
 - R3: `send --command debug.set-active --payload '{"nodeId":<X>,"active":false}'` の stdout / stderr / exit を記録する（develop では未登録の Success=false、exit 1 を見込む）。eval で X の activeSelf が R2 と同じか読む。
 - R4: Play を止める。WPF に通常の終了を要求し（`CloseMainWindow`）、保有 handle の signal と実終了コードを記録する。Scene が clean か、tracked の変更が無いかを記録し、自分で開いた Editor を通常終了する。
-- 保存: 各段のコマンド、開始終了 UTC、stdout / stderr / exit、eval の戻り値。Git に入れずローカルに保全し、要約を主担当へ返す。主担当がこの節に結果を書き、§2 と §5.3 の X と場面を確定する。
+- 保存: 各段のコマンド、開始終了 UTC、stdout / stderr / exit、eval の戻り値。Git に入れずローカルに保全し、要約を主担当へ返す。主担当がこの節に結果を書き、§2 と §5.4 の X と場面を確定する。
 - 不成立時: Play が始まらない、hierarchy が読めない、開いていた scene の既存 root が出ない場合は、検証基盤の不備か develop の変化かを分けて記録し、A1 で場面か問いを見直す。原因調査はしない。
 
 **結果（2026-11-23、別 session の実行担当。原記録は Git 外のローカル保全で、主担当が読んだ要約は次のとおり）**
@@ -91,7 +90,7 @@
 - R2: X = `Directional Light`（NodeId 2）。`inspect 2` の `GameObject.ActiveSelf` の rawValue `"true"`。eval で同名の root は 1 件、activeSelf=True。
 - R3: `send debug.set-active` は exit 1。stdout は空で、`CommandResult … success=false message=Debug command 'debug.set-active' is not registered.` は **stderr** に出た（CLI は success=false のとき CommandResult の行と payload を stderr へ書く。`Program.WriteResult`）。送信後も activeSelf=True。
 - R4: Play 停止後 Untitled は dirty=False、`Assets/` の Dirty asset 0。WPF は `CloseMainWindow` で実終了コード 0。Editor は exit 0、native stall なし。tracked の変更は Editor を開くと付く既知の `UniversalRenderPipelineGlobalSettings.asset` の差分 1 件だけで、終了後に戻した。
-- 主担当の判断: 読取り経路は develop で成立。Phase C の場面は「開き替えない Untitled の scene の `Directional Light`」に確定する（§2.2 E1、§5.3）。hasSnapshot までの待ちは検証手順の上限であって設計の主張ではないので、§5.3 V1 の上限を 60 秒にする。rejected を含む success=false の出力先は stderr として §2.1 の 3・§5.3 に書く。
+- 主担当の判断: 読取り経路は develop で成立。Phase C の場面は「開き替えない Untitled の scene の `Directional Light`」に確定する（§2.2 E1、§5.4）。hasSnapshot までの待ちは検証手順の上限であって設計の主張ではないので、§5.4 V1 の上限を 60 秒にする。rejected を含む success=false の出力先は stderr として §2.1 の 3・§5.4 に書く。
 
 ### 1.7 常時契約と既知の制約（本文へ転記）
 
@@ -126,7 +125,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 書き込みの意味は SampleGame が既存のコマンド登録経路で持つ。Framework は「今の hierarchy の NodeId が指す GameObject」を返す読み取り口だけを公開する。DebugStudio（WPF・CLI・protocol）は変えない。
 
 1. **読み取り口（Framework。公開面はこの 2 つ）:**
-   - `DebugSocketService.TryGetHierarchyGameObject(long nodeId, out GameObject? gameObject)`（public、main thread で呼ぶ）。inspect が使う既存の private `TryFindGameObjectByNodeId`（`_gate` の中で registry を引き、破棄済みは false）をそのまま包む。未 capture・prune 済み・`Reset` 後・破棄済み・hierarchy に出ない GameObject は false。
+   - `DebugSocketService.TryGetHierarchyGameObject(long nodeId, out GameObject? gameObject)`（public、main thread で呼ぶ。XML コメントに main thread で呼ぶこと、Dispose 後は false を返すことを書く）。inspect が使う既存の private `TryFindGameObjectByNodeId`（`_gate` の中で registry を引き、破棄済みは false）をそのまま包む。未 capture・prune 済み・`Reset` 後・破棄済み・hierarchy に出ない GameObject は false。
    - `AbstractApplicationInitializer` に `protected DebugSocketService? DebugSocket => _services?.DebugSocket;`（既存の accessor と同じ形）。
 2. **コマンド（SampleGame。新規 `DependOnAll/DebugCommands/SetActiveDebugCommand.cs`、internal static）:**
    - `AppInitializer` が `CreateDebugCommandDispatcher()` を override し、`Application.isEditor` のときだけ `DebugCommandCatalog` に `debug.set-active` を登録して `CatalogDebugCommandDispatcher` を返す。それ以外は base。handler は `() => DebugSocket` で実行時に service を読む。解決は delegate（`bool (long nodeId, out GameObject? go)`）で受け、テストで差し替える。
@@ -135,7 +134,8 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
    - 名前・タグ・印・パス・許可リストで絞らない。結果に名前を出すのは、利用者が変えた GameObject を出力だけで確かめられるようにするため。
    - 非 bool の `active`（文字列・null）は拒否を保証しない。revision 3 の実測では `"false"` と `null` が false として適用された（§1.5）。README とコメントはこの実測どおりに書き、拒否するとは書かない。
 3. **結果の読み方（README に書く。CLI の動作は変えない）:**
-   - `success=true` と結果の payload（exit 0）: その NodeId の GameObject（`name`）に適用し、`activeSelf` は適用後の値。
+   - `success=true` と結果の payload（exit 0）: その NodeId の GameObject（`name`）に適用し、`activeSelf` は適用後の値。結果は main thread で SetActive の後に返るので、返った時点で適用済みで、続く `inspect` は適用後の値を読む。
+   - `activeSelf` は GameObject 自身の値。親が非アクティブなら `activeSelf` が true でも見えず、`hierarchy` の flags に `ActiveInHierarchy` が付かない。
    - `success=false` で message が `rejected: ` で始まる（exit 1。この行は stderr に出る）: 何も変えていない。
    - それ以外の `success=false`（handler の例外、未登録）と、`CommandResult` の行が無い終わり方（期限切れ exit 2、それ以外 exit 1）: 結果不明。timeout は未実行を意味しない。CLI は自動で再送しない。
    - 結果不明の後の `inspect` は読んだ時点の値で、その要求が実行された証拠ではない。望む値にしたいときは `hierarchy` を読み直し、値を明示して送り直す（逆には戻らない）。
@@ -175,10 +175,10 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
   - 解析できない payload、空、`{}`、nodeId が無い・0・負、`active` が無い（`{"nodeId":<解決できる N>}` を含む）→ `rejected: invalid-payload` で、解決を呼ばず activeSelf が変わらない。
   - 解決できる NodeId → `active` の値（true・false の両方）になり、同じ値を 2 回送っても同じ値のまま。対象は root、子、親が非アクティブな子の 3 種で、結果の `nodeId`・`name`・`activeSelf` が実際と一致し、他の fixture の activeSelf は変わらない。名前に `"` を含む GameObject でも結果が JSON として読める。
   - `active` が文字列・null の代表入力: 結果（拒否なら activeSelf 不変、適用なら結果の activeSelf が実値と一致）と観測を `TestContext` に残す。README の記述と食い違えば C が見つけられる。
-  - 実 Editor（§5.3 V5）: 今の hierarchy に無い NodeId で送ると `rejected: node-not-found`（exit 1）で、X の activeSelf が変わらない。
-- **AC2（E1）:** 実 Editor（§5.3 V1〜V4、1 回の Play の中）で X を false にしてから true に戻し、各回で CLI の `success=true`、結果の値、Editor の独立値、`inspect` の rawValue が一致し、false の間も hierarchy に同じ NodeId で出る。root の構成が §1.6 の R1 と同じ。GUI のボタンを押さない。不合格例: eval で GameObject を作った、途中で WPF を再起動した、Play を開き替えた scene で行った。
-- **AC3（I3）:** Unity EditMode: 登録に Editor でないことを渡すと catalog に `debug.set-active` が無い。Editor なら登録し、DebugSocket は実行時に読む。`git diff --stat <base> <head>` で `tools/DebugStudio/` の変更が `DebugStudio.Cli/README.md` だけ、`protocol/` に変更が無い。SampleGame の差分に GameObject の生成（`new GameObject`・`Instantiate`）が無い。
-- **AC4（I2、文書）:** CLI README に §2.1 の 3 の全項目、payload の形と送信例、結果の payload の形があり、§2.1 の 2 と §5.3 のコマンドと一致する。非 bool の `active` を拒否するとは書かない。`SetActiveDebugCommand` のコメントも同じ。
+  - 実 Editor（§5.4 V5）: 今の hierarchy に無い NodeId で送ると `rejected: node-not-found`（exit 1）で、X の activeSelf が変わらない。
+- **AC2（E1）:** 実 Editor（§5.4 V1〜V4、1 回の Play の中）で X を false にしてから true に戻し、各回で CLI の `success=true`、結果の値、Editor の独立値、`inspect` の rawValue が一致し、false の間も hierarchy に同じ NodeId で出る。root の構成が §1.6 の R1 と同じ。GUI のボタンを押さない。不合格例: eval で GameObject を作った、途中で WPF を再起動した、Play を開き替えた scene で行った。
+- **AC3（I3）:** Unity EditMode: 登録に Editor でないことを渡すと catalog に `debug.set-active` が無い。Editor なら登録し、DebugSocket は実行時に読む。Dispose 後の DebugSocketService の `TryGetHierarchyGameObject` は false を返す。`git diff --stat <base> <head>` で `tools/DebugStudio/` の変更が `DebugStudio.Cli/README.md` だけ、`protocol/` に変更が無い。SampleGame の差分に GameObject の生成（`new GameObject`・`Instantiate`）が無い。
+- **AC4（I2、文書）:** CLI README に §2.1 の 3 の全項目、payload の形と送信例、結果の payload の形があり、§2.1 の 2 と §5.4 のコマンドと一致する。非 bool の `active` を拒否するとは書かない。`SetActiveDebugCommand` のコメントも同じ。
 
 ### 2.4 ここでは答えない問いと所有する後続スライス
 
@@ -228,7 +228,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 |---|---|---|---|---|---|
 | `unity/Assets/OneStarMaker/Scripts/Runtime/DebugSocketServices/DebugSocketService.Inspector.cs` | `TryGetHierarchyGameObject`（既存の private lookup を包む） | service（Play） | public method | lookup 本体は既存の `DebugSocketRuntimeNodeRegistryTests` の `TryFindGameObjectByNodeId_*`。包みは lock と委譲だけ | 105 / +10〜15 |
 | `unity/Assets/OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs` | protected `DebugSocket` accessor | initializer（App） | protected property | — | 1326 / +2〜4 |
-| `unity/Assets/SampleGame/DependOnAll/DebugCommands/SetActiveDebugCommand.cs`（新規。branch の同名 file を書き換える） | 登録（Editor のときだけ）、解析、解決、SetActive、結果 | catalog は Play ごと | internal static | `SampleGame.Tests` の `SetActiveDebugCommandTests`（解決を差し替え） | 新規 80〜120 |
+| `unity/Assets/SampleGame/DependOnAll/DebugCommands/SetActiveDebugCommand.cs`（新規。branch の同名 file を書き換える） | 登録（Editor のときだけ）、解析、解決、SetActive、結果。file の中で解析・拒否判定（GameObject に触れない static method）、適用（解決 delegate と SetActive）、結果 DTO の生成を別の method に分ける（§5.1 G1） | catalog は Play ごと | internal static | `SampleGame.Tests` の `SetActiveDebugCommandTests`（解決を差し替え。解析と拒否判定は GameObject なしで試す） | 新規 80〜120 |
 | `unity/Assets/SampleGame/DependOnAll/AppInitializer.cs` | `CreateDebugCommandDispatcher()` の override | initializer | — | 登録は上のテスト | 431 / +15〜25 |
 | `tools/DebugStudio/src/DebugStudio.Cli/README.md`、`unity/Assets/Docs/Architecture/12-telemetry.md` | 使い方と結果の読み方。§10.5 の「SampleGame に catalog が配線されているという意味ではない」を現状に直す | 公開文書 | — | docs-audit、AC4 | 91 / +20〜30、515 / ±10 |
 
@@ -245,22 +245,47 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 
 ## 5. テストとレビュー計画
 
-### 5.1 テスト
+### 5.1 A2 の独立レビューと A3 の採否
+
+**A2 記録（2026-11-23）**
+
+- 目的レビュー: 入力は §1.1 の目的・利用者の原文（sha256 `b03557b8187a95895a52959d463bd0b9f54e742b78ee8d14bd91994ae82220fa`）だけ。担当はこの Phase A に関与していない新しい subagent（Claude Opus 5.5）。ツールを使わず回答した。
+- アーキテクチャゲート: 固定 base `9de34cc2ec2dfe82b782f122b0012b902e98f277` の clean な detached checkout（`osm-ds3-a2`）と、A2 入力版（commit `dfd52b30`）の HANDOFF 固定 copy（SHA-256 `ea8ca195deaab2496d126ad9f464d6ed5f6dac6df8d2c99e3ae43ffdd715445e`）。担当は Codex CLI（`gpt-5.6-luna`、effort medium。risk normal なので astra を使わない）。担当が HEAD・clean・hash の一致を報告した。2 件の所見は互いに見せていない。
+- 原文は Git 外のローカル保全（主担当の scratchpad の `a2/out/`）。
+- C' 用の予約: Grok 系（cursor-agent）を A2 で使わず残した。
+
+**A3 の採否（主担当の案。owner の確認と外部計画レビューの前）**
+
+| # | 出所・指摘 | 採否 | 反映・理由 |
+|---|---|---|---|
+| G1 | ゲート major: `SetActiveDebugCommand` に登録・解析・解決・Unity の変更・結果生成が集まり、Policy と Unity I/O が混ざる。解析と拒否判定を Unity なしで試せる境界が不明確 | 一部採用 | 採用: 登録は `AppInitializer`（既に計画どおり）、file の中で解析・拒否判定（GameObject に触れない static method）、適用（解決 delegate と SetActive）、結果 DTO の生成を別の method に分け、解析と拒否判定は GameObject なしでテストすると §3 に書いた。不採用: 別 class・別 file への分割。コマンド 1 つ・80〜120 行の段階で層を作らない方針（実装が 1 つの段階で port・層を先取りしない）による。`JsonUtility` は Unity API だが EditMode で GameObject なしに試せる |
+| G2 | ゲート minor: 公開する `TryGetHierarchyGameObject` の main thread 契約と Dispose 後の挙動が契約化されていない | 採用 | §2.1 の 1 に、XML コメントで main thread で呼ぶこと、Dispose 後は false を返すことを書き、Dispose 後 false の EditMode テストを 1 件足した（AC3） |
+| G- | ゲートの「問題なし」の 1 行（「dispatcher 生成前にサービスを作成する」）は事実と逆 | 記録のみ | 実際は dispatcher を DebugSocketService の constructor 引数として先に作る（`AbstractApplicationInitializer.cs:1276`）。§1.4 の記述どおりで、結論（handler が実行時に DebugSocket を読む）は変わらない |
+| P1 | 目的: send の後の inspect が反映済みを返すこと、反映の時点を明示すること | 採用（文書） | 結果は main thread で SetActive の後に返るので、`success=true` が返った時点で適用済み。§2.1 の 3 に README の 1 項目として足した |
+| P2 | 目的: activeSelf と activeInHierarchy を区別して返す | 採用（文書） | 既存の inspect は `GameObject.ActiveSelf` を、hierarchy は flags で両方を出す。親が非アクティブなら activeSelf=true でも `ActiveInHierarchy` が付かないことを §2.1 の 3 に足した。AC1 の「親が非アクティブな子」で挙動は試す |
+| P3 | 目的: 1 つだけ変わる、非アクティブ後も同じ NodeId で出る、冪等な設定、通常の Play で動く、asset を Dirty にしない | 既に満たす | I1・AC1（他の fixture 不変、2 回送る）、E1・AC2（false の間も同じ NodeId、何も生成しない）、§5.4 V6（Scene clean・tracked 変更なし） |
+| P4 | 目的: 存在しない NodeId・破棄済み・Play 中でない・未接続を出力で機械的に区別する | 既に満たす | 前 2 つは `rejected: node-not-found`（AC1）。後 2 つは既存の CLI の接続失敗で、`CommandResult` の行が無い終わり方として I2 の結果不明に入る。新しい区別（outcome・exit）は §1.3 の対象外 |
+| P5 | 目的: 作らないもの（新 CLI コマンド・WPF 画面、名前等での選択、一括、汎用書き込み、トグル・Undo・履歴、生成・削除、Player・遠隔、永続化、確認・dry-run、自動追従・push、待ち合わせ API） | 既に満たす | 計画はどれも作らない（§1.3、§2.7）。計画が作るもので目的レビューが要らないとしたものは無い |
+
+- 目的・利用者の文言を問う指摘: なし（目的レビューのやり直しは不要）。
+- 再レビューの要否: G1・G2 は §2.1 と §3 の書き方の変更で、所有者・依存・公開面を増やさない（G2 は既存の公開面の契約を明記するだけ）。P1・P2 は README の文言の追加。どれも A2 観点の再レビューは要らない。
+
+### 5.2 テスト
 
 - 単体テスト: §3 のテスト境界。
 - 差し戻し中の起点 `-Filter`（C が根拠付きで変更可）: `SetActiveDebugCommandTests`、`DebugSocketRuntimeNodeRegistryTests`。
-- 判定必須テスト（GO 候補 head）: 最終の全 EditMode 回帰（標準の `pwsh tools/run-tests.ps1`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC3 の diff 確認、§5.3 の実機手順。
+- 判定必須テスト（GO 候補 head）: 最終の全 EditMode 回帰（標準の `pwsh tools/run-tests.ps1`）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、AC3 の diff 確認、§5.4 の実機手順。
 - 全 EditMode 回帰の扱い: `tools/Harness/README.md` の規則に従う。実 exit と保持した process handle の signal を記録し、native stall は同 README の停止規則に従う。失敗・Inconclusive・非 0 の exit を合格と読み替える独自の規則を置かない。
-- .NET のテスト: 判定必須にしない。DebugStudio の code・protocol を変えない（AC3 の diff で確かめる）。Release build は §5.3 V0 で行う。
+- .NET のテスト: 判定必須にしない。DebugStudio の code・protocol を変えない（AC3 の diff で確かめる）。Release build は §5.4 V0 で行う。
 - 全 EditMode 回帰の適用除外: なし。PlayMode は要しない。
 - 人間の判断が必要な条件: なし。高コスト証拠: なし。
 
-### 5.2 検証経路と未知の操作経路
+### 5.3 検証経路と未知の操作経路
 
 - 読取り経路（hierarchy・inspect・Editor の独立値）: `d176033a` で成立を観測済み（§1.5）。develop での再確認は §1.6（A0 確認）で、A2 の前に行う。
 - 書き込み経路（V3 以降）: 未確認。初回確認は動作確認（B の後）と Phase C。理由: 未実装。担当: 動作確認の実行担当と判定 C の実行担当。確認地点: AC1 の実機部分と AC2。不成立時は、待受け・接続、登録、解決、適用のどこかを分けて B へ戻し、受け入れ条件を黙って減らさない。
 
-### 5.3 実機検証の手順（動作確認と Phase C。V0〜V6）
+### 5.4 実機検証の手順（動作確認と Phase C。V0〜V6）
 
 GO 候補 head の専用 worktree で、実行担当が自分で開いた Editor で行う。V1〜V5 は 1 回の Play の中。§1.6 と同じ初期状態（開いている scene を開き替えない、dirty でない）から始める。`tools/unity-editor.cmd` は 1 回ずつ別の command にし、eval の C# は UTF-8 の Base64 で渡し、独立値の読取りだけに使う。CLI は Release 出力の `debugstudio-cli.exe` を pwsh 7 から使い、payload は単引用符で渡す。
 
@@ -273,7 +298,7 @@ GO 候補 head の専用 worktree で、実行担当が自分で開いた Editor
 - V6: Play を止める。WPF に通常の終了を要求し（`CloseMainWindow`）、保有 handle の signal と実終了コードを記録する。強制終了したらそのとおり記録し、正常終了とは扱わない。Scene が clean か、tracked の変更が無いかを記録する。
 - 保存するもの: 各段のコマンド、stdout / stderr / exit、HEAD、Editor の版、WPF の PID と終了コード、hierarchy、eval の戻り値。結果不明の実機再現は求めない（AC4 の README で判定する）。
 
-### 5.4 照合方式・担当・A2
+### 5.5 照合方式・担当・A2
 
 - 判定 C の照合: script を使わず、判定 C が原記録を直接照合する。値は十数個で、どれも等値の比較で閉じる。期待は実装ではなく eval の独立値と §2.1 から導き、条件ごとに原記録の該当箇所と期待を対にした表を判定記録に残す。
 - 機械検査: contract-audit、docs-audit、AC3 の diff 確認。
@@ -283,7 +308,7 @@ GO 候補 head の専用 worktree で、実行担当が自分で開いた Editor
   - 目的レビュー: §1.1 の 2 行の原文だけを、この Phase A に関与していない担当へ渡す。owner の指示で A0/A1 を始め直したので、revision 4 の初回の目的レビューとして行う。
   - アーキテクチャゲート: 固定 base（develop の SHA の clean な detached checkout）と、§1.6 と §2.8 を反映した HANDOFF の固定 copy と SHA-256。
   - 高リスク代替レビュー: risk normal なので行わない。
-- 順序: (1) §1.6 の A0 確認を反映する（§2.8 は裁定済み）。(2) A2 入力版を commit し、A2 の 2 件を互いに見せずに依頼する。(3) A3 で採否を書き、Draft PR #204 に 1 commit で出して外部計画レビューを受ける。(4) owner の凍結判断・対象 revision・次担当 B を §0 に記録して凍結版を commit し、implementation base を固定する。
+- 順序: (1) §1.6 の A0 確認を反映する（§2.8 は裁定済み）。(2) A2 入力版を commit し、A2 の 2 件を互いに見せずに依頼する。(3) A3 で採否を書き（§5.1。A2 は 2026-11-23 に実施済み）、Draft PR #204 に 1 commit で出して外部計画レビューを受ける。(4) owner の凍結判断・対象 revision・次担当 B を §0 に記録して凍結版を commit し、implementation base を固定する。
 - revision 1〜3 の A2・外部計画レビュー・採否と、revision 3 の B・動作確認・C・C′・D の記録は commit `d1d11e0c` の本 HANDOFF にある。revision 4 には持ち込まない。
 
 ## 6. Phase B 実装結果
