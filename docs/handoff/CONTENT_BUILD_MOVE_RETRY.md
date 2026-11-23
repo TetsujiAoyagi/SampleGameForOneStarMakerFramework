@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S5-0。BuildSystem の小さいスライス）
-- status: `C`（発見 C を完了した。阻害する指摘なし。次は判定 C）
+- status: `C'`（判定 C が 2026-11-23 に GO とした。次は C'（最終 C'）。§7）
 - branch: `claude/content-build-move-retry`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。A2 の固定 base と同じ）
 - implementation head commit: `d0785b2327f9795aa9c4dea78ebcbfcf51e2f31f`
@@ -18,17 +18,17 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§8 の S5-0 の行。J1 の調査の記録と CP2 はそこにある）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と固定 base だけ）
 - Phase B result snapshot の取得案内・状態: 該当なし（レビューの入力は implementation head の commit。stage は使っていない）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head で生成し、task `s5-0-content-build-move-retry` に `evidence stage` した（判定用、14 file、目次は `manifest.json`）。取得案内は git 管理外の既存の受け渡し場所（Evidence の取得案内の file 群）の判定用の file にある。別の pwsh process の fetch で `passed`、manifest の全 file の hash が一致し、XML を読めた。受け取り側の別 session の fetch・閲覧は未確認
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生結果から作り、同じ task に `evidence stage` した（11 file、目次は `manifest.json`）。取得案内は同じ場所に、判定用とは別の file で置いた。別の pwsh process の fetch で `passed`、manifest の全 file の hash が一致した。受け取り側の fetch・閲覧の確認は C' の起動前に行う
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（判定 C）。発見 C は現在の問いを阻害する指摘なしで終えた（§7）ので、implementation head がそのまま GO 候補 head である。
-  - 次の作業: GO 候補 head（上の implementation head 欄）で、AC8 の全 EditMode 回帰（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）を AC8 の定めどおり最大 3 run 走らせる。各 run の前に Unity Hub・ChatGPT・他の Unity の process と、Hub の `projects-v1.json` の登録を記録する。§7 に、XML の root result・failed・Inconclusive、`step.json` の理由、staging の path を指す access denied・共有違反の件数（AC8 の (2)）、Editor log の `[ContentStagingMove]` の行の数と試行の回数（判定の補助の観測）を書く。AC1〜AC7 の test が全回帰の XML で Passed であることも確かめる。判定 C の evidence bundle と C' blind bundle は同じ commit から作る（review-evidence.md）。
-  - 読む範囲: 既定（§0〜§8。§8 はまだ無い。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む記録 commit（SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は上の欄の SHA で、そこから引き継ぐ commit までの差分は本書だけである。
+  - 次の Phase・役割: C'（独立監査、1 巡目。高コスト証拠は無いので最終 C'）。判定 C の判定証拠が揃った implementation head（§0 の欄）を、C' blind bundle だけから監査する。§5 が予約した、Phase A〜C に関与していない系列の担当で行い（選ぶのは進行役。`cursor-agent` を使うなら Grok 系だけ）、使った担当・モデルと独立性を §8 に書く。
+  - 次の作業: C' blind bundle を fetch して閲覧を確かめてから監査し、結果を §8 に記録する（記録は進行役が C' の出力から書いてよい）。
+  - 読む範囲: C' は blind bundle だけ（`manifest.json` が目次。凍結した条件は bundle の中の凍結版の本書の §0〜§5、Phase B の結果は B の記録の本書の §6）。可変な本書を読まない。
+  - 引き継ぐ commit: この票を含む commit（判定 C の記録 commit。SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
   - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない）。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、最初の実行から sandbox 外）。Unity Hub が動いている PC であること（AC8 の前提）。Artifact Storage の操作は tools/Artifacts/README.md の事前承認に従う。push はしない（公開点は判定 C と C' の後）。
-  - 停止規則: AC8 と判定定義（§2）、§4 の「Phase B から Phase A へ差し戻す条件」（上限を超えた移動の失敗が出たら差し戻す）。(2) が 0 件のまま 3 run とも (1) に届かない時は、判定 C を完了と記録せず owner に返す。Unity の終了 stall は Harness README の停止規則に従う。
-  - 引き渡さないもの: §7 の発見 C の所見は C' に渡さない（blind bundle に入れない）。
+  - 必要な権限: C' blind bundle の fetch（非仮想化の pwsh、sandbox 外、Artifacts の 3 project の Release build 済みの checkout）。Unity の再実行は必須でない。push はしない（公開点は C' の後）。
+  - 停止規則: C' の規則（osm-workflow の phase-c-prime.md）。C' の差し戻しは別に数えて上限 3 巡。
+  - 引き渡さないもの: C' に、本書（特に §7 の発見 C・判定 C の所見と結論）、判定用の evidence bundle とその取得案内、PR の本文と会話を渡さない。
 
 ## 1. 目的と対象外
 
@@ -259,3 +259,37 @@
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: AC1・AC2・AC6 の Windows だけの test の実物の振る舞い（§6 の観測値）は B の run の記録で、発見 C は再実行していない。判定 C の全回帰の Editor log に同じ `[ContentStagingMoveTests]` の行が出る。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。Phase B と同じモデルで、`独立性制約あり`（owner 受容。進行役の指定）。
+
+### 判定 C（2026-11-23）
+
+- 種別: 判定 C。結論は **GO**（AC1〜AC8 を全て満たす。AC8 は 1 つ目の run で (1) と (2) が揃ったので、AC8 の定めどおり 2・3 つ目の run は走らせていない）。高コスト証拠は無いので、次の C' が最終 C' である。
+- 対象: implementation base `d926e3b6b40dafab086b293e6d60784e304ecf4c`、implementation head `d0785b2327f9795aa9c4dea78ebcbfcf51e2f31f`。実行した checkout の HEAD は引き継いだ `5325b49ae0060cc42557d78a268c878bc75e003f` で、head との差は本書だけ。開始時の照合: 起動指示の SHA と HEAD が一致し、作業ツリーは clean、implementation head は HEAD の祖先。PR #210 の状態ブロックの引き継ぐ commit・implementation base / head も一致した。PR の timeline に implementation head 宛ての新着は無い（あるのは A3 前の外部計画レビューだけ）。
+- evidence bundle: 判定用と C' blind bundle を同じ head・同じ生結果から作った（§0 の欄）。判定用は 14 file（目次の `manifest.json`、完全 diff・stat・name-status、C' 用と同じ本書を除いた diff・stat・name-status、凍結版 `f6a6e594` と B の記録 `b295763d` の本書、run1 の `results.xml`・`unity.log`・`step.json`、実行記録、contract-audit・docs-audit の出力）。C' 用は 11 file（完全 diff を除いた物。凍結版と B の記録の本書に発見 C の所見は無い。implementation head の本書は凍結版と同じ）。
+- 構造適合: 発見 C と同じ diff（10 file。本書・program の 1 行・§3 の file と新規 file の `.meta`）を自分でも照合した。`ContentStagingMove.cs` を読み、成功の return が移動が例外なく戻った後だけであること、失敗の直後と待ちの後の両方で `staging` があり `final` が無い時だけ移し直すこと、試行の前（2 回目以降）の 2,000 ms と待ちの前の「41 回目」「経過 + 50 ms」の止め方、述語が §3 の 3 つの `HResult` と `UnauthorizedAccessException` だけであること、上限超えが最後の失敗を内側に持つ `IOException` で文言に試行の回数と 2 つの path を持つことを確かめた。§4 の対象外（Runtime の `ContentInstaller`・`ContentCacheStore`、SampleGame の `PlayerBuildPublisher`、`TestObservationWriter`）は diff に無い。
+- 実行した判定必須テスト（§5。sandbox 外、repo root から `pwsh -NoProfile -File tools/run-tests.ps1 -WithGraphics`、空 filter、EditMode）:
+  - run1 の前（2026-11-23 12:02:29）: `Get-CimInstance Win32_Process` に `Unity Hub.exe` 6 process（主 process は 2026-11-22 13:52 起動）と `ChatGPT.exe` 12 process（主 process は 2026-11-22 15:35 起動。止めていない）があり、`Unity.exe` は無かった（`Unity.Licensing.Client.exe` だけ）。Hub の `%APPDATA%\UnityHub\projects-v1.json` の `containingFolderPath` に `D:\repositories\unity` がある。
+  - run1（12:02:48〜12:20:08）: XML の root `Passed`、total 2263、passed 2261、failed 0、Inconclusive 0、skipped 2（`OverlayFromLocalEditsR8Tests` の 2 件。本スライスの diff に無い既存の test で、XML の reason は「名前を選んで走らせる」）。`step.json` は `passed`・exit 0、理由は空。この run の Unity は XML の後に自然終了した（終了 stall なし、強制終了なし）。run の後の `git status --porcelain` は空。
+  - 同時に動いた他の Unity: run1 の 12:18:17 に、Unity Hub から別の project（`osm-ds3`）の Editor（PID 38772）が起動し、run1 の最後の約 2 分と重なった。この run のものではないので止めていない。重なりによる失敗は無い（failed 0）。
+  - run2・run3: 走らせていない（AC8 の「(1) と (2) を満たした時点で残りの run は走らせない」）。
+- 判定の補助の観測（合否に使わない）: run1 の Editor log（`unity.log`）に `[ContentStagingMove]` の行が 3 本あり、試行の回数はどれも 2 回だった。`final` はどれも repo の下（`TestResults/bs3-fixture/` の `bs5b1-…`・直下・`s34a-…` の `content/<時刻>-<guid>`）で、Unity Hub の監視の範囲にある。つまり「機構を通った観測」は 3 回の移動で、1 回目の移動が一時的な失敗になり、待ちの後の 2 回目で通った。「全回帰が通った観測」は上の XML である。log の access denied・共有違反の行は、AC2 の観測の 1 行（`[ContentStagingMoveTests] AC2 observed first failure: type=System.IO.IOException HResult=0x80070005 …`、temp の下の test の staging）だけだった。AC6 の観測の行は §6 と同じ（例外なし、`staging` も開いていた file も無い）。
+
+**受け入れ条件:**
+
+| AC | 結果 | 根拠 |
+|---|---|---|
+| AC1 | 合格 | run1 の XML で `OpenFileInStaging_ClosedDuringTheFirstWait_MovesOnTheSecondAttempt`（Windows の実 handle）と `InjectedTransientFailure_ThenSuccess_MovesOnTheSecondAttempt` が Passed |
+| AC2 | 合格 | 同じ test の中の観測が `System.IO.IOException`、`HResult=0x80070005`（run1 の log の行。§6 の B の観測と同じ）で、§3 の述語に入る。`TransientPredicate_TakesOnlyAccessSharingAndLockViolations`・`OutsideWindows_TheSameFailureIsNotRetried` が Passed |
+| AC3 | 合格 | `FinalAppearsWithTheFailure_FailsWithoutWaiting_AndKeepsBoth`・`FinalAppearsDuringTheWait_FailsBeforeTheNextMove_AndKeepsBoth` が Passed。code の 62・66 行の分岐と一致 |
+| AC4 | 合格 | `StagingVanishesWithTheFailure_AndNoFinal_Fails`・`StagingVanishesWithTheFailure_AndFinalExists_FailsAndLeavesFinalUntouched`・`StagingVanishesDuringTheWait_FailsBeforeTheNextMove_WithOrWithoutFinal` が Passed。状態の検査から成功を返す経路は無い |
+| AC5 | 合格 | `FirstMoveSucceeds_CallsNeitherWaitNorClock`・`NonTransientFailure_FailsOnceWithoutWaiting`・`TransientFailuresContinue_StopAtTheBudget_WithoutWaitingPastIt`・`FailureAt1960Ms_StopsWithoutWaiting`・`ClockDoesNotAdvance_StopsAfterTheFortyFirstFailure_WithoutAnotherWait`・`WaitOversleeps_TheNextAttemptIsNotStartedPastTheBudget` が Passed（`ContentStagingMoveTests` の 16 件は全て Passed） |
+| AC6 | 合格 | 2 つの呼び手は 1 行の置き換えだけ。既存の `BuildContentFullModeTests`（25）・`ContentPurposeIndexPublishTests`（6）・`SourceClosurePublishTests`（8）・`OverlayRegistrationIntegrationTests`（1）・`ContentOverlayBuildAndReuseTests`（25）が全て Passed。観測の test `HandleNeverCloses_MoveFailsAtTheBudget_AndTheCleanupIsObserved` も Passed |
+| AC7 | 合格 | `ReplaceAndTemporaryDeleteBothFail_TheReasonCarriesBoth_AndThePath_AndTheExistingRecordIsKept`・`InjectedReplaceAndDeleteFailures_TheMessageCarriesBothTexts_AndThePath`・`ReplaceSucceedsButTheTemporaryFileRemains_AndCannotBeDeleted_ReportsItWithoutAnInventedFailure` と既存の `RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept` が Passed |
+| AC8 | 合格 | 前提: Unity Hub が動き、登録に `D:\repositories\unity` がある（run1 の前の記録）。(1) run1 の XML が root `Passed`・failed 0・Inconclusive 0。(2) 走らせた唯一の run（run1）で、staging の path を指す access denied・共有違反で落ちた test は 0 件（failed 0 で、failure のある test-case が無い。log にも staging の path の access denied は AC2 の観測の 1 行以外に無い） |
+
+- A3 の目的レビューの不採用の項（AC8 の run で再利用の記録の置き換えが監視で失敗したら記録する）: 該当なし（failed 0 で、`ReuseRecordFailure` が null であることを確かめる既存の test も全て Passed）。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: 新規なし。§2 の後続（Runtime の 2 つの移動、後片付けの失敗、`PlayerBuildPublisher`）はそのまま。§2 の「全 EditMode 回帰の他の不安定」は、run1 に失敗として出ていないので program に足さない（他の Unity の同時起動は上に記録しただけ）。
+- 機械検査（HEAD `5325b49a`、run1 の後）: `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9、検査 8 は not-applicable）。`pwsh tools/docs-audit.ps1`: errors 0、warnings 1（§6 と同じ既存の `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 の警告）。
+- 判定必須のうち未実行: なし（AC8 は 1 run で合格の条件が揃った）。
+- 未確認事項: bundle の受け取り側の別 session の fetch・閲覧（送り側の別 process の fetch では、どちらの bundle も `passed` で manifest の全 file の hash が一致した）。ChatGPT の監視は止めていないので、run1 の 3 回の再試行のどれが Unity Hub と ChatGPT のどちらの open によるかは分けていない（AC8 は分けることを求めない）。J1 の「直前に閉じた後の失敗」の形を AC1 が代表するかは §2 のとおり答えないが、run1 の 3 回はどれも 2 回目で通った。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。Phase B・発見 C と同じモデルで、`独立性制約あり`（owner 受容。進行役の指定）。
