@@ -211,6 +211,35 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
         }
 
         [Test]
+        public void RecordCutBeforeFirstRegister_IsUndecided()
+        {
+            var c = new Case();
+            var r = c.One(V.Lifetime).Record;
+            r.RemoveRange(r.FindIndex(x => x.type == "op-start" && x.op == "register"), r.Count - r.FindIndex(x => x.type == "op-start" && x.op == "register"));
+            AssertUndecided(c.Judge(), "before the second Register");
+        }
+
+        // harness の例外で打ち切った主の順の round では、後始末の操作の失敗を「unload・解除できない」の答えにしない（HANDOFF §2 の (k)）。
+        [Test]
+        public void HarnessExceptionThenCleanupFailure_IsUndecided()
+        {
+            foreach (var withEnd in new[] { true, false })
+            {
+                var c = new Case();
+                var r = c.One(V.Read).Record;
+                var afterRegisters = r.FindLastIndex(x => x.type == "op-result" && x.op == "register") + 1;
+                r.RemoveRange(afterRegisters, r.Count - afterRegisters);
+                r.Add(L("harness-exception", x => { x.exceptionType = "System.InvalidOperationException"; x.message = "Sequence contains no elements"; }));
+                r.Add(L("op-start", x => { x.op = "unregister"; x.dir = E.OverlayDirectory; }));
+                r.Add(L("op-result", x => { x.op = "unregister"; x.dir = E.OverlayDirectory; x.ok = false; x.failure = "exception"; }));
+                if (withEnd) r.Add(L("end", x => { x.completed = false; x.abortedAt = "harness: System.InvalidOperationException: Sequence contains no elements"; }));
+                var v = c.Judge();
+                AssertUndecided(v, "harness exception");
+                Assert.That(v.Answers.Any(x => x.Contains("cannot unload or unregister")), Is.False, string.Join("\n", v.Answers));
+            }
+        }
+
+        [Test]
         public void StoppedAtLimitWhileGrowing_IsUndecided()
         {
             var c = new Case();
@@ -386,6 +415,19 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
             Assert.That(v.Differences.Any(x => x.Contains("reached")), Is.True);
         }
 
+        // X1 も多い方の数で読む（AC7）。2 つの load の EntityId は等しいが、列挙が 2 つ目の実体を見た時は「実体 1」でない。
+        [Test]
+        public void ReachedAndEnumeratedDifferForEditedTex_ReadsX1WithTheLarger()
+        {
+            var c = new Case();
+            InEach(c, V.Read, r => Find(r, "count", x => x.item == E.EditedTex).enumerated = new[] { "t", "u" });
+            var v = c.Judge();
+            AssertAnswer(v, VerdictResult.DiffersButHolds);
+            Assert.That(v.Answers.Any(x => x.StartsWith("X1:", StringComparison.Ordinal) && x.Contains(V.Read + "#1 " + V.DiffersFromEditor)), Is.True, string.Join("\n", v.Answers));
+            Assert.That(v.Differences.Any(x => x.Contains("X1 differs")), Is.True, string.Join("\n", v.Differences));
+            Assert.That(v.Differences.Any(x => x.Contains("EditedTex reached and enumerated differ")), Is.True, string.Join("\n", v.Differences));
+        }
+
         [Test]
         public void VarianceAcrossMainProcesses_IsFlaggedWithThreeValues()
         {
@@ -482,6 +524,17 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
             c.Control = V.MainRounds.Select(r => Control(r, 1)).ToList();
             Find(c.Control.Single(x => x.Launch.Round == V.Class).Record, "keep-edited").pixels = E.PixelSha(E.V2);
             AssertUndecided(c.Judge(), "does not reproduce");
+        }
+
+        // Editor の対照も同じ X1 の読みを使う。集合の不一致だけは外れにしないが、多い方の数で実体 2 になれば Editor の実測（実体 1）を再現しない。
+        [Test]
+        public void ControlWithEditedTexEnumeratedTwice_DoesNotReproduce()
+        {
+            var c = new Case();
+            InEach(c, V.Class, r => Find(r, "keep-edited").pixels = E.PixelSha(E.V2));
+            c.Control = V.MainRounds.Select(r => Control(r, 1)).ToList();
+            Find(c.Control.Single(x => x.Launch.Round == V.Read).Record, "count", x => x.item == E.EditedTex).enumerated = new[] { "t", "u" };
+            AssertUndecided(c.Judge(), "X1 differs");
         }
 
         [Test]

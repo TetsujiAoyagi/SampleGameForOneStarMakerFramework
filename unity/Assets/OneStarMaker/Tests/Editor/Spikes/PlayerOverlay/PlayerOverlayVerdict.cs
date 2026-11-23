@@ -247,7 +247,7 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
                 var failure = FailureAnswer(p, v.BaselineHolds, v.Reasons);
                 if (failure != null) causes.Add(failure);
                 else if (p.End != null && p.End.completed) ObserveMain(p, v.TypeMissing, q, causes, differences, v.Reasons);
-                else if (p.End != null) v.Reasons.Add(p.Label + ": the round was aborted without an operation failure (" + p.End.abortedAt + ")");
+                else if (p.End != null && v.Reasons.Count == before) v.Reasons.Add(p.Label + ": the round was aborted without an operation failure (" + p.End.abortedAt + ")");
                 if (v.Reasons.Count != before) continue;
                 var typeOnly = causes.Count != 0 && causes.All(c => c.StartsWith("Q2 type missing", StringComparison.Ordinal));
                 ranks.Add((p, causes.Count != 0 ? 2 : differences.Count != 0 ? 1 : 0, causes, typeOnly));
@@ -426,6 +426,10 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
         /// </summary>
         private static string? FailureAnswer(Parsed p, bool baselineHolds, List<string> reasons)
         {
+            // harness の例外で打ち切った round は、その後の後始末の操作の失敗や record の切れ目を Unity の答えにしない
+            // （HANDOFF §2 の (k)。round の定義の操作の列が harness の不備で途切れた後の物で、未判定として B へ戻す）。
+            if (p.Of("harness-exception").Any() || p.End != null && p.End.abortedAt.StartsWith("harness:", StringComparison.Ordinal))
+            { reasons.Add(p.Label + ": the round was aborted by a harness exception (" + (p.End?.abortedAt ?? "no end line") + ")"); return null; }
             var failure = p.FirstFailure;
             var registers = p.Of("op-start").Where(x => x.op == "register").ToList();
             var firstRegisterOk = p.Of("op-result").Any(x => x.op == "register" && x.ok && x.dir == E.BaseDirectory);
@@ -485,12 +489,15 @@ namespace OneStarMaker.Tests.Editor.Spikes.PlayerOverlay
                     var ids = p.Of("ids").FirstOrDefault();
                     var tb = p.Texture(Read, E.BaseDirectory);
                     var to = p.Texture(Read, E.OverlayDirectory);
-                    if (ids == null || tb == null || to == null) { reasons.Add(label + ": read observations are missing"); return; }
-                    var x1 = ids.sceneIdsEqual && ids.loadableIdsEqual && tb.entityId == to.entityId ? SameAsEditor : DiffersFromEditor;
-                    q["X1"].Add(label + " " + x1 + " (scene ids equal " + ids.sceneIdsEqual + ", loadable ids equal " + ids.loadableIdsEqual + ", one EditedTex object " + (tb.entityId == to.entityId) + ")");
-                    if (x1 == DiffersFromEditor) differences.Add("X1 differs");
                     var count = p.Counts(Read).FirstOrDefault(x => x.item == E.EditedTex);
-                    if (count != null && !Count(count).setsEqual) differences.Add("EditedTex reached and enumerated differ (" + string.Join("|", count.reached) + " / " + string.Join("|", count.enumerated) + ")");
+                    if (ids == null || tb == null || to == null || count == null) { reasons.Add(label + ": read observations are missing"); return; }
+                    // X1 の「実体 1」は、2 つの load の EntityId が等しいことに加えて、参照をたどった数と列挙の数の多い方が 1 であること（AC7。
+                    // 主の順で 2 つが違う時は多い方の数で X1 を読む）。列挙だけが 2 つ目の実体を見た時に「同じ」と読まないため。
+                    var (texObjects, texSetsEqual) = Count(count);
+                    var x1 = ids.sceneIdsEqual && ids.loadableIdsEqual && tb.entityId == to.entityId && texObjects == 1 ? SameAsEditor : DiffersFromEditor;
+                    q["X1"].Add(label + " " + x1 + " (scene ids equal " + ids.sceneIdsEqual + ", loadable ids equal " + ids.loadableIdsEqual + ", one EditedTex object " + (tb.entityId == to.entityId) + ", EditedTex objects " + texObjects + ")");
+                    if (x1 == DiffersFromEditor) differences.Add("X1 differs");
+                    if (!texSetsEqual) differences.Add("EditedTex reached and enumerated differ (" + string.Join("|", count.reached) + " / " + string.Join("|", count.enumerated) + ", using " + texObjects + ")");
                     break;
                 case Class:
                     var wrong = new List<string>();
