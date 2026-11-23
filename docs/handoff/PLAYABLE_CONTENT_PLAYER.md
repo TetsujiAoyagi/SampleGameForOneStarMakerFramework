@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C の 1 回目（run `jc1`）は (4) で test の欠陥（J1）に当たって中断し、B へ差し戻した（§7）。B は J1 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（1 巡目）」）。発見 C の 2 巡目がその修正を 2026-11-23 に読み、阻害する指摘は無かった（§7）。判定 C の 2 回目（run `jc2` は main checkout の切り替えで中断、`jc3` は新しい worktree の初回 import が tracked の asset を書き換えたため (2) の途中で止め、`jc4` で (1)〜(9) を実行）は (6) で test の欠陥（J3）に当たって中断し、2026-11-23 に B へ差し戻した。AC4 の strip の検出語の読み（J4）は owner の決定待ち（§7）。B は J3 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（2 巡目）」）。発見 C の 3 巡目がその修正を 2026-11-23 に読み、阻害する指摘は無かった（§7）。判定 C の 3 回目（run `jc5`、head `9bb04eaf`）が 2026-11-23 に (1)〜(9) と (11) を実行し、AC6 以外の AC は全て合格した（§7 の途中経過）。判定 C の 3 回目の 2 回目の担当が 2026-11-23 に (10) を実行し、AC6 も合格して判定 C を完了した（GO 候補。§7）。判定 evidence bundle と C' 用の blind bundle を作った。C'（最終 C'）は 2026-11-23 に 2 巡で完了し、現在の問いを阻害する指摘は残らなかった（§8）。Phase D 待ち）
+- status: `D`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C の 1 回目（run `jc1`）は (4) で test の欠陥（J1）に当たって中断し、B へ差し戻した（§7）。B は J1 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（1 巡目）」）。発見 C の 2 巡目がその修正を 2026-11-23 に読み、阻害する指摘は無かった（§7）。判定 C の 2 回目（run `jc2` は main checkout の切り替えで中断、`jc3` は新しい worktree の初回 import が tracked の asset を書き換えたため (2) の途中で止め、`jc4` で (1)〜(9) を実行）は (6) で test の欠陥（J3）に当たって中断し、2026-11-23 に B へ差し戻した。AC4 の strip の検出語の読み（J4）は owner の決定待ち（§7）。B は J3 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（2 巡目）」）。発見 C の 3 巡目がその修正を 2026-11-23 に読み、阻害する指摘は無かった（§7）。判定 C の 3 回目（run `jc5`、head `9bb04eaf`）が 2026-11-23 に (1)〜(9) と (11) を実行し、AC6 以外の AC は全て合格した（§7 の途中経過）。判定 C の 3 回目の 2 回目の担当が 2026-11-23 に (10) を実行し、AC6 も合格して判定 C を完了した（GO 候補。§7）。判定 evidence bundle と C' 用の blind bundle を作った。C'（最終 C'）は 2026-11-23 に 2 巡で完了し、現在の問いを阻害する指摘は残らなかった（§8）。Phase D を 2026-11-23 に完了した（Evidence の保存・引渡しの確認、C と C' の突き合わせ、harvest。§9）。本書は次の commit で削除する）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
 - implementation head commit: `9bb04eaf94bc56f708101710817365f47d86733e`
@@ -18,11 +18,11 @@
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§8 の S4-1・S4-2 の行、「S4 の A1 への入力（2026-11-23）」の (1)、「S4-0 の A1 が振り分けた入力」と「S4-0 から移送した入力」の S4-1 の項目）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Windows の Player での上書きの登録（6000.6.9f1）」（test からの Player の build と Project Auditor の事実）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と program だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C が implementation head の run `jc5` から作り、task `s4-1-playable-content-player` に `evidence stage` した（判定用、51 file、目次は `MANIFEST.md`）。取得案内は git 管理外の既存の受け渡し場所（Evidence の取得案内の file 群）のこの task の判定用の file にある。送信側で別の pwsh process の fetch が `passed` で、(10) の XML・観察記録・screenshot・record・record の zip を開けた。引渡し先は Phase D と owner（C' との突き合わせ）
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。同じ head・同じ生証拠から所見を除いて作り、同じ task に `evidence stage` した（51 file、目次は `MANIFEST.md`。diff から可変な本書を除き、凍結版と Phase B の結果の本書は blob で入れた）。取得案内は同じ場所に判定用とは別の file で置いた。送信側で別の pwsh process の fetch が `passed`。受け取り側の fetch は行っていない（進行役は stage の元の folder を加工せずに C' の packet へ写した。§8）
+- evidence bundle の取得案内・状態: 確認済み（ローカル固定、未昇格）。判定 C が implementation head の run `jc5` から作り、task `s4-1-playable-content-player` に `evidence stage` した（判定用、51 file、目次は `MANIFEST.md`）。取得案内は git 管理外の既存の受け渡し場所（Evidence の取得案内の file 群）のこの task の判定用の file にある。確認済み: Phase D が受け取り側の別 session で fetch して `passed`、XML・record・観察記録・screenshot を開けた（§9。取得案内の file は Phase D が stage の出力から置き直した）。引渡し先は owner
+- C' blind bundle の取得案内・状態: 確認済み（ローカル固定、未昇格）。同じ head・同じ生証拠から所見を除いて作り、同じ task に `evidence stage` した（51 file、目次は `MANIFEST.md`。diff から可変な本書を除き、凍結版と Phase B の結果の本書は blob で入れた）。取得案内は同じ場所に判定用とは別の file で置いた。送信側で別の pwsh process の fetch が `passed`。確認済み: Phase D が受け取り側の別 session で fetch して `passed`（§9）。C' の packet は進行役が stage の元の folder を加工せずに写した（§8）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase D（C と C' の突合とマージ判断、harvest）。最終 C' は 2026-11-23 に 2 巡で完了し、阻害する指摘は残らなかった（§8）。判定 C は GO 候補（§7）。
-  - 次の作業: §7 と §8 を突き合わせ、§2.3 の後続へ送る入力（§7 の F1・F3・F4、§8 の C' の (B)）を program へ移し、§0 の harvest to の先へ harvest して、本書を削除する。CP2（AC11 の読み方）は進行役の読み方の確認なので、owner が覆すかを Phase D で確かめる。push と PR の Ready は owner の確認の後。
+  - 次の Phase・役割: なし（Phase D は 2026-11-23 に完了した。§9）。進行役が owner の確認の後に develop へ merge し、後始末と task の終了（`workflow-task.ps1 end`）を行う。
+  - 次の作業: 本書は Phase D の記録 commit の次の commit で削除する。全文はこの記録 commit に残る。
   - 外部レビュー（2026-11-23、push 後の head `dd0f03ae`）: cursor[bot] の 2 件と owner の account の再レビュー 1 件（PR #211 の timeline と review）。どれも阻害する指摘なし（owner が確認）。Phase D は非阻害の注記を読み、PR 本文の要約を実装の内容に替え、他の注記（BeforeSceneLoad の失敗通知の例外、`ReadGameLog` の parse できない行の level など）は §2.3 の後続へ送る入力として program へ移すか、理由を書いて採らない。owner の指示（2026-11-23）: Phase D を終えたら push し、進行役がマージと後始末をする。
   - 読む範囲: 既定（§0〜§9）。
   - 引き継ぐ commit: この票を含む commit（判定 C の完了の記録 commit `83cf3822` の後に、進行役が C' の結果を §8 に書いた記録 commit。SHA は PR #211 の状態ブロックで渡す）。
@@ -550,4 +550,32 @@
 
 ## 9. Phase D
 
-未着手。
+### Evidence の保存・引渡し確認（2026-11-23）
+
+- 担当: Phase D の session（新規。B・C・C' の会話は読んでいない）。開始時の照合（起動指示の SHA `5c9c24c7` = HEAD、作業ツリーが clean、implementation head `9bb04eaf` が HEAD の祖先で差分は本書だけ、PR #211 の状態ブロックの `引き継ぐ commit` と implementation base / head が一致）は全て成立した。PR の timeline の `dd0f03ae` の後の新着は、§0 の票が挙げた外部レビュー（cursor[bot] の 2 件と owner の account の再レビュー 1 件）だけだった。
+- 取得案内の転送不備: 判定用と C' blind の取得案内の file が、§0 が書く git 管理外の受け渡し場所（Evidence の取得案内の file 群）に無く、stage の出力は削除予定の本 worktree の `TestResults/` にしか無かった。Phase D がその stage の出力から 2 つの取得案内を作り、同じ受け渡し場所に置いた（判定用と C' blind で別の file。内容は reference・期待 packageSha256・task・base / head・用途・取得手順・保持条件・読み手）。bundle 自体は作り直していない（同じ reference と hash）。
+- 判定用 evidence bundle: 受け取り側の別 session として、置いた取得案内の reference と期待 packageSha256 で非仮想化の pwsh から fetch し `passed`（51 file）。(1)〜(11) の XML（root `Passed`、total 63・1×9・2310、failed 0）、record（7 行）、record の zip（33 entry）、AC6 の観察記録と screenshot 2 枚（1080x720）を読めた。状態: **確認済み**（ローカル固定、未昇格）。
+- C' blind bundle: 同じく fetch で `passed`（51 file）。同じ file を読めた。状態: **確認済み**（ローカル固定、未昇格）。
+- 昇格しない理由: 読み手は全て同じ PC・同じ Windows ユーザーの session で、Cloud・別 host の読み手は無く、owner の昇格の指示も無い。保持は Storage の条件（task 終了 + 30 日）に従う。
+- 未保存分: 無い。判定 C と C' の所見、AC の根拠、J1〜J4・CP1・CP2 は本書（git 履歴）にあり、harvest 先と program に後続の入力として移した。
+- Evidence の日次清掃 job: `pwsh tools/artifacts.ps1 evidence schedule status` が `passed`（登録あり、次回 2026-11-24 03:00）。job 自身の前回の結果は `partial`（blocked 7）で、この確認の基準（`passed`）の外なので直していない。
+- Artifact Storage の操作は owner がこの session で許可した（2026-11-23。2 bundle の受け取り側の fetch と中身の確認、`evidence schedule status`）。
+
+### 判定 C と C' の突き合わせ
+
+- 結論: 判定 C（§7）は GO 候補で AC1〜AC11 が全て合格、C'（§8）は 2 巡で GO。食い違いは無い。
+- 指摘の対応: C' の CP1（`stripped` の行）は、判定 C の J4 と同じ事実で、owner の J4 の決定（§0）で両方が同じ読みになった。C' の CP2（AC11 の inconclusive 25・skipped 11）は、判定 C が既知の VFX の Inconclusive と `[Explicit]` として合格と読んだのと同じ事実。CP2 の読み方（§5 の「適用除外: なし」は filter で test を外さないこと）は進行役の確認だったので、Phase D で owner に確かめ、**owner は覆さない**と答えた（2026-11-23。`-nographics` の VFX 25 件の Inconclusive は、既知の差分外の失敗として owner が受容している種類）。判定 C の J1〜J3（test の欠陥と filter の読み）は C' の入力に無く、どちらの結論にも使っていない。
+- 阻害する指摘: 両方とも残っていない。
+
+### PR のレビューへの対応
+
+- cursor[bot] の注記 1（本文の要約が Phase A の「文書だけ」のまま）と owner の account の再レビューの「Phase D で忘れたくない点」（本文と program の S4-1 の行が `Phase B` のまま）: PR 本文を実装と C / C' の結果の要約に替え、program の S4-1 の行を完了にした。
+- cursor[bot] の注記 2（`BeforeSceneLoad` の失敗の後の通知は `RunStartupFailureHooksAsync` を通らず、動作確認の Player で receipt の書き込みが投げると `Quit(1)` の後に例外が外へ出る）: code で確かめた（`AbstractApplicationInitializer.cs:229` が直接呼ぶ）。Quit には届くので I3 は崩れない。program §10 の U11 (g) へ移した。
+- owner の account の再レビューの P3（`ReadGameLog` の parse できない行は level が空で、「Error 以上の行が無い」と誤読しうる）: jc5 は判定 C が game の log の level を直接数えている（§7 の (10)）ので結論は変わらない。test を使い回す時の読み方として program の「S4-1 から移送した入力」の S4-2 (4) へ移した。
+
+### harvest と後始末
+
+- harvest: [04 章](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.1（Player の 2 つの種類と構成）、§4.6（`RouteFirstScene` の 3 値、遊べる Player の終わり方と `[AppInit] Application quitting.` の行、Player の起動の失敗の後始末と通知、hang は fail-closed にならないこと）、§4.7（protected key に `playerKind`、「Player の種類」: 必須・生の値の比較・latch・baked を読めない Player が receipt を書くこと・出力先、「`bs4` の名を改名しない理由」、動作確認の Player の正常終了の段の語）。repo の README の「試す」に手順 5（遊べる Player の build と起動）と確認の範囲、`unity/Assets/README.md` の Content Directory / Delivery の 1 行。F1: [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) の過去のスライスのテストの隙間の記録は残し、`RunsPlayerContentSmoke` を S4-1 で `RouteFirstScene` の表に置き換えた注記を足した。program: §8 の S4-1 の行の完了、「S4-1 から移送した入力」（§2.3 の S4-2 の入力、F3・F4、J2・J3 の運用の事実、外部レビューの P3、C' の (B) の shader の strip）、§10 の U11（§2.3 の未所有の項目と外部レビューの注記 2）。§2.3 の保存系列の入力は [BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md](BUILD_SYSTEM_ARTIFACT_STORAGE_PROGRAM.md) §6 の保留 list へ置いた。
+- 削除: 本書を次の commit で消す。git 履歴のこの commit に全文が残る。
+- task の終了（`workflow-task.ps1 end`）: owner の task の完了指示を受けて進行役が行う。この時点では未実施。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。

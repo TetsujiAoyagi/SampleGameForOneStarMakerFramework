@@ -54,8 +54,9 @@ Unity **6000.6.9f1** で `unity/` を開きます（正確な版は `unity/Proje
 2. **必要な分だけ build する。** `Tools/OSM/Content/Build spring-full` で Spring の Full 表現だけを Content Directory として build します。`spring-whitebox` にすると、Whitebox 変種を持つ床の Scene だけが Whitebox になり、置き物の Scene は Full のまま入ります。
 3. **build した物で Play する。** `Tools/OSM/Content/Verify Play/spring-full` で build → publish → install → Play を一続きで行います。途中で失敗したら後続の段へ進まず、Play 用に置いた設定を戻して止まります（build の出力と、開始前に閉じた Scene は戻しません）。cache root などは `Tools/OSM/Content/Delivery` の窓で設定します。
 4. **外から見る。** DebugStudio を起動して Play 中のログと telemetry を読みます（下の DebugStudio の節）。
+5. **Windows の Player で遊ぶ。** `Tools/OSM/Content/Build Spring Playable Player` で `spring-full` の content と IL2CPP の Player を build します（数分〜十数分）。出力は repo 直下の `artifacts/playable/players/<identity>/` で、`SampleGame.exe` と同梱の `content/` が並びます。`SampleGame.exe` を起動すると Title が出て、「スタート」で InGame に入ります。窓を閉じると終わります。project の設定は枠の無い全画面なので、窓で動かすなら `SampleGame.exe -screen-fullscreen 0 -screen-width 1280 -screen-height 720` で起動します。content や初回 Scene は build の時に固定され、起動の引数や環境変数では変えられません（変えようとすると起動に失敗して終わります。[§04 §4.7](unity/Assets/Docs/Architecture/04-app-startup.md#47-設定の読み込みappconfig)）。起動に失敗すると、Unity の Player の log に失敗の段と例外が出て exit 1 で終わります。ゲームのログは exe の横の `OneStarMakerLocal/Log/` に出ます。
 
-手順 1 は 2026-11-07 に Unity 6000.6.0f1 で 1 回確認しました。確認したのは起動・Start・spawn 位置・距離によるセルの load / unload で、起動は menu と同じ入口の直接呼び出し、移動は Teleport で行ったため、menu のクリックとキー入力での飛行は未確認です。手順 2 と 3 は menu と経路をコードで照合しただけで、実走はまだです。
+手順 5 は 2026-11-23 に Unity 6000.6.9f1 で確認しました（S4-1 の判定。menu と同じ coordinator を test から呼んで build し、窓で起動して「スタート」の押下から InGame の spawn まで進み、Title と InGame の上で窓を閉じて exit 0 で終わった）。menu の選択そのものと、InGame での移動の先は確かめていません。手順 1 は 2026-11-07 に Unity 6000.6.0f1 で 1 回確認しました。確認したのは起動・Start・spawn 位置・距離によるセルの load / unload で、起動は menu と同じ入口の直接呼び出し、移動は Teleport で行ったため、menu のクリックとキー入力での飛行は未確認です。手順 2 と 3 は menu と経路をコードで照合しただけで、実走はまだです。
 
 テストは Unity を batchmode で起動して回します。対象 project を開いている Editor は先に閉じます。既定では `D:\UnityEditor\<版>\Editor\Unity.exe` を探すので、Unity Hub の標準の場所に入れている場合は `-UnityExe` で指定します。
 
