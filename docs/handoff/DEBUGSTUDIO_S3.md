@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: C′ 第1巡の証拠差し戻し。固定実装を維持して第2巡の判定入力を配布
+- status: Phase D。C・C′ は凍結した機能条件に GO。マージは owner の判断待ち
 - branch: codex/debugstudio-s3
 - implementation base commit: d176033a06ebcd1f481aa9082ed5d1053a2a03b2
 - implementation head commit: cf44020199a2cc687ad7cf7a29b780661283bd25
@@ -19,13 +19,13 @@
 - 動作確認の Evidence: implementation head で取った非秘密の生記録（各段の command・開始終了 UTC・stdout / stderr / exit、Editor の eval の独立値、WPF の保有 handle の signal と実 exit、実行 script、要約 `operation.json`、stage 対象の一覧）をローカルに保全（未昇格）。Editor の private log は含めない。stage と取得案内の用意は root。
 - task: `debugstudio-s3`（開始済み）
 - A2 の入力版: 計画開始点 `a629f9c19bdfe55b24fcac2f1756e25824d9e453` の A1 初稿（§5.5）。revision 1・2 は develop `d176033a` で照合した統合候補。revision 3 は owner の縮小方針で目的・設計・受け入れ条件を改めた候補。
-- 引継ぎ票: 次の担当は新規 Grok 4.7 xhigh の C′。所定の blind 入力だけを渡す。
-  - 作業: 保存・取得を検証した同一の判定入力を新規セッションで監査する。実装 head と Evidence は固定済み。
+- 引継ぎ票: 次は Phase D のオーケストレーター。owner にマージ可否を確認し、承認後に harvest、最終 CI、develop へのマージ、Evidence の引渡し、正式な task 終了と専用作業領域の後始末を行う。
+  - 作業: 判定資料・最終所見・削除前の本票を保存し、引渡し案内からの取得を確認する。製品機能に変更なし。
   - 必要な権限: Unity Editor の起動・終了と `tools/unity-editor.cmd`、`pwsh tools/run-tests.ps1`（Editor を閉じて実行）、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、`dotnet build -c Release`（DebugStudio App / CLI）、WPF の起動と通常終了。
   - 停止規則: 人間が開いた Editor や WPF を強制終了しない。重複して起動しない。専用 worktree の Editor は動作確認の終了時点で root が開いたまま（Play 停止、Scene clean）で、全 EditMode の前に閉じる。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。検証用 GameObject を eval で作らない。
   - 入力の取得案内: 凍結仕様、B 結果、全差分、標準・描画ありの全 EditMode、実機の生記録を同梱した共通 bundle。判定 C の別セッションが取得・閲覧済み。C′ の取得案内は所見と別にオーケストレーターが管理する。
   - 引き渡さないもの: 可変 HANDOFF、PR 会話、発見 C・判定 C の所見、結論、疑念。
-- 再開位置: C′ の取得記録、モデル・新規セッション、所見を照合する。その後、Phase D で両担当の判定を突き合わせる。
+- 再開位置: この票の commit を PR に配布し、同一 PR head の CI と最終所見の保存・別セッションでの取得を照合する。両方が揃ってから owner に D の判断を求める。
 
 ## 1. 目的と対象外
 
@@ -417,6 +417,12 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 - 判定は NO-GO。実操作とテストの実行 checkout が implementation head と異なり、製品ファイルが同一であることを、監査担当が bundle の Git 原出力から検証できなかった。機能の観測そのものは凍結時の期待と一致。別の所見として、README が非 bool の拒否を約束しているが実測では文字列と null が変換された。
 - 再開位置は同じ実装での第2巡。第1巡の原記録200ファイルの hash を全件照合したうえで、実装・実機・テストの各 commit の親、tree、product diff、ancestor 検査の Git 原出力を追補した共通 bundle を用意した。製品変更・Unity 再実行なし。判定 C と新規 blind C′ の双方に同一の取得経路で引き渡す。README の実測に関する訂正文は B 担当が D の harvest 向けに用意した。
 
+### 第2巡
+
+判定 C は Grok 4.6 High の同じ判定セッションで Git の原出力を読んだ。C′ は予約モデル Grok 4.7 256K Extra High の別の新規セッションで、同じ判定入力を独立に取得・閲覧した。base と implementation head は第1巡と同じ。原記録の閲覧範囲と限界を含む各担当の所見は blind 入力と分けて保存する。
+
+両者が V0〜V7 の製品コードの同一性と I1〜I3・E1〜E2 の成立を確認した。C′ は第1巡の帰属の疑義を解消し GO。全 EditMode の標準実行と描画あり実行が Harness として非 0 であることを、両者とも合格に読み替えていない。C′ は Player 実行を扱わず、Harness 停止規則の原文を bundle 内では照合できなかった。オーケストレーターは停止規則と終了観測原本を別途照合した。
+
 ## 9. Phase D
 
-未到達。
+実装の変更は終了。PR の base は develop。owner 承認後の harvest は CLI README の非 bool 入力の説明を実測に合わせ、削除前の HANDOFF と所見の保存・取得を確認して本票を削除する。標準全回帰の VFX 25 件と描画あり終了 stall は原記録のまま引き渡す。Play 世代の識別は owner の方針どおり後続。マージと task 終了は未実施。
