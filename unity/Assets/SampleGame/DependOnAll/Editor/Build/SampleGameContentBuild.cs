@@ -7,6 +7,7 @@ using System.Linq;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
 using OneStarMaker.Editor.Build.Materialization;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using OneStarMaker.Runtime.SceneSystem;
 using UnityEditor;
 using UnityEngine;
@@ -105,6 +106,91 @@ namespace SampleGame.DependOnAll.Editor.Build
                 Debug.Log(LogPrefix + "Content Directory (" + mode + "): " + result.ContentPath + " / outcome: " + result.OutcomePath);
             return result;
         }
+
+        /// <summary>上書きの contentSet。base と別の名前を宣言の名前から機械で作る（coordinator は base と同じ contentSet を拒む）。</summary>
+        internal static string OverlayContentSetOf(BuildPurposeDeclaration declaration) => declaration.Name + "-local-edits";
+
+        internal static string ArtifactsRoot =>
+            Path.GetFullPath(Path.Combine(Path.GetFullPath(Path.Combine(Application.dataPath, "..")), "..", "artifacts", "bs2b"));
+
+        /// <summary>
+        /// 入口の上書きの段の port の実物。宣言と install した base から、欠けを許す materialize → 宣言の選択 → 合成 → 計画を呼び、
+        /// 計画の object をこの中に持つ（入口は SampleGame の要約の型だけを扱う）。1 回の tick で使い切る。
+        /// </summary>
+        /// <param name="suppliedSceneKeys">複製にして載せる Scene のうち SceneResourceMap にあるものの logical key。</param>
+        internal static PlayEntryOverlayPorts OverlayPorts(BuildPurposeDeclaration declaration, ContentInstallResult baseInstall,
+            IReadOnlyList<string> suppliedSceneKeys, Func<double> now)
+        {
+            if (declaration == null) throw new ArgumentNullException(nameof(declaration));
+            if (baseInstall == null) throw new ArgumentNullException(nameof(baseInstall));
+            BuildPlan? plan = null;
+            BuildMaterializationSnapshot? snapshot = null;
+            BuildPurposeResolution? resolution = null;
+            ContentOverlayPlan? overlay = null;
+
+            // 作り直せない root は止めずに、今回の計画の集合をそのまま認める（owner の裁定。示すのは入口）。
+            ContentOverlayPlan Acknowledged()
+            {
+                var current = overlay ?? throw new InvalidOperationException("The overlay plan has not been made.");
+                return current.Acknowledge(current.Unbuildable.Select(x => x.Root));
+            }
+
+            return new PlayEntryOverlayPorts
+            {
+                Now = now,
+                Prepare = () =>
+                {
+                    var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(MapPath);
+                    if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + MapPath);
+                    var materialized = new SceneResourceContentMaterializer().MaterializeAllowingAbsentSources(map);
+                    if (materialized.Snapshot == null)
+                        throw new InvalidOperationException("Materialization failed: " +
+                            string.Join("; ", materialized.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
+                    resolution = Resolve(declaration, materialized.Snapshot);
+                    if (resolution.Selection.Plan == null)
+                        throw new PurposeSelectionException("Selection failed: " +
+                            string.Join("; ", resolution.Selection.Issues.Select(x => x.Code + ":" + x.Subject + ":" + x.SubjectKey)));
+                    var composed = ComposeBootstrap(materialized.Snapshot, resolution.Selection.Plan);
+                    plan = composed.Plan;
+                    snapshot = composed.Snapshot;
+                },
+                Plan = () =>
+                {
+                    if (plan == null || snapshot == null || resolution == null) throw new InvalidOperationException("The selection has not been prepared.");
+                    overlay = ContentOverlayPlanner.Plan(baseInstall, plan, snapshot, suppliedSceneKeys, OverlayContentSetOf(declaration),
+                        ArtifactsRoot, declaration, resolution.Requirements);
+                    return new PlayEntryOverlayPlanSummary(
+                        overlay.State switch
+                        {
+                            ContentOverlayPlanState.NotRequired => PlayEntryOverlayPlanState.NotRequired,
+                            ContentOverlayPlanState.BuildRequired => PlayEntryOverlayPlanState.BuildRequired,
+                            _ => PlayEntryOverlayPlanState.UnbuildableOnly,
+                        },
+                        overlay.OverlayRoots.Count,
+                        overlay.Unbuildable.Select(x => new PlayEntryUnbuildableRoot(x.Root.LogicalKey, x.Root.Kind, x.Root.Representation,
+                            x.Reason.ToString())).ToArray());
+                },
+                AcknowledgeAndReuse = () =>
+                {
+                    var reused = Acknowledged().GetReusableResult();
+                    return reused == null ? null : Artifact(reused);
+                },
+                AcknowledgeAndBuild = () =>
+                {
+                    var result = new BuildContentCoordinator().Build(new BuildContentRequest(Acknowledged()));
+                    if (result.IsSuccess)
+                        Debug.Log(LogPrefix + "Overlay (" + OverlayContentSetOf(declaration) + "): " + result.ContentPath + " / outcome: " + result.OutcomePath);
+                    return Artifact(result);
+                },
+            };
+        }
+
+        // 失敗の理由は issue の code と対象を含める（文言でなく code で原因を追えるように）。
+        private static PlayEntryOverlayArtifact Artifact(BuildContentResult result) =>
+            new(result.IsSuccess, result.Identity, result.ContentPath ?? string.Empty,
+                result.IsSuccess ? string.Empty
+                    : string.Join("; ", result.Issues.Select(x => x.Code + " " + x.Key + ": " + x.Detail)) + " (outcome: " + result.OutcomePath + ")",
+                result.ReuseRecordFailure);
 
         private static BuildMaterializationResult Materialize()
         {

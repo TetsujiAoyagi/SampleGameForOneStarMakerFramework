@@ -45,7 +45,23 @@ namespace SampleGame.DependOnAll.Editor.Build
             PrepareSnapshot = () => PlaySnapshotSession.Prepare(ReadSceneResourceMapNames().Contains),
             ReleaseSnapshot = PlaySnapshotSession.Release,
             CloseObservation = PlayEntryRecord.StopObserving,
+            EnumerateUnsavedAssets = EnumerateUnsavedAssets,
+            ConfirmSaveAssets = ConfirmSaveAssets,
+            DiscardSaveAssetsResponse = () => SessionState.EraseString(SaveAssetsResponseKey),
+            SaveAssets = AssetDatabase.SaveAssets,
+            ApplyImports = AssetDatabase.Refresh,
+            IsCompilingOrUpdating = () => EditorApplication.isCompiling || EditorApplication.isUpdating,
+            RunOverlay = RunOverlay,
         });
+
+        /// <summary>
+        /// 未保存の asset の確認への、1 回だけの先置きの応答（<see cref="SaveAssetsResponseSave"/> か <see cref="SaveAssetsResponseCancel"/>）。
+        /// 実 Editor の判定は eval で modal の dialog に答えられないので、この口だけを足す。確認の段に着いた時に 1 回読んで消し、
+        /// 検出が 0 件で確認を出さない時も消す（残った応答が後の Play の確認に勝手に答えない）。無ければ dialog を出す。
+        /// </summary>
+        internal const string SaveAssetsResponseKey = "OSM.PlayEntry.SaveAssetsResponse.v1";
+        internal const string SaveAssetsResponseSave = "save";
+        internal const string SaveAssetsResponseCancel = "cancel";
 
         static PlayEntryInterceptor()
         {
@@ -64,6 +80,44 @@ namespace SampleGame.DependOnAll.Editor.Build
             var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SampleGameBootstrapContentComposer.SceneResourceMapPath);
             if (map == null) throw new InvalidOperationException("SceneResourceMap is missing: " + SampleGameBootstrapContentComposer.SceneResourceMapPath);
             return new HashSet<string>(map.SceneResources.Where(x => x != null).Select(x => x.Identity), StringComparer.Ordinal);
+        }
+
+        /// <summary>
+        /// load 済みで Dirty の asset（<c>Assets/</c> の下、Scene 以外）の path。<c>Assets/</c> の外は built-in と package の object が
+        /// 数百件 Dirty と出るので数えない。load されていない asset、Undo の履歴だけの変更、import の設定の未適用の変更は検出に掛からない
+        /// （既知の限界。掛からない Dirty は確認なしで複製の保存に書かれうる）。
+        /// </summary>
+        private static IReadOnlyList<string> EnumerateUnsavedAssets()
+        {
+            var paths = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (var item in Resources.FindObjectsOfTypeAll<UnityEngine.Object>())
+            {
+                // 破棄されうる UnityEngine.Object なので == で判定する（偽 null）。
+                if (item == null || !EditorUtility.IsPersistent(item) || !EditorUtility.IsDirty(item)) continue;
+                var path = AssetDatabase.GetAssetPath(item);
+                if (path.StartsWith("Assets/", StringComparison.Ordinal) && !path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+                    paths.Add(path);
+            }
+            return paths.ToArray();
+        }
+
+        private static bool ConfirmSaveAssets(IReadOnlyList<string> unsaved, string message)
+        {
+            var response = SessionState.GetString(SaveAssetsResponseKey, string.Empty);
+            SessionState.EraseString(SaveAssetsResponseKey);
+            if (response.Length != 0) return string.Equals(response, SaveAssetsResponseSave, StringComparison.Ordinal);
+            return EditorUtility.DisplayDialog("Play with local edits", message, "Save and continue", "Cancel");
+        }
+
+        /// <summary>上書きの段の実物。base は候補の検証した install、他の供給元は今準備した複製のうち map にある Scene。</summary>
+        private static PlayEntryOverlayResult RunOverlay(PlayEntryFacts facts)
+        {
+            var install = facts.Candidate?.Install
+                          ?? throw new InvalidOperationException("The verified installed revision has no install result for the overlay plan.");
+            var supplied = PlayEntryOverlay.SuppliedSceneKeys(PlaySnapshotSession.Declaration.Select(x => x.Identity), ReadSceneResourceMapNames());
+            var ports = SampleGameContentBuild.OverlayPorts(SampleGameBuildPurposes.Find(facts.RunPurpose), install, supplied,
+                () => EditorApplication.timeSinceStartup);
+            return PlayEntryOverlay.Run(ports);
         }
 
         /// <summary>回復操作「空 Scene で Play」。保存を拒まれたら偽。</summary>
@@ -99,7 +153,7 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private static void PublishPlanned(PlayEntryFacts? facts, PlayEntryPlan plan)
         {
-            var snapshot = plan.Rule == PlayEntryRule.SnapshotRoute
+            var snapshot = PlayEntryDecision.IsSnapshotRule(plan.Rule)
                 ? PlaySnapshotSession.Declaration.Select(x => new PlayEntryRecord.SnapshotScene
                     { identity = x.Identity, sourcePath = x.SourcePath, dirty = x.WasDirty, sha256 = x.Sha256, active = x.IsActive }).ToArray()
                 : null;
@@ -178,6 +232,9 @@ namespace SampleGame.DependOnAll.Editor.Build
             facts.ConflictReason = facts.Route == PlayEntryRoute.BuiltWithOpenScenes
                 ? PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.SnapshotPlayConfigKeys(declaration.RuntimeDefaults), commandLine)
                   ?? SnapshotFirstSceneConflict(appConfig)
+                : facts.Route == PlayEntryRoute.BuiltWithLocalEdits
+                ? PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.LocalEditsPlayConfigKeys(declaration.RuntimeDefaults), commandLine)
+                  ?? SnapshotFirstSceneConflict(appConfig)
                 : PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.DirectoryPlayConfigKeys(declaration.RuntimeDefaults), commandLine);
             if (validateCandidate)
             {
@@ -193,7 +250,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>
         /// 混成の経路は初回 Scene を置かない。環境変数は空文字で上書きできないので、app-config（JSON の層）に空でない
         /// <c>content:firstScene</c> があれば、開いている Scene の複製と初回 Scene が重なりうるとして拒否の理由を返す。
-        /// mode の 3 key だけを残す <see cref="PlayEntryConfigLayer"/> には載らないので、本文から直接読む。環境変数とコマンドラインの層は
+        /// 明示設定と数える key（<see cref="PlayEntryDecision.ExplicitSettingKeys"/>）だけを残す <see cref="PlayEntryConfigLayer"/> には載らないので、本文から直接読む。環境変数とコマンドラインの層は
         /// <see cref="PlayAsLauncher.CheckLaunchConflicts"/> が拒否する。
         /// </summary>
         internal static string? SnapshotFirstSceneConflict(string? appConfigJson)

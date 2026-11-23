@@ -103,7 +103,7 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 解放後の再試行を許す。cache entry も解放前は revision の利用中とみなす。Play 停止と明示 close を
 同じ「完全 drain」として書かない。
 
-#### base と上書きの登録契約（S2-2 で定めた。強制は internal の登録の口にあり、入口は未配線（S3-4b））
+#### base と上書きの登録契約（S2-2 で定めた。強制は internal の登録の口にあり、起動から呼ぶ（S3-4b））
 
 開発時の Editor の Play で、取得した目的 build（base）に手元で build した上書きを重ねる時の文である。
 上書きの作り方は [18 章](18-asset-description.md)「上書きの build と逆引き（現況）」、実測は
@@ -115,13 +115,17 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 （`ContentDirectoryLayers`）で所有し、`AssetManagement` は今までどおり session を 1 つだけ install する（2 件目を拒む）。
 token・発行済みの処理・失敗した後始末は層をまたいで session で 1 組だけ数え、`ContentRevisionGate` は層 2 つを 1 件の登録として予約する
 （どちらの層の path・revision の削除の許可も拒み、層どうしの path か revision の重複は予約の前に拒む）。
-失敗は例外で返し、base だけの session を返さない。製品の入口（Play の入口、起動の設定、`AbstractApplicationInitializer`）からはまだ呼ばれず、配線は S3-4b が持つ。
+失敗は例外で返し、base だけの session を返さない。製品で呼ぶのは起動（`AbstractApplicationInitializer`）だけで、config に上書きの key 2 つがある
+Editor の directory Play で、検証済みの base（installed の pair）に対してだけ呼び、その例外を握らず起動の失敗にする（base だけの登録へやり直さない。
+[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」）。key を置くのは SampleGame の Play の入口の経路 Built + local edits と、
+自分で作った上書きを渡す別の host の入口である（[18 章](18-asset-description.md)「宣言からの Play 経路」）。
 強制を確かめた設定は、Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き、要求時解決の loader の経路で、
-製品の build 経路の base（build → publish → install → 検証）と上書き（逆引き → 上書きの build）を実機で登録・読み・解除した。
+製品の build 経路の base（build → publish → install → 検証）と上書き（逆引き → 上書きの build）を実機で登録・読み・解除した。S3-4b で、SampleGame の
+実 Editor の Play ボタンから起動の登録までを、Domain Reload の無効と有効の両方で通した（上書きの Play → 停止 → 再 Play で 2 回とも登録が成功した）。
 上書きのために足した public の値と面（`ContentSourceKind.ContentOverlay`、`ContentAcceptanceBasis.RecordedBaseMatch`、
 `ContentCompatibilityFactKeys.OverlayBase*`、`ContentCompatibilityMismatch.OverlayBaseFactMissing`、`ContentDirectoryFailureCode.OverlayBaseMismatch` /
-`OverlayBaseMissing`、`BuildContentRoot.OverlayBase` と `BuildContentOverlayBase`）は、program の S3-4b の縦断の実証まで暫定であり、
-上書きの方式を見直す時は外す。
+`OverlayBaseMissing`、`BuildContentRoot.OverlayBase` と `BuildContentOverlayBase`）は、program の S3-4b の縦断の実証まで暫定としていた。
+S3-4b は見直しの条件（program §5.3）に当たらずに縦断を実証したので暫定を解き、上書きの方式を見直す時にだけ外す。
 
 - **順序:** base を先に、上書きを後に登録する。逆の順では base の版が出た（実測）。
 - **個数:** base 1 つと上書き 0 か 1 つ。編集が増えたら、和集合の編集で上書きを作り直す（2 つ以上は未測定のため禁止）。
@@ -136,7 +140,7 @@ token・発行済みの処理・失敗した後始末は層をまたいで sessi
   record と base の pin が嘘になるため（例: 表現の tag だけを変えて上書きを作った asset）。影の entry は loader でも `IAssetManagement` の
   content 入口でも base から引かれず、content 入口は要求の表現の base の entry を影で除いた上で別の表現を選ぶ時に `EntryMissing` で拒む
   （表現を読み替えたい呼び手は `Full` を明示する。loader は採った候補の表現で呼ぶ）。影が見るのは上書きの **root の entry** だけで、
-  上書きに依存として入った同じ id の物は影にならない。その物と、base の root が参照する依存の版は record に出ない（S4）。
+  上書きに依存として入った同じ id の物は影にならない。その物と、base の root が参照する依存の版は record に出ない（S4-3）。
 - **重ねてよい組み合わせ:** 上書きは、作った時に記録した base の identity（contentSet・revision・target・transport manifest の bytes の SHA-256）と宣言の名前が一致する base にだけ重ねる。
   上書きの build が root（`BuildContentRoot.OverlayBase`）に base の記録・上書き自身の contentSet・build した Editor の Unity の版を書き、
   登録は予約の中で base を検証し直してから base → 上書きの順に native へ登録し、上書きの root の記録と base の検証済みの値
@@ -150,14 +154,17 @@ token・発行済みの処理・失敗した後始末は層をまたいで sessi
   どの経路も層の列の 1 つの method（`TryUnregisterAll`）で逆順に 1 層ずつ解除し、上書きの解除が失敗したら base を解除せず、成功した層は再び解除せず、
   全ての層を解除してから予約を返す。登録の巻き戻しと Play 停止で解除が失敗した層の列は、process に 1 つの再試行として保留し、次の登録が native の登録の前に走らせる
   （失敗すれば登録を拒む）。
-- **範囲:** 上書きは Editor の Play だけで使い、Player は 1 つの目的 build だけを載せる（Player は未測定）。
+- **範囲:** 上書きは Editor の Play だけで使い、Player は 1 つの目的 build だけを載せる。Player で測ったのは、Windows の IL2CPP・managed stripping High の Player で Unity の native の登録を base → 上書きの順に直接呼んだ時に、読まれる版・class・実体の数・寿命が Editor の Play と同じだったことまでである（S4-0。範囲は下の「測った設定」）。製品の登録の口と検証済みの base で Player に重ねることは測っておらず、この禁止を解くかは S4-2 が決める。
 - **実体の重複:** 上書きの root と base の root の両方が直接参照する共有 asset は実体が 2 つになり、状態を持つ asset（参照の同一性で共有する ScriptableObject 等）は別の実体に分かれる。上書きの build は、`Assets/` の下の該当 asset の一覧を preflight に出す（実測で一覧と実体の数が合った）。
 - **上書きの中身:** 上書きの root は build の時の手元の版で作られる。渡していない手元の編集も、上書きの root が直接参照していれば入るので、同じ Play に同じ asset の 2 つの版が出うる（実測）。
 - **作り直せない root:** 手元の編集の影響を受けるが手元の source で作り直せない root（[18 章](18-asset-description.md)「上書きの build と逆引き」の計画の分類。呼び手がその集合を認めた時だけ上書きが作られる）は、上書きに版を持たない。その root の entry は base から載り（record は base を指す）、その root が直接参照する asset は base の build の時の bytes で出る（Scene の直接参照は Scene のある directory の中で解決される。合成 fixture、製品の build 経路、6000.6.9f1 の実測）。同じ asset を直接参照する root が上書きに入っていれば、同じ Play に手元の版も出る（上の「上書きの中身」と同じ性質）。上書きにある id の物をこの root から id で引いた時の版は、上の「同じ id の物」と「id による影」のとおりで、この root のための別の規則は無い。
 - **Scene に置いた prefab の編集:** Scene に置いた prefab の instance（入れ子を含む）を編集した時、同じ `Library` の差分 build が古い Scene の出力を再利用する不成立は、Unity 6000.6.3f1 の修正（UUM-151103）で解消し、S2-2b で入れた Scene の `.meta` の印は外した（S2-2c）。印を書く Scene が開いていると build が止まる制約も無くなった。契約は [18 章](18-asset-description.md) §4「Scene に焼き込む prefab と model の編集」、実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)。
 - **測った設定:** Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き。prefab の証拠は variant・override・unpack の無い instance に限る。
   native の登録は Play を終えても Unity が自分では解除せず（Domain Reload の有無によらない）、script の reload の後は一覧が 0 件になった。
-  Domain Reload 有効の Play の入口からの確認、Play に入る時の reload が前の Play の残りを消すか、reload の後の OS の lease の file handle は S3-4b、別の PC の base は S4。
+  Domain Reload 有効の Play は S3-4b が入口から確かめた。製品は Play の終わりに解除するので、停止の後の Edit mode で native の一覧は 0 件で、次の Play で
+  登録と read lease の取り直しが成功した（上書きなしと上書きあり。SampleGame の実 Editor、6000.6.9f1）。製品が解除し損ねた時に Play に入る時の reload が残りを消すか、
+  reload の後の OS の lease の file handle、Play の間の script の compile で session が失われた後の扱いは測っておらず S4-4、別の PC の base は S4-3（Player では別の `Library` の base を S4-2）。
+  Player: 1 台の PC・同じ `Library` で base → Player（base の build report を渡す）→ 上書きの順に build した、IL2CPP・managed stripping High・development build でない Windows の Player を `-batchmode`（graphics の device あり）で起動し、合成 fixture・base → 上書きの順で、製品の登録の口・検証と起動を通さずに測った（S4-0）。上書きだけが使う script の型は、base が使う型と同じ assembly にあり Player に残っていた。他の Player の構成、型が Player に無い時、実データは測っていない。実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Windows の Player での上書きの登録（6000.6.9f1）」。
 
 ### DIST transport と disk cache の境界
 
@@ -386,7 +393,7 @@ loader が成功として返す record の候補の identity は、その handle
 - 採用の後に content 入口が失敗した時、probe と候補は呼び手に残らない。`Rejected` の expected identity は record に残らない。要求をまたぐ pin と revision の固定は無い。
 - `SceneDirector` の取消は Unity の Scene の load に届かない。
 - resident cache から取り出す asset が別の directory・別の層の物にならないことは cache の key に依る。key は session に共通の前置き（base の path・identity・target）の後に、上書きの層なら `~overlay:` と上書きの path・identity を続け、close と Play 停止の退避は共通の前置き 1 回で両方の層に届く。key を作るのは session（`GetObjectKey`・`CachePrefix`）と `AssetManagement.EvictContentDirectoryCache` だけである。
-- directory の層の経路の実 Editor での確認は Reload Domain 無効の Play だけである。snapshot の Play は Reload Domain の無効と有効の両方で確かめた。Player の実機は確かめていない。session と gate の層の化を通る 1 層の経路の Player の実機の非退行は S4 が確かめる。
+- directory の層の経路の実 Editor での確認は Reload Domain 無効の Play だけである。snapshot の Play は Reload Domain の無効と有効の両方で確かめた。Player の実機は確かめていない。session と gate の層の化を通る 1 層の経路の Player の実機の非退行は S4-1 が確かめる。
 
 #### 候補の互換判定（`ContentCompatibilityRule`）
 

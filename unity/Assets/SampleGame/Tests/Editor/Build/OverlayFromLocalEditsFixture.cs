@@ -45,10 +45,14 @@ namespace OneStarMaker.Tests.Editor.Build
         private readonly List<UnityEngine.Object> _objects = new();
         private readonly string _aside;
 
+        private readonly Dictionary<string, string> _guids;
+        // 真なら、map に root D を足し、宣言の root にも D を足す（base の build の後に手元で足した root。受け入れ条件 AC8）。
+        private bool _withD;
+
         private OverlayFromLocalEditsFixture(string folder, IReadOnlyDictionary<string, string> guids)
         {
             Folder = folder;
-            Guids = guids.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
+            Guids = _guids = guids.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
             foreach (var name in Names) _paths[name] = folder + "/" + name;
             _aside = Path.Combine(ProjectRoot, "..", "TestResults", "s34a-aside", Guid.NewGuid().ToString("N").Substring(0, 8));
         }
@@ -61,6 +65,25 @@ namespace OneStarMaker.Tests.Editor.Build
 
         internal static BuildPurposeDeclaration Declaration { get; } = new(DeclarationName, new[] { "A", "B", "C" },
             new BuildRequest(Array.Empty<BuildTag>()), new BuildRepresentationSelection(new[] { "Full" }, BuildRepresentationMode.First));
+
+        /// <summary>同じ名前の宣言に root D を足したもの（base の記録には D が無い）。</summary>
+        internal static BuildPurposeDeclaration DeclarationWithD { get; } = new(DeclarationName, new[] { "A", "B", "C", "D" },
+            new BuildRequest(Array.Empty<BuildTag>()), new BuildRepresentationSelection(new[] { "Full" }, BuildRepresentationMode.First));
+
+        private BuildPurposeDeclaration CurrentDeclaration => _withD ? DeclarationWithD : Declaration;
+
+        /// <summary>
+        /// base の build の後に、T を cookie に参照する Scene D を作り、map と宣言の root に足す。base の閉包の記録に D は無い。
+        /// </summary>
+        internal void AddRootD()
+        {
+            var path = Folder + "/D.unity";
+            Scene(path, "DRoot", PathOf("T.png"), null);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            _paths["D.unity"] = path;
+            _guids["D.unity"] = AssetDatabase.AssetPathToGUID(path);
+            _withD = true;
+        }
 
         /// <summary>全ての file を作る（base の build の前の状態）。</summary>
         internal static OverlayFromLocalEditsFixture Create(string folder)
@@ -102,7 +125,7 @@ namespace OneStarMaker.Tests.Editor.Build
             var materialized = new SceneResourceContentMaterializer().MaterializeAllowingAbsentSources(map);
             Assert.That(materialized.Snapshot, Is.Not.Null, string.Join("; ", materialized.Issues.Select(x => x.Code + ":" + x.SubjectKey + ":" + x.Path)));
             var snapshot = materialized.Snapshot!;
-            var resolution = new BuildPurposeResolver().Resolve(Declaration, snapshot.Graph, snapshot.Candidates, snapshot.TagProviders, new NoNodeTags());
+            var resolution = new BuildPurposeResolver().Resolve(CurrentDeclaration, snapshot.Graph, snapshot.Candidates, snapshot.TagProviders, new NoNodeTags());
             Assert.That(resolution.Selection.Plan, Is.Not.Null, string.Join("; ", resolution.Selection.Issues.Select(x => x.Code + ":" + x.SubjectKey)));
             var plan = resolution.Selection.Plan!;
 
@@ -135,12 +158,14 @@ namespace OneStarMaker.Tests.Editor.Build
             }
             var map = ScriptableObject.CreateInstance<SceneResourceMap>();
             _objects.Add(map);
-            Set(map, "_sceneResources", new List<SceneResource>
+            var resources = new List<SceneResource>
             {
                 Resource("A", ("", "A.unity"), ("Whitebox", "AWhitebox.unity")),
                 Resource("B", ("", "B.unity")),
                 Resource("C", ("", "C.unity")),
-            });
+            };
+            if (_withD) resources.Add(Resource("D", ("", "D.unity")));
+            Set(map, "_sceneResources", resources);
             return map;
         }
 
@@ -163,7 +188,7 @@ namespace OneStarMaker.Tests.Editor.Build
         internal ContentOverlayPlan Plan(ContentInstallResult installed, string artifacts, params string[] supplied)
         {
             var local = Select();
-            return ContentOverlayPlanner.Plan(installed, local.Plan, local.Snapshot, supplied, OverlaySet, artifacts, Declaration, local.Requirements);
+            return ContentOverlayPlanner.Plan(installed, local.Plan, local.Snapshot, supplied, OverlaySet, artifacts, CurrentDeclaration, local.Requirements);
         }
 
         // ─── 編集の操作 ───
@@ -320,6 +345,49 @@ namespace OneStarMaker.Tests.Editor.Build
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// Play mode の中で base と上書きを登録し、<paramref name="missingKey"/> の要求の失敗と、<paramref name="presentKey"/> の読みを返す。
+        /// 失敗は例外の型と、要求時解決の失敗の code（<see cref="ContentResolutionException"/> の時だけ）。
+        /// </summary>
+        internal static async Task<(Exception? Failure, Loaded Present)> RequestMissingAsync(ContentInstallResult installed, BuildContentResult overlay,
+            string missingKey, string presentKey)
+        {
+            var verified = InstalledRevisionVerifier.Verify(installed.RevisionRoot, installed.ManifestSha256, installed.ContentSet, installed.Revision, installed.Target);
+            var session = ContentDirectorySession.RegisterVerifiedWithOverlay(verified, overlay.ContentPath!, overlay.Identity);
+            var assets = new OneStarMaker.Runtime.AssetManagement.AssetManagement();
+            assets.InstallContentDirectory(session);
+            Exception? failure = null;
+            Loaded present;
+            var closed = false;
+            try
+            {
+                Assert.That(RegisteredDirectoryRoute.TryCreate(session, assets, out var route, out var reason), Is.True, reason);
+                try { await route!.Loader.LoadSceneAsync(new ContentRequest(missingKey, ContentKind.Scene, "Full")); }
+                catch (Exception ex) { failure = ex; }
+                var loaded = await route!.Loader.LoadSceneAsync(new ContentRequest(presentKey, ContentKind.Scene, "Full"));
+                var light = loaded.Handle.GetRootGameObjects().Select(x => x.GetComponentInChildren<Light>()).FirstOrDefault(x => x != null && x.cookie != null);
+                var cookie = light != null ? light.cookie as Texture2D : null;
+                present = new Loaded
+                {
+                    Source = loaded.Record.Candidate.SourceKind, Revision = loaded.Record.Candidate.Identity.Revision,
+                    Cookie = cookie != null ? cookie.GetPixel(0, 0) : null,
+                };
+                await assets.UnloadSceneAsync(presentKey);
+                assets.ReleaseScene(presentKey);
+                await assets.CloseContentDirectoryAsync();
+                closed = true;
+            }
+            finally
+            {
+                if (!closed)
+                {
+                    try { assets.ReleaseAll(); await assets.CloseContentDirectoryAsync(); }
+                    catch (Exception cleanup) { Debug.LogWarning("[S34a overlay test] cleanup after failure: " + cleanup.Message); }
+                }
+            }
+            return (failure, present);
         }
 
         internal static void AssertLoaded(Loaded loaded, ContentSourceKind source, string revision, Color32? cookie, Color32? main, string label)

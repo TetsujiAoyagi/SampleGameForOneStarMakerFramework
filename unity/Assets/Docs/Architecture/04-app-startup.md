@@ -218,6 +218,7 @@ Editorでは開いているSceneを初期登録の入力にする。通常direct
 - `PerformUnitySceneLoad` が `SceneManager.GetSceneByName` でロード済みシーンを検出し、再ロードしない。
 - `SceneResourceMap` に未登録のシーン（テストシーン等）はスキップしてログ出力する。
 - Editor の Play ボタンで始める Play は、§4.7 の key がどの層にも無い時、入口が `content:runtimeMode` などを 1 回の Play の間だけ補う（[§18](18-asset-description.md)「宣言からの Play 経路」）。経路 Built で再利用しうる Scene が開いていれば Play に入らない。
+- **上書きの Play（経路 `Built + local edits`、S3-4b）。** 入口は経路 `Built + open scenes` と同じ複製と key に、手元の編集から作った上書きの key 2 つを足す（上書きが要らない Play では足さない）。起動の段の列は snapshot の Play と同じで、directory を登録する段（`register-content-directory`）だけが base → 上書きの 2 層で登録する（§4.7「上書きの起動の設定」）。登録に成功すると `[AppInit] Content overlay registered: identity=… baseRevision=… path=…` の 1 行を出し、要求時解決の配線は 2 層の session からそのまま作られる（上書きの供給元が base より前に並ぶ。[§13](13-resource-system.md)「登録した directory の供給元」）。上書きの登録の失敗は起動の失敗で、base だけの Play として続けない。
 - **Editor snapshot の取り込み（経路 `Built + open scenes`）。** 入口が開いている Scene を Play 前の複製にし、空の開始 Scene を `playModeStartScene` にして directory の Play に入る（[§18](18-asset-description.md)「宣言からの Play 経路」）。Runtime は `AfterSceneLoad` の段（`#if UNITY_EDITOR` だけ）で、宣言の複製を並び順に 1 つずつ additive で load して完了を待ち、全部を照合し、active Scene を合わせ、Scene ごとに 1 行 log（末尾に ` requested=true|false`）を出す。宣言は `OneStarMaker.Editor` の `PlaySnapshotSession` が Runtime の `EditorPlaySnapshotBridge` に置く（`SceneVariantRuntimeBridge` と同じ形）。段は config に `editor:playSnapshotExpected` が真の時だけ bridge を読み、key があって bridge が無ければ起動の失敗にする（Domain Reload 有効でも `[InitializeOnLoad]` が `SessionState` から置き直す）。load が null を返す、完了しても Scene が有効でない、照合が合わない、のどれも起動の失敗で、この段が load した複製を全て unload してから例外を出す。snapshot の Play の段の列は `plan-editor-snapshots` → `intake-editor-snapshots` → `request-snapshot-scenes` で、`register-loaded-scenes` は走らない。起動の計画（`EditorPlaySnapshotIntake.PlanStartup`）は複製を load する前に、key と mode の組を決める: key が無いか偽なら今までの既ロード登録、key が真で directory mode・要求時解決を配線済み・宣言ありなら snapshot の Play、key が真でそれ以外（directory mode でない、検証済みでない directory で配線していない、宣言が無い）は起動の失敗。起動時に要求する印のある Scene が SceneResourceMap に無い時も起動の失敗にする。`request-snapshot-scenes` は印のある Scene だけを宣言の並び順に `SceneDirector.AddScene` で要求し（要求ごとに `[AppInit] Editor play snapshot request: scene=… stable=…`）、印が 0 件なら何も要求しない。未要求の複製は load 済みのまま lifecycle の外に居る。複製は台帳に預かって loader の経路で採り、起動の後に unload して再要求しても複製から読み直す（[§13](13-resource-system.md)「Editor snapshot の供給元」）。key は `content:` の名前空間に置かないので、Player の protected config の照合の対象にならない。Player にこの段は無い。
 - **要求時解決の配線（Editor の directory Play）。** `AfterSceneLoad` は directory を登録した後、`SceneDirector` を作る前に、session があって Player の構成（`UseRequiredPlayerFileConfiguration`）でない時だけ stage `wire-content-resolution` で `RegisteredDirectoryRoute.TryCreate` を呼ぶ（[§13](13-resource-system.md)「登録した directory の供給元」）。登録が検証済みの installed revision からなら、できた loader を `SceneDirector` に渡し、`[AppInit] Content resolution: wired=true provider=… contentSet=… revision=… target=… manifestSha256=…` の 1 行を出す。経路 Built・検証 Play・Delivery の Play は検証済みの登録なので、利用者の新しい入力なしに `SceneDirector` が directory から読む Scene に record が付く。検証済みでない登録（`directoryPath` の明示など）は `wired=false reason=…` の 1 行を出して配線せず、今までどおり content 入口を直接呼ぶ。検証済みの登録で組み立てが失敗した時（例外）と、asset manager が実物の `AssetManagement` でない時は握らず起動の失敗にする。黙って直接の経路で Play を続けない。Player と Addressables の起動は配線しない。host は protected の `ContentLoader` で同じ loader を受け取り、`SceneDirector` を通さずに Scene / Object を要求できる（配線しない時は null。解放は `AssetManagement` の既存 API）。snapshot の Play では、配線は預け元と snapshot の供給元を作り、預け元を `AssetManagement` に据え、供給元を policy の先頭に置いて `[AppInit] Content resolution: snapshot provider=editor-play-snapshot scenes=… requested=…` の 1 行を出す。複製の Scene は loader を通るので `EditorSnapshot` の record が付く。snapshot の無い Play で `register-loaded-scenes` が登録した既ロードの Scene は loader を通らないので record は無い。配線は static な状態を持たず、Play 停止の `ReleaseAll` で loader を手放す。
 - BS4 Playerは生成済みbootstrap Sceneと、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。
@@ -295,6 +296,21 @@ Player では required JSON から固定した `schemaVersion`、`runtimeMode`�
 Editor Play は明示された install result の identity と digest を使う。
 installed override は receipt、受信した transport manifest bytes の digest、contentSet、revision、target、
 全 content files を照合してから登録する。target は `StandaloneWindows64-Player` に固定する。
+
+**上書きの起動の設定（S3-4b）:** Editor の Play で、検証済みの base に手元で build した上書きを 1 つ重ねる時は、base の pair と今ある directory の key に加えて
+`editor:contentOverlayPath`（上書きの directory の絶対 path）と `editor:contentOverlayIdentity`（上書きの build の identity）を置く。
+`ReadContentDirectoryConfiguration` は、Player の分岐と addressables の時に config を返さない分岐より前に、この 2 key と起動の状態から上書きの扱いを決める
+（`ContentOverlayStartup.Decide`。internal、Unity を呼ばない）。2 key とも無ければ今までと同じ登録。2 key とも空でなく、Editor の Play で、Player の構成でなく、
+mode が無いか `directory` で、installed の pair がある時だけ、検証済みの base の分岐が `ContentDirectorySession.RegisterVerifiedWithOverlay` で
+base → 上書きの順に登録する（[§13](13-resource-system.md)「base と上書きの登録契約」）。key が 1 つでもあってそれ以外の設定（片方だけ・空文字、
+Player の構成か Editor の Play でない、`addressables`、`directory` 以外の mode、installed の pair が無い）は BeforeSceneLoad の
+`InvalidConfiguration` の起動の失敗にし、key を無視して base だけで始めない。登録の例外（上書きの directory が無い、上書きの記録と base の照合の不一致、
+identity が上書きの root と合わない等）も握らず起動の失敗にする。成功すると `[AppInit] Content overlay registered: identity=… baseRevision=… path=…` の 1 行を出す
+（path は最後）。key は `content:` の名前空間の外に置くので Player の protected config の照合に入らず、Player の構成では key があること自体を失敗にする。
+key の名前と log の marker の正本は Runtime の internal の定数で、`OneStarMaker.Editor` の public の `ContentOverlayPlayConfig`
+（`OverlayPathKey`・`OverlayIdentityKey`・`RegisteredLogMarker`）が公開し直す。host の入口はこの定数を使い、文字列を複写しない。
+上書きを作る手順は [§18](18-asset-description.md)「上書きの build と逆引き」、SampleGame の入口は [§18](18-asset-description.md)「宣言からの Play 経路」。
+登録は上書きの中身の hash を見ないので、build の後に上書きの directory が書き換わったことは見分けない（directory が無い時だけ失敗する）。
 
 Editorのdirectory sessionはAfterSceneLoadでUICommon / SceneResourceMapより先に登録する。起動時に選んだ
 representation は Scene lifecycle の間固定する。通常の Editor directory Play は UICommon Scene と

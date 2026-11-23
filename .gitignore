@@ -70,6 +70,8 @@ tools/Artifacts/Probe/artifacts/
 # Build artifacts
 *.dll.mdb
 *.pdb
+# Unity が ignore 済みの .pdb に作る .meta。他の clone には .pdb が無いので commit しない。
+*.pdb.meta
 *.mdb
 
 # 手元にのみ置くドキュメント（方針は docs/README.md）
