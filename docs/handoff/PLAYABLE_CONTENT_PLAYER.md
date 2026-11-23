@@ -21,11 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（実行担当と判断担当。B の J1 の修正の後のやり直し）。
+  - 次の Phase・役割: 発見 C（B の J1 の修正の再確認）→ 判定 C（実行担当と判断担当。B の J1 の修正の後のやり直し）。
+  - 発見 C の次の作業（進行役が owner の順番の指示に従って足した）: B の修正の diff（`7c3bfe6b` と implementation head の間の、`docs/handoff/` 以外）が J1 を直し、§3 の外と test の名前（J2）を変えず、他の観測を変えていないかを読む。Unity の test は走らせない（修正の動作は判定 C のやり直しで確かめる）。結果を §7 の「発見 C」に 2 巡目として足し、本票の「次の Phase・役割」を判定 C だけにして記録 commit を切り、PR #211 の状態ブロックを更新する。阻害する指摘があれば判定 C へ進めずに B へ差し戻す。
   - 判定 C の次の作業: implementation head 欄の新しい GO 候補 head で、新しい `S41_RUN_ID` で (1)〜(11) をやり直す（run `jc1` は欠陥のある head の run で、判定に使わない。§7）。(4)〜(10) の `-Filter` は §7 の J2 のとおり test の名前の末尾に `$` を付け、XML の total が 1 であることを確かめる。他は以下のとおり。GO 候補 head で §5 の判定必須テスト (1)〜(11) を §5 のコマンドと順で実行し（全てで同じ `S41_RUN_ID`。(1) も自分で走らせ、発見 C の run を判定の入力にしない）、record・log・receipt・XML で AC1〜AC11 を §5「判定の読み方」に従って判定する。最初の run で strip の検出語と実際の log の文言を照らして §7 に書く（§2.2）。AC6 の (1) は record の `quitObservedUtc` と `endedUtc` の差で読む（§7 の F2）。(u1)〜(u5)・(u1b) の初回確認と不成立時の扱いは §5。判定 evidence bundle（§5 の検証経路の証拠一式と XML、owner の screenshot と観察記録）を同じ head から作って stage し、C' 用の blind bundle は所見を含めずに別に作る。結果を §7 の「判定 C」に書く。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄の commit が HEAD の祖先で、差分が `docs/handoff/` だけであることを確かめる（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
   - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（B の修正 commit の後に、B が §0・§6 を書いた記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。
+  - 引き継ぐ commit: この票を含む commit（B の修正 commit の後に、B が §0・§6 を書いた記録 commit `034ae1ae` に、進行役が発見 C の再確認を足した記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。
   - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session。`run-tests.ps1` は最初から sandbox の外で起動する）。Artifact Storage の evidence の stage。push は公開点の規則に従う（C と C' の後）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。高コスト証拠を除く操作・実行時・目視の条件（AC6 を含む）の証拠が揃うまで判定 C を完了と記録せず、C' 用の bundle を作らない。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: §7 の発見 C・判定 C の所見と結論を C' に渡さない（blind bundle と C' の取得案内に入れない）。
