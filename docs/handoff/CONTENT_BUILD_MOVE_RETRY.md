@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S5-0。BuildSystem の小さいスライス）
-- status: `C`（Phase B を完了した。次は発見 C）
+- status: `C`（発見 C を完了した。阻害する指摘なし。次は判定 C）
 - branch: `claude/content-build-move-retry`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。A2 の固定 base と同じ）
 - implementation head commit: `d0785b2327f9795aa9c4dea78ebcbfcf51e2f31f`
@@ -21,14 +21,14 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C）。動作確認は `対象なし`（§5）なので B の次は発見 C。
-  - 次の作業: implementation head の差分を構造レビュー（§3 の責務マップ、§4 の「対象外を維持する方法」の `git diff --stat`）と AC1〜AC7 の照合で見て、§7 を作って記録する。起点 filter（§5）の B の結果は §6 にある。判定必須の AC8（全 EditMode 回帰）は判定 C の仕事。
-  - 読む範囲: 既定（§0〜§8。§7・§8 はまだ無い。§5.1 は読まなくてよい）。
+  - 次の Phase・役割: Phase C（判定 C）。発見 C は現在の問いを阻害する指摘なしで終えた（§7）ので、implementation head がそのまま GO 候補 head である。
+  - 次の作業: GO 候補 head（上の implementation head 欄）で、AC8 の全 EditMode 回帰（`pwsh tools/run-tests.ps1 -WithGraphics`、空 filter）を AC8 の定めどおり最大 3 run 走らせる。各 run の前に Unity Hub・ChatGPT・他の Unity の process と、Hub の `projects-v1.json` の登録を記録する。§7 に、XML の root result・failed・Inconclusive、`step.json` の理由、staging の path を指す access denied・共有違反の件数（AC8 の (2)）、Editor log の `[ContentStagingMove]` の行の数と試行の回数（判定の補助の観測）を書く。AC1〜AC7 の test が全回帰の XML で Passed であることも確かめる。判定 C の evidence bundle と C' blind bundle は同じ commit から作る（review-evidence.md）。
+  - 読む範囲: 既定（§0〜§8。§8 はまだ無い。§5.1 は読まなくてよい）。
   - 引き継ぐ commit: この票を含む記録 commit（SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は上の欄の SHA で、そこから引き継ぐ commit までの差分は本書だけである。
   - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない）。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）を発見 C が限定実行する時だけ。push はしない（公開点は判定 C と C' の後）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」。発見 C は blocker を凍結済み条件・常時契約への違反根拠のあるものに限る。
-  - 引き渡さないもの: なし（C' の入力はまだ無い）。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、最初の実行から sandbox 外）。Unity Hub が動いている PC であること（AC8 の前提）。Artifact Storage の操作は tools/Artifacts/README.md の事前承認に従う。push はしない（公開点は判定 C と C' の後）。
+  - 停止規則: AC8 と判定定義（§2）、§4 の「Phase B から Phase A へ差し戻す条件」（上限を超えた移動の失敗が出たら差し戻す）。(2) が 0 件のまま 3 run とも (1) に届かない時は、判定 C を完了と記録せず owner に返す。Unity の終了 stall は Harness README の停止規則に従う。
+  - 引き渡さないもの: §7 の発見 C の所見は C' に渡さない（blind bundle に入れない）。
 
 ## 1. 目的と対象外
 
@@ -226,3 +226,36 @@
 - 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: 対象なし
 - 検証経路の期待と違う観測と、B への差し戻し: 対象なし
 - `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: `対象なし`（§5。全ての条件が Unity の batch test と XML で閉じる）
+
+## 7. Phase C
+
+### 発見 C
+
+- 種別: 発見（GO 判定はしない。C' は起動しない）。
+- 対象: implementation base `d926e3b6` → head `d0785b23` の commit で固定した完全 diff（stat・name-status・diff を読んだ）。開始時の照合: 起動指示の SHA `b295763d` と HEAD が一致し、作業ツリーは clean。implementation head は HEAD の祖先で、head から HEAD までの差分は本書だけ。PR #210 の状態ブロックの引き継ぐ commit・implementation base / head も一致した。PR の timeline に implementation head 宛ての新着は無い（あるのは A3 前の外部計画レビューだけ）。
+- 使用した evidence bundle の取得案内・状態: 未生成（発見 C は commit 固定の diff と機械検査だけで行った。review-evidence.md の「テスト未実行でも、固定した diff と機械検査だけで欠陥発見レビューを開始してよい」。判定 C の bundle は判定 C が作る）。
+- 構造適合（architecture-gates.md の Phase C の 1〜6）:
+  - 1. 責務マップとメンバー: 変更 file は §3 の表と一致する（新規の `ContentStagingMove.cs`・`ContentStagingMoveTests.cs`、coordinator・publisher の各 1 行、`ContentOverlayReuse.cs`、`ContentOverlayBuildAndReuseTests.cs`）。計画外の責務は無い。`ContentStagingMove` は状態を持たない internal static で、公開面は `Move(staging, final)`・注入の overload・述語 `IsTransient`・定数だけ。注入の overload の `bool windows` は §6 の B 適応で、述語の Windows の限定を保ったまま AC1 の「Windows 以外では注入した移動で分岐を確かめる」を満たすための引数であり、契約・責務配置を変えない。
+  - 2. 依存・所有者・寿命・公開 API・folder・namespace・asmdef: 計画どおり。`ContentStagingMove` の依存は `System.IO`・`Stopwatch`・`Thread.Sleep`（本番の待ちだけ）・`UnityEngine.Debug.Log`（本番の log だけ）。namespace は `OneStarMaker.Editor.Build.Content`、folder は `Scripts/Editor/Build/Content/`。asmdef・`InternalsVisibleTo` の変更は無い。
+  - 3. 単体 test の可能性: 中核の分岐は移動・待ち・時計・log・OS を注入でき、Unity の API なしで実 file system と注入した時間で確かめている（16 件）。
+  - 4. 仕様変更の波及: 再試行の条件・上限を変える時の変更は `ContentStagingMove` の定数と述語に閉じ、2 つの呼び手は 1 行の呼び出しのまま変わらない。再利用の記録の別名の扱いを変える時は `ContentOverlayReuse.Write` に閉じる。
+  - 5. 行数警報: 発火しない（製品の最大 271 行、`ContentOverlayReuse` は 164 → 184 で +12%）。test の file は 363 行で 500 行未満（§6 の予想 170 行との差は AC4・AC5 を待ちの前と後・時計の進み方ごとに分けたため、責務は AC1〜AC5 と AC6 の観測で増えていない）。
+  - 6. 構造劣化: このスライスが作ったものは無い。
+  - §4 の「対象外を維持する方法」: base → head の `git diff --stat` に Runtime の `ContentInstaller`・`ContentCacheStore`、SampleGame の `PlayerBuildPublisher`、`TestObservationWriter` は出ない。Editor の `Scripts/Editor/Build/` に残る `Directory.Move` は `ContentStagingMove` の本番の引数だけで、共有の関数を通らない移動の置き忘れは無い（`Directory.Move` の残りは Runtime の `ContentInstaller.cs:113` と `ContentCacheStore.cs:383` で、§2 の後続のまま）。
+- 受け入れ条件の照合（code と test を読んで確かめた。test の実行結果は §6 の B の run による）:
+  - AC1・AC2: `OpenFileInStaging_ClosedDuringTheFirstWait_MovesOnTheSecondAttempt` は Windows だけで、実 file の handle を `FileShare.ReadWrite | FileShare.Delete` で開き、注入した待ちの 1 回目で閉じる。移動 2 回・待ち 1 回・内容の一致・staging 無しを assert し、1 回目の失敗の型・`HResult` を `Debug.Log` に書いてから述語が一時的と読むことを assert する。時計は注入（`() => 0`）。Windows 以外は `InjectedTransientFailure_ThenSuccess_MovesOnTheSecondAttempt` が分岐を確かめる。述語（`IsTransient`）は §3 の 3 つの `HResult` と `UnauthorizedAccessException` だけで、既定の `HResult` の `IOException`・`0x80070011`・`DirectoryNotFoundException` は入らない。
+  - AC3・AC4: 失敗の直後（待ちの前、62 行の `throw;`）と待ちの後（66 行）の両方で `ReadyToMove`（staging があり、final が directory としても file としても無い）を見て、満たさなければ移動を呼ばずに元の失敗をそのまま投げる。状態の検査から成功を返す経路は無い（成功の return は `move` が例外なく戻った後の 69〜70 行だけ）。test は final が現れる・staging が消える（final の有無の両方）を待ちの前と後で起こし、final の bytes が変わらないこと、staging が残ることを確かめる。
+  - AC5: (a) 1 回目が成功すると注入した時計も待ちも呼ばない（`Stopwatch.StartNew()` は作るが読まない。注入した時計の読み出しは 0 回と test が確かめる。待たず、今と同じ 1 回の移動なので I2 の「監視の無い環境の振る舞いを変えない」に反しない）。(b) 述語に入らない失敗は `when` の filter を通らず 1 回で外へ出る。(c) 試行の前の検査は 2 回目以降だけ（52 行、`>= 2000` で始めない）、待ちの前の検査は `attempt >= 41` または `経過 + 50 > 2000`（63 行）。上限超えの例外は `IOException` で、内側に最後の失敗、文言に試行の回数・staging と final の path・最後の失敗の文言を持つ。test の 4 件（経過で 40 回目の後に止まる、1,960 ms で待たずに止まる、時計が進まず 41 回目の後に待たない、寝過ごしで 2,100 ms の試行を始めない）の期待値を code の分岐で追い、一致することを確かめた。
+  - AC6: 2 つの呼び手は `Directory.Move(staging, final)` を `ContentStagingMove.Move(staging, final)` に置き換えた 1 行だけで、catch・finally・outcome の書き方は変わらない。上限超えは `IOException`（置き換え前の `Directory.Move` の access denied と同じ型）なので、coordinator では一般の `catch (Exception)` に、publisher では今と同じ `finally` に入る。`published = true` は移動の後なので、失敗の時に final を消す分岐には入らない。観測の test は assert を共有の関数の `IOException` と final 無しに限り、後片付けの結果は log に書くだけ（合否に使わない）。
+  - AC7: `Write` は置き換えの失敗と別名の削除の失敗を別々に受け、削除が成功すれば元の失敗をそのまま投げ直す（`ExceptionDispatchInfo`。既存の `RecordReplaceFails_…` の振る舞いのまま）。削除が失敗すれば、元の失敗がある時は「元の文言 + Also, 別名を消せなかったこと・別名の絶対 path・削除の文言」を本文に、内側に `AggregateException(元, 削除)` を持つ `IOException`、元の失敗が無い時は「The reuse record was replaced, but …」の `IOException` を投げる。coordinator は `Write` の例外を `catch (Exception)` で受けて `ex.Message` を `WithReuseRecordFailure` に写す（165〜171 行、変更なし）ので、3 つの文言は `ReuseRecordFailure` に届く。test は coordinator 経由（実 file system の lock）と `Write` への注入の 2 経路、置き換えは成功して削除だけが失敗する場合（架空の元の失敗を作らない、`TryGet` で読み戻す）を確かめる。
+- 常時契約: 編集・新規の `.cs` は全て先頭に `#nullable enable`。`record` は無い。test に `Task.Delay`・`Thread.Sleep` は無い（`Thread.Sleep` は本番の `Move(staging, final)` の待ちだけ）。`UnityEngine.Object` を扱わないので偽 null の論点は無い。Editor の asmdef の中だけで、Runtime に Editor の code は無い。特定の監視の tool を名指しする分岐・検出は無い（§2 の転記した実装制約）。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: 新規なし（Runtime の 2 つの移動、後片付けの失敗、`PlayerBuildPublisher` は §2 の後続のまま）。
+- 半年後の復元性: `ContentStagingMove` の remarks に、成功を状態から推定しない理由、移し直す条件、上限の見方と例外の型・文言の理由、監視の無い環境で待たないこと、tool を名指ししないことが書かれ、§2・§3 の判断を code だけから復元できる。`ContentOverlayReuse.Write` の注釈も、別名を消せなかった時に文言へ書く理由（呼び手が `Message` だけを写す）を持つ。
+- 機械検査: `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9、検査 8 は not-applicable）。`pwsh tools/docs-audit.ps1`（本書の記録の後）: errors 0、warnings 1（§6 と同じ既存の `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 の警告で、本スライスと無関係）。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: なし。阻害する指摘が無く修正が無いので、差し戻し中の確認のための run は要らない。起点 filter の結果は §6 の B の run（81 件 Passed）で、判定の入力にはしない。AC1〜AC7 の test は判定 C の全 EditMode 回帰に含まれる。
+- テスト結果: 発見 C では実行していない。
+- 判定必須のうち未実行: AC8（全 EditMode 回帰、`-WithGraphics`、Unity Hub の監視の下で最大 3 run）。判定 C の仕事。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: AC1・AC2・AC6 の Windows だけの test の実物の振る舞い（§6 の観測値）は B の run の記録で、発見 C は再実行していない。判定 C の全回帰の Editor log に同じ `[ContentStagingMoveTests]` の行が出る。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。Phase B と同じモデルで、`独立性制約あり`（owner 受容。進行役の指定）。
