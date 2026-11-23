@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `A`（Phase A の revision 0。A1 の初稿、A2 の独立レビュー、A3 の統合案、外部計画レビュー 1 巡目の採否まで。**凍結していない**）
+- status: `A`（Phase A の revision 0。A1 の初稿、A2 の独立レビュー、A3 の統合案、外部計画レビュー 1 巡目の採否、§2.5 の owner の決定まで。**凍結していない**）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: 未固定
@@ -23,10 +23,10 @@
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
   - 次の Phase・役割: Phase A の A3（外部計画レビューの指摘の採否、owner の確認、owner の凍結判断）。
-  - 次の作業: (0) 取れるなら、凍結の前に §5 の u7 の疎通（今ある S4-1 の遊べる Player で、AI の desktop の操作による click）をローカルの担当が確かめる。(1) 外部計画レビューがあれば、指摘を §5.1 の A3 の表へ採否として足す（設計・受け入れ条件を変えたら、影響する A2 観点の再レビューの要否と理由も書く）。(2) §2.5 の owner の確認 (A)〜(F) を owner に確かめる。(3) 凍結するなら A3 凍結記録・本票（次の担当を Phase B へ）・PR の状態ブロックを改めて、凍結版を commit する。
+  - 次の作業: (1) 追加の外部計画レビューがあれば、指摘を §5.1 の A3 の表へ採否として足す（設計・受け入れ条件を変えたら、影響する A2 観点の再レビューの要否と理由も書く）。(2) owner の凍結判断を受ける。凍結するなら A3 凍結記録・本票（次の担当を Phase B へ）・PR の状態ブロックを改めて、凍結版を commit する。§2.5 の (A)〜(F) は owner が決めた（2026-11-24）。
   - 読む範囲: 全節。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 文書だけ（(0) は利用者の desktop の操作）。push は公開点の規則に従う。
+  - 必要な権限: 文書だけ。push は公開点の規則に従う。
   - 停止規則: 目的・利用者の欄を変える指摘は owner が裁定し、変えたら目的レビューをやり直す（§5.1）。
   - 引き渡さないもの: なし。
 - task の開始（`tools/workflow-task.ps1 start`）: 未実行。Phase A の担当は Windows の store root の無い Cloud の session で、実行できなかった。ローカルで引き継ぐ担当が行う。
@@ -103,7 +103,7 @@
   - `DecideUiCommon(規則, active な Scene に UICommon があるか, directory か)` は、借用・content・Addressables・失敗（理由つき）を返す。`BorrowOrLoad` は (あり) → 借用、(なし, directory) → content、(なし, directory でない) → Addressables（今の Editor と Addressables 互換の挙動）。`BorrowOnly` は (あり) → 借用、(なし) → 今の message の失敗。`ContentOnly` は (あり) → 失敗（`A playable Player must not start from a scene that contains UICommon.`）、(なし, directory) → content、(なし, directory でない) → 失敗。
   - `InitializeAfterSceneLoad` は try の最初に stage `plan-bootstrap` で `Plan` を 1 回呼び（失敗は起動の失敗）、下の D2〜D4 の 3 か所でその結果を使う。新しい baked の key、新しい hook、新しい公開 API は足さない。
 - **D2 登録の位置:** 最初の登録（`:353-357`）の条件を「`Plan` が登録を先にと返した」にする。遊べる Player は Editor と同じく `AfterSceneLoad` の最初に `register-content-directory` を通る。後ろの登録（`:405-409`）は session が無い時だけ走る今の条件のままで、動作確認の Player だけが通る。`InstallConfiguredContentDirectoryAsync` は、session を field に入れた後（method の最後）に 1 行の log `[AppInit] Content directory registered: identity=<identity> from=<installed|directory>` を足す（`installed` は設定が installed の pair を持つ時、`directory` は path の指定で、同梱の directory を含む。Editor と 2 つの種類の Player のどれでも出る）。
-- **D3 UICommon の読み口:** `BootstrapUiCommonSource` の Player の入力（今は `Func<bool> UseRequiredPlayerFileConfiguration`）を、`Plan` が返した規則の値に変える。loader は active な Scene の検査（名前が `UICommon` で、root `UICommon` に component がある。今のまま）の結果と規則を `DecideUiCommon` に渡し、結果のとおりに動く。`LoadAsync` は UICommon と読んだ先を一緒に返し（loader の状態は増やさない）、initializer が `[AppInit] Bootstrap UICommon: source=<active-scene|content|addressables>` の 1 行を出す。content・Addressables の読み方、`EnsureEventSystem`、所有と `Dispose` は変えない。2 つの hook（logical key と address）は今と同じく、読む経路が決まった後にだけ評価する。**派生の getter の評価の時点は変わる（外部 1 巡目の P2）。** 今の code は、directory の設定が無い起動では最初の条件（`:353`）が短絡して getter を読まず、active な Scene の UICommon を借用する経路では loader も読まないので、その 2 つの経路での最初の評価は UICommon の後（`:369`）である。`Plan` を最初に呼ぶと、どの経路でも UICommon より前に 1 回読む。これを許すために、protected virtual `UseRequiredPlayerFileConfiguration` の契約を doc コメントに明記する: 「`BeforeSceneLoad` が始まってから同じ起動の間は、副作用なしに同じ値を返す。Framework は起動の間に何度でも、どの時点でも読む」（owner の確認 (F)）。Framework は今も `BeforeSceneLoad`（`BuildConfig`）でこの値から baked を読むかを決め、`AfterSceneLoad` で 10 回前後読み直して同じ値を前提にしているので、不変は既に暗黙の前提である。base でこの getter を override するのは SampleGame の `AppInitializer`（field を返す）だけで、test の initializer に override は無く、評価の回数に依る test も無い。loader の doc コメント（getter を先に評価しない）は書き直す。`WaitForPanelReadyAsync` の `required` は今のまま Player の構成で真。
+- **D3 UICommon の読み口:** `BootstrapUiCommonSource` の Player の入力（今は `Func<bool> UseRequiredPlayerFileConfiguration`）を、`Plan` が返した規則の値に変える。loader は active な Scene の検査（名前が `UICommon` で、root `UICommon` に component がある。今のまま）の結果と規則を `DecideUiCommon` に渡し、結果のとおりに動く。`LoadAsync` は UICommon と読んだ先を一緒に返し（loader の状態は増やさない）、initializer が `[AppInit] Bootstrap UICommon: source=<active-scene|content|addressables>` の 1 行を出す。content・Addressables の読み方、`EnsureEventSystem`、所有と `Dispose` は変えない。2 つの hook（logical key と address）は今と同じく、読む経路が決まった後にだけ評価する。**派生の getter の評価の時点は変わる（外部 1 巡目の P2）。** 今の code は、directory の設定が無い起動では最初の条件（`:353`）が短絡して getter を読まず、active な Scene の UICommon を借用する経路では loader も読まないので、その 2 つの経路での最初の評価は UICommon の後（`:369`）である。`Plan` を最初に呼ぶと、どの経路でも UICommon より前に 1 回読む。これを許すために、protected virtual `UseRequiredPlayerFileConfiguration` の契約を doc コメントに明記する: 「`BeforeSceneLoad` が始まってから同じ起動の間は、副作用なしに同じ値を返す。Framework は起動の間に何度でも、どの時点でも読む」（owner の決定。§2.5 の (F)）。Framework は今も `BeforeSceneLoad`（`BuildConfig`）でこの値から baked を読むかを決め、`AfterSceneLoad` で 10 回前後読み直して同じ値を前提にしているので、不変は既に暗黙の前提である。base でこの getter を override するのは SampleGame の `AppInitializer`（field を返す）だけで、test の initializer に override は無く、評価の回数に依る test も無い。loader の doc コメント（getter を先に評価しない）は書き直す。`WaitForPanelReadyAsync` の `required` は今のまま Player の構成で真。
 - **D4 SceneResourceMap の読み口:** `Plan` が返した読み口で選ぶ（Player の `Resources`、content、Addressables）。読んだ後に `[AppInit] Bootstrap SceneResourceMap: source=<player-resources|content|addressables>` の 1 行を出す。protected virtual の `GetDirectoryBootstrapSceneLogicalKey`・`GetDirectoryBootstrapMapLogicalKey` は遊べる Player でも呼ばれるようになる（signature は変えず、doc コメントと、2 つの読み口の例外の文言の「Directory Editor Play」を直す）。`LoadPlayerSceneResourceMap` は写しの順の Player だけが呼ぶ。
 - **D5 開始 Scene と Player の構成の判定（SampleGame）:** 遊べる Player の開始 Scene は、commit した空の Scene の asset `SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity`（root の GameObject が 0）にする。開始 Scene の名前を成果物の marker にする今の形を保ち、`IsBs4PlayerMode` を「Editor でなく、active な Scene の名前が ordinal に `UICommon`（動作確認の Player）か `PlayablePlayerStart`（遊べる Player）」にし、表の test のために internal にする。名前の定数は build（Editor の asmdef）と共有するので、public の `DirectoryBootstrapKeys` に `PlayableStartSceneName` として置く。
   - marker を file（`bs4-runtime.json` の有無）に変えない理由: file が欠けた exe が Player の構成でなくなり、Addressables の起動へ落ちる（今の fail-closed を弱める）。
@@ -178,7 +178,7 @@
 
 判断: **分けない。** 理由: (1) どの未知も、この変更を入れて build した遊べる Player でしか観測できず、Framework の順の選択と SampleGame の build の変更のどちらか一方だけでは起動できる Player にならない（順だけを変えると、今の build の Player は `ContentOnly` で失敗する）。(2) 未知ごとの成立は、成立条件 E1（起動と順）・E2（UI の入力と map の参照）・E3（quit）と I3 の AC9・AC10（失敗の見え方）で別々に判定でき、1 つの最低条件に束ねていない。(3) 先に測るだけのスパイクを置いても、測る対象の Player は製品の変更とほぼ同じ物になる（変更は順の分岐と build の写しの有無で、実験 code として捨てる部分が無い）。strip が不成立の時の対応（`link.xml`）は §4 の B 適応に置く。A2 の 2 件（A0 だけからの代替構成、アーキテクチャゲート）も分けない判断に同意した。凍結の前に試しの build を置くかは §2.5 の (C)。
 
-### 2.5 A3 の決定と owner の確認
+### 2.5 A3 の決定と owner の決定
 
 **A3 の案（決めた。運用上の選択）:**
 
@@ -189,14 +189,14 @@
 5. **installed の pair の成功の起動:** S4-2 へ送る（§2.3）。
 6. **動作確認の Player:** 変えない（owner の決定、2026-11-24）。
 
-**owner の確認:**
+**owner の決定（2026-11-24、会話。(A)〜(F) とも A3 の案のとおり。(A) は、成り立たない時の扱いを owner が改めた）:**
 
-- **(A) AC6 の押下と撮影を AI が行うこと（owner の希望、2026-11-24。owner が不在になるので、owner の押下を前提にしない）。** Phase C の実行担当（AI）が desktop の操作（画面の取り込みと click）で「スタート」を押し、画面を保存し、窓を閉じる（AC6、§5 の u7）。人間の押下が要らなくなるので、AC6 は高コスト証拠にせず、他の起動の case と同じく GO 候補 head ごとに取る。この手段は未確認で、成り立たない時だけ S4-1 と同じ owner の押下に戻す（その時は AC6 を高コスト証拠にして、暫定 C' の阻害指摘が無くなった head で 1 回取る）。owner に確かめるのは、この戻し方でよいかと、不在の間に実行担当が desktop を操作する許可を事前に与えておくことの 2 点である。
-- **(B) 「上書きの map が上書きの側の `SceneResource` を指すか」を S4-2 へ送ること**（§2.3。入力のコメントは未測定として挙げたが、Player が上書きを受け付けるのは S4-2 からである）。
-- **(C) 凍結の前に strip の試しの build を置くか。** A3 の案は置かない（u1 を Phase C の最初の build と起動で確かめ、型の欠けは `link.xml` の B 適応、それで足りなければ Phase A へ戻す）。A0 だけからの代替構成は、設計を凍結する前に遊べる Player を 1 つ試しに build して strip の行を見ることを勧めた。置くなら、Unity を動かせるローカルの担当が、このスライスの変更をほぼそのまま入れた build を凍結の前に行うことになる。
-- **(D) 目的と利用者の文言。** 目的レビューは、文言からは決まらない点として「Editor の directory Play と同じ順」の基準、「登録した content」の指す物、「protected config」「fail-closed」の中身、成功の「log の 1 行」に行を足してよいか、を挙げた。A3 の案は文言を変えない（基準は 04 章 §4.7、指す物は §1 の現況、行を足す扱いは上の 4）。文言を改めるかは owner が裁定する。
-- **(E) C' の予約。** A2 は Anthropic の系列、外部計画レビューの 1 巡目は OpenAI の系列だった。C' は Grok の系列か人間が担当する（§5）。
-- **(F) protected virtual `UseRequiredPlayerFileConfiguration` の契約を明記すること**（D3。「同じ起動の間は副作用なしに同じ値を返す。Framework はどの時点でも読む」）。signature は変えないが、Framework の hook の契約を文にして狭めるので owner が決める。認めない時は、`Plan` を今の短絡と借用の経路に合わせて遅らせて評価する形にする（判定の表は同じで、initializer と loader の配線が増える）。
+- **(A) AC6 の押下と撮影は AI が行う（owner が不在になるので、owner の押下を前提にしない）。** Phase C の実行担当（AI）が desktop の操作（画面の取り込みと click）で「スタート」を押し、画面を保存し、窓を閉じる（AC6、§5 の u7）。人間の押下が要らないので、AC6 は高コスト証拠にせず、他の起動の case と同じく GO 候補 head ごとに取る。この手段は未確認なので、**Phase B の最初に、今ある S4-1 の遊べる Player で疎通を確かめる**（§4、§5 の u7）。成り立たない時は、owner の押下へ自動では戻さず、担当が AC6 の取り方の別の案を出して owner に返す（owner の決定。取り方を変えるのは Phase A の新しい revision）。owner は、不在の間に担当が desktop を操作する許可を事前に与えておく。
+- **(B) 「上書きの map が上書きの側の `SceneResource` を指すか」を S4-2 へ送る**（§2.3。入力のコメントは未測定として挙げたが、Player が上書きを受け付けるのは S4-2 からである）。
+- **(C) 凍結の前に strip の試しの build は置かない。**（u1 を Phase C の最初の build と起動で確かめ、型の欠けは `link.xml` の B 適応、それで足りなければ Phase A へ戻す）。A0 だけからの代替構成は、設計を凍結する前に遊べる Player を 1 つ試しに build して strip の行を見ることを勧めたが、その build はこのスライスの変更をほぼそのまま入れた物になるので、採らない。
+- **(D) 目的と利用者の文言は変えない。** 目的レビューは、文言からは決まらない点として「Editor の directory Play と同じ順」の基準、「登録した content」の指す物、「protected config」「fail-closed」の中身、成功の「log の 1 行」に行を足してよいか、を挙げた。基準は 04 章 §4.7、指す物は §1 の現況、行を足す扱いは上の 4 のとおりとする（owner の裁定）。
+- **(E) C' は Grok の系列か人間が担当する。** A2 は Anthropic の系列、外部計画レビューの 1 巡目は OpenAI の系列だった。C' は Grok の系列か人間が担当する（§5）。
+- **(F) protected virtual `UseRequiredPlayerFileConfiguration` の契約を明記する**（D3。「同じ起動の間は副作用なしに同じ値を返す。Framework はどの時点でも読む」）。signature は変えないが、Framework の hook の契約を文にして狭めるので owner が決めた。`Plan` を遅らせて評価する形は採らない。
 
 ## 3. 責務マップ
 
@@ -222,9 +222,9 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
 
 ## 4. 実装計画
 
-- 順序: (1) `BootstrapSourcePolicy` と表。(2) loader の入力と戻り値。(3) initializer の配線と log。(4) SampleGame の latch と定数と表、開始 Scene の asset。(5) verifier の検査と表。(6) coordinator の分岐、receipt。(7) 判定の test の case と照合の語。
+- 順序: (0) u7 の疎通（§5。実装の前に、今ある S4-1 の遊べる Player で、AI の desktop の操作による click が Unity に届くかを確かめて §6 に記録する。Unity の test も build も使わない）。(1) `BootstrapSourcePolicy` と表。(2) loader の入力と戻り値。(3) initializer の配線と log。(4) SampleGame の latch と定数と表、開始 Scene の asset。(5) verifier の検査と表。(6) coordinator の分岐、receipt。(7) 判定の test の case と照合の語。
 - 本文へ転記した実装制約: Unity の偽 null（`UnityEngine.Object` は `== null`・`!= null` で判定する）。Editor の code を Runtime の asmdef に置かない。公開 API の log の抽象は `ILogger<T>`（起動の `Debug.Log` の行は今の initializer と同じ形で、公開 API ではない）。テストで `Task.Delay`・`Thread.Sleep` を使わない（判定の test の待ちは今の `WaitForExit`・`WaitForLine` の形を使う）。path は `tools/path-budget.json` の予算に従う。開始 Scene の asset は Editor で作る（`.unity` の YAML を手で書かない。Editor の無い環境の B は asset を作らず、その旨を §6 に書いて引き継ぐ）。Phase B は Unity の test と build を実行しない。
-- Phase B から Phase A へ差し戻す条件: 遊べる Player を content が先の順にするのに、新しい baked の key・新しい Framework の公開 API・新しい hook が要る。`ContentDirectorySession`・`AssetManagement` の登録・close・quit の経路の変更が要る（u3・u4 の不成立）。動作確認の Player の順か receipt を変えないと成り立たない。空の開始 Scene では Player が起動しない（u2）。content から読んだ map の参照が Player で解けない（u5）。新しい asmdef 参照が要る。
+- Phase B から Phase A へ差し戻す条件: 遊べる Player を content が先の順にするのに、新しい baked の key・新しい Framework の公開 API・新しい hook が要る。`ContentDirectorySession`・`AssetManagement` の登録・close・quit の経路の変更が要る（u3・u4 の不成立）。動作確認の Player の順か receipt を変えないと成り立たない。空の開始 Scene では Player が起動しない（u2）。content から読んだ map の参照が Player で解けない（u5）。新しい asmdef 参照が要る。 u7 の疎通が成り立たない（AC6 の取り方の別の案を §6 に書いて owner に返す。AC6 に関わらない実装（順序の (1)〜(6)）は続けてよく、取り方が決まるまで AC6 の case の変更だけを止める）。
 - B 適応の例: IL2CPP・High で bootstrap の型が欠けた時に `SampleGame/DependOnAll/link.xml` へ名指しで足す、UICommon の Scene が持つ component の型と `SceneResourceMap`・`SceneResource` の型（u1。足した型と、動作確認の Player の build にも効くことを §6 に記録する）。開始 Scene の検査の Editor API の呼び方。判定の test の log の読み直しの間隔。例に当たるだけで許可済みとはせず、A3 と常時契約に照合する。
 - 対象外を維持する方法: `smoke` の build と起動の呼び出しの列、`PlayerBuildProjectMutation`、`PlayerContentConfiguration.Resolve`、`ContentOverlayStartup`、`WireContentResolution` の条件、`RuntimeJson`、Editor の Play の入口の code を変えない。
 
@@ -249,10 +249,10 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
   - (u4) 新しい順の失敗（登録の失敗、UICommon と map を content から読んだ後の失敗）で、後始末と通知が exit 1 に届くか。確認地点: AC9・AC10。不成立時: 後始末の順の変更は Phase A へ戻す。`content/` を空にしても登録が失敗しない時は、壊し方（消す file）を変えるのは B 適応で、stage の名前が変わる時は決定記録で読み方を確定する。
   - (u5) content から読んだ map の `SceneResource` の参照が Player で解けるか（今の Player は参照を書き換えた写しを使っている。Editor の directory Play では解けている）。確認地点: AC4（Title）と AC6 (2)（Home・InGame）。不成立時: Phase A へ戻す。
   - (u6) `tools/unity-editor.cmd` の eval から、internal の `VerifyAsync` を reflection で呼んで検証 Play に入り、Editor の log を読んで Play を止められるか（AC12）。不成立時: menu `Tools/OSM/Content/Verify Play/spring-full` で同じことを行う（失敗の時だけ dialog が出るので、出たら実行担当が文を record に写して閉じる）。どちらでも Play に入れない時は、原因を記録して owner へ返す（AC12 を外すのは Phase A の判断）。
-  - (u7) Phase C の実行担当（AI）が、利用者の desktop の session で、Player の窓の画面を取り込み、画像の上の位置を click して Unity の入力（Input System）に届かせ、取り込んだ画面を file に保存できるか（AC6）。owner の経験では、別の session が画面を取り込んで click する操作は成立した。この repo の遊べる Player では未確認。**凍結の前に小さく確かめられる:** ローカルの担当が、S4-1 で build した遊べる Player（`artifacts/playable/players/<identity>/SampleGame.exe`。残っていれば Unity の test も build も要らない）を窓で起動し、同じ手順で「スタート」を click して、game の log に `OnStabledImpl HomeScene` が出るかを見る。凍結の前に取れなければ、初回確認は Phase C。不成立時: 画像を file に保存できないだけなら、保存の手段（shell からの画面の取り込み）を変えるのは実行担当の権限内。click が Unity に届かない、または desktop を操作する許可が得られない時は、owner の押下に戻す（§2.5 の (A)。AC6 は高コスト証拠になり、owner が戻ってから最終証拠ラウンドで取る。それまで GO にしない）。必要な権限: desktop の操作（画面の取り込みと mouse）。owner が不在の間に許可の確認で止まらないよう、事前に許可を与えておく。
+  - (u7) 担当の AI が、利用者の desktop の session で、Player の窓の画面を取り込み、画像の上の位置を click して Unity の入力（Input System）に届かせ、取り込んだ画面を file に保存できるか（AC6）。owner の経験では、別の session が画面を取り込んで click する操作は成立した。この repo の遊べる Player では未確認。**初回確認は Phase B の最初**（owner の決定、2026-11-24。Unity の test も build も要らないので B が行える）: S4-1 で build した遊べる Player（`artifacts/playable/players/<identity>/SampleGame.exe`）を AC6 と同じ窓の引数で起動し、AC6 と同じ手順で画面を保存して「スタート」を 1 回 click し、窓を閉じた後に game の log に `OnStabledImpl HomeScene` が出ているかを見る。対象の exe、click した時刻、log の行の有無、保存した画像の有無を §6 に記録する（合否は書かない）。その Player が残っていない時と、B の環境が desktop を操作できない時は、確かめられなかった理由を §6 に書き、初回確認を Phase C の最初の遊べる Player の build の直後へ送る（B は build しない）。不成立時: 画像を file に保存できないだけなら、保存の手段（shell からの画面の取り込み）を変えるのは担当の権限内。click が Unity に届かない、または desktop を操作する許可が得られない時は、担当が AC6 の取り方の別の案（例: 判定の test が OS の入力を送って click する、owner が戻ってから押す）を、それぞれの要る変更と一緒に出して owner に返す。owner の押下へ自動では戻さない。取り方を変えるのは Phase A の新しい revision で、決まるまで AC6 を未実施のまま判定 C を完了と記録しない。必要な権限: desktop の操作（画面の取り込みと mouse）。owner が不在の間に許可の確認で止まらないよう、事前に許可を与えておく。
   - S4-1 が確かめた経路（製品の coordinator を test から呼ぶ build、窓を出した Player の起動と `WM_CLOSE`、追記中の log の読み直し）は既知で、再確認しない。Player の publish の `Directory.Move` の access denied（S4-1 の u1b）は、落ちた時に S4-1 と同じ再実行の規則に従う。
-- 人間の判断が必要な条件: なし（AC6 の操作と撮影は AI が行い、画面の判定は判定 C が画像で行う。u7 が成り立たず owner の押下に戻した時だけ、押下と窓を閉じることを owner が行う。その時も判定は log と画像で行い、owner の観察で置き換えない）。§2.5 の (A)。
-- 高コスト証拠: なし。AC6 は AI が操作するので、他の AC と同じく GO 候補 head ごとに取る（Player の build は外部への作用を持たずこの PC で繰り返せる。build 2 回、各約 6 分の見込み。S4-0・S4-1 の実測）。u7 が成り立たず owner の押下に戻した時だけ、AC6（owner の押下と、その起動の log と画像）を高コスト証拠にして、暫定 C' の阻害指摘が無くなった head で 1 回取る（期待値は AC6 の文で、実装から独立している）。
+- 人間の判断が必要な条件: なし（AC6 の操作と撮影は AI が行い、画面の判定は判定 C が画像で行う）。u7 が成り立たない時の取り方は owner が決める（§2.5 の (A)）。
+- 高コスト証拠: なし。AC6 は AI が操作するので、他の AC と同じく GO 候補 head ごとに取る（Player の build は外部への作用を持たずこの PC で繰り返せる。build 2 回、各約 6 分の見込み。S4-0・S4-1 の実測）。u7 が成り立たず取り方を改める時は、その revision で分類を決め直す。
 - 判定 C の照合 script の方式: なし。判定 C は record と receipt と log を AC ごとに読む。
 - 機械検査: `contract-audit`、`docs-audit`。
 - A0/A1 主担当: Cloud の Claude Code の session（Anthropic の系列）。A0 は program §8 の S4-1a の行（PR #212 の branch）、PR #212 のコメント「owner との会話で決まったことと、S4-1a の入力」、同 PR の S4-2 の統合案が S4-1a について書く箇所、program の「S4-1 から移送した入力」と U11、04 章、S4-1 の HANDOFF（git の履歴）を入力とした。
@@ -267,7 +267,7 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
 - (2) **A0 だけからの代替構成:** (1) と同じ subagent が、目的レビューの回答を記録した後に続けた。入力は A0 の packet（program の S4-1a の行、PR #212 のコメントの原文、S4-2 の統合案が S4-1a について書く箇所、「S4-1 から移送した入力」と U11 の原文、依頼文。sha256 `b738e426c70cc2c1a31080a5560a36bf4d39ecf9305b646b6ba7820afc5f26a3`）と、固定 base `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30` の clean な detached checkout。本書は読んでいない。
 - (3) **アーキテクチャゲート兼、各不変条件を破る順序・受け入れ条件の曖昧さ・検証経路の実行可能性・分割・常時契約:** 主担当の session が起動した別の新しい subagent（主担当と同じ設定の別 session）。入力は A2 入力版の本書（内容 sha256 `3da4d7e3b7b232a5546103adbe0ae06fcde144139d3fe7df327f84b4a4812eb0`。commit `6011fb1d` の本書とは、§2.3 の 2 か所に「Phase D で」の語が無い点だけが違う）と (2) と同じ固定 base の checkout。枠は「§3・§4 の計画した code は実装済みと仮定し、現在の code は既存の前提の確認にだけ使う」に固定した。program の S4-1a の行は A2 入力版の後にこの branch へ足した（下の M-5）。
 
-**A3 の採否（統合担当: 主担当の session。目的と利用者の欄は変えていない。文言への指摘は §2.5 の (D) で owner が裁定する）:**
+**A3 の採否（統合担当: 主担当の session。目的と利用者の欄は変えていない。文言への指摘は owner が「変えない」と裁定した。§2.5 の (D)）:**
 
 (1) 目的レビュー。保証すべき 9 点と作らないべき 7 点のうち、初稿と違った・弱かったもの:
 
@@ -276,10 +276,10 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
 | 読み元が content であることを、たまたま同じ中身だったという理由で合格にしない | 採用 | 読んだ先の log（AC4）に加えて、Player が写しを含まないことを build で検査する（D6 の (a)(b)、AC3 (a)。(3) の B-2） |
 | content の UICommon か map を編集して作り直した Player にその変更が出ることで確かめる | 不採用 | 作り直すと写しも作り直されるので、読み元の区別にならない。写しが Player に無いことの検査で示す |
 | 読めない時に exe の写しへ黙って戻らない | 初稿のとおり | 遊べる Player の build は写しを持たず、規則 `ContentOnly` は借用も Addressables も選ばない（D1） |
-| 成功と失敗を伝える新しい経路（追加の log の行など）を作らない | 一部不採用 | 成功の 1 行、失敗の log と exit code は変えない（D7）。順と読んだ先の 3 行は、E1 と I1・I2 を外から判定する印として足す（§2.5 の 4。owner の確認 (D)） |
+| 成功と失敗を伝える新しい経路（追加の log の行など）を作らない | 一部不採用 | 成功の 1 行、失敗の log と exit code は変えない（D7）。順と読んだ先の 3 行は、E1 と I1・I2 を外から判定する印として足す（§2.5 の 4 と (D)） |
 | exe に焼き込んだ写しを build から外すかは原文から決まらない | 採用（設計の判断として記録） | 外す（D6、E5）。入力のコメントが `CopyBootstrapScene`・`CopyGraphClosure` が要らなくなると書き、写しを残すと I1 を build で示せない |
 | 新しい menu・起動引数・設定・環境変数を足さない、`smoke` と Editor に手を入れない、上書きを作らない | 初稿のとおり | §1 の対象外、UC の表 |
-| 文言の曖昧さ（同じ順の基準、登録した content、protected config と fail-closed の中身、S4-2 についての主張） | owner の確認 | §2.5 の (D)。基準の所在（04 章 §4.7）を §1 の現況に足した |
+| 文言の曖昧さ（同じ順の基準、登録した content、protected config と fail-closed の中身、S4-2 についての主張） | owner の裁定（文言を変えない） | §2.5 の (D)。基準の所在（04 章 §4.7）を §1 の現況に足した |
 
 (2) A0 だけからの代替構成。推奨案（開始 Scene の名前を 2 つ認める、新しい key を足さず baked の種類から Framework が順を選ぶ、Editor が使っている content の読み口で読む、写しを build に入れない、分けない）は初稿と同じ骨格だった。違った点の採否:
 
@@ -292,7 +292,7 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
 | map が参照する `SceneResource` の GUID が pack に無いことを検査する | 採用 | D6 の (a) |
 | receipt に `bootstrapSource` の欄を足す | 不採用 | 欄を足さない。`bootstrapSceneName` の値で種類を見分けられる |
 | 登録と読み元の log を遊べる Player の順でだけ出す | 不採用 | 3 行をどの起動でも出す（log のための分岐を作らない。AC1 と AC12 が同じ行で動作確認の Player と Editor を見る）。既存の照合に当たらないことは (3) が確かめた |
-| 凍結の前に strip の試しの build を置く | owner の確認 | §2.5 の (C) |
+| 凍結の前に strip の試しの build を置く | 不採用（owner の決定） | §2.5 の (C) |
 | content から読んだ map の `SceneResource` の参照が Player で解けるかは未知 | 採用 | u5、E2 |
 | 判定の filter の末尾の `$`、`WM_CLOSE`、`<unparsed>` の件数 | 採用 | §2.2 の冒頭、§5 |
 | 起動の時間の伸びを record に残す | 不採用 | 現在の問いの判定に要らない |
@@ -329,14 +329,14 @@ namespace・asmdef は既存の file と同じ。新しい asmdef 参照、新�
 
 A2 の観点の再レビュー: 要らない。A3 の改訂は、(3) が指摘した形そのもの（policy への集約、build の検査、commit した asset、AC の作り方）で、新しい状態・依存・公開 API を足していない。目的と利用者の欄は変えていないので、目的レビューのやり直しも要らない。
 
-**外部計画レビュー 1 巡目（2026-11-24、PR #213 の review。OpenAI の系列。owner の account から投稿された。対象は head `43b089b4`。判定は COMMENT で、凍結は 2 点の採否と risk の記録の後を勧める。大枠（1 つの policy で順を選ぶ、遊べる Player だけ開始 Scene と写しを変える、失敗を登録前と読込後に分ける）には賛成）。採否は A3 の案で、owner が裁定する:**
+**外部計画レビュー 1 巡目（2026-11-24、PR #213 の review。OpenAI の系列。owner の account から投稿された。対象は head `43b089b4`。判定は COMMENT で、凍結は 2 点の採否と risk の記録の後を勧める。大枠（1 つの policy で順を選ぶ、遊べる Player だけ開始 Scene と写しを変える、失敗を登録前と読込後に分ける）には賛成）。採否は A3 の案で、owner が 2026-11-24 に案のとおりと裁定した:**
 
 | ID | 指摘 | 採否 | 理由と反映 |
 |---|---|---|---|
 | P1 | 開始 Scene と baked の種類の食い違いは、別々の表の test では latch → baked の読み → policy → loader の配線を通らない。Player の写しの `bs4-runtime.json` の種類だけを逆に書き換えて、2 つの向きを実機で起動する AC を足す | 採用 | AC14 (a)(b)、D5、I1 (d)・I3 (c)・I4 (d)、§5 の (12)(13)。期待する stage と receipt の有無は、D1 の規則と今の失敗の通知（latch した種類で receipt を書くかを決める）から導いた |
-| P2 | 「getter の評価の時点・回数が実質変わらない」は、directory の無い起動と借用の経路では成り立たない。getter は純粋で同じ起動の間は不変と明記して早い評価を許すか、今の短絡と借用に合わせて遅らせるかを決める | 採用（契約を明記する案） | D3 の説明を事実に合わせて直し、契約の文を足した。決めるのは owner（§2.5 の (F)）。Editor の回帰の守りは、評価の回数に依る test が base に無いことの確認と全 EditMode 回帰である |
+| P2 | 「getter の評価の時点・回数が実質変わらない」は、directory の無い起動と借用の経路では成り立たない。getter は純粋で同じ起動の間は不変と明記して早い評価を許すか、今の短絡と借用に合わせて遅らせるかを決める | 採用（契約を明記する） | D3 の説明を事実に合わせて直し、契約の文を足した。owner が決めた（§2.5 の (F)）。Editor の回帰の守りは、評価の回数に依る test が base に無いことの確認と全 EditMode 回帰である |
 
-**owner の希望（2026-11-24、会話）:** owner が不在になるので、AC6 の「スタート」の押下と撮影を AI が行う形にする。AC6・§5 の検証経路と u7・高コスト証拠・人間の判断の欄を改め、戻し方を §2.5 の (A) に書いた。押下の前提が変わっただけで、判定する log の行は変えていない。
+**owner の希望（2026-11-24、会話）:** owner が不在になるので、AC6 の「スタート」の押下と撮影を AI が行う形にする。AC6・§5 の検証経路と u7・高コスト証拠・人間の判断の欄を改めた。続けて owner は、§2.5 の (A)〜(F) を案のとおりと決め、u7 を Phase B の最初に確かめ、成り立たなければ担当が別の案を出す、と決めた（owner の押下へ自動では戻さない）。押下の前提が変わっただけで、判定する log の行は変えていない。
 
 この巡で足した Phase C の読み方（指摘ではなく、判定の担当が迷う所の明確化）: log の行の順は record の行番号で読み、順を見る行はちょうど 1 回ずつ（§2.2）。verifier の検査の空振りを build の失敗にし、件数を record に残す（D6、AC3）。AC12 を dialog の出ない入口で行う手順と保存先、batch の test との順（§5、u6）。全 EditMode の合否を XML で読むこと（§5）。
 
