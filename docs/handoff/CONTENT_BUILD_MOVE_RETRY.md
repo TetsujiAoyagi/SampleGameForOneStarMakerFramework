@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S5-0。BuildSystem の小さいスライス）
-- status: `B`（Phase A revision 0 を凍結した。次は Phase B）
+- status: `C`（Phase B を完了した。次は発見 C）
 - branch: `claude/content-build-move-retry`（PR の base は `develop`）
 - implementation base commit: `d926e3b6b40dafab086b293e6d60784e304ecf4c`（`develop` の head、2026-11-23。A2 の固定 base と同じ）
-- implementation head commit: `未固定`
+- implementation head commit: `d0785b2327f9795aa9c4dea78ebcbfcf51e2f31f`
 - A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビュー 2 巡目が見た commit `0ae53f8c` の本書に、2 巡目の採否・凍結前の自己点検・凍結の記録・Phase B 宛ての票を足した物）。承認の根拠: 外部計画レビュー 2 巡目が凍結を妨げる指摘なしとし、owner が凍結と Phase B への引き渡しを指示した。§5.1 の採否は、この指示で承認された。
 - risk: `normal`（Editor の 2 つの公開点の移動と、再利用の記録の書き込みの失敗の扱いだけを変える。公開 API・asmdef・所有者・寿命・Runtime は変えない。§5）
 - owner: root（依頼者）
@@ -17,17 +17,17 @@
 - harvest to: [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md) の coordinator の公開（「staging を経て公開する」の箇条）と `ContentTransportPublisher` の段落（同じ volume の move の再試行の条件と上限を 1 文ずつ）、[CONTENT_DIRECTORY_BUILD_FACTS.md](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の「別に観察したこと」（「原因は切り分けていない」を、program の S5-0 の行の J1 の調査と本スライスの結果に合わせて直す）、program の S5-0 の行（完了と PR）
 - 関連: [PLAY_CONTENT_RESOLUTION_PROGRAM.md](PLAY_CONTENT_RESOLUTION_PROGRAM.md)（§8 の S5-0 の行。J1 の調査の記録と CP2 はそこにある）
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と固定 base だけ）
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 該当なし（レビューの入力は implementation head の commit。stage は使っていない）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順序で §3 の変更を実装し、AC1〜AC7 の test を書き、§5 の起点 filter で通す。AC2 の観測値と AC6 の後片付けの観測を §6 に写す。実装 commit を切り、その SHA を implementation head 欄に書き、§6 を埋め、票を発見 C 宛てに書き換えて記録 commit を切る（出口の書き方は osm-workflow の phases-and-handoff.md「引継ぎ票」の (a)）。動作確認は `対象なし`（§5）。
-  - 読む範囲: 既定（§0〜§5。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head 欄は `未固定` で、B は渡された commit の本書で、上の A3 凍結記録・対象 revision 0・この票の次担当 B を照合する。
-  - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない。`pwsh tools/workflow-task.ps1 status -Task s5-0-content-build-move-retry` で確かめる）。
-  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1 -Filter …`、sandbox 外）。新しい worktree では初回の import に時間がかかる。push はしない（実装の push は判定 C と C' の後の公開点で行う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と、osm-workflow の architecture-gates.md の Phase B の停止条件。判定必須の全 EditMode 回帰（AC8）は B では走らせない（判定 C の仕事）。
+  - 次の Phase・役割: Phase C（発見 C）。動作確認は `対象なし`（§5）なので B の次は発見 C。
+  - 次の作業: implementation head の差分を構造レビュー（§3 の責務マップ、§4 の「対象外を維持する方法」の `git diff --stat`）と AC1〜AC7 の照合で見て、§7 を作って記録する。起点 filter（§5）の B の結果は §6 にある。判定必須の AC8（全 EditMode 回帰）は判定 C の仕事。
+  - 読む範囲: 既定（§0〜§8。§7・§8 はまだ無い。§5.1 は読まなくてよい）。
+  - 引き継ぐ commit: この票を含む記録 commit（SHA は起動指示と PR #210 の状態ブロックで渡す）。implementation head は上の欄の SHA で、そこから引き継ぐ commit までの差分は本書だけである。
+  - task: `s5-0-content-build-move-retry`（開始済み。新しく start しない）。
+  - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）を発見 C が限定実行する時だけ。push はしない（公開点は判定 C と C' の後）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」。発見 C は blocker を凍結済み条件・常時契約への違反根拠のあるものに限る。
   - 引き渡さないもの: なし（C' の入力はまだ無い）。
 
 ## 1. 目的と対象外
@@ -187,3 +187,42 @@
     - 判定 C が読む Editor log の所在（`run-tests.ps1` の `-logFile`）を書いた。`Unity Hub.exe` の process 名をこの PC で確かめた（2026-11-23）。
     - 外部計画レビューの再レビュー: 要らない。2 巡目の指摘の文言の調整と、上の自己点検の精度の修正だけで、どの条件の意味も広げていない。
 - 公開の方式の候補の比較（A1 の主担当）: (a) 一時的な lock の失敗に限って移動を短い上限で再試行する（採用）。J1 の調査で、失敗のほぼ全てが直後の移し直しで通ることを再現で確かめている。変更は 2 行の置き換えと小さい関数で、「final があれば公開済み」という読み手の契約を変えない。(b) 移動をやめ、final へ直接書いて完了の印を最後に置く。読み手の全て（再利用の受け取り、publisher、選択、Player の install）の「final がある」の読みを「印がある」へ変え、途中で止まった final の片付けを新しく要する。(a) で足りない証拠が無い今、費用に見合わない（§2 の後続）。(c) test の出力先を監視の外へ出す。owner の入力（Unity Hub は消せない）と、製品の経路（開発者の project の下への build）が直らない点で採らない。
+
+## 6. Phase B 実装結果
+
+- 実装:
+  - `Scripts/Editor/Build/Content/ContentStagingMove.cs`（新規、93 行）: internal static の `Move(staging, final)` と、移動・待ち・時計・log・Windows の判定を注入する internal の overload、述語 `IsTransient`。§3 の条件と上限のとおり（Windows で、`IOException` の `HResult` が `0x80070005`・`0x80070020`・`0x80070021`、または `UnauthorizedAccessException`。待ちの前と待ちの後に `staging` があり `final` が無い時だけ移し直す。1 回 50 ms、試行の前と待ちの前に時計を見て 2,000 ms を超えない、試行は最大 41 回。上限超えは最後の失敗を内側に持つ `IOException` で、文言に試行の回数・`staging` と `final` の path・最後の失敗の文言。再試行の後の成功で `[ContentStagingMove] moved after N attempts: <final>` を 1 行）。
+  - `BuildContentCoordinator.cs` の 123 行と `ContentTransportPublisher.cs` の 156 行の `Directory.Move(staging, final)` を `ContentStagingMove.Move(staging, final)` に置き換えた（各 1 行、行数は 271・227 のまま）。catch・finally・outcome の書き方は変えていない。
+  - `ContentOverlayReuse.cs`（164 → 184 行）: `Write` に置き換えと別名の削除を注入する internal の overload を足した。別名の削除の失敗を握りつぶさず、元の失敗がある時は「元の失敗の文言 + Also, 別名を消せなかったこと・別名の絶対 path・削除の失敗の文言」を本文にし、内側に `AggregateException(元の失敗, 削除の失敗)` を持つ `IOException` を投げる。置き換えが成功して別名の削除だけが失敗した時は「The reuse record was replaced, but …」で始まる 2 つ（削除の失敗の文言と別名の絶対 path）の `IOException`。削除が成功する時は今と同じく元の失敗だけを返す。
+  - test: `Tests/Editor/Build/ContentStagingMoveTests.cs`（新規、363 行、16 件。AC1〜AC5 と AC6 の観測）、`ContentOverlayBuildAndReuseTests.cs`（414 → 478 行、AC7 の 3 件）。
+- AC ごとの対応する test（起点 filter の run で全て Passed）:
+  - AC1: `OpenFileInStaging_ClosedDuringTheFirstWait_MovesOnTheSecondAttempt`（Windows だけ。実 file system の開いた handle）、`InjectedTransientFailure_ThenSuccess_MovesOnTheSecondAttempt`（全 OS。注入した移動）。
+  - AC2: 上の Windows の test の中で観測し、述語が一時的と読むことを assert する。`TransientPredicate_TakesOnlyAccessSharingAndLockViolations`、`OutsideWindows_TheSameFailureIsNotRetried`。
+  - AC3: `FinalAppearsWithTheFailure_FailsWithoutWaiting_AndKeepsBoth`、`FinalAppearsDuringTheWait_FailsBeforeTheNextMove_AndKeepsBoth`。
+  - AC4: `StagingVanishesWithTheFailure_AndNoFinal_Fails`（(a)）、`StagingVanishesWithTheFailure_AndFinalExists_FailsAndLeavesFinalUntouched`（(b)）、`StagingVanishesDuringTheWait_FailsBeforeTheNextMove_WithOrWithoutFinal`（待ちの後の検査で (a)・(b)）。
+  - AC5: `FirstMoveSucceeds_CallsNeitherWaitNorClock`（(a)）、`NonTransientFailure_FailsOnceWithoutWaiting`（(b)）、`TransientFailuresContinue_StopAtTheBudget_WithoutWaitingPastIt`・`FailureAt1960Ms_StopsWithoutWaiting`・`ClockDoesNotAdvance_StopsAfterTheFortyFirstFailure_WithoutAnotherWait`・`WaitOversleeps_TheNextAttemptIsNotStartedPastTheBudget`（(c)）。
+  - AC6: 既存の coordinator・publisher の test（`BuildContentFullModeTests`、`ContentPurposeIndexPublishTests`、`SourceClosurePublishTests`、`OverlayRegistrationIntegrationTests`、`ContentOverlayBuildAndReuseTests`）が変更なしで通る。観測の test は `HandleNeverCloses_MoveFailsAtTheBudget_AndTheCleanupIsObserved`（Windows だけ、assert は共有の関数の `IOException` だけ）。
+  - AC7: `ReplaceAndTemporaryDeleteBothFail_TheReasonCarriesBoth_AndThePath_AndTheExistingRecordIsKept`（coordinator 経由。別名を `FileShare.ReadWrite`（Delete なし）で先に開き、実 file system で置き換えと削除の両方を失敗させる）、`InjectedReplaceAndDeleteFailures_TheMessageCarriesBothTexts_AndThePath`（`Write` に注入、3 つの文言と内側の `AggregateException`）、`ReplaceSucceedsButTheTemporaryFileRemains_AndCannotBeDeleted_ReportsItWithoutAnInventedFailure`（`Write` に注入、2 つの文言と `TryGet` の読み戻し）。既存の `RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept` は変更なしで通る。
+- AC2 の観測値（Unity 6000.6.9f1 の Editor、Windows 11）: 1 回目の失敗は `System.IO.IOException`、`HResult=0x80070005`、文言は「Access to the path '<staging>' is denied.」。§3 の述語に入るので、述語は変えていない（§4 の差し戻しの条件に当たらない）。
+- AC6 の観測（合否に使わない）: 共有の関数が上限で `IOException` を返した後、`staging` の中の file を `FileShare.ReadWrite | FileShare.Delete` で開いたまま `Directory.Delete(staging, true)` を呼ぶと、例外は無く、`staging` も開いていた file も直後に存在しなかった（この PC の Windows の削除の振る舞い）。開いた handle が `FileShare.Delete` を持たない監視では結果が違いうるので、上限を超えた時の後片付けの失敗の可能性は §2 の後続のまま残る。
+- 起点 filter の run の `[ContentStagingMove]` の行: 0（この run の公開の移動は全て 1 回目で成功した）。
+- HANDOFF との差（B 適応。契約・責務配置・公開面は変えていない）:
+  - `ContentStagingMove` の注入の overload に、移動・待ち・時計・log に加えて Windows の判定（`bool windows`）を足した。本番の `Move(staging, final)` は実行中の OS を渡す。AC1 の「Windows 以外では注入した移動で同じ試行の回数と分岐を確かめる」を、述語の Windows の限定を保ったまま満たすため。
+  - `ContentOverlayReuse.Write` の別名の削除の失敗は、`IOException`・`UnauthorizedAccessException` に限らず全ての例外を受けて結果に出す（今までは他の型の例外が `finally` から元の失敗を覆っていた。I3 の「黙って残さない」と「元の失敗を隠さない」の範囲）。
+  - 行数の予想との差: `ContentStagingMoveTests` は約 170 → 363 行（AC4・AC5 を待ちの前と後、時計の進み方ごとに分けた）、`ContentOverlayBuildAndReuseTests` は +約 50 → +64 行。製品の file は予想どおり。
+  - 置き換えは成功して別名の削除だけが失敗する場合に coordinator が build を成功のまま `ReuseRecordFailure` に写すことは、coordinator の今の一般の catch（変えていない）による。この場合を coordinator 経由で起こす注入の口は無く、足していない（`Write` への注入で例外の文言を確かめた）。
+- 実行した検査:
+  - `pwsh tools/run-tests.ps1 -Filter '<§5 の起点 filter の 6 class>'`（EditMode、`-nographics`）: XML の root `Passed`、total 81、passed 81、failed 0、inconclusive 0、skipped 0。`step.json` は `passed`・exit 0。Unity の process は自然終了した（終了 stall なし）。結果は worktree の `TestResults/` の下（git 管理外）にあり、Evidence として stage していない。
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（検査 1〜9）。
+  - test の run で Unity が書き換えた `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` は戻した（実装の差分に含めない）。
+- 未実行: AC8（判定必須の全 EditMode 回帰、`-WithGraphics`、Unity Hub の監視の下）。判定 C の仕事。`pwsh tools/docs-audit.ps1` は errors 0、warnings 1（既存の `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の §7・§8 についての警告で、本スライスの変更と無関係）。
+- implementation head commit: §0 の欄（`d0785b23`）。
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）。
+
+### 動作確認
+
+- 対象 head: 対象なし
+- 条件ごとの実行担当・環境・実行したコマンド: 対象なし
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: 対象なし
+- 検証経路の期待と違う観測と、B への差し戻し: 対象なし
+- `未実施` の条件と理由・担当（未実施が無ければ `なし`、検証経路に該当条件が無いスライスだけ `対象なし`）: `対象なし`（§5。全ての条件が Unity の batch test と XML で閉じる）
