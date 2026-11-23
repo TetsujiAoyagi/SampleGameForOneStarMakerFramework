@@ -3,23 +3,24 @@
 ## 0. メタデータ
 
 - type: slice
-- status: A（revision 4 の A3。A2 の 2 件を受け、§5.1 に採否の主担当案を記録。owner の確認・外部計画レビュー・凍結は未実施）
+- status: B（revision 4 を凍結。Phase B 未着手）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
-- implementation base commit: 未固定（A3 で、B が取り込む origin/develop の SHA に固定する。A1 が読んだ develop は `d926e3b6b40dafab086b293e6d60784e304ecf4c`。引継ぎ時点の origin/develop `9de34cc2` までの差分は文書 3 file（S4-0 の記録）だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
+- implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: 未固定
-- A3 凍結記録: 未凍結
+- A3 凍結記録: owner が 2026-11-23 に「凍結して B へ」と承認。対象は revision 4（外部計画レビューの X1・X2 を反映したこの版）。次担当は Phase B。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（revision 4 の A1）
+- created: 2026-11-20 / updated: 2026-11-23（revision 4 の凍結）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方と結果の読み方）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線と `TryGetHierarchyGameObject` の契約）
-- Phase A snapshot の取得案内・状態: 未生成
+- Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は A3 の続き（主担当）。
-  - 作業: (1) owner が §5.1 の採否案を確認する。(2) A3 統合案を 1 commit にして Draft PR #204 へ push し、外部計画レビューを依頼する。(3) 外部指摘の採否を §5.1 に追記し、owner の凍結判断・対象 revision・次担当 B を §0 に記録して凍結版を commit する。implementation base を B が取り込む origin/develop の SHA に固定する。
-  - 読む範囲: 既定（全節）。
-  - 必要な権限: commit・push・PR 本文の更新（push は owner に確認する）。
+- 引継ぎ票: 次は Phase B（実装）。
+  - 作業: §4 のとおり。PR の branch に implementation base（`9de34cc2`）を merge で取り込み、§2.1 の 4 の revision 3 の残骸を消し、§2.1・§3 を実装する。Editor で compile を確かめる。結果を §6 に書き、implementation head を §0 に固定して、次の担当（動作確認）への票を書く。
+  - 読む範囲: 既定（§0〜§5）。§5.1 の A2・A3 の採否は、§2.1・§3 に反映済みの文を正とし、読まなくてよい。
+  - 必要な権限: branch への commit・push（push は owner に確認する）。Unity Editor は compile 確認だけ（`osm-unity-editor` の制約に従う）。Unity テスト・Build・実機手順（§5.4）は B では行わない。
+  - 停止規則: §4 の差し戻し条件に当たったら実装を止めて Phase A へ返す。共有 Editor・人間が開いた Editor を操作も強制終了もしない。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -125,7 +126,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 書き込みの意味は SampleGame が既存のコマンド登録経路で持つ。Framework は「今の hierarchy の NodeId が指す GameObject」を返す読み取り口だけを公開する。DebugStudio（WPF・CLI・protocol）は変えない。
 
 1. **読み取り口（Framework。公開面はこの 2 つ）:**
-   - `DebugSocketService.TryGetHierarchyGameObject(long nodeId, out GameObject? gameObject)`（public、main thread で呼ぶ。XML コメントに main thread で呼ぶこと、Dispose 後は false を返すことを書く）。inspect が使う既存の private `TryFindGameObjectByNodeId`（`_gate` の中で registry を引き、破棄済みは false）をそのまま包む。未 capture・prune 済み・`Reset` 後・破棄済み・hierarchy に出ない GameObject は false。
+   - `DebugSocketService.TryGetHierarchyGameObject(long nodeId, out GameObject? gameObject)`（public、main thread で呼ぶ。XML コメントに main thread で呼ぶこと、Dispose 後は false を返すことを書く）。先に `_disposed` を見て、立っていれば false を返す。`Dispose()` は `_disposed` を立てた後に片付けを非同期で始めるので、registry の対応表が残っている間があり、委譲だけではこの契約を満たさない。立っていなければ、inspect が使う既存の private `TryFindGameObjectByNodeId`（`_gate` の中で registry を引き、破棄済みは false）を呼ぶ。未 capture・prune 済み・`Reset` 後・破棄済み・hierarchy に出ない GameObject は false。
    - `AbstractApplicationInitializer` に `protected DebugSocketService? DebugSocket => _services?.DebugSocket;`（既存の accessor と同じ形）。
 2. **コマンド（SampleGame。新規 `DependOnAll/DebugCommands/SetActiveDebugCommand.cs`、internal static）:**
    - `AppInitializer` が `CreateDebugCommandDispatcher()` を override し、`Application.isEditor` のときだけ `DebugCommandCatalog` に `debug.set-active` を登録して `CatalogDebugCommandDispatcher` を返す。それ以外は base。handler は `() => DebugSocket` で実行時に service を読む。解決は delegate（`bool (long nodeId, out GameObject? go)`）で受け、テストで差し替える。
@@ -135,6 +136,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
    - 非 bool の `active`（文字列・null）は拒否を保証しない。revision 3 の実測では `"false"` と `null` が false として適用された（§1.5）。README とコメントはこの実測どおりに書き、拒否するとは書かない。
 3. **結果の読み方（README に書く。CLI の動作は変えない）:**
    - `success=true` と結果の payload（exit 0）: その NodeId の GameObject（`name`）に適用し、`activeSelf` は適用後の値。結果は main thread で SetActive の後に返るので、返った時点で適用済みで、続く `inspect` は適用後の値を読む。
+   - 変えるのは指定した GameObject の activeSelf だけだが、`SetActive` が呼ぶ `OnEnable` / `OnDisable` などのゲーム側のコードが他の GameObject や対象自身を変えることはあり、それは保証しない。結果の `activeSelf` は `SetActive` の後に読んだ値。
    - `activeSelf` は GameObject 自身の値。親が非アクティブなら `activeSelf` が true でも見えず、`hierarchy` の flags に `ActiveInHierarchy` が付かない。
    - `success=false` で message が `rejected: ` で始まる（exit 1。この行は stderr に出る）: 何も変えていない。
    - それ以外の `success=false`（handler の例外、未登録）と、`CommandResult` の行が無い終わり方（期限切れ exit 2、それ以外 exit 1）: 結果不明。timeout は未実行を意味しない。CLI は自動で再送しない。
@@ -154,7 +156,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 
 #### 不変条件
 
-- **I1: 拒否と報告した要求ではどの GameObject の activeSelf も変えず、適用と報告した要求で変わるのは、処理した時点の hierarchy でその NodeId が指す GameObject 1 つだけ。**
+- **I1: 拒否と報告した要求では handler は `SetActive` を呼ばない。適用と報告した要求で handler が `SetActive` を直接呼ぶのは、処理した時点の hierarchy でその NodeId が指す GameObject 1 つだけで、1 回だけ。** `SetActive` が呼ぶ `OnEnable` / `OnDisable` などゲーム側のコードによる他の GameObject への波及や対象の再変更は Unity の通常の副作用で、保証しない（README に書く。§5.1 X1）。
   - 主張を崩しうる既存の経路: (a) NodeId が未知・prune 済み・破棄済み・`Reset` 後。(b) DontDestroyOnLoad の GameObject は capture されず NodeId を持たない。(c) GUI のコマンド画面や `send` から任意の payload を送れる。(d) `JsonUtility` は欠落した field を初期値のまま残し、非 bool を変換することがある。(e) SetActive の後の例外を router が Success=false にする（I2 で扱う）。(f) capture・prune・`Reset` と解決の競合（どちらも main thread で、解決は `_gate` の中）。(g) 同じ Play の中のシーン遷移や WPF の再接続の後の古い NodeId（採番値が戻らないので別の GameObject を指さない）。(h) 前の Play の NodeId は次の Play の同じ番号の GameObject を指しうる。I1 の「処理した時点の hierarchy でその NodeId が指す GameObject」はこの場合も成り立ち、利用者の意図との食い違いは §2.8 の裁定 A で既知の制約とし、README（§2.1 の 3）で案内する。
   - 探索した境界: Runtime の DebugSocketServices（router、dispatcher 群、registry、hierarchy publisher、inspect の lookup）、`DebugCommandCatalog`、`AbstractApplicationInitializer` の dispatcher の作成と service の寿命、EditorSettings の Domain Reload。未確認: なし。
 - **I2: 結果を確定できない終わり方を確定した結果として案内しない。** README は §2.1 の 3 のとおり書き、timeout を未実行と書かない。CLI は自動で再送しない（既存のまま）。
@@ -173,7 +175,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 - **AC1（I1、失敗経路）:** Unity EditMode（解決を差し替える）:
   - 解決が false・解決した GameObject が破棄済み・DebugSocket が無い → `rejected: node-not-found` で、fixture の全 GameObject の activeSelf が変わらない。
   - 解析できない payload、空、`{}`、nodeId が無い・0・負、`active` が無い（`{"nodeId":<解決できる N>}` を含む）→ `rejected: invalid-payload` で、解決を呼ばず activeSelf が変わらない。
-  - 解決できる NodeId → `active` の値（true・false の両方）になり、同じ値を 2 回送っても同じ値のまま。対象は root、子、親が非アクティブな子の 3 種で、結果の `nodeId`・`name`・`activeSelf` が実際と一致し、他の fixture の activeSelf は変わらない。名前に `"` を含む GameObject でも結果が JSON として読める。
+  - 解決できる NodeId → `active` の値（true・false の両方）になり、同じ値を 2 回送っても同じ値のまま。対象は root、子、親が非アクティブな子の 3 種で、結果の `nodeId`・`name`・`activeSelf` が実際と一致し、他の fixture の activeSelf は変わらない（fixture は `OnEnable` / `OnDisable` で他を変える component を持たない）。名前に `"` を含む GameObject でも結果が JSON として読める。
   - `active` が文字列・null の代表入力: 結果（拒否なら activeSelf 不変、適用なら結果の activeSelf が実値と一致）と観測を `TestContext` に残す。README の記述と食い違えば C が見つけられる。
   - 実 Editor（§5.4 V5）: 今の hierarchy に無い NodeId で送ると `rejected: node-not-found`（exit 1）で、X の activeSelf が変わらない。
 - **AC2（E1）:** 実 Editor（§5.4 V1〜V4、1 回の Play の中）で X を false にしてから true に戻し、各回で CLI の `success=true`、結果の値、Editor の独立値、`inspect` の rawValue が一致し、false の間も hierarchy に同じ NodeId で出る。root の構成が §1.6 の R1 と同じ。GUI のボタンを押さない。不合格例: eval で GameObject を作った、途中で WPF を再起動した、Play を開き替えた scene で行った。
@@ -266,6 +268,15 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。新しい入力
 | P3 | 目的: 1 つだけ変わる、非アクティブ後も同じ NodeId で出る、冪等な設定、通常の Play で動く、asset を Dirty にしない | 既に満たす | I1・AC1（他の fixture 不変、2 回送る）、E1・AC2（false の間も同じ NodeId、何も生成しない）、§5.4 V6（Scene clean・tracked 変更なし） |
 | P4 | 目的: 存在しない NodeId・破棄済み・Play 中でない・未接続を出力で機械的に区別する | 既に満たす | 前 2 つは `rejected: node-not-found`（AC1）。後 2 つは既存の CLI の接続失敗で、`CommandResult` の行が無い終わり方として I2 の結果不明に入る。新しい区別（outcome・exit）は §1.3 の対象外 |
 | P5 | 目的: 作らないもの（新 CLI コマンド・WPF 画面、名前等での選択、一括、汎用書き込み、トグル・Undo・履歴、生成・削除、Player・遠隔、永続化、確認・dry-run、自動追従・push、待ち合わせ API） | 既に満たす | 計画はどれも作らない（§1.3、§2.7）。計画が作るもので目的レビューが要らないとしたものは無い |
+
+**外部計画レビュー（PR #204 head `1e4581ac`、[コメント](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/204#issuecomment-7090475918)）の採否:** 目的の修正と設計方針を支持し、次の 2 点を直せば凍結を支持するとした。
+
+| # | 指摘 | 採否 | 反映・理由 |
+|---|---|---|---|
+| X1 | I1 の「変わるのはその GameObject 1 つだけ」は任意の既存 GameObject では保証できない。`SetActive` が呼ぶ `OnEnable` / `OnDisable` のゲーム側コードが他を変えうる | 採用 | I1 を「handler が直接 `SetActive` を呼ぶのは解決した 1 つだけ、1 回だけ。拒否では呼ばない」に改め、ゲーム側の波及・再変更を保証外として README の項目に足した（§2.1 の 3）。AC1 の「他の fixture は変わらない」は副作用を持たない fixture での確認と明記した。受け入れ条件を減らす変更ではなく、主張を Unity の意味に合わせた |
+| X2 | Dispose 後 false の約束に対し、private lookup は `_disposed` を見ず、`Dispose()` は `_disposed` を立てた後に非同期で片付けるので古い対応表が残りうる | 採用 | 主担当が `DebugSocketService.cs:340-352` と `DebugSocketService.Inspector.cs:97-103` で事実を確かめた。§2.1 の 1 に、public wrapper が先に `_disposed` を見て false を返すことを書いた |
+
+- 再レビューの要否: X1 は I1 の主張の範囲を狭める書き換えで、設計・所有者・公開面を変えない。X2 は G2 で採用した契約の実装方法の明記。どちらも A2 観点の再レビューは要らない。
 
 - 目的・利用者の文言を問う指摘: なし（目的レビューのやり直しは不要）。
 - 再レビューの要否: G1・G2 は §2.1 と §3 の書き方の変更で、所有者・依存・公開面を増やさない（G2 は既存の公開面の契約を明記するだけ）。P1・P2 は README の文言の追加。どれも A2 観点の再レビューは要らない。
