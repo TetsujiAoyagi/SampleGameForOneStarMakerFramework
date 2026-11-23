@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `A`（Phase A の revision 0。A1 の初稿、A2 の独立レビュー、A3 の統合案、外部計画レビュー 2 巡の採否、§2.5 の owner の決定まで。**凍結していない**）
+- status: `A`（Phase A の revision 0 を凍結した。A1 の初稿、A2 の独立レビュー、A3 の統合、外部計画レビュー 2 巡の採否、§2.5 の owner の決定まで。次は Phase B）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: 未固定
-- A3 凍結記録: 未凍結
+- A3 凍結記録: 承認者 root（owner）。2026-11-24。対象は revision 0（この記録を含む commit の本書）。根拠: owner が会話で、§2.5 の (A)〜(F) を A3 の案のとおりと決め、外部計画レビュー 2 巡目の採否を確かめた後に凍結を指示した（2 巡目の判定は、1 巡目の 2 件は解消、新しい 1 件は実行の手順の補強で凍結を止めない、だった）。
 - risk: `high`（Framework の起動の段の順（`AbstractApplicationInitializer`、`BootstrapUiCommonLoader`）と SampleGame の Player の構成の判定、Player の build を変える。UICommon を Player の build から外した IL2CPP・High の Player は初めてで、独立して失敗しうる未知が複数ある（§5 の u1〜u7））
 - owner: root（依頼者）
 - created: 2026-11-24
@@ -22,12 +22,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（外部計画レビューの指摘の採否、owner の確認、owner の凍結判断）。
-  - 次の作業: (1) 追加の外部計画レビューがあれば、指摘を §5.1 の A3 の表へ採否として足す（設計・受け入れ条件を変えたら、影響する A2 観点の再レビューの要否と理由も書く）。(2) owner の凍結判断を受ける。凍結するなら A3 凍結記録・本票（次の担当を Phase B へ）・PR の状態ブロックを改めて、凍結版を commit する。§2.5 の (A)〜(F) は owner が決めた（2026-11-24）。
-  - 読む範囲: 全節。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: §4 の順序 (0)〜(7)。最初に、通常の task の開始（`pwsh tools/workflow-task.ps1 start`。taskId は担当が決めてこの欄の下の行に書く）と、(0) の u7 の疎通（§5。今ある S4-1 の遊べる Player で、AI の desktop の操作による click）を行う。出口では §6 を書き、implementation head 欄と本票（次の担当は発見 C。動作確認は `対象なし`）と PR の状態ブロックを改める。
+  - 読む範囲: 既定（§0〜§5）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 文書だけ。push は公開点の規則に従う。
-  - 停止規則: 目的・利用者の欄を変える指摘は owner が裁定し、変えたら目的レビューをやり直す（§5.1）。
+  - 必要な権限: Unity の Editor（開始 Scene の asset を作ることとコンパイル確認。[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) に従う）と、利用者の desktop の操作（u7 の疎通。画面の取り込みと mouse）。Unity の batch の test と build は実行しない（Phase C）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。u7 が成り立たない時は、AC6 の取り方の別の案を §6 に書いて owner に返し、AC6 に関わらない実装は続ける。C' は Grok の系列か人間に予約してあるので、Phase B に Grok の系列を使わない（§5）。
   - 引き渡さないもの: なし。
 - task の開始（`tools/workflow-task.ps1 start`）: 未実行。Phase A の担当は Windows の store root の無い Cloud の session で、実行できなかった。ローカルで引き継ぐ担当が行う。
 
