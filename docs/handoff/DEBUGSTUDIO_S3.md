@@ -3,26 +3,26 @@
 ## 0. メタデータ
 
 - type: slice
-- status: Phase C（revision 4 の発見 C 完了、阻害する指摘なし。次は判定 C）
+- status: Phase C 完了（revision 4 の判定 C 完了。次は C′）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: b3f105e14d1997deab5300448e67d8099b5a3b00
 - A3 凍結記録: owner が 2026-11-23 に「凍結して B へ」と承認。対象は revision 4（外部計画レビューの X1・X2 を反映したこの版）。次担当は Phase B。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（revision 4 の発見 C 完了）
+- created: 2026-11-20 / updated: 2026-11-23（revision 4 の判定 C 完了）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方と結果の読み方）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線と `TryGetHierarchyGameObject` の契約）
 - Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成（B は生成していない）。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 の判定 C と C′ の共通 bundle（GO 候補 head `b3f105e1`。凍結版 HANDOFF、B 結果、完全 diff、Git の原出力、両 audit、全 EditMode の生記録、§5.4 V0〜V6 の原記録。所見を含まない）を判定 C が生成した。ローカル固定済み（未昇格）、別 session の取得・閲覧を確認済み。取得案内は task の手元引渡し先（git 管理外）にあり、所見を含まないのでそのまま C′ の取得案内として渡せる。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は判定 C。
-  - 作業: implementation head を GO 候補 head として、§5.2 の判定必須テスト（最終の全 EditMode 回帰、contract-audit、docs-audit、AC3 の diff 確認、§5.4 の実機手順）を揃え、§5.5 のとおり原記録と期待を対にした表で §2.2 の I1〜I3・E1 を判定する。判定 C と C′ 用の evidence bundle を GO 候補 head から作る。発見 C（§7）は阻害する指摘なし。§7 の「判定 C への申し送り」のとおり、動作確認の Git 外の原記録には V3・V4 の send の stdout と eval の戻り値などがファイルとして無いので、元の出力を取得できなければ §5.4 V0〜V6 を取り直す。
-  - 全 EditMode の既知事項（主担当の追記）: 空 filter・描画なしの標準実行は VFX の 25 件が `GraphicsDeviceType.Null` で Inconclusive になり、Harness は exit 1 を返す。revision 3 の判定 C は標準と `-WithGraphics` の両方を同じ head で実行し、非 0 の終了を原記録のまま残して判定した（commit `d1d11e0c` の本 HANDOFF §7）。§5.2 の「読み替えの規則を置かない」はそのまま守り、両方の結果と理由を記録する。
-  - 読む範囲: 既定（§0〜§8）。
-  - 必要な権限: 専用 worktree（`osm-ds3-a2`、`b3f105e1` に detach、`unity/Library` は import 済み）での sandbox 外の `pwsh tools/run-tests.ps1` と Editor の起動・eval、Release の WPF・CLI の build と起動。共有 Editor は使わない。
-  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。高コスト証拠なし。判定必須と操作の証拠が GO 候補 head で揃うまで判定 C を完了と記録せず C′ を起動しない。
-  - 引き渡さないもの: C′ に発見 C・判定 C の所見を渡さない。
+- 引継ぎ票: 次は Phase C′（独立監査、1 巡目）。
+  - 作業: implementation base `9de34cc2`・head `b3f105e1` の上の共通 bundle（判定 C と同じもの）だけを入力に、凍結版 HANDOFF（bundle 内の `67f04618` 版）の I1〜I3・E1 と受け入れ条件 AC1〜AC4 に照らして独立に監査し、阻害する指摘と後続へ移送する指摘を分けて返す。同じテストの再実行は必須にしない。高コスト証拠なしなので、この C′ が最終 C′。
+  - 読む範囲: C′ は可変な本 HANDOFF も PR も読まない。入力は bundle の取得案内と bundle の中身だけ（bundle の `README-bundle.md` から始める）。
+  - 必要な権限: Artifact Storage の `fetch`（同じ PC、非仮想化の pwsh、Artifacts の Release build がある checkout から。network・資格情報は使わない）。Unity・実操作は要らない。
+  - 担当の条件: B・発見 C・判定 C はすべて同じ系列（Anthropic）なので、C′ は別の系列で新規 session にする（A2 で使わずに残した予約の系列がある。§5.1）。
+  - 停止規則: bundle の取得・hash 照合・閲覧ができなければ監査を始めず、理由を返す。凍結済み条件・常時契約への違反根拠の無い指摘でスコープを広げない。
+  - 引き渡さないもの: 発見 C・判定 C の所見と結論（本 HANDOFF §7）、PR の会話、可変な HANDOFF 全文。PR 状態ブロックには「判定 C 完了」の事実だけを書く。
 
 ## 1. 目的と対象外
 
@@ -388,6 +388,60 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし（実機手順・全 EditMode は実行していない）。
 - 未確認事項: なし（上の申し送りを除く）。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。B と同じ系列の担当で、`独立性制約あり`（Phase C は B と異なるモデルという条件を満たさない）。判定 C の担当は、可能なら B と異なるモデルにする。
+
+### 判定 C（revision 4、2026-11-23）
+
+- 種別: 判定。GO 候補 head = implementation head `b3f105e1`（base `9de34cc2`）。判定: **GO**（§2.6 の判定定義。I1〜I3・E1 を同じ head で満たす。理由は下の表と「全 EditMode の扱い」）。
+- 開始時の照合: 起動指示の引き継ぐ commit `ae2da35f` = この worktree（`osm-ds3`）の HEAD、clean。implementation head は HEAD の祖先で、`git diff --stat b3f105e1 HEAD` は本 HANDOFF だけ。PR #204 の状態ブロックの base / head は §0 と一致したが、引き継ぐ commit は `5114a59f` のままだった。`5114a59f..ae2da35f` は主担当が §0・§7 に申し送りを 2 行足した HANDOFF だけの commit 2 つで、起動指示が `ae2da35f` を明示していたので引き継いだ。PR の新着コメントは A3 外部計画レビュー（03:07Z）の後に無い。
+- 実行の場所: 判定必須の実行はすべて専用 worktree `osm-ds3-a2`（HEAD `b3f105e1` に detach、clean）で行い、各原記録に HEAD と clean を残した。動作確認・発見 C の観測は判定の入力にしていない（§5.4 をこの担当が取り直した）。共有 Editor・他 checkout の Unity には触れていない（実行中に別 checkout `SampleGameForOneStarMakerFramework` で他 session の Unity テストが動いていたが、操作していない）。
+- 使用した evidence bundle の取得案内・状態: 判定 C と C′ の共通 bundle（34 file。凍結版 HANDOFF `67f04618`、B 結果の HANDOFF `b3f105e1`、Harness README、完全 diff と Git の原出力、両 audit、全 EditMode 4 run の XML・log・step、§5.4 V0〜V6 の原記録 `ops.zip`、run ごとの executor-note。所見は含まない）。ローカル固定済み（未昇格）。取得案内は task の手元引渡し先（git 管理外）にある。この会話の文脈を持たない別 session が案内のとおり fetch して passed、必須の file を閲覧できた。
+
+#### 照合表（原記録と期待。期待は eval の独立値と §2.1・§5.4 から導いた）
+
+原記録はすべて bundle の `ops.zip` の中の file（時刻は 2026-11-23 UTC）。
+
+| 条件 | 原記録 | 期待 | 観測 | 一致 |
+|---|---|---|---|---|
+| V0 | `V0-git.txt`、`V0-build-*.txt`、`V0-editor-preplay.txt`、`wpf.log` | HEAD=head、clean、build exit 0、Untitled・dirty なし | HEAD `b3f105e1`、porcelain 空。App・CLI とも exit 0・警告 0。Editor 6000.6.9f1、compileFailed=False、scene name・path 空、dirty=False、root `Main Camera`・`Directional Light`（active）。WPF `--listen` PID 32916 | ○ |
+| V1（E1 の root 構成） | `V1-play.txt`、`V1-poll.txt`、`V1-hierarchy.json` | 60 秒以内に hasSnapshot、root は §1.6 R1 と同じ | `editor_play` 03:55:48Z、4 回目（03:55:56Z）で hasSnapshot=true。1 `Main Camera`、2 `Directional Light`、3 `[UICommon]`（子 4〜7）。N=2 | ○ |
+| V2 | `V2.txt`、`V2-inspect.json` | 名前で 1 件、activeSelf と rawValue が一致 | count=1、EX=3298534919789、activeSelf=True。inspect exit 0、rawValue `"true"` | ○ |
+| V3（E1・AC2） | `V3-send.out/.err`、`V3.txt`、`V3-inspect.json`、`V3-hierarchy.json` | exit 0、`success=true message=applied`、`{"nodeId":2,"name":"Directional Light","activeSelf":false}`、EX=False、rawValue `"false"`、N が残る | exit 0、stdout が期待の 2 行、stderr 空。EX activeSelf=False（count 1）。rawValue `"false"`。hierarchy revision 2 に node 2 が flags `SceneRoot`（ActiveSelf なし）で出る | ○ |
+| V4（E1・AC2） | `V4-*`、`V4.txt` | V3 と同じで true | exit 0、`{"nodeId":2,"name":"Directional Light","activeSelf":true}`、stderr 空。EX=True。rawValue `"true"`。revision 3 で node 2 が `ActiveSelf, ActiveInHierarchy, SceneRoot`、最大 NodeId 7 | ○ |
+| V5（I1・AC1 の実機） | `V5-send.err`、`V5.txt` | M=7+1000=1007、exit 1、stderr に `success=false message=rejected: node-not-found`、EX 不変 | exit 1、stdout 空、stderr が期待の行。EX activeSelf=True、rawValue `"true"`、hierarchy は revision 3 のまま | ○ |
+| V6 | `V6-stop.txt`、`wpf.log`、`V6-editor-after.txt`、`V6-git-before-exit.txt`、`V6-editor-exit.txt`、`editor-open.log`、`V6-post-exit.txt` | Play 停止、WPF 通常終了、Scene clean、tracked 変更なし | `editor_stop` 成功。CloseMainWindow=True、handle signal、exit 0。Untitled dirty=False、`Assets/` の Dirty asset 0、porcelain 空。Editor は eval の `EditorApplication.Exit(0)`（応答は `Invalid response format`。動作確認と同じ）で終了し `unity open` exit 0、process・Lockfile なし、porcelain 空 | ○ |
+
+- AC2 の不合格例に当たる操作はしていない（eval は読取りだけ、WPF は 1 回の起動のまま、scene は開き替えていない、GUI のボタンは押していない）。
+
+#### 条件ごとの判定
+
+- **I1:** AC1 の `SetActiveDebugCommandTests` 25 件が全 4 run（限定の recheck を除く 3 回の全件）で Passed。実機の V5 は拒否で X が不変。静的にも拒否はすべて `SetActive` より前の `Fail`、invalid-payload では解決を呼ばず、`SetActive` は解決した 1 つに 1 回（`SetActiveDebugCommand.cs` の `Execute`・`Apply`）。非 bool の `TestContext` の観測は `"false"`→false、`"true"`→true、`null`→false（初期値 true・false の両方）で、どれも applied、結果の activeSelf と実値が一致。成立。
+- **I2 / AC4:** CLI README は §2.1 の 3 の 8 項目、payload の形・送信例・結果の形を持ち、§5.4 のコマンドと一致する。timeout を未実行と書かず、自動再送しないと書き、非 bool を拒否するとは書かない。`SetActiveDebugCommand` の XML コメントも同じ。成立。
+- **I3 / AC3:** `git diff --stat 9de34cc2 b3f105e1 -- tools/DebugStudio protocol` は `DebugStudio.Cli/README.md` の +25 行だけ。SampleGame の差分の `new GameObject` は `SetActiveDebugCommandTests.cs` の 2 箇所だけで、`Instantiate` は無い。`Register_NotEditor_DoesNotRegister`・`Register_InEditor_RegistersAndReadsDebugSocketAtExecution`・`DebugSocketServiceHierarchyLookupTests`（Dispose 後 false）が全 run で Passed。Framework の変更は §2.1 の 1 の 2 つだけ。contract-audit errors 0・warnings 0（exit 0）、docs-audit errors 0（exit 0。警告 2 件は検査 3 の既知の誤検出）。全 EditMode は下のとおり。成立。
+- **E1:** 上の表の V1〜V4。成立。
+
+#### 全 EditMode の扱い（§5.2。どの run も Harness の成功とは記録しない）
+
+| run | コマンド（すべて `osm-ds3-a2`、HEAD `b3f105e1`） | XML | step | Unity の終了 |
+|---|---|---|---|---|
+| std | `pwsh tools/run-tests.ps1 -OutputRoot <Git 外>` | Passed、total 2270、passed 2243、failed 0、inconclusive 25、skipped 2 | failed、exit 1（Inconclusive あり） | XML 完成（04:13:44Z）後も PID が CPU 1 core で生存。停止規則に従い原因調査せず、04:21:32Z にその PID だけ CIM Terminate（強制終了。自然終了ではない） |
+| gfx | `pwsh tools/run-tests.ps1 -WithGraphics -OutputRoot <Git 外>` | Failed(Child)、total 2270、passed 2267、failed 1、inconclusive 0、skipped 2 | failed、exit 1 | 自然終了、Unity exit 2 |
+| gfx-recheck | `... -WithGraphics -Filter ContentOverlayBuildAndReuseTests` | Passed、22 件すべて | passed、exit 0 | 自然終了、exit 0 |
+| gfx2 | `pwsh tools/run-tests.ps1 -WithGraphics -OutputRoot <Git 外>`（もう 1 回） | Failed(Child)、total 2270、passed 2266、failed 2、inconclusive 0、skipped 2 | failed、exit 1 | std と同じ形で生存、05:02:00Z に CIM Terminate（強制終了） |
+
+- Inconclusive 25 件はすべて `SampleGame.Tests.Rendering.Vfx`（`GraphicsDeviceType.Null`）で、gfx・gfx2 では VFX 73 件すべて Passed。skipped 2 件は `OverlayFromLocalEditsR8Tests` の `[Explicit]`。compile error はどの run も 0。
+- gfx・gfx2 の failed 3 件（gfx: `ContentOverlayBuildAndReuseTests...("OutcomeFailed")`、gfx2: `...RecordReplaceFails_BuildStaysSuccessful_AndTheExistingRecordIsKept`、`OverlayFromLocalEditsIntegrationTests.R0ToR7_...`）は、どれも `BuildContentCoordinator.Build` が `TestResults\bs3-fixture\…\staging\…` を `Directory.Move` で移すところの `IOException: Access … is denied`。3 件ともほかの run では Passed。この経路（`OneStarMaker/Scripts/Editor/Build/` と同 Tests）は base..head の差分に無い。同じ失敗は `docs/handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md`（BuildSystem 側の入力。S3-1 で全 EditMode 5 回のうち 3 回）と `docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md` に、原因未確定の既存の断続的な失敗として記録されている。原因は調べていない。
+- 判断: 判定必須の全 EditMode は空 filter で 3 回、全件（2270、executed 2268）を収録して実行した。この差分が持ち込んだ失敗は無い（failed はすべて差分の外の既知の経路で、同じテストが同じ head のほかの run で通る。スライスのテスト 31 件は全 run で Passed）。どの凍結済み条件・常時契約への違反も示さないので、現在の問いを阻害する指摘にしない。§5.2 の「読み替えない」はそのまま守り、各 run の非 0 の終了と強制終了を原記録のとおり残す。
+- 判定必須のうち未実行: なし。
+
+#### findings
+
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings:
+  - J1（既存、所有は BuildSystem 側）: 上の staging の `Directory.Move` の断続的な access denied が、`-WithGraphics` の全 EditMode 2 回で 1 件・2 件出た。`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の既存の入力と同じもので、新しい項目は足さない。
+  - J2（既存、既知リスク）: 全 EditMode の終了時の native stall が 3 回の全件のうち 2 回（std・gfx2）で出た。`tools/Harness/README.md` の停止規則のとおり調査しておらず、受け入れている既知のリスクとして記録する。
+  - 発見 C の F1・F2 は判定に影響しない（どちらも凍結済み条件に違反しない。F1 の `"true"` の実測は今回の XML でも同じ）。
+- 未確認事項: なし。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。B・発見 C と同じ系列の担当で、`独立性制約あり`（Phase C は B と異なるモデルという条件を満たさない。起動指示のとおり記録）。判定 C の実行担当と判断担当は同じ session。
 
 ## 8. Phase C'
 
