@@ -23,6 +23,7 @@
 - 引継ぎ票:
   - 次の Phase・役割: Phase D（マージ判断。owner）。
   - 次の作業: 実装の push（公開点。owner の承認を得てから）と PR 本文の変更内容・状態ブロックの更新。その後、§7 の判定 C と §8 の C' を突き合わせ、Evidence の保存・引渡し（判定用と C' blind の 2 bundle は未昇格）を確かめ、harvest（§0 の harvest to）と本書の削除を行い、task を終える。§7 の J1・J2 と §8 の CP1 は後続の入力で、本スライスを広げない。
+  - PR の新着（head `1c4f04d7` 宛て、2026-11-23）への対応: いずれも阻害しない。(a) owner のレビューのインライン（`PlayerOverlayVerdict.cs` の `ValidatePlayer` が、header の pid と launcher の pid の一致、`platform` が `WindowsPlayer`、graphics device の有無を照合しない。AC8）は、harness を Phase D で消すので code を直さず、生の証拠での全件照合で閉じる。進行役が 2026-11-23 に C' blind bundle の `pov-run` の写しで照合し、launcher の file の 18 entry の全てで header の `pid` が launcher の `Pid` と一致、`platform` が `WindowsPlayer`、`graphics` が `Direct3D11`、`label` も一致した（18/18）。Phase D は §9 にこの照合を記録し、インラインに返信する。(b) cursor[bot] と owner のレビューが挙げた、2 bundle の保存・引渡しの確認、J1・J2・CP1 を追跡できる形で残すこと、PR 本文の末尾の「検証」（「Unity では何も実行していません」のまま）を最終の head に合わせることは、Phase D の作業に含める。spike の code と本書の削除の commit より前にはマージしない。
   - 開始時の照合: 自分の HEAD がこの票を含む commit で、作業ツリーが clean、ブランチが `claude/player-overlay-registration-spike` であること。implementation head 欄の SHA が HEAD の祖先で、`git diff --stat <implementation head> HEAD` が本書だけであること。
   - 読む範囲: 既定（§0〜§9）。
   - 引き継ぐ commit: この票を含む commit（C' の記録 commit。SHA は PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
