@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
 using SampleGame.DependOnAll.Editor.Build;
@@ -336,12 +337,24 @@ namespace OneStarMaker.Tests.Editor.Build
                 return true;
             }
 
+            /// <summary>
+            /// 主窓へ WM_CLOSE を post する（窓の × と同じ要求）。.NET の Process.CloseMainWindow の定義の動作だが、
+            /// test が動く Unity 同梱の Mono の CloseMainWindow は TerminateProcess(handle, -2) で強制終了するので使わない。
+            /// 主窓が無い（handle 0）か post に失敗した時は closeMessageSent を偽として record に残す。
+            /// </summary>
             internal void RequestClose()
             {
                 _process.Refresh();
+                var window = _process.MainWindowHandle;
                 Record.closeRequestedUtc = Utc(DateTime.UtcNow);
-                Record.closeMessageSent = _process.CloseMainWindow();
+                Record.closeMessageSent = window != IntPtr.Zero && PostMessage(window, WmClose, IntPtr.Zero, IntPtr.Zero);
             }
+
+            private const uint WmClose = 0x0010;
+
+            [DllImport("user32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
             internal void ReadLog()
             {
