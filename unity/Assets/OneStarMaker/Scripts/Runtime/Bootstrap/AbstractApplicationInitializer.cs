@@ -350,7 +350,13 @@ namespace OneStarMaker.Runtime
                 ct = _cts.Token;
                 // 旧リモート Addressables catalog 追加ロードは通常起動から外した（LegacyRemoteCatalogProbe に隔離）。
 
-                if (_contentDirectoryConfiguration != null && !UseRequiredPlayerFileConfiguration)
+                // 登録の位置・UICommon の規則・map の読み口を 1 回で決める。種類は検証済みの baked（RouteFirstScene と同じ値）。
+                // try の中で決めるので、baked が無い・directory の無い遊べる Player は、ここで起動の失敗の経路に乗る。
+                progress.Stage = "plan-bootstrap";
+                var bootstrapPlan = BootstrapSourcePolicy.Plan(
+                    UseRequiredPlayerFileConfiguration, ReadBakedPlayerKind(), _contentDirectoryConfiguration != null);
+
+                if (bootstrapPlan.RegisterContentFirst)
                 {
                     progress.Stage = "register-content-directory";
                     await InstallConfiguredContentDirectoryAsync();
@@ -359,11 +365,14 @@ namespace OneStarMaker.Runtime
                 progress.Stage = "load-ui-common";
                 Debug.Log("[AppInit] AfterSceneLoad: loading UICommon.");
                 _uiCommonLoader = new BootstrapUiCommonLoader();
-                var uiCommon = await _uiCommonLoader.LoadAsync(_assetManagement!, new BootstrapUiCommonSource(
+                var uiCommonLoad = await _uiCommonLoader.LoadAsync(_assetManagement!, new BootstrapUiCommonSource(
                     _contentDirectoryConfiguration != null,
-                    () => UseRequiredPlayerFileConfiguration,
+                    bootstrapPlan.UiCommonRule,
                     GetDirectoryBootstrapSceneLogicalKey,
                     GetUICommonPrefabAddress));
+                var uiCommon = uiCommonLoad.UICommon;
+                // 起動の順と読んだ先を外から読む印（Editor と 2 つの種類の Player のどれでも出す）。
+                Debug.Log($"[AppInit] Bootstrap UICommon: source={BootstrapSourcePolicy.FormatOrigin(uiCommonLoad.Origin)}");
 
                 progress.Stage = "wait-ui-common-ready";
                 await uiCommon.WaitForPanelReadyAsync(UseRequiredPlayerFileConfiguration, ct);
@@ -372,11 +381,14 @@ namespace OneStarMaker.Runtime
 
                 progress.Stage = "load-scene-resource-map";
                 Debug.Log("[AppInit] AfterSceneLoad: loading SceneResourceMap.");
-                _sceneResourceMap = UseRequiredPlayerFileConfiguration
-                    ? LoadPlayerSceneResourceMap()
-                    : _contentDirectoryConfiguration != null
-                        ? await LoadDirectorySceneResourceMapAsync()
-                        : await LoadSceneResourceMapAsync();
+                _sceneResourceMap = bootstrapPlan.MapSource switch
+                {
+                    BootstrapMapSource.PlayerResources => LoadPlayerSceneResourceMap(),
+                    BootstrapMapSource.Content => await LoadDirectorySceneResourceMapAsync(),
+                    BootstrapMapSource.Addressables => await LoadSceneResourceMapAsync(),
+                    _ => throw new InvalidOperationException("Unknown SceneResourceMap source."),
+                };
+                Debug.Log($"[AppInit] Bootstrap SceneResourceMap: source={BootstrapSourcePolicy.FormatMapSource(bootstrapPlan.MapSource)}");
 
                 if (_assetManagement == null || _cts == null)
                 {
@@ -846,6 +858,10 @@ namespace OneStarMaker.Runtime
             }
             _contentDirectorySession = session;
             WarnOnDeclarationMismatch(session.Declaration, configuration.Representation);
+            // 登録の位置を外から読む印（Editor と 2 つの種類の Player のどれでも、登録に成功した時に 1 回）。
+            // installed は検証済みの pair、directory は path の指定（Player の同梱の directory を含む）。
+            Debug.Log($"[AppInit] Content directory registered: identity={session.BuildIdentity} " +
+                      $"from={(configuration.VerifiedRevision != null ? "installed" : "directory")}");
         }
 
         /// <summary>
@@ -935,7 +951,7 @@ namespace OneStarMaker.Runtime
         {
             var logicalKey = GetDirectoryBootstrapMapLogicalKey();
             if (string.IsNullOrEmpty(logicalKey))
-                throw new InvalidOperationException("Directory Editor Play requires a bootstrap SceneResourceMap logical key.");
+                throw new InvalidOperationException("Content directory startup requires a bootstrap SceneResourceMap logical key.");
             var handle = await _assetManagement!.LoadContentAssetAsync<SceneResourceMap>(
                 logicalKey,
                 "Full",
@@ -1134,10 +1150,16 @@ namespace OneStarMaker.Runtime
         /// <summary>SceneResourceMap の Addressable アドレスを返す。</summary>
         protected abstract string GetSceneResourceMapAddress();
 
-        /// <summary>Editor directory Play が Content Directory から読む UICommon Scene の logical key。</summary>
+        /// <summary>
+        /// 登録した Content Directory から読む UICommon Scene の logical key。Editor の directory Play と、content が先の順の Player
+        /// （遊べる Player）が、UICommon を content から読むと決まった後にだけ呼ぶ。
+        /// </summary>
         protected virtual string GetDirectoryBootstrapSceneLogicalKey() => string.Empty;
 
-        /// <summary>Editor directory Play が Content Directory から読む SceneResourceMap の logical key。</summary>
+        /// <summary>
+        /// 登録した Content Directory から読む SceneResourceMap の logical key。Editor の directory Play と、content が先の順の Player
+        /// （遊べる Player）が呼ぶ。写しの順の Player（動作確認の Player）は <see cref="LoadPlayerSceneResourceMap"/> を使う。
+        /// </summary>
         protected virtual string GetDirectoryBootstrapMapLogicalKey() => string.Empty;
 
         /// <summary>ローディング表示の実装を返す。</summary>
@@ -1150,13 +1172,23 @@ namespace OneStarMaker.Runtime
         protected virtual string GetConfigFilePath()
             => string.Empty;
 
-        /// <summary>Player の構成（動作確認・遊べるの両方）だけが Addressables 前に必須 plain JSON を読む。</summary>
+        /// <summary>
+        /// Player の構成（動作確認・遊べるの両方）だけが Addressables 前に必須 plain JSON を読む。
+        /// <para>
+        /// 契約: <c>BeforeSceneLoad</c> が始まってから同じ起動の間は、副作用なしに同じ値を返す。Framework は起動の間に何度でも、
+        /// どの時点でも読む（<c>BeforeSceneLoad</c> で baked を読むかを決め、<c>AfterSceneLoad</c> の最初に起動の順を決め、その後も読み直す）。
+        /// 値が途中で変わると、baked の有無と起動の順と失敗の通知が食い違う。
+        /// </para>
+        /// </summary>
         protected virtual bool UseRequiredPlayerFileConfiguration => false;
 
         protected virtual string GetRequiredPlayerConfigurationPath()
             => throw new InvalidOperationException("A Player configuration path is required.");
 
-        /// <summary>Player package に複写した graph metadata を返す。source/AssetDatabase は使わない。</summary>
+        /// <summary>
+        /// Player package に複写した graph metadata を返す。source/AssetDatabase は使わない。
+        /// 写しの順の Player（動作確認の Player）だけが呼ぶ。遊べる Player は content から読む（<see cref="GetDirectoryBootstrapMapLogicalKey"/>）。
+        /// </summary>
         protected virtual SceneResourceMap LoadPlayerSceneResourceMap()
             => throw new InvalidOperationException("A Player scene resource map is required.");
 
