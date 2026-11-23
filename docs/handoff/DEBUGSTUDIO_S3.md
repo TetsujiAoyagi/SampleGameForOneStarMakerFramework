@@ -3,24 +3,24 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 動作確認（revision 4 の Phase B 完了）
+- status: 動作確認（revision 4 の動作確認完了。次は発見 C）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
-- implementation head commit: この票を含む commit
+- implementation head commit: b3f105e14d1997deab5300448e67d8099b5a3b00
 - A3 凍結記録: owner が 2026-11-23 に「凍結して B へ」と承認。対象は revision 4（外部計画レビューの X1・X2 を反映したこの版）。次担当は Phase B。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（revision 4 の Phase B 完了）
+- created: 2026-11-20 / updated: 2026-11-23（revision 4 の動作確認完了）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方と結果の読み方）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線と `TryGetHierarchyGameObject` の契約）
 - Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成（B は生成していない）。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は動作確認（Phase B の後）。
-  - 作業: implementation head で §5.4 の V0〜V6 を各 1 回軽く行い、書き込み経路（登録・解決・適用）が実 Editor で成り立つかを確かめる。結果を動作確認の欄に書き、次の担当（発見 C）への票を書く。成り立たなければ待受け・接続、登録、解決、適用のどこかを分けて B へ戻す（§5.3）。
-  - 読む範囲: 既定（§0、§5、§6）。期待の導出に §2.1 の 2・3 と §2.2 E1 を読む。
-  - 必要な権限: 専用 worktree での自分で開いた Editor の Play と eval（独立値の読取りだけ）、Release の WPF・CLI の build と起動。Unity テスト・Build は行わない。
-  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
+- 引継ぎ票: 次は発見 C。
+  - 作業: implementation head の差分（implementation base からの差分）を、§3 の責務マップ・§2.2・§2.3 に照らして発見レビューする。動作確認（§6 の「動作確認」）は V0〜V6 を実施し、期待との差は無かった（`未実施` なし）。対象 head は implementation head と同じで、B 以外の session の生の観測。
+  - 読む範囲: 既定（§0〜§8）。
+  - 必要な権限: 専用 worktree での Unity テストの実行（起点の `-Filter` は §5.2）、Release の WPF・CLI の build。共有 Editor は使わない。
+  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。明確な差し戻しが決まった段階で最終判定用の検証一式を実行しない。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -342,6 +342,22 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
   - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（exit 0）。
   - `pwsh tools/docs-audit.ps1`: errors 0（exit 0）。警告 2 件は検査 3 の既知の誤検出（この HANDOFF の §7・§8 は「未着手」の行で埋まって見える）と別の HANDOFF。
 - 未実行: Unity テスト（EditMode 全体と `-Filter`）、Release build、実機手順（§5.4）。Phase B の権限の外（revision 4 の B の票と `osm-unity-editor` の制約）で、動作確認と Phase C が行う。
+
+### 動作確認
+
+- 対象 head: `b3f105e1`（implementation head）。専用 worktree `osm-ds3-a2` をこの SHA に detach（clean、`unity/Library` は A0 で import 済み）。
+- 実行担当・環境: B とは別の session（Claude Opus 5.5、Anthropic）。Editor 6000.6.9f1 をこの担当が `unity open` で起動し（開始 03:38:57Z、他の Unity Editor・DebugStudio の process が無いことを CIM で確認）、Play 前に compile 失敗なし、開いていた scene は Untitled（name・path 空）、dirty=False、root は `Main Camera`・`Directional Light`（どちらも active）。時刻は 2026-11-23 の UTC。
+- 生の観測（保存先は Git 外のローカル保全。この担当の scratchpad。コマンドごとの stdout / stderr / exit、hierarchy・inspect の JSON、eval の戻り値、WPF の終了記録）:
+  - V0: HEAD `b3f105e1`、clean。Release build は App・CLI とも exit 0・警告 0。App の Release 出力を `--listen` で起動（PID 21296、03:41:45Z）。process handle を保持する host script から起動した。
+  - V1: `editor_play`（03:41:58Z、dialog・中止なし）。`hierarchy` の 1 回目（03:42:06Z）は exit 1（stderr 空）、2 回目（03:42:08Z）で `hasSnapshot: true`、revision 1、captured 03:42:06.789Z（Play 開始から約 8 秒）。root は 1 `Main Camera`、2 `Directional Light`、3 `[UICommon]`（子 4 `EventSystem` → 5 `UISystemPanelSettings`、6 `UIPanel`、7 `3DCanvasParent`）で、§1.6 R1 と同じ構成。N = 2。
+  - V2: eval で読み込み済み scene（Untitled と `UIScene`）の root の `Directional Light` は 1 件、EX = 7696581431017、activeSelf=True。`inspect 2` は exit 0、`GameObject.ActiveSelf` の rawValue `"true"`。
+  - V3: `send --command debug.set-active --payload '{"nodeId":2,"active":false}'` → exit 0、stdout `CommandResult request=debug.set-active-1795405361375-… success=true message=applied` と `{"nodeId":2,"name":"Directional Light","activeSelf":false}`、stderr 空。eval: EX の activeSelf=False（同名 1 件）。`inspect 2` の rawValue `"false"`。`hierarchy` は revision 2 で NodeId 2 `Directional Light` が flags `SceneRoot`（`ActiveSelf`・`ActiveInHierarchy` なし）で出る。他の node は V1 と同じ。
+  - V4: `'{"nodeId":2,"active":true}'` → exit 0、stdout `success=true message=applied` と `{"nodeId":2,"name":"Directional Light","activeSelf":true}`、stderr 空。eval: EX の activeSelf=True。`inspect 2` の rawValue `"true"`。`hierarchy` は revision 3 で NodeId 2 が `ActiveSelf, ActiveInHierarchy, SceneRoot`、最大 NodeId 7。
+  - V5: M = 1007。`'{"nodeId":1007,"active":false}'` → exit 1、stdout 空、stderr `CommandResult request=debug.set-active-1795405373942-… success=false message=rejected: node-not-found`。eval: EX の activeSelf=True（V4 と同じ）。`inspect 2` の rawValue `"true"`。`hierarchy` は revision 3 のまま。
+  - V6: `editor_stop`（03:43:01Z）。WPF に `CloseMainWindow`（戻り値 True、03:43:02.66Z）、保持 handle は signal（WaitForExit true）、実終了コード 0（03:43:02.82Z）。Play 停止後の Untitled は dirty=False、root は 2 つとも active、`Assets/` の Dirty asset 0。`git status` は変更なし（既知の `UniversalRenderPipelineGlobalSettings.asset` の差分も今回は出なかった）。Editor は自分で通常終了した: eval の `delayCall` 経由の `EditorApplication.Exit(0)` は idle のため動かず、直接の `EditorApplication.Exit(0)`（03:43:25Z。eval の応答は `Invalid response format`）で終了し、`unity open` は exit 0 で戻った。native stall なし、Lockfile なし、終了後も tracked の変更なし。
+- 検証経路の期待と違う観測と、B への差し戻し: なし。V3〜V5 の stdout / stderr / exit、結果の payload、eval の独立値、inspect の rawValue、hierarchy の NodeId 2 の有無は §5.4 の期待どおりだった。V1 の 1 回目の exit 1 は 60 秒の待ちの内側。
+- `未実施` の条件: なし。
+- PR 状態ブロック: 開始時点で PR #204 の状態ブロックは Phase A の出口（引き継ぐ commit `67f04618`）のままで、B の完了が反映されていなかった。起動指示が引き継ぐ commit `b3f105e1` を明示していたので、その SHA・HEAD・§0 の照合（implementation head は HEAD 自身で、HEAD^ との差分に `docs/handoff/` 以外がある）で引き継いだ。この出口で状態ブロックを更新する。push はしていない（`b3f105e1` とこの記録 commit は未 push）。
 
 ## 7. Phase C
 
