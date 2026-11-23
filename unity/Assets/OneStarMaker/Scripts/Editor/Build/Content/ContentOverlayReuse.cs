@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Materialization;
@@ -72,9 +73,19 @@ namespace OneStarMaker.Editor.Build.Content
         // 失敗は例外で返す。呼び手（coordinator）は成功した build を失敗にせず、理由を結果に写す。
         // 置き換えは 1 回の操作（File.Replace）で行い、既存の記録を先に消す段を持たない。途中で失敗しても既存の記録は
         // 前の bytes のまま読める（鍵が違うので、今の計画には返らない）。別名の file は成否によらず消しにいくが、その削除自体が
-        // 失敗すると残りうる。名前は contentSet ごとに 1 つで固定なので、残っても増えない。次の Write が書き込みまで進んでその path を
-        // 開ければ書き直すが、削除を拒んだ lock や読み取り専用が続いていれば残り続ける。TryGet は読まない。
+        // 失敗すると残りうる。その時は黙って残さず、別名を消せなかったことと別名の絶対 path を例外の文言に書く（呼び手は文言だけを
+        // 結果に写すので、内側の例外だけに置くと落ちる）。名前は contentSet ごとに 1 つで固定なので、残っても増えない。次の Write が
+        // 書き込みまで進んでその path を開ければ書き直すが、削除を拒んだ lock や読み取り専用が続いていれば残り続ける。TryGet は読まない。
         internal static void Write(string artifactsRoot, string contentSet, string key, BuildContentResult result)
+            => Write(artifactsRoot, contentSet, key, result, (temp, path) =>
+            {
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
+            }, File.Delete);
+
+        // 置き換え（別名 → 記録）と別名の削除を注入できる形。注入した操作はこの呼び出しだけのもので、test は両方の失敗を起こす。
+        internal static void Write(string artifactsRoot, string contentSet, string key, BuildContentResult result,
+            Action<string, string> replace, Action<string> deleteTemp)
         {
             var root = Path.GetFullPath(artifactsRoot);
             var content = Path.GetFullPath(result.ContentPath!);
@@ -91,20 +102,29 @@ namespace OneStarMaker.Editor.Build.Content
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             // 書きかけの記録を読まないよう、別名に書いてから置き換える。
             var temp = path + ".tmp";
+            Exception? failure = null;
             try
             {
                 File.WriteAllText(temp, JsonUtility.ToJson(record, true), new UTF8Encoding(false));
-                if (File.Exists(path)) File.Replace(temp, path, null);
-                else File.Move(temp, path);
+                replace(temp, path);
             }
-            finally
+            catch (Exception error) { failure = error; }
+
+            // 置き換えが成功していれば別名は普通は既に無い。成否によらず残った別名は消しにいく。
+            Exception? cleanup = null;
+            try { if (File.Exists(temp)) deleteTemp(temp); }
+            catch (Exception error) { cleanup = error; }
+
+            if (cleanup == null)
             {
-                // 置き換えが成功していれば別名は既に無い。失敗した時の書きかけは消しにいく。削除の失敗は握りつぶして元の失敗を隠さず、
-                // その時は別名が残る（上の通り）。
-                try { if (File.Exists(temp)) File.Delete(temp); }
-                catch (IOException) { }
-                catch (UnauthorizedAccessException) { }
+                // 別名が残らない時は今までどおり元の失敗だけを返す。
+                if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+                return;
             }
+            // 元の失敗も後片付けの失敗も結果から消さない。どちらの文言も、別名の path も、呼び手が写す Message に書く。
+            var remains = "the temporary reuse record file could not be deleted and remains at '" + temp + "': " + cleanup.Message;
+            if (failure == null) throw new IOException("The reuse record was replaced, but " + remains, cleanup);
+            throw new IOException(failure.Message + " Also, " + remains, new AggregateException(failure, cleanup));
         }
 
         // 鍵が同じで、前回の outcome が成功で、記録した成果物の file が全て同じ内容で残る時だけ前回の結果を返す。それ以外は null。
