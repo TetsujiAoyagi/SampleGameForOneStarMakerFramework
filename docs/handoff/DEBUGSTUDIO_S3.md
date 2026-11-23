@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: Phase C′ 完了（revision 4。判定 C は GO、最終 C′ は阻害する指摘なし。次は Phase D。決定記録 2 件は owner の裁定待ち）
+- status: Phase C′ 完了（revision 4。判定 C は GO、最終 C′ は阻害する指摘なし。次は Phase D。決定記録 DR-1・DR-2 は裁定済み）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: b3f105e14d1997deab5300448e67d8099b5a3b00
@@ -456,4 +456,7 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
 
 ## 9. Phase D
 
-revision 4 では未着手。
+### 決定記録（版 1、2026-11-23、判定 C・最終 C′ の後に適用）
+
+- **DR-1（§8 CP1、判定 C の J1・J2）:** owner の裁定。原文「既知のそこら辺の失敗はNOGO出してきても人間判断で受容っすねー」（2026-11-23）。全 EditMode の非 0（content build の `Directory.Move` の access denied、`-nographics` の VFX Inconclusive 25 件、終了時の native stall による強制終了）は差分外の既知事象として人間の判断で受容し、§2 の合否に影響させない。§5.2 の「読み替えの規則を置かない」は変えず、原記録は非 0 のまま残す。修正の所有は content build（`PLAY_CONTENT_RESOLUTION_PROGRAM.md` に記録済み）と VFX テストの側。
+- **DR-2（§8 CP2）:** owner の裁定（原文「案通りでpush」、2026-11-23）。AC3 の「SampleGame の差分に `new GameObject`・`Instantiate` が無い」は製品コードと実機が対象で、AC1 が求める EditMode fixture（`SetActiveDebugCommandTests.cs` の 2 行）は含めない。AC3 の合否は変わらない。
