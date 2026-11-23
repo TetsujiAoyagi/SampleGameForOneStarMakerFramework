@@ -167,6 +167,9 @@ root と依存閉包を照合し、欠損・衝突を build 前の構造化 issu
 - 固定 target は StandaloneWindows64 Player（`BuildContentCoordinator.TargetName` は `StandaloneWindows64-Player`）。
   `artifacts/bs2b/work/StandaloneWindows64-Player/<content-set>/` を再 build 用 workspace とし、成功した directory 一式を build identity ごとの
   `artifacts/bs2b/content/<identity>/` へ staging を経て公開する。失敗成果物は成功 path として返さない。
+  staging → final の同じ volume の移動（`ContentStagingMove`）は、Windows の一時的な lock の失敗（access denied・共有違反・lock 違反）の後、
+  `staging` があり `final` が無い時に限って移し直す（変更の通知を受けて file を開く監視の一瞬の open に耐えるため。状態から成功を推定しない）。
+  待ちは 50 ms ごとで合計 2,000 ms・試行 41 回を超えず、上限を超えたら最後の失敗を内側に持つ `IOException` で失敗する。
 - build mode（`BuildContentRequest.Mode`、既定 `Incremental`）。`Full` は adapter を呼ぶ前に workspace の中身を消す
   （workspace 自体は残す）。approved root から workspace までの各 segment と中の directory に reparse point
   （junction・symbolic link 等）が 1 つでもあれば、何も消さずに build 前の失敗にする。他 process の lock で
@@ -348,6 +351,7 @@ publish は outcome の `buildMode` が `Full` の result だけを受け付け�
 publish 先も staging も作らずに `InvalidOperationException` で拒否する。staging は
 `<final の親>/.staging/<guid32>` に作り、staging の各 path が final の同じ file の path より長くならないようにする
 （同じ volume の move で確定し、失敗時は staging だけを消す）。
+move は coordinator と同じ `ContentStagingMove` を通り、同じ条件と上限で移し直す。
 BuildReport の内容を配信層で独自に再検証するものではない。manifest の `files` は配信する content subtree の
 完全な集合であり、各 path、size、SHA-256 を記録する。`sourceFiles` は build 時の選択依存閉包（file と `.meta`）を
 path/hash で案内する metadata で、手元の編集から上書きを決める Editor の計画の比較の相手でもある。転送先 path、Unity load identity、
@@ -488,6 +492,7 @@ Scene payload ではない asset（`.vfx`、共有 material 等）は、所有�
   - 局所の整理: `ContentDeliveryPlayBridge.Reset` の Play 状態の検査が `isPlayingOrWillChangePlaymode` だけで、`Apply` と揃っていない（`ExitingPlayMode` の窓で明示の Reset が通る）。`SampleGameBuildPurposes.FirstSceneOf` が `public`（呼び手は同じ asmdef）。`PurposeLaunchSettings` と `ContentDeliveryPlayBridge` が class の間で互いを参照する。Play As の app-config の下位の層の検査は相対 path で読み、file が無ければ空として通す。宣言の照合（`CompareDeclaration`）は記録側の重複 key と手元の別 key の欠落の組を通す（今の宣言の形では起きない）。`OnUpdate` が手で戻す ledger の間も毎 update で JSON を parse する。menu の経路で、直せない拒否より先に Scene を閉じる・ledger を戻す dialog が出る。
   - 既定 cache root の `installed/<contentSet>` が空になっていた観測（From published directory の検証 Play の後。install は成功していた）: 元の観測の手順と、見た root の絶対 path は残っておらず、事後に因果は確定できない。事実として、既定 cache root（`%LOCALAPPDATA%\OSM\ContentCache`）には空の `installed\spring-full` だけがあり、その子の作成・更新時刻が同じ日の EditMode 全件回帰で `PublishedDirectoryReceiveTests` の既定 root への install のテストが走った時刻と一致した。このテストは既定 root に `spring-full/<テスト用 revision>` を install し、teardown で自分の revision だけを消すので、空の `spring-full` が残る。最有力の仮説は、テストが既定 root に残した跡を From published directory の結果と読み違えたこと。install した revision の寿命は [§13「DIST transport と disk cache の境界」](13-resource-system.md#dist-transport-と-disk-cache-の境界) のとおり、次の install の容量確保と明示の Evict でだけ消え、Play の終了・ledger の Reset・窓を閉じることでは消えない。S-5 の W-6（検証済み installed revision だけを登録）の前提とは、この条件つきで矛盾しない。テストは既定 root へ install しないように直した（`EmptyCacheRoot_ResolvesToTheDefaultRoot` は解決の値の比較だけ）。このため保証は、既定 path の解決（このテストと `PurposeLaunchSettingsTests`）と、任意に指定した root への install（Framework の `ContentInstallerTests` 等の一時 root）の組み合わせに縮み、**既定 root への実 install はどのテストも確かめない**。program §7 の「directory mode の rig の spawn と Planner 実証」の行の作業の検証 Play（上の S-4d5b の行の再検証の観測と同じ Play。cache root は Delivery 窓に設定した非既定の root）では、`VerifyPlayLauncher` が install と報告した revision root が、Play を止めた後も `receipt.json` とともに残っていた。この観測は、その 1 件の revision root が停止後も在ったことに限り、全ての revision の寿命や、既定 root での振る舞いは主張しない。
   - 未調査の観測: From published directory の検証 Play の間に `There are 2 audio listeners in the scene` の Warning が多数出た（検証 Play `spring-full` の run では 0 件）。clean worktree の batch の 1 回目が CoreCLR のメモリ確保失敗（`0x8007000E`）で落ち、同じコマンドの 2 回目は通った。
+- **S5-0 から（凍結条件の違反ではない、2026-11-23）:** staging の移動が上限を超えて失敗した後に、呼び手の後片付けの `Directory.Delete(staging, true)` も拒まれると、coordinator は outcome を書かずに例外を外へ投げ、publisher は元の失敗を後片付けの例外で覆う（今の振る舞い）。SampleGame の `PlayerBuildPublisher.MoveDirectory`（Player の build の公開）は同じ再試行を通らない。
 - **CI 組み込み（BS5b-1 から）:** 成功した batch の後に Unity process が終わらない場合の、呼ぶ側の終了監視・timeout・結果 file と manifest の照合。R2・HTTP への publish と別 PC での受け取り。`.staging` と `work/` の残置の清掃は Storage program §6「ローカルの残置の清掃」。
 - **入力 identity:** 宣言と選択候補の source 状態と設定 snapshot の hash、`content/index`、build を skip する再利用。revision の形式は変えていない。
 - **未着手の問い:** 経路の連鎖（source → local の object store → LAN / R2）、object 単位の格納と差分更新、再 build の決定性、Player の実行時差し替え、複数 directory と cross-directory 参照、設定の宣言化と Player の Debug の剥離、known-good の pin の呼び手、日常 Play で宣言に無い content を読んだ時の検出、`outcome.json` の選択・閉包の記録形式、directory に無い OnDemand content を要求した時の振る舞い。

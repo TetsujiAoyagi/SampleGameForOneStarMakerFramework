@@ -153,7 +153,7 @@ namespace OneStarMaker.Editor.Build.Content
                 var closureExpected = manifest.sourceClosure.version == 0 ? ContentSourceClosureState.Missing : ContentSourceClosureState.Present;
                 if (closureRead.State != closureExpected)
                     throw new InvalidOperationException("Published source closure record is invalid: " + closureRead.Detail);
-                Directory.Move(staging, final);
+                ContentStagingMove.Move(staging, final);
                 return final;
             }
             finally

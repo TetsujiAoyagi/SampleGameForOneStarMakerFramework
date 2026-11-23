@@ -298,6 +298,70 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.That(TempFiles(), Is.Empty);
         }
 
+        // 置き換えも別名の削除も失敗した時、元の失敗・別名を消せなかったこと・別名の絶対 path の 3 つが、呼び手が写す Message に出る。
+        [Test]
+        public void ReplaceAndTemporaryDeleteBothFail_TheReasonCarriesBoth_AndThePath_AndTheExistingRecordIsKept()
+        {
+            _world.Edit(P("T.png"), "v2");
+            var first = BuildOnce(Plan());
+            var before = File.ReadAllBytes(RecordPath);
+            var temp = Path.GetFullPath(RecordPath) + ".tmp";
+            _world.Edit(P("T.png"), "v3");
+            BuildContentResult result;
+            // 別名を、書き込みは許して名前の変更・削除は許さない形で先に開いておく。置き換え（別名の rename）と別名の削除の両方が拒まれる。
+            using (new FileStream(temp, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite))
+                result = new BuildContentCoordinator(new ContentOverlaySelectionTests.ManifestAdapter()).Build(new BuildContentRequest(Plan()));
+
+            Assert.That(result.IsSuccess, Is.True, result.Summary);
+            Assert.That(Read(result.OutcomePath).issues, Is.Empty, "outcome は成功のまま");
+            var reason = result.ReuseRecordFailure!;
+            Assert.That(reason, Does.Contain("could not be deleted").And.Contain(temp), reason);
+            var original = reason.Substring(0, reason.IndexOf(" Also, ", StringComparison.Ordinal));
+            Assert.That(original, Does.StartWith("The overlay reuse record could not be written: "));
+            Assert.That(original.Length, Is.GreaterThan("The overlay reuse record could not be written: ".Length), "元の失敗の文言がある");
+            Assert.That(File.ReadAllBytes(RecordPath), Is.EqualTo(before), "既存の記録の bytes は変わらない");
+            Assert.That(Plan().GetReusableResult(), Is.Null);
+            _world.Edit(P("T.png"), "v2");
+            Assert.That(Plan().GetReusableResult()!.Identity, Is.EqualTo(first.Identity));
+        }
+
+        [Test]
+        public void InjectedReplaceAndDeleteFailures_TheMessageCarriesBothTexts_AndThePath()
+        {
+            _world.Edit(P("T.png"), "v2");
+            var first = BuildOnce(Plan());
+            var before = File.ReadAllBytes(RecordPath);
+            var temp = Path.GetFullPath(RecordPath) + ".tmp";
+            var replace = new IOException("replace refused by the test");
+            var delete = new IOException("delete refused by the test");
+            var error = Assert.Throws<IOException>(() => ContentOverlayReuse.Write(_artifacts, OverlayPlanWorld.OverlaySet, "another-key", first,
+                (_, _) => throw replace, _ => throw delete))!;
+            Assert.That(error.Message, Does.Contain(replace.Message).And.Contain(delete.Message).And.Contain("could not be deleted").And.Contain(temp));
+            Assert.That(((AggregateException)error.InnerException!).InnerExceptions, Is.EqualTo(new Exception[] { replace, delete }));
+            Assert.That(File.ReadAllBytes(RecordPath), Is.EqualTo(before));
+        }
+
+        [Test]
+        public void ReplaceSucceedsButTheTemporaryFileRemains_AndCannotBeDeleted_ReportsItWithoutAnInventedFailure()
+        {
+            _world.Edit(P("T.png"), "v2");
+            var first = BuildOnce(Plan());
+            _world.Edit(P("T.png"), "v3");
+            var second = BuildOnce(Plan());
+            Assert.That(ContentOverlayReuse.TryGet(_artifacts, OverlayPlanWorld.OverlaySet, first.OverlayKey!), Is.Null, "記録は今 second を指す");
+            var temp = Path.GetFullPath(RecordPath) + ".tmp";
+            var delete = new IOException("delete refused by the test");
+            // 置き換えは成功するが別名を残す（複写）。その後の別名の削除だけが失敗する。
+            var error = Assert.Throws<IOException>(() => ContentOverlayReuse.Write(_artifacts, OverlayPlanWorld.OverlaySet, first.OverlayKey!, first,
+                (t, p) => File.Copy(t, p, true), _ => throw delete))!;
+            Assert.That(error.Message, Does.Contain(delete.Message).And.Contain("could not be deleted").And.Contain(temp));
+            Assert.That(error.Message, Does.Not.Contain("Also,"), "元の失敗は無い");
+            Assert.That(error.InnerException, Is.SameAs(delete));
+            Assert.That(ContentOverlayReuse.TryGet(_artifacts, OverlayPlanWorld.OverlaySet, first.OverlayKey!)!.Identity, Is.EqualTo(first.Identity),
+                "置き換えた記録は今回の書き込みの記録");
+            Assert.That(second.Identity, Is.Not.EqualTo(first.Identity));
+        }
+
         [Test]
         public void RecordDirectoryCannotBeCreated_BuildStaysSuccessful_WithTheReason()
         {
