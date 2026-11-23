@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C の 1 回目（run `jc1`）は (4) で test の欠陥（J1）に当たって中断し、B へ差し戻した（§7）。B は J1 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（1 巡目）」）。判定 C のやり直し待ち）
+- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C の 1 回目（run `jc1`）は (4) で test の欠陥（J1）に当たって中断し、B へ差し戻した（§7）。B は J1 を 2026-11-23 に直した（§6 の「判定 C からの差し戻し（1 巡目）」）。発見 C の 2 巡目がその修正を 2026-11-23 に読み、阻害する指摘は無かった（§7）。判定 C のやり直し待ち）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
 - implementation head commit: `6b3fb383d0cfa6cf74cfb7ead724d64a0a97f6ac`
@@ -21,12 +21,11 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（B の J1 の修正の再確認）→ 判定 C（実行担当と判断担当。B の J1 の修正の後のやり直し）。
-  - 発見 C の次の作業（進行役が owner の順番の指示に従って足した）: B の修正の diff（`7c3bfe6b` と implementation head の間の、`docs/handoff/` 以外）が J1 を直し、§3 の外と test の名前（J2）を変えず、他の観測を変えていないかを読む。Unity の test は走らせない（修正の動作は判定 C のやり直しで確かめる）。結果を §7 の「発見 C」に 2 巡目として足し、本票の「次の Phase・役割」を判定 C だけにして記録 commit を切り、PR #211 の状態ブロックを更新する。阻害する指摘があれば判定 C へ進めずに B へ差し戻す。
+  - 次の Phase・役割: 判定 C（実行担当と判断担当。B の J1 の修正の後のやり直し。発見 C の 2 巡目は §7 のとおり完了）。
   - 判定 C の次の作業: implementation head 欄の新しい GO 候補 head で、新しい `S41_RUN_ID` で (1)〜(11) をやり直す（run `jc1` は欠陥のある head の run で、判定に使わない。§7）。(4)〜(10) の `-Filter` は §7 の J2 のとおり test の名前の末尾に `$` を付け、XML の total が 1 であることを確かめる。他は以下のとおり。GO 候補 head で §5 の判定必須テスト (1)〜(11) を §5 のコマンドと順で実行し（全てで同じ `S41_RUN_ID`。(1) も自分で走らせ、発見 C の run を判定の入力にしない）、record・log・receipt・XML で AC1〜AC11 を §5「判定の読み方」に従って判定する。最初の run で strip の検出語と実際の log の文言を照らして §7 に書く（§2.2）。AC6 の (1) は record の `quitObservedUtc` と `endedUtc` の差で読む（§7 の F2）。(u1)〜(u5)・(u1b) の初回確認と不成立時の扱いは §5。判定 evidence bundle（§5 の検証経路の証拠一式と XML、owner の screenshot と観察記録）を同じ head から作って stage し、C' 用の blind bundle は所見を含めずに別に作る。結果を §7 の「判定 C」に書く。
   - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄の commit が HEAD の祖先で、差分が `docs/handoff/` だけであることを確かめる（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
   - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（B の修正 commit の後に、B が §0・§6 を書いた記録 commit `034ae1ae` に、進行役が発見 C の再確認を足した記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。
+  - 引き継ぐ commit: この票を含む commit（B の修正 commit の後の記録 commit `034ae1ae`、進行役の記録 commit `fbdf5f53` の後に、発見 C の 2 巡目が §0・§7 を書いた記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。
   - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session。`run-tests.ps1` は最初から sandbox の外で起動する）。Artifact Storage の evidence の stage。push は公開点の規則に従う（C と C' の後）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。高コスト証拠を除く操作・実行時・目視の条件（AC6 を含む）の証拠が揃うまで判定 C を完了と記録せず、C' 用の bundle を作らない。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: §7 の発見 C・判定 C の所見と結論を C' に渡さない（blind bundle と C' の取得案内に入れない）。
@@ -394,6 +393,17 @@
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: (u1)〜(u5)・(u1b) は全て未確認で、初回確認は判定 C（§5）。strip の検出語と実際の log の文言の照合（§2.2）も判定 C の最初の run で行う。
 - 担当・モデル: 本 session（Claude Opus 5.5、Anthropic）。`独立性制約あり`: Phase B と同じ系列（owner の指示。§0 の引継ぎ票）。残存リスク: 同じ系列の見落としが B と重なりうる。C' の OpenAI の系列で補う。
+
+#### 2 巡目（J1 の修正の再確認、2026-11-23）
+
+- 種別: 発見（GO 判定はしない。Unity の test は走らせない。修正の動作は判定 C のやり直しで確かめる）
+- 対象: B の修正 `6b3fb383`（`7c3bfe6b` との差の `docs/handoff/` 以外）。開始時の照合（起動指示の SHA `fbdf5f53` = HEAD、clean、ブランチ、`git merge-base --is-ancestor 6b3fb383 HEAD`、`git diff --stat 6b3fb383 HEAD` が本書だけ、PR #211 の状態ブロックの `引き継ぐ commit`）は全て一致した。PR の timeline の指摘は全て凍結の前の計画レビュー宛てで、実装 head 宛ての新着は無かった。
+- J1 の修正: 直っている。`7c3bfe6b..6b3fb383` の code の差は `PlayerKindEndToEndTests.cs` の 1 file・+7/-3 だけで、`ReadGameLog` の 2 か所の style を private の定数 `UtcTimestampStyles` = `AssumeUniversal | AdjustToUniversal` に替えただけである。この組は .NET が許す組で（拒むのは `RoundtripKind` と `AssumeLocal`/`AssumeUniversal`/`AdjustToUniversal` の組、`AssumeLocal` と `AssumeUniversal` の組）、J1 の `ArgumentException` の原因が無くなった。file の中に `DateTimeStyles` を渡す所は他に無い。
+- 読みの形の確認: `quitObservedUtc` は `Utc()`（`ToUniversalTime().ToString("o")`、末尾 `Z`）で書かれる。game の log の `Timestamp` は run `jc1` の `LaunchSmoke` の残りの log で `2026-11-23T05:18:35.2379051+00:00` の形で、`JsonConfigFlattener` は文字列を加工せずに渡す（自前の parser で日付の解釈をしない）。どちらも offset を持つので `AdjustToUniversal` で Kind `Utc` の同じ基準に揃い、`at < quit.Value` の比較は意味どおりである。
+- 他の観測を変えていないか: 変えていない。`beforeQuit` の既定（読めない時は真）、record の欄、log の probe、待ちと閉じる要求、test の名前（J2 の `-Filter` の前提）は差に無い。§3 の外の file の変更は無い。コメントの内容は style の働きと一致する。
+- 機械検査（HEAD `fbdf5f53`）: `pwsh tools/contract-audit.ps1` は違反なし。
+- 現在の問いを阻害する findings: なし。判定 C へ進める。
+- 担当・モデル: 本 session（Claude Opus 5.5、Anthropic）。`独立性制約あり`: Phase B（修正を含む）と同じ系列（owner の指示。§0）。残存リスク: 同じ系列の見落としが B と重なりうる。修正の実行時の動作は判定 C のやり直しで、独立性は C' の OpenAI の系列で補う。
 
 ### 判定 C（1 回目、2026-11-23。中断して B へ差し戻し）
 
