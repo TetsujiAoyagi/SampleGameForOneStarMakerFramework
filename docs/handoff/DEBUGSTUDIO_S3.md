@@ -3,24 +3,24 @@
 ## 0. メタデータ
 
 - type: slice
-- status: B（revision 4 を凍結。Phase B 未着手）
+- status: 動作確認（revision 4 の Phase B 完了）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - A3 凍結記録: owner が 2026-11-23 に「凍結して B へ」と承認。対象は revision 4（外部計画レビューの X1・X2 を反映したこの版）。次担当は Phase B。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（revision 4 の凍結）
+- created: 2026-11-20 / updated: 2026-11-23（revision 4 の Phase B 完了）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方と結果の読み方）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線と `TryGetHierarchyGameObject` の契約）
 - Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成（B は生成していない）。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は Phase B（実装）。
-  - 作業: §4 のとおり。PR の branch に implementation base（`9de34cc2`）を merge で取り込み、§2.1 の 4 の revision 3 の残骸を消し、§2.1・§3 を実装する。Editor で compile を確かめる。結果を §6 に書き、implementation head を §0 に固定して、次の担当（動作確認）への票を書く。
-  - 読む範囲: 既定（§0〜§5）。§5.1 の A2・A3 の採否は、§2.1・§3 に反映済みの文を正とし、読まなくてよい。
-  - 必要な権限: branch への commit・push（push は owner に確認する）。Unity Editor は compile 確認だけ（`osm-unity-editor` の制約に従う）。Unity テスト・Build・実機手順（§5.4）は B では行わない。
-  - 停止規則: §4 の差し戻し条件に当たったら実装を止めて Phase A へ返す。共有 Editor・人間が開いた Editor を操作も強制終了もしない。
+- 引継ぎ票: 次は動作確認（Phase B の後）。
+  - 作業: implementation head で §5.4 の V0〜V6 を各 1 回軽く行い、書き込み経路（登録・解決・適用）が実 Editor で成り立つかを確かめる。結果を動作確認の欄に書き、次の担当（発見 C）への票を書く。成り立たなければ待受け・接続、登録、解決、適用のどこかを分けて B へ戻す（§5.3）。
+  - 読む範囲: 既定（§0、§5、§6）。期待の導出に §2.1 の 2・3 と §2.2 E1 を読む。
+  - 必要な権限: 専用 worktree での自分で開いた Editor の Play と eval（独立値の読取りだけ）、Release の WPF・CLI の build と起動。Unity テスト・Build は行わない。
+  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -324,7 +324,24 @@ GO 候補 head の専用 worktree で、実行担当が自分で開いた Editor
 
 ## 6. Phase B 実装結果
 
-revision 4 では未着手。
+revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
+
+- 取り込み: PR の branch に implementation base `9de34cc2` を merge した（衝突なし）。
+- revision 3 の残骸の削除（§2.1 の 4）: `DebugVerificationTargetHost` とそのテスト、registry の `TryGetNodeIdUnsafe` とそのテスト、`DebugSocketService.TryGetHierarchyNodeId`、`AppInitializer` の host の生成・解放と `OnServicesInitializing` の override。`DebugSocketService.Hierarchy.cs`・`DebugSocketRuntimeNodeRegistry.cs`・registry テストの 3 file は base と同じ内容に戻した。
+- 実装（§2.1・§3）:
+  - `DebugSocketService.Inspector.cs`: public `TryGetHierarchyGameObject`。先に `_disposed` を見て false、立っていなければ既存の private `TryFindGameObjectByNodeId` へ委譲。XML コメントに main thread で呼ぶこと、Dispose 後は false を書いた。
+  - `AbstractApplicationInitializer.cs`: protected `DebugSocket` accessor（branch にあったものをそのまま残した）。
+  - `SetActiveDebugCommand.cs`: 登録（Editor のときだけ、service は実行時に読む）、`Execute`（解析 → 解決 → 適用の順）、`TryParse`（GameObject に触れない）、`Apply`、`CreateResultPayload`（`[Serializable]` DTO の `JsonUtility.ToJson`）を method で分けた。拒否 message は `rejected: invalid-payload` と `rejected: node-not-found` の 2 つ。187 行で、§3 の見込み 80〜120 を超えた分は主に契約と判断理由のコメント（非 bool の扱い、波及の保証外、Play をまたぐ NodeId）。
+  - `AppInitializer.cs`: `CreateDebugCommandDispatcher()` の override だけ（+19 行）。
+  - テスト: `SetActiveDebugCommandTests`（AC1・AC3 の登録）を書き直し、`OneStarMaker.Tests` に `DebugSocketServiceHierarchyLookupTests`（AC3 の Dispose 後 false）を足した。後者は transport を起動しない service の registry に reflection で対応を 1 つ入れ、Dispose 後も対応が残ったまま false になることを確かめる（capture にはセッションが要るため）。
+  - 文書: CLI README の S3 の節を §2.1 の 3 の全項目で書き直し、`12-telemetry.md` §10.5 を現状に直した。
+- AC3 の diff の見込み（判定は C）: `tools/DebugStudio/` の変更は `DebugStudio.Cli/README.md` だけ、`protocol/` の変更なし。SampleGame の差分の `new GameObject` は `SampleGame.Tests` の fixture（AC1 が求める）だけで、SampleGame の Runtime のコードに生成は無い。
+- 新しい事実: なし（Phase A へ返す条件に当たらない。asmdef・package・§2.1 の 1 以外の公開 API・Scene・設定 asset の変更なし）。
+- 実行した確認:
+  - Editor 6000.6.9f1 での compile: この worktree の `unity/` を自分で開いた。初回の起動は compile エラー 2 件（`AppInitializer` の using 不足、`NullDebugCommandDispatcher` の private constructor）で Safe Mode の確認 dialog に止まったので、dialog の Quit で終了し、C# を直して開き直した。2 回目は `EditorUtility.scriptCompilationFailed=False`、新しい型と `TryGetHierarchyGameObject` が読め、`DebugVerificationTargetHost` が無いことを eval で確かめた。Editor を終了した後、tracked の変更は無い。
+  - `pwsh tools/contract-audit.ps1`: errors 0、warnings 0（exit 0）。
+  - `pwsh tools/docs-audit.ps1`: errors 0（exit 0）。警告 2 件は検査 3 の既知の誤検出（この HANDOFF の §7・§8 は「未着手」の行で埋まって見える）と別の HANDOFF。
+- 未実行: Unity テスト（EditMode 全体と `-Filter`）、Release build、実機手順（§5.4）。Phase B の権限の外（revision 4 の B の票と `osm-unity-editor` の制約）で、動作確認と Phase C が行う。
 
 ## 7. Phase C
 

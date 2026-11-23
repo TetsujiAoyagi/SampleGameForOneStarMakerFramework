@@ -67,38 +67,6 @@ namespace OneStarMaker.Runtime.DebugSocketServices
             return nodeId;
         }
 
-        /// <summary>
-        /// 呼び手が既に持つ GameObject に、いま割り当てられている NodeId を返す（逆引き）。
-        ///
-        /// <para>
-        /// EntityId から引いた NodeId の GameObject が同じ参照（Unity の <c>==</c>）のときだけ true にする。
-        /// 未 capture、prune 済み、<see cref="Reset"/> 後、破棄済みは false。
-        /// 任意の NodeId から GameObject を渡す口ではないので、呼び手が持っていない GameObject は露出しない。
-        /// </para>
-        /// </summary>
-        public bool TryGetNodeIdUnsafe(GameObject gameObject, out long nodeId)
-        {
-            nodeId = 0;
-
-            // 破棄済みの GameObject は Unity の偽 null になる。GetEntityId を呼ぶ前に == null で弾く。
-            if (gameObject == null)
-            {
-                return false;
-            }
-
-            var runtimeIdentityKey = EntityId.ToULong(gameObject.GetEntityId());
-            if (!_runtimeIdentityToNodeIds.TryGetValue(runtimeIdentityKey, out var mappedNodeId) ||
-                !_nodeIdToGameObjects.TryGetValue(mappedNodeId, out var mappedGameObject) ||
-                mappedGameObject == null ||
-                mappedGameObject != gameObject)
-            {
-                return false;
-            }
-
-            nodeId = mappedNodeId;
-            return true;
-        }
-
         public List<GameObject> GetRootGameObjectsNonAlloc(Scene scene)
         {
             _rootGameObjectBuffer.Clear();

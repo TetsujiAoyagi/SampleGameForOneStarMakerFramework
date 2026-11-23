@@ -96,62 +96,6 @@ namespace OneStarMaker.Tests.Foundation
         }
 
         [Test]
-        public void TryGetNodeIdUnsafe_CapturedGameObject_ReturnsCapturedNodeId()
-        {
-            // 守る契約: capture で採番した GameObject を逆引きすると、その NodeId が返ること。
-            // 退行時の障害: SampleGame の debug.set-active が検証用 GameObject を照合できず、常に拒否する。
-            var other = new GameObject("Other");
-            try
-            {
-                _registry.CreateRuntimeNodeIdUnsafe(other);
-                var nodeId = _registry.CreateRuntimeNodeIdUnsafe(_gameObject);
-
-                Assert.That(_registry.TryGetNodeIdUnsafe(_gameObject, out var resolved), Is.True);
-                Assert.That(resolved, Is.EqualTo(nodeId));
-            }
-            finally
-            {
-                Object.DestroyImmediate(other);
-            }
-        }
-
-        [Test]
-        public void TryGetNodeIdUnsafe_NotCaptured_ReturnsFalse()
-        {
-            // 守る契約: capture していない GameObject には NodeId を作らず false を返すこと（逆引きは採番しない）。
-            // 退行時の障害: hierarchy に出ていない番号で照合が通り、利用者が見た NodeId と食い違う。
-            Assert.That(_registry.TryGetNodeIdUnsafe(_gameObject, out var nodeId), Is.False);
-            Assert.That(nodeId, Is.EqualTo(0));
-            Assert.That(_registry.TryFindGameObjectByNodeId(1, out _, out _), Is.False, "逆引きで採番しないこと");
-        }
-
-        [Test]
-        public void TryGetNodeIdUnsafe_DestroyedGameObject_ReturnsFalse()
-        {
-            // 守る契約: 破棄済み（偽 null）の GameObject は false で、例外にならないこと。
-            // 退行時の障害: Play の終わりに破棄された検証用 GameObject への要求が handler 例外（結果不明）になる。
-            var destroyed = _gameObject;
-            _registry.CreateRuntimeNodeIdUnsafe(destroyed);
-            Object.DestroyImmediate(destroyed);
-            _gameObject = null!;
-
-            Assert.That(_registry.TryGetNodeIdUnsafe(destroyed, out var nodeId), Is.False);
-            Assert.That(nodeId, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void TryGetNodeIdUnsafe_AfterReset_ReturnsFalse()
-        {
-            // 守る契約: WPF の接続が替わって Reset した後は、旧 NodeId を返さないこと。
-            // 退行時の障害: 利用者が新しい hierarchy で見られない旧番号で照合が通る。
-            _registry.CreateRuntimeNodeIdUnsafe(_gameObject);
-
-            _registry.Reset();
-
-            Assert.That(_registry.TryGetNodeIdUnsafe(_gameObject, out _), Is.False);
-        }
-
-        [Test]
         public void PruneRuntimeNodeMappingsUnsafe_RemovesUnseenTokens()
         {
             // 守る契約: full capture に現れなかった token は prune で掃除されること。
