@@ -3,25 +3,25 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 動作確認（revision 4 の動作確認完了。次は発見 C）
+- status: Phase C（revision 4 の発見 C 完了、阻害する指摘なし。次は判定 C）
 - branch: codex/debugstudio-s3（Draft PR #204、base は develop）
 - implementation base commit: `9de34cc2ec2dfe82b782f122b0012b902e98f277`（origin/develop。A1 が読んだ `d926e3b6` からの差分は文書 3 file だけで、DebugSocketServices・Bootstrap・`SampleGame/DependOnAll`・`tools/DebugStudio`・ProjectSettings に変更は無い）
 - implementation head commit: b3f105e14d1997deab5300448e67d8099b5a3b00
 - A3 凍結記録: owner が 2026-11-23 に「凍結して B へ」と承認。対象は revision 4（外部計画レビューの X1・X2 を反映したこの版）。次担当は Phase B。
 - risk: normal（理由は §2.6）
 - owner: root（依頼者）
-- created: 2026-11-20 / updated: 2026-11-23（revision 4 の動作確認完了）
+- created: 2026-11-20 / updated: 2026-11-23（revision 4 の発見 C 完了）
 - expires: 2026-12-31 または置換 revision
 - harvest to: `tools/DebugStudio/src/DebugStudio.Cli/README.md`（`debug.set-active` の送り方と結果の読み方）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（SampleGame の catalog 配線と `TryGetHierarchyGameObject` の契約）
 - Phase A snapshot の取得案内・状態: 凍結版はこの票を含む commit（SHA は起動指示で渡す）。C / C′ 用の snapshot は B の完了までに主担当が task の手元引渡し先に保存し、取得案内をここに書く。
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: revision 4 は未生成（B は生成していない）。revision 3 の分は §1.5 のとおり保存済みで、revision 4 の判定には使わない。
 - task: `debugstudio-s3`（開始済み）
-- 引継ぎ票: 次は発見 C。
-  - 作業: implementation head の差分（implementation base からの差分）を、§3 の責務マップ・§2.2・§2.3 に照らして発見レビューする。動作確認（§6 の「動作確認」）は V0〜V6 を実施し、期待との差は無かった（`未実施` なし）。対象 head は implementation head と同じで、B 以外の session の生の観測。
+- 引継ぎ票: 次は判定 C。
+  - 作業: implementation head を GO 候補 head として、§5.2 の判定必須テスト（最終の全 EditMode 回帰、contract-audit、docs-audit、AC3 の diff 確認、§5.4 の実機手順）を揃え、§5.5 のとおり原記録と期待を対にした表で §2.2 の I1〜I3・E1 を判定する。判定 C と C′ 用の evidence bundle を GO 候補 head から作る。発見 C（§7）は阻害する指摘なし。§7 の「判定 C への申し送り」のとおり、動作確認の Git 外の原記録には V3・V4 の send の stdout と eval の戻り値などがファイルとして無いので、元の出力を取得できなければ §5.4 V0〜V6 を取り直す。
   - 読む範囲: 既定（§0〜§8）。
-  - 必要な権限: 専用 worktree での Unity テストの実行（起点の `-Filter` は §5.2）、Release の WPF・CLI の build。共有 Editor は使わない。
-  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。明確な差し戻しが決まった段階で最終判定用の検証一式を実行しない。
-  - 引き渡さないもの: なし。
+  - 必要な権限: 専用 worktree（`osm-ds3-a2`、`b3f105e1` に detach、`unity/Library` は import 済み）での sandbox 外の `pwsh tools/run-tests.ps1` と Editor の起動・eval、Release の WPF・CLI の build と起動。共有 Editor は使わない。
+  - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。高コスト証拠なし。判定必須と操作の証拠が GO 候補 head で揃うまで判定 C を完了と記録せず C′ を起動しない。
+  - 引き渡さないもの: C′ に発見 C・判定 C の所見を渡さない。
 
 ## 1. 目的と対象外
 
@@ -361,7 +361,31 @@ revision 4（2026-11-23）。implementation head は §0 の欄のとおり。
 
 ## 7. Phase C
 
-revision 4 では未着手。
+### 発見 C（revision 4、2026-11-23）
+
+- 種別: 発見。対象は implementation base `9de34cc2` から implementation head `b3f105e1` までの差分（14 file、HANDOFF を除く製品・テスト・文書 13 file）。GO 判定はしない。C′ は起動しない。
+- 開始時の照合: 引き継ぐ commit `fad2f62e` = この worktree の HEAD、clean。implementation head は HEAD の祖先で、`git diff --stat b3f105e1 HEAD` は本 HANDOFF だけ。PR #204 の状態ブロックの引き継ぐ commit・base / head は一致。PR の新着コメントは A3 外部計画レビュー（03:07Z）より後に無い。
+- 使用した evidence bundle の取得案内・状態: revision 4 は未生成。発見 C は固定 commit の差分を git から直接読んだ（未移行作業の発見 C の規則どおり）。判定 C と C′ の bundle は判定 C が GO 候補 head から作る。
+- 構造適合: §3 の責務マップと一致する。Framework の変更は `TryGetHierarchyGameObject`（public、`_disposed` を先に見てから既存の private lookup へ委譲）と protected `DebugSocket` accessor の 2 つだけ（§2.1 の 1、§2.7）。router・組込みコマンド・`MainThreadDebugCommandDispatcher`・catalog・hierarchy の走査・registry の採番は変えていない。main thread の保証は `DebugSocketService` の constructor が App の dispatcher を `MainThreadDebugCommandDispatcher` で包むことで既存どおり成り立つ（`DebugSocketService.cs:151`）。`SetActiveDebugCommand` は `DependOnAll/DebugCommands` に置き、`Register`（Editor のときだけ、service は実行時に読む）・`Execute`（解析 → 解決 → 適用）・`TryParse`（GameObject に触れない）・`Apply`・`CreateResultPayload` に分かれ、G1 の採用範囲どおり。187 行は見込み 80〜120 を超えるが、増分は契約と判断理由のコメントで、責務は増えていない（§6 の説明と一致）。asmdef・package・Scene・Prefab・設定 asset の変更なし。依存は SampleGame → Framework の一方向。テストの配置は、handler が `SampleGame.Tests`、Dispose 後 false が `OneStarMaker.Tests`（§3 は lookup 本体を registry テストに置くとし、G2 で足した 1 件を別 file にした。既存 registry テストは base と同じ内容）。
+- 常時契約: 新規・編集の `.cs` 5 file はどれも先頭が `#nullable enable`。`record` なし。破棄されうる GameObject の判定は `== null` / `!= null`（`Execute` の解決結果、テストの snapshot）。テストに `Task.Delay` / `Thread.Sleep` なし。`ZLogger*` の公開なし。Editor コードの Runtime 配置なし。
+- 凍結条件との照合（静的）:
+  - I1: 拒否はすべて `SetActive` より前に `Fail` で返る。invalid-payload では解決を呼ばない。解決が false・GameObject が偽 null・DebugSocket が無いときは node-not-found。`SetActive` は解決した 1 つに 1 回だけ。`SetActive` の後の `NotifyHierarchyChanged`・`name` の読取りで例外が出た場合は router が payload の無い Success=false にし、`rejected: ` で始まらないので README では結果不明に入る（I2 と整合）。catalog の失敗文言（未登録・canceled・missing）も `rejected: ` で始まらない。
+  - I2: README は §2.1 の 3 の全 8 項目を持ち、timeout を未実行と書かず、自動再送しないと書く。
+  - I3 / AC3: `git diff --stat 9de34cc2 b3f105e1 -- tools/DebugStudio protocol` は `DebugStudio.Cli/README.md` の +25 行だけ。SampleGame の差分の `new GameObject` は `SampleGame.Tests` の fixture 2 箇所だけで、`Instantiate` は無い。Player では `Register` が false を返し base の dispatcher のまま。
+  - AC4: README の payload の形・送信例・結果の形は §2.1 の 2 と §5.4 のコマンドと一致し、非 bool を拒否するとは書かない。`SetActiveDebugCommand` の XML コメントも同じ。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings（どの凍結済み条件・常時契約にも違反しない。現スライスの実装を足さない）:
+  - F1（文書の補足、任意）: 今回の `-Filter` 実行で、`active` が文字列 `"true"` のとき true として適用された（`initialActive=False -> success=True ... activeSelf=true`）。README と XML コメントは `"false"` と `null` の実測だけを挙げる。拒否するとは書いていないので AC4 には違反しない。harvest の際に実測の列挙へ足すかは担当の判断。
+  - F2（既存の lookup の性質）: registry の lookup は直近の capture の対応で引くので、capture 後に `MoveGameObjectToScene` や `DontDestroyOnLoad` で移された GameObject は、次の capture で prune されるまで解決できる（scene が有効で読み込み済みなら true）。inspect と同じ挙動で、§2.1 の 1 が「inspect が使う既存の lookup」として凍結したもの。hierarchy に出ない GameObject を対象にしたいかは DebugStudio S4 以降（§2.4 の DontDestroyOnLoad の項）の入力。
+- 判定 C への申し送り（指摘ではない）:
+  - 動作確認の原記録の不足: Git 外の保全先にあるのは V3〜V5 の hierarchy・inspect の JSON、各段の stderr、V1 の hierarchy・V2 の inspect の JSON、WPF の起動・終了記録、手順 script だけで、V3・V4 の send の stdout（`success=true message=applied` と結果の payload）、eval の戻り値（EX と activeSelf）、V0 の HEAD・build の出力、V1 の Play 開始と読み直しの記録はファイルに無い（手順 script が標準出力へ出しただけ）。§6 の「生の観測」の要約はこれらを含むが、§5.5 の「原記録の該当箇所と期待を対にした表」には足りない。判定 C は、元の session の出力を取得できなければ、GO 候補 head で §5.4 V0〜V6 を取り直す（取得は判定 C の担当が行ってよい）。
+  - PR #204 の本文（状態ブロックの後）に「現行の実装 cf440201 は専用オブジェクトだけを変更し…」と revision 3 時点の文が残る。状態ブロックの外の本文の要約は Phase D でマージ前に最終 head と合わせる。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 専用 worktree `osm-ds3-a2`（HEAD `b3f105e1`、clean、Editor・DebugStudio の process なしを CIM で確認）で、sandbox 外から `pwsh tools/run-tests.ps1 -Filter 'SetActiveDebugCommandTests|DebugSocketRuntimeNodeRegistryTests|DebugSocketServiceHierarchyLookupTests' -OutputRoot <Git 外の保全先>`（03:48:22Z〜03:49:05Z）。§5.2 の起点 2 つに、B が AC3（Dispose 後 false）のために足した `DebugSocketServiceHierarchyLookupTests` を加えた（AC3 の確認に要る。受け入れ条件の追加ではない）。`pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` をこの worktree（HEAD `fad2f62e`、製品コードは implementation head と同じ）で実行。
+- テスト結果: step `status=passed`、`exitCode=0`、compile error 0。XML total 31、passed 31、failed・skipped・inconclusive 0。`DebugSocketRuntimeNodeRegistryTests` 5、`DebugSocketServiceHierarchyLookupTests` 1、`SetActiveDebugCommandTests` 25。Unity process は 42 秒で exit 0（native stall なし）。実行後も worktree は clean。非 bool の観測（`TestContext`）: `"false"`→false、`"true"`→true、`null`→false（初期値 true・false の両方）、どれも applied で結果の activeSelf と実値が一致。contract-audit: errors 0・warnings 0（exit 0）。docs-audit: errors 0（exit 0）、警告 2 件は B の記録と同じ既知の誤検出（本 HANDOFF の §7・§8 の「未着手」行と別の HANDOFF）。
+- 判定必須のうち未実行: 最終の全 EditMode 回帰、§5.4 の実機手順（判定 C が GO 候補 head で揃える。上の申し送りのとおり、動作確認の原記録で足りなければ取り直す）。AC3 の diff 確認・contract-audit・docs-audit は発見段階で実施済みだが、判定 C が GO 候補 head で改めて記録する。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし（実機手順・全 EditMode は実行していない）。
+- 未確認事項: なし（上の申し送りを除く）。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。B と同じ系列の担当で、`独立性制約あり`（Phase C は B と異なるモデルという条件を満たさない）。判定 C の担当は、可能なら B と異なるモデルにする。
 
 ## 8. Phase C'
 
