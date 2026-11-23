@@ -4,7 +4,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 
 **範囲:** Unity 6000.6.0f1、StandaloneWindows64、loose file（`BuildCompression.Uncompressed`、`BuildContentOptions.None`。`CleanBuildCache` を付けた build を含む）、1 台の PC と 1 つの `Library`、SampleGame を使わない小さな fixture。登録と load の事実は、さらに Editor の Play（Domain Reload 無効）に限る。Unity の版を上げたら、下の「測り直し」で確かめ直すか、この文書を直すか消す。
 
-**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書は Player を測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。「同じ file を持つ 2 つの directory の登録」と「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の 2 節は、2026-11-18 に 6000.6.9f1 で測り直して同じだった（下の「6000.6.9f1 での上書きと登録の測り直し」）。下の「部分 checkout の上書き（6000.6.9f1）」は最初から 6000.6.9f1 で測った。下の「Editor の Play の入口からの上書き（6000.6.9f1）」も 6000.6.9f1 で、上の範囲と違い SampleGame の実 Editor を使い、Domain Reload 有効の Play を含む。
+**project の Unity は 2026-11-17 に 6000.6.9f1 へ上げた。** この文書の実測は、版を別に書いた箇所を除いて 6000.6.0f1 のもので、6000.6.9f1 では測り直していない。6000.6.1f1〜6000.6.9f1 の release note のうち、この文書の事実に当たる修正は 2 件ある。6000.6.3f1 の「prefab だけを編集した後の差分 build で Scene が作り直されない」の修正（UUM-151103。下の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」）と、6000.6.2f1 の「Content Directory の build が built-in resource の参照を解決する時、最初の content load で Player が落ちる」の修正（UUM-150973。この文書の Player の実測は下の「Windows の Player での上書きの登録（6000.6.9f1）」だけで、built-in resource の参照は測っていない）。出力の形、build をまたぐ同じ file、2 つの directory の登録に当たる記載は release note に無い。記載が無いことは、挙動が変わっていないことの証明ではない。節に依拠して設計する後続のスライスは、その節を自分の A1 で 6000.6.9f1 で測り直す（割り当ては [program](../handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8）。「同じ file を持つ 2 つの directory の登録」と「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の 2 節は、2026-11-18 に 6000.6.9f1 で測り直して同じだった（下の「6000.6.9f1 での上書きと登録の測り直し」）。下の「部分 checkout の上書き（6000.6.9f1）」は最初から 6000.6.9f1 で測った。下の「Editor の Play の入口からの上書き（6000.6.9f1）」も 6000.6.9f1 で、上の範囲と違い SampleGame の実 Editor を使い、Domain Reload 有効の Play を含む。下の「Windows の Player での上書きの登録（6000.6.9f1）」は 6000.6.9f1 で、上の範囲と違い Editor の Play ではなく IL2CPP の Windows の Player で登録と load を測った。
 
 ## 出力の形
 
@@ -62,7 +62,7 @@ Unity の Content Directory（`BuildPipeline.BuildContentDirectory`）の build 
 - **仕組みの推測（実測ではない）:** どちらの順でも、後から登録した directory の版が出た。公開文書の「登録の逆順に探索する」と合う。base の Scene の直接参照が base の版を読んだことは、上の節の推測（Scene の直接参照は Scene のある directory の中で解決される）と合う。設計上の保証ではなく、どちらの directory の file を読んだかを返す API は無い。
 - **含意:** 上書きの版が読まれ、script の顔ぶれが違っても class が壊れなかったのは、登録の順が base → 上書きの時に限る（この fixture の範囲）。逆の順では上書きが効かない。
 
-測っていないもの（結果を変えうる）: Player、別の PC・`Library` で build した base、実データ（SampleGame）、archive、3 つ以上の directory、上書きが 2 つ以上、上書きで script の code や field を変えた時、URP の `Lit` の variant、Scene に置いた prefab instance・nested prefab・sprite atlas・audio、Domain Reload 有効の Play、Scene を load した後に上書きを登録する順、Play の途中の上書きの解除、GPU 側の資源の重複。fixture は 1 つ。
+測っていないもの（結果を変えうる）: Player（Windows の IL2CPP・managed stripping High の Player での登録の順が base → 上書きの時は、下の「Windows の Player での上書きの登録（6000.6.9f1）」で測った。他の Player の構成と逆の順は測っていない）、別の PC・`Library` で build した base、実データ（SampleGame）、archive、3 つ以上の directory、上書きが 2 つ以上、上書きで script の code や field を変えた時、URP の `Lit` の variant、Scene に置いた prefab instance・nested prefab・sprite atlas・audio、Domain Reload 有効の Play、Scene を load した後に上書きを登録する順、Play の途中の上書きの解除、GPU 側の資源の重複。fixture は 1 つ。
 
 ## 製品の build 経路で作った上書きと、prefab を編集した後の差分 build
 
@@ -169,7 +169,7 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.NoStamp.NoStam
 - **移動した Scene:** 製品の coordinator で Scene 2 つの目的を `Full` build した後、`AssetDatabase.MoveAsset` で 1 つを下の folder へ移し、中の物の名前を変えて保存し、移動後の path を編集の集合にして製品の逆引きと上書きの build を行った。逆引きは移した Scene だけを選び、上書きの build は成功した。`LoadableSceneIdEditorUtility.CreateLoadableSceneId` の値は移動の前後で同じで、Scene の GUID と同じ文字列だった。base と上書きの root のその Scene の entry の id も等しく、base → 上書きの順に登録するとどちらの entry から読んでも上書きの版が載った。製品の登録の口（S3-2）の実機の test でも、移した Scene の base と上書きの root の id は等しかった。rename は測っていない。
 - **native の登録と Play の終わり:** Play の中で native に 2 つ登録し、解除せずに Play を終えると、一覧（`ContentLoadManager.GetContentDirectories`）に 2 件残った。Domain Reload 無効でも有効でも同じだった。続けて script の reload（`EditorUtility.RequestScriptReload`）を起こすと、reload の後の一覧は 0 件だった。Domain Reload 有効では、domain reload は Play に入る時に起き、Play を終える時には起きなかった。残った 2 件は、一覧から取った handle の `UnregisterContentDirectory` で解除できた。
 
-測っていないもの（結果を変えうる）: Play に入る時の domain reload が、前の Play で残った native の登録を消すか（script の reload が消すことだけを見た）。reload で static が消えた後の OS の file handle の扱い。Scene の rename、Scene 以外の asset の移動。Player、別の PC・`Library`。
+測っていないもの（結果を変えうる）: Play に入る時の domain reload が、前の Play で残った native の登録を消すか（script の reload が消すことだけを見た）。reload で static が消えた後の OS の file handle の扱い。Scene の rename、Scene 以外の asset の移動。別の PC・`Library`。Player は、上書きの登録の主の順（base → 上書き）だけを下の「Windows の Player での上書きの登録（6000.6.9f1）」で測り、同じ file の登録と逆の順は測っていない。
 
 ## 部分 checkout の上書き（6000.6.9f1）
 
@@ -199,6 +199,23 @@ SampleGame の実 Editor で、Play の入口の経路 Built + local edits（[18
 - **SampleGame の部分 checkout:** 開いていない Scene の 1 つ（`Spring_Cell_1_5`）を `.meta` と一緒に `Assets` の外へ退かして `Refresh()` すると、Addressables の group の asset（`Default Local Group.asset`）が Dirty になり、次の保存で書かれた。その Scene と、手元にある別の Scene の両方が直接参照する material を編集して上書きの Play に入ると、手元の Scene は上書きから手元の値で、退かした Scene は base から base の build の時の値で載った（上の「部分 checkout の上書き」と同じ答えを、実データの 1 例で見た）。
 
 測っていないもの（結果を変えうる）: Player、別の PC・`Library` の base、script の追加の後の `Refresh`、列挙に掛からない Dirty（Undo の履歴、sub-asset、Dirty の Scene、prefab の編集中、import の設定（`.meta`）の未適用の変更）、Play の間の script の compile。
+
+## Windows の Player での上書きの登録（6000.6.9f1）
+
+上の「同じ id で中身の違う file を持つ 2 つの directory の登録（上書き）」の主の順（base → 上書き）を、Editor の Play ではなく Windows の Player で測った（2026-11-23、S4-0、PR #209、Unity 6000.6.9f1）。fixture は上の節と同じ形の合成 1 つ（v1 の base、`SceneEdit` と `EditedTex` だけを v2 で build した上書き、base だけ・上書きだけ・両方が使う 3 つの probe の `MonoBehaviour`）。base・Player・上書きを同じ `Library` で、この順に build した。Player は IL2CPP、managed stripping High、development build でない、Scene は runner の 1 つだけ、Addressables は Player と一緒に build しない（製品の BS4 の Player と同じ値）で、`BuildPlayerOptions.previousBuildReportDirectories` に base の build report を渡した。Player は `-batchmode`（`-nographics` なし。graphics の device は `Direct3D11`）で起動し、Player の中の runner が Unity の公開 API（`ContentLoadManager`）で 2 つの directory を登録して load した。製品の登録の口と検証（publish → install → receipt）は通しておらず、base は「build の時に棚卸しした directory と、Player が登録する directory が digest で同じ bytes」と照合した directory である。製品の起動は Player に設定が無く `BeforeSceneLoad` で失敗し、常駐の service は無い状態だった。round（登録・観測・解除の 1 組）は Player の process 1 つにつき 1 つで、6 種の round を 3 回ずつ、18 の process で走らせた。比べる相手は上の節と「6000.6.9f1 での上書きと登録の測り直し」の Editor の実測で、Editor の実測は `-nographics` で製品の起動が成功した状態なので、host・graphics の device の有無・製品の起動の状態の 3 つが一緒に変わっている。
+
+- **base だけ・上書きだけの登録:** base だけの Player では `SceneEdit` は v1、`EditedTex` の pixel は v1、Scene と prefab の component の列は期待どおりで Missing は 0、各物の実体は 1 つだった。同じ操作の列の寿命（Scene の unload と load し直し、`UnloadUnusedAssets`、解除）も壊れなかった。上書きだけの Player では `SceneEdit` と `EditedTex` は v2 だった。
+- **読まれる側:** 2 つの root の `SceneEdit` の id と `EditedTex` の `LoadableObjectId` は等しく、base の root の id から要求しても上書きの root の id から要求しても v2 が出た。`EditedTex` はどちらから load しても同じ `EntityId` だった（Editor と同じ）。
+- **class:** base だけにある Scene、上書きの Scene、base の root から `Loadable` で load した prefab の component は、位置ごとに正しい class と値で Missing は 0 だった。base だけにある Scene の Renderer が直接参照する material の `mainTexture` は v1 のままだった（Editor と同じ）。
+- **実体の数:** 共通の texture・material・shader と編集した texture・material は 2 つずつ、base だけの prefab と texture は 1 つずつで、参照をたどった `EntityId` の集合と `FindObjectsOfTypeAll` の列挙の集合が全ての物で一致した（Editor と同じ数）。
+- **寿命:** 保持した物は、Scene の unload と load し直しの全ての確認点で load 直後と同じだった。load し直した `SceneEdit` は v2 だった。最後に上書き → base の順で解除し、登録は 0 件になった。登録から解除までの round の段の Unity の Error・Exception の log は 0 件だった。
+- **process の間:** 6 種の round のどれも、3 つの process の観測が一致した（差は `FindObjectsOfTypeAll` の列挙の並びの順だけで、集合と数は同じ）。
+- **上書きだけが使う script の型:** base の build report を渡して build した Player に、base が使わない `ProbeOverlayOnly` も残っていた（base が使う型と同じ assembly にある `MonoBehaviour`）。上の class の答えは、型が Player にあった状態での観測で、別の assembly や組み込みの型の場合には広げない。
+- **Addressables の data の無い Player の製品の起動:** 設定の JSON の Addressables 経由の同期 load が、`RuntimeData is null` の Error の後、data の欠落の失敗を返す途中で `ResourceManager+CompletedOperation<TextAsset>` の既定の constructor が strip されていて `MissingMethodException` になった（IL2CPP・High）。
+- **test の中の Player の build と Project Auditor:** EditMode の test から `BuildPipeline.BuildPlayer`（IL2CPP）を `run-tests.ps1` の batch で完走できた（約 6 分）。test の後に同じ Unity の中で Project Auditor package の post-build 監査が走り、assembly ごとに compile し直して `SampleGame.InGame`・`SampleGame.OutGame` で `error CS8773` を出したので、XML の書き出しが約 6 分遅れ、`run-tests.ps1` の `step.json` が `failed`（compile error の検出）になった。XML は `Passed` で、Player の build は成功していた。
+- **終わり:** 18 の Player は全て自分で終了した（exit 0、各 3 秒前後）。Player の log の 5 つに、終了処理の直前に stack を持たない native の行 `Curl error 42: Callback aborted` が 1 行あった（base だけの round にも出た）。
+
+測っていないもの（結果を変えうる）: 他の Player の構成（Mono、他の stripping の水準、development build、窓を出した通常の起動、`-nographics`）、登録の順が上書き → base の時、別の PC・`Library` で build した base、製品の登録の口と検証済みの base、実データ（SampleGame）、Player を build した後に足した script や base が使わない組み込みの型・module を上書きが使う時、script の code・field の変更、Android・iOS、GPU 側の資源の重複、上の節の「測っていないもの」の残り。
 
 ## 確かめていないこと
 
@@ -255,3 +272,19 @@ pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.OverlayRegistr
 ```
 
 3 つ目と同じ形で、`OverlayRounds` の `LifetimeFirst`・`ReadFirst`・`ControlClassFirst`・`ControlReadFirst` を 1 つずつ別の process で続ける（最初に行う観測だけが違い、どれも 2 つ目の同じ出力を読む）。登録か load を Unity が拒否した時だけ、`BaseAloneFirst`・`OverlayAloneFirst` で単独の登録での成否を確かめる。補助の判定 code（`OverlayVerdict`）は、対照の順の class を上書きの版が出る前提で読むので、再利用する時は載った版の class と値で読むように直す。
+
+Windows の Player での上書きの登録の harness は、git の commit `b101b382` の `unity/Assets/OneStarMaker/Tests/Editor/Spikes/PlayerOverlay/`（build・Player の起動・判定の写像）と、test 制約の無い 2 つの asmdef の `unity/Assets/OneStarMaker/Tests/Spikes/PlayerOverlayProbes/`（probe）・`unity/Assets/OneStarMaker/Tests/Spikes/PlayerOverlayRunner/`（Player の中で登録と観測をする runner）にある（PR #209）。同じく別の worktree に取り出し、Editor を閉じた状態で、次の 3 つを順に、別々の Unity process で実行する。record は `TestResults/pov/<run id>/` に Player の process ごとに書かれ、第 2 process の `verdict-second.json` は補助の判定で、答えは record の観測の行から読む。
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayVerdictTests
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayBuilds.FirstProcess
+```
+
+```bash
+pwsh tools/run-tests.ps1 -Filter OneStarMaker.Tests.Editor.Spikes.PlayerOverlay.PlayerOverlayLaunch.SecondProcess
+```
+
+2 つ目（base・Player・上書きの build、約 8 分）は、上の「test の中の Player の build と Project Auditor」のとおり `step.json` が `failed` になりうるので、XML（total 1 以上、failed 0、root `Passed`）で読む。XML の後に Unity が終わらないこともある（[Harness README](../../tools/Harness/README.md) の既知の終了 stall）。Player の構成を変えて測り直す時は、`PlayerOverlayProjectScope` が build の間だけ設定して戻す scripting backend と managed stripping の値と、`PlayerOverlayBuilds` の `BuildPlayerOptions`（`options`・`extraScriptingDefines` 等）を変え、起動の引数（`-batchmode` と `-logFile`）は `PlayerOverlayLaunch` で変える。変えた構成は record の先頭に出るので、測った範囲をそれに合わせて書く。答えが Editor と違った時に host と runner を分ける Editor の対照は、同じ folder の `PlayerOverlayEditorControl` にある（S4-0 では答えが同じだったので走らせていない）。
