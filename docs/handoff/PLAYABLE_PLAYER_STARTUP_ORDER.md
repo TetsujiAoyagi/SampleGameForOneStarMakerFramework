@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `A`（Phase A の revision 0 を凍結した。A1 の初稿、A2 の独立レビュー、A3 の統合、外部計画レビュー 2 巡の採否、§2.5 の owner の決定まで。次は Phase B）
+- status: `B`（Phase B の実装を終えた。§4 の (0)〜(7) と Editor のコンパイル確認まで。Unity の test と build は未実行。次は発見 C）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: 未固定
+- implementation head commit: `ec2d4944abef3c0117986de912cb72cca57aac76`
 - A3 凍結記録: 承認者 root（owner）。2026-11-24。対象は revision 0（この記録を含む commit の本書）。根拠: owner が会話で、§2.5 の (A)〜(F) を A3 の案のとおりと決め、外部計画レビュー 2 巡目の採否を確かめた後に凍結を指示した（2 巡目の判定は、1 巡目の 2 件は解消、新しい 1 件は実行の手順の補強で凍結を止めない、だった）。
 - risk: `high`（Framework の起動の段の順（`AbstractApplicationInitializer`、`BootstrapUiCommonLoader`）と SampleGame の Player の構成の判定、Player の build を変える。UICommon を Player の build から外した IL2CPP・High の Player は初めてで、独立して失敗しうる未知が複数ある（§5 の u1〜u7））
 - owner: root（依頼者）
@@ -22,14 +22,15 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §4 の順序 (0)〜(7)。最初に、通常の task の開始（`pwsh tools/workflow-task.ps1 start`。taskId は担当が決めてこの欄の下の行に書く）と、(0) の u7 の疎通（§5。今ある S4-1 の遊べる Player で、AI の desktop の操作による click）を行う。出口では §6 を書き、implementation head 欄と本票（次の担当は発見 C。動作確認は `対象なし`）と PR の状態ブロックを改める。
-  - 読む範囲: 既定（§0〜§5）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: Unity の Editor（開始 Scene の asset を作ることとコンパイル確認。[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) に従う）と、利用者の desktop の操作（u7 の疎通。画面の取り込みと mouse）。Unity の batch の test と build は実行しない（Phase C）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。u7 が成り立たない時は、AC6 の取り方の別の案を §6 に書いて owner に返し、AC6 に関わらない実装は続ける。C' は Grok の系列か人間に予約してあるので、Phase B に Grok の系列を使わない（§5）。
-  - 引き渡さないもの: なし。
-- task の開始（`tools/workflow-task.ps1 start`）: 未実行。Phase A の担当は Windows の store root の無い Cloud の session で、実行できなかった。ローカルで引き継ぐ担当が行う。
+  - 次の Phase・役割: Phase C の発見 C（一次レビュー）。動作確認（Phase B の後）は `対象なし`（§5。offline のテストで閉じない条件は全て Player の build か Editor の Play を要し、Phase C が担当する）。
+  - 次の作業: implementation head の差分を §2〜§5 と照合し、§5 の判定必須テストと検証経路のうち発見 C で走らせる範囲を決めて実行する（Phase B は Unity の test・build・Player の起動を 1 つも実行していない。§6 の「未実行」）。u7 の疎通は §6 のとおり今ある S4-1 の Player で確かめ済みで、その手段（§6）を AC6 に使える。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は上の欄。
+  - 取得案内: Phase B result snapshot は未生成（Phase B は stage していない。発見 C は commit で固定した implementation head の差分を読む）。evidence bundle・C' blind bundle も未生成。
+  - 必要な権限: Unity の Editor と batch の test・Player の build（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、[Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）、Player の起動、利用者の desktop の操作（AC6。画面の取り込みと mouse）。
+  - 停止規則: §2 の判定定義と停止規則、§4 の差し戻しの条件のまま。C' は Grok の系列か人間に予約してあるので、Phase C に Grok の系列を使わない（§5）。Phase C は Phase B（Anthropic の系列、§6）と違うモデルが担当する。
+  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない。
+- task の開始（`tools/workflow-task.ps1 start`）: 済み（Phase B の担当、2026-11-24）。taskId `s4-1a-playable-player-startup-order`。
 
 ## 1. 目的と対象外
 
@@ -350,7 +351,31 @@ A2 の観点の再レビュー（外部 1 巡目と 2 巡目の後）: 要らな
 
 ## 6. Phase B 実装結果
 
-未着手。
+- 開始時の照合: 起動指示の SHA `e90f49fb` と HEAD が一致し作業ツリーは clean、§0 に A3 凍結記録（revision 0）と次担当 B の票、PR #213 の状態ブロックの「引き継ぐ commit」も同じ SHA。task を開始し（§0）、`docs-audit`（errors 0。警告 2 件は §7・§8 の欄を「埋まっている」と数える既存の検査 3 の警告で、exit に影響しない）と `contract-audit`（errors 0）を 1 回通した。
+- 実装（implementation head `ec2d4944`。path は `unity/Assets/` から）:
+  - (1) `OneStarMaker/Scripts/Runtime/Bootstrap/BootstrapSourcePolicy.cs`（新規、164 行）: D1 の `Plan` と `DecideUiCommon`、値の型（`BootstrapUiCommonRule`・`BootstrapMapSource`・`BootstrapUiCommonOrigin`・`BootstrapSourcePlan`・`BootstrapUiCommonDecision`）、log の `source=` の値の整形。表の test は `OneStarMaker/Tests/Bootstrap/BootstrapSourcePolicyTests.cs`（AC11 (1)(2)）。
+  - (2) `BootstrapUiCommonLoader.cs`（172 → 181 行）: 入力の `Func<bool> UseRequiredPlayerFileConfiguration` を規則の値に変え、active な Scene の検査（今のまま）の結果と規則を `DecideUiCommon` に渡す。`LoadAsync` は `BootstrapUiCommonLoadResult`（UICommon と読んだ先）を返す。hook は読む経路が決まった後にだけ評価する（今と同じ）。
+  - (3) `AbstractApplicationInitializer.cs`（1425 → 1457 行）: try の最初に stage `plan-bootstrap` で `Plan` を 1 回呼び、最初の登録の条件・loader の規則・map の読み口をその結果で選ぶ。log 3 行（`Content directory registered: identity=<session の base の identity> from=<installed|directory>` は `InstallConfiguredContentDirectoryAsync` の最後、`Bootstrap UICommon: source=…`、`Bootstrap SceneResourceMap: source=…`）。`UseRequiredPlayerFileConfiguration` の契約（§2.5 の (F)）、2 つの logical key の hook と `LoadPlayerSceneResourceMap` の doc コメント、map の読み口の例外の文言を直した。後ろの登録の条件、`RouteFirstScene`、失敗の経路は変えていない。
+  - (4) `SampleGame/DependOnAll/AppInitializer.cs`: `IsBs4PlayerMode` を internal にし `PlayablePlayerStart` を足した。`DirectoryBootstrapKeys.PlayableStartSceneName` を足し summary を直した。latch の表は `SampleGame/Tests/Bootstrap/PlayerModeLatchTests.cs`（class `OneStarMaker.Tests.Bootstrap.PlayerModeLatchTests`。AC11 (3)）。開始 Scene `SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity` は Editor の eval で `EditorSceneManager.NewScene(EmptyScene, Single)` → `SaveScene` で作った（YAML は手で書いていない。作った直後の `list_open_scenes` で rootCount 0、file に `GameObject:` の行は 0）。
+  - (5) `PlayerBuildReportVerifier.cs`（62 → 158 行）: pack の data に元の path（`sourceAssetPath`）を足し、遊べる Player 用の `VerifyPlayable`／`VerifyPlayablePackedAssets` に D6 の (a)(b)(c) を置いた。今の 2 つの共通の検査は private の `VerifyCommon` に寄せ、動作確認の Player の `Verify`／`VerifyPackedAssets` の結果と例外は変えていない。表は `PlayerBuildIntegrationPolicyTests`（AC11 (4)。動作確認の Player の検査が mutation の root の下の path を見ないことも足した）。
+  - (6) `SampleGamePlayerBuildCoordinator.cs`（229 → 337 行）: `PlayerBuildKindSettings.CopiesBootstrap`（smoke 真、playable 偽）。偽なら mutation の中で `BuildPlayableFromStartScene` に分かれ、開始 Scene を additive で開いて root の数を数えて閉じ（0 でなければ失敗）、map の各 `SceneResource` の GUID を集め、build の直前の mutation の root の下の file を記録し、開始 Scene 1 つで build し、`VerifyPlayable` で検査し、receipt の `scenes`・`bootstrapSceneName` を開始 Scene の値にする。`PlayerBuildResult.Playable`（`PlayableBuildObservation`）に判定の record 用の値を置いた。動作確認の Player の分岐の呼び出しの列は変えていない。`SettingsOf` の表は `Bs4FixtureComposerTests`（AC11 (5)）。`SampleGameBootstrapContentComposer.cs` は summary だけ。
+  - (7) `PlayerKindEndToEndTests.cs`（462 → 579 行）: Player の log の照合の語（3 行、`source=` の 3 値、`loading UICommon.`、`Addressables backend sealed`、AC14 の 2 つの message、後始末の失敗の行）、AC3 の record の欄（receipt の 2 欄、build の直後の 2 つの path の有無、遊べる Player の観測 5 つ）、case 専用に publish した Player を写し直して壊す `Launch` の引数（path の長さを共有の写しと同じ 259 で検査）、起動の case 4 件、AC6 の case の注記（AI が操作する）。冒頭の doc の件数を「起動 11」にした。
+- §5 で B が決める名前: AC9 `T.LaunchPlayableEmptyContent$`、AC10 `T.LaunchPlayableBrokenCompanion$`、AC14 (a) `T.LaunchSmokeAsPlayable$`、AC14 (b) `T.LaunchPlayableAsSmoke$`。起点 filter に足す latch の表は `OneStarMaker.Tests.Bootstrap.PlayerModeLatchTests`（asmdef は `SampleGame.Tests`）。
+- HANDOFF との差（どれも B 適応。設計・依存・公開 API・状態は変えていない）:
+  - UICommon の logical key が空の例外の文言を、map の読み口（D4）と揃えて `Content directory startup requires a bootstrap Scene logical key.` にした（遊べる Player も通るので「Directory Editor Play」をやめた）。`ContentOnly` で directory が無い時の失敗の文言は D1 に指定が無く、`Plan` と同じ `A playable Player requires a content directory.` にした（`Plan` が先に失敗するので実行時には出ない）。
+  - `BootstrapSourcePolicyTests` の test の引数は enum の名前の文字列にした（NUnit の test method は public で、internal の enum を引数にできない。CS0051 で 1 回コンパイルが落ちて直した）。
+  - AC3 の record の `mapSceneResourceCount` は map の `SceneResources` の件数そのもの、`forbiddenGuidCount` は verifier に渡した GUID の件数（重複を除く）で、別々に取る（AC3 の「同じで 1 以上」を record で比べられるようにした）。
+  - 行数: policy 164（予想 90。値の型と doc コメント）、verifier 158（予想 90。62 から 50% を超えて増えた。足したのは D6 の検査とその入力・結果の値の型で、Player の build report の検査という 1 責務のまま。分けていない）、coordinator 337（予想 270。遊べる Player の build を別の method にし、観測の型を足した。増加は 47%）、initializer 1457（予想 1445）。
+- u7 の疎通（§4 の (0)。合否は書かない）:
+  - 手段: この session には desktop の操作の tool（computer use）が無かった（Chrome の拡張の tool だけ）。そこで AI が shell（PowerShell）から、Player の主窓を前面にして client 領域を `Graphics.CopyFromScreen` で PNG に取り込み、その画像を AI が見て「スタート」の位置を決め、`SetCursorPos` と `mouse_event`（左の押下と解放）で click した。閉じるのは主窓への `WM_CLOSE`（× の click はしていない）。補助の script は git 管理外の `TestResults/s41a-u7/u7.ps1`（同じ PC の Phase C が使える。repo には入れていない）。
+  - 対象: `artifacts/playable/players/20261123T054356705Z-ee10e34348ff4470be9dedeac22e63f3/SampleGame.exe`（S4-1 の遊べる Player、baked の `playerKind` は `playable`）。引数 `-screen-fullscreen 0 -screen-width 1280 -screen-height 720 -logFile <TestResults/s41a-u7/player.log>`、継承した `SAMPLEGAME_*` は消した。
+  - 時刻（UTC、2026-11-23）: 起動 23:20:06.83、Player の log の `Player content first scene: scene=Title … kind=playable stable=True`（146 行目）を確かめて Title を取り込み 23:20:23.89（client 1280x720）、click 23:20:32.72（画像の (640,406)、screen (641,437)）、InGame を取り込み 23:20:43.14、`WM_CLOSE` 23:20:51.40、process の終わり 23:20:52.73（exit code は取れていない。起動した process とは別に `Get-Process` で掴んだため）。
+  - game の log（exe の横の `OneStarMakerLocal/Log/`）: `OnStabledImpl HomeScene` 23:20:32.97、`[InGameSession] initial season ensure started` 23:20:33.20、`Player ready at Cell stream spawn (125.0, 28.0, 1125.0)` 23:20:33.61 がこの順にある。`LogLevel` が Error・Critical の行は 0。Player の log に `Exception` の行は無く、`[AppInit] Application quitting.` は 179 行目。
+  - 保存した画像: `TestResults/s41a-u7/title.png`（Title、「OneStarMaker Sample」と「スタート」「タイトルを揺らす」の button が見える）、`ingame.png`（InGame の HUD と Cell の地面と player の capsule が見える）。game の log は `TestResults/s41a-u7/gamelog/` に写し、S4-1 の Player の folder に出来た `OneStarMakerLocal/` は消して元の状態に戻した。どれも git 管理外で、evidence には入れていない。
+- Phase A へ差し戻す条件: 当たっていない（u7 の手段は §5 が担当の権限内とした shell からの取り込みで、click も Unity に届いた）。
+- 未実行（Phase C）: Unity の test の全て（起点 filter、AC11 の表、全 EditMode 回帰）、Player の build 2 つ（AC3）、Player の起動の全て（AC1・AC2・AC4〜AC10・AC14。この実装の Player は 1 度も起動していない）、AC12 の検証 Play、u1〜u6。Editor のコンパイルは通った（`recompile_status` は `compilationFailed: false`、Editor.log に変更した file の `warning CS` は 0）。出口で `contract-audit` と `docs-audit` を通した。04 章・18 章は Phase D の harvest で直す（Phase B は変えていない）。
+- 動作確認（Phase B の後）: `対象なし`（§5）。
+- Phase B 担当・モデル・ベンダー: Claude Code の desktop の session（ローカルの Windows、Unity 6000.6.9f1 の Editor を自分で開いて閉じた）、Claude Opus 5.5、Anthropic。
 
 ## 7. Phase C
 
