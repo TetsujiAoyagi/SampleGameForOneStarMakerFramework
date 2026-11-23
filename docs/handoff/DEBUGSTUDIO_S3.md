@@ -3,7 +3,7 @@
 ## 0. メタデータ
 
 - type: slice
-- status: 判定 C 完了、独立監査 C′ 中
+- status: C′ 第1巡の証拠差し戻し。固定実装を維持して第2巡の判定入力を配布
 - branch: codex/debugstudio-s3
 - implementation base commit: d176033a06ebcd1f481aa9082ed5d1053a2a03b2
 - implementation head commit: cf44020199a2cc687ad7cf7a29b780661283bd25
@@ -405,7 +405,7 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 ### 発見 C と判定 C の実行記録
 
 - 引き継いだ commit は f68a6e7936f9945c6ec49271325ecb020d16b5be。implementation は cf44020199a2cc687ad7cf7a29b780661283bd25。間の変更はこの HANDOFF のみ。ローカル evidence tag で実装を固定。
-- 新規の Grok 4.6 High（xAI）が、取得先で凍結仕様・完全な製品差分・B 記録・実操作の原記録を読んだ。発見 C の差し戻しなし。判定 C も同じモデルの別セッション。C′ は未起動。
+- 新規の Grok 4.6 High（xAI）が、取得先で凍結仕様・完全な製品差分・B 記録・実操作の原記録を読んだ。発見 C の差し戻しなし。判定 C も同じモデルの別セッション。第1巡の C′ は下記 §8。
 - 独立した Claude Opus 5.5 実行セッションが contract-audit、docs-audit（各 exit 0）、AC4 の diff、同一 head・空 filter の全 EditMode を実行した。対象 3 fixture の 37 件は全て Passed。文字列 "false" と null はどちらも false として適用され、結果と実値が一致した。
 - 標準全回帰は 2202 件中 Passed 2175、Inconclusive 25、Skipped 2、Failed 0。25 件はすべて VFX の GraphicsDeviceType.Null。Unity 実 exit 2、Harness exit 1。
 - 描画あり全回帰は 2202 件中 Passed 2200、Inconclusive 0、Skipped 2、Failed 0。2 件は名前を指定して別の checkout 条件で実行する既存 R8 テスト。最終 shutdown 出力後にプロセスが残った。45 秒隔てた同一 handle はいずれも未 signal、報告 exit code はいずれも 0、CPU 時間は増え、ログは不変だった。限定調査はこの 1 回で終了。今回の専用 batch process だけを強制終了し、signal を確認。実 exit 99、Harness exit 1。原因・スタックの同一性は未確定。無変更の全件再実行をしない。
@@ -413,7 +413,9 @@ GO 候補 head で判定 C の実行担当が行う。主要な確認（V3〜V5�
 
 ## 8. Phase C'
 
-未到達。
+- 第1巡は Grok 4.7 256K Extra High（xAI）の新規セッション。判定 C と同じ固定 bundle を別途取得し、可変 HANDOFF と PR の会話は渡していない。モデルは C と異なるが同一ベンダー・モデル系列なので独立性制約あり。
+- 判定は NO-GO。実操作とテストの実行 checkout が implementation head と異なり、製品ファイルが同一であることを、監査担当が bundle の Git 原出力から検証できなかった。機能の観測そのものは凍結時の期待と一致。別の所見として、README が非 bool の拒否を約束しているが実測では文字列と null が変換された。
+- 再開位置は同じ実装での第2巡。第1巡の原記録200ファイルの hash を全件照合したうえで、実装・実機・テストの各 commit の親、tree、product diff、ancestor 検査の Git 原出力を追補した共通 bundle を用意した。製品変更・Unity 再実行なし。判定 C と新規 blind C′ の双方に同一の取得経路で引き渡す。README の実測に関する訂正文は B 担当が D の harvest 向けに用意した。
 
 ## 9. Phase D
 
