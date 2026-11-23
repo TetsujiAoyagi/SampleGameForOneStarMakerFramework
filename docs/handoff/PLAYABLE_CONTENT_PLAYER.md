@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C は未着手）
+- status: `C`（Phase B を 2026-11-23 に完了した。発見 C を 2026-11-23 に完了し、阻害する指摘は無かった（§7）。判定 C の 1 回目（run `jc1`）は (4) で test の欠陥（J1）に当たって中断し、B へ差し戻した（§7）。B の修正待ち）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
 - implementation head commit: `eb8e4e06007f44a04ddefe5609d0129fa5dafde9`（Phase B の出口の commit。その後の進行役の記録 commit は `docs/handoff/` だけを変える）
@@ -21,11 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（実行担当と判断担当）。発見 C は阻害する指摘なしで完了した（§7）ので、implementation head 欄の commit が GO 候補 head である。
-  - 次の作業: GO 候補 head で §5 の判定必須テスト (1)〜(11) を §5 のコマンドと順で実行し（全てで同じ `S41_RUN_ID`。(1) も自分で走らせ、発見 C の run を判定の入力にしない）、record・log・receipt・XML で AC1〜AC11 を §5「判定の読み方」に従って判定する。最初の run で strip の検出語と実際の log の文言を照らして §7 に書く（§2.2）。AC6 の (1) は record の `quitObservedUtc` と `endedUtc` の差で読む（§7 の F2）。(u1)〜(u5)・(u1b) の初回確認と不成立時の扱いは §5。判定 evidence bundle（§5 の検証経路の証拠一式と XML、owner の screenshot と観察記録）を同じ head から作って stage し、C' 用の blind bundle は所見を含めずに別に作る。結果を §7 の「判定 C」に書く。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄の commit と HEAD の差分（`git diff --stat <implementation head> HEAD`）が `docs/handoff/` の file だけであること（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（発見 C の記録 commit の後に、進行役が AC6 の分け方と終了 stall の扱いを足した記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、implementation head 欄の SHA をそのまま残す。
+  - 次の Phase・役割: Phase B（判定 C からの差し戻しの修正。B 適応）。修正の後は判定 C（実行担当と判断担当）。
+  - B の次の作業: §7 の判定 C（1 回目）の J1 を `PlayerKindEndToEndTests` の中で直す（`ReadGameLog` の 2 か所の `DateTimeStyles`。record の時刻は `Utc` の `"o"`、game の log の `Timestamp` は `2026-11-23T05:18:35.2379051+00:00` の形なので、両方を UTC に直して比べられる style にする）。J2 は §7 の読み方で判定 C が扱うので、B は test の名前を変えない。§3 の外の file は変えない。Editor でコンパイルを確かめ、§6 に「判定 C からの差し戻し（1 巡目）」として変更と根拠を足し、新しい implementation head を §0 の欄に固定して、本票を判定 C へ戻す（下の判定 C の作業をそのまま残す）。Unity の test は走らせない（Phase C の担当）。
+  - 判定 C の次の作業（B の修正の後）: 新しい GO 候補 head で、新しい `S41_RUN_ID` で (1)〜(11) をやり直す（run `jc1` は欠陥のある head の run で、判定に使わない。§7）。(4)〜(10) の `-Filter` は §7 の J2 のとおり test の名前の末尾に `$` を付け、XML の total が 1 であることを確かめる。他は以下のとおり。GO 候補 head で §5 の判定必須テスト (1)〜(11) を §5 のコマンドと順で実行し（全てで同じ `S41_RUN_ID`。(1) も自分で走らせ、発見 C の run を判定の入力にしない）、record・log・receipt・XML で AC1〜AC11 を §5「判定の読み方」に従って判定する。最初の run で strip の検出語と実際の log の文言を照らして §7 に書く（§2.2）。AC6 の (1) は record の `quitObservedUtc` と `endedUtc` の差で読む（§7 の F2）。(u1)〜(u5)・(u1b) の初回確認と不成立時の扱いは §5。判定 evidence bundle（§5 の検証経路の証拠一式と XML、owner の screenshot と観察記録）を同じ head から作って stage し、C' 用の blind bundle は所見を含めずに別に作る。結果を §7 の「判定 C」に書く。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。B は implementation head 欄の commit が HEAD の祖先で、差分が `docs/handoff/` だけであることを確かめる。判定 C は B が固定した新しい implementation head について同じことを確かめる（他があれば停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
+  - 読む範囲: B は §0〜§8（差し戻しなので §6〜§8 を含む）。判定 C は既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（判定 C の 1 回目の記録 commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。B は修正 commit の SHA を implementation head 欄に書く。
   - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session。`run-tests.ps1` は最初から sandbox の外で起動する）。Artifact Storage の evidence の stage。push は公開点の規則に従う（C と C' の後）。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。高コスト証拠を除く操作・実行時・目視の条件（AC6 を含む）の証拠が揃うまで判定 C を完了と記録せず、C' 用の bundle を作らない。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: §7 の発見 C・判定 C の所見と結論を C' に渡さない（blind bundle と C' の取得案内に入れない）。
@@ -382,6 +383,32 @@
 - 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
 - 未確認事項: (u1)〜(u5)・(u1b) は全て未確認で、初回確認は判定 C（§5）。strip の検出語と実際の log の文言の照合（§2.2）も判定 C の最初の run で行う。
 - 担当・モデル: 本 session（Claude Opus 5.5、Anthropic）。`独立性制約あり`: Phase B と同じ系列（owner の指示。§0 の引継ぎ票）。残存リスク: 同じ系列の見落としが B と重なりうる。C' の OpenAI の系列で補う。
+
+### 判定 C（1 回目、2026-11-23。中断して B へ差し戻し）
+
+- 種別: 判定（GO 判定に至らず中断。判定 C を完了と記録しない。bundle は作っていない）
+- 対象: implementation base `32d3e043` / head `eb8e4e06`。開始時の照合（起動指示の SHA `ba8ac0c0` = HEAD、clean、ブランチ、`git diff --stat eb8e4e06 HEAD` が本書だけ、PR #211 の状態ブロック、PR の timeline に実装 head 宛ての新着なし、task は active）は全て一致した。
+- 使用した evidence bundle の取得案内・状態: 未生成（判定 C を完了しないため作らない）。run `jc1` の生の証拠（`TestResults/s41/jc1/`、各 invocation の `TestResults/<invocation>/` の XML・step.json・unity.log、実行担当の note）は repo の `TestResults/` と session の scratch に置いたまま（未保存、ignore の対象）。次の判定 C はこの run を判定と C' の入力にしない。
+- 実行したテストコマンドと結果（全て `S41_RUN_ID=jc1`、sandbox の外、Unity 6000.6.9f1）:
+  - (1) 起点 filter（invocation `b4682fe8`）: exit 0、step.json `passed`、XML `Passed` total 63・failed 0。
+  - (2) `T.BuildSmoke`（`763e7ed4`）: XML `Passed` total 1（約 494 秒）。step.json は `failed`（`C# コンパイルエラーを検出しました`）で、log の `error CS8773` 57 行は Project Auditor の post-build の compile し直し（`-langversion:9.0`、`SampleGame.InGame`・`OutGame`。[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の「test の中の Player の build と Project Auditor」と同じ形）で、§5 の読み方どおり XML で読む。build の record は `unityVersion` `6000.6.9f1`、IL2CPP・High、`Development` なし。XML の後に Unity が終わらず（thread 1 本で CPU 時間が増え続けた）、XML の約 4.5 分後に実行担当が PID 26120 を CIM の Terminate で止めた（14:00:04）。この build の間、別の session の Unity の batch（別の worktree）が同時に動いていた（§5 の初期状態の「他の Unity が動いていない」を満たさなかった。build の観測には時間の条件は無い）。
+  - (3) `T.BuildPlayable`（`6690e899`）: XML `Passed` total 1（約 235 秒）。step.json は (2) と同じ理由で `failed`。record は IL2CPP・High、`developmentInOptions` 偽、`gameAssemblyPresent` 真、`managedDirectoryPresent` 偽、`unityVersion` `6000.6.9f1`（AC10 の観測は揃ったが、この run は判定に使わない）。XML の約 4 分後に同じ stall で PID 23328 を止めた（14:16:31）。
+  - (4) `T.LaunchSmoke`（`ee9c94fe`）: XML `Failed`、total 2（下の J2 で `LaunchSmokeOverride` も同じ process で走った）。`LaunchSmoke` は J1 の例外で失敗し、record の行が書かれなかった（exit code と秒数の観測が無い）。case の folder に残った生の観測: receipt は `succeeded` 真・`stage` `completed`・10 段を今の順に全て持つ、Player の log に `[AppInit] Application quitting.` があり strip の検出語は無い、game の log に Error 以上の行は無い。`LaunchSmokeOverride` の record: exit 1、2.6 秒、receipt `succeeded` 偽・`before-scene-load`・`completedStages` 空・`error` に `Protected Player`。
+  - (5)〜(9)・(11): 未実行（J1 で判定の record が取れないため止めた）。(10) は §0 のとおり起動していない。
+  - 実行担当の操作の誤り（判定に影響なし）: (4)〜(9) を順に流す実行担当の script が最初は case の列を 1 つの filter に繋げて渡し、その invocation（`467b46ee`）を Unity の assembly の読み込み中（test の開始前）に止めた。case の folder は作られていない。J2 に気づいた時点で、(4) の後に始まった `LaunchSmokeOverride` の invocation（`5f501b90`）も止めた。
+  - J2 の確認: `S41_RUN_ID` を置かずに `-Filter 'T.LaunchPlayable$'` で走らせると（`31bee2c3`）、XML の total は 1（`LaunchPlayable` だけ）で、test は `RunDirectory` で失敗して Player を起動しなかった。
+  - 事後: Unity と `SampleGame.exe` の process は残っていない（CIM）。(2)(3) の後に `?? unity/Assets/StreamingAssets.meta`・`unity/Assets/Resources/BS4.meta`（(2) は `unity/Assets/OneStarMakerGenerated.meta` も）が空の folder と一緒に残り、実行担当が中身が空であることを確かめて消した（F3）。
+- 現在の問いを阻害する指摘:
+  - **J1（B 適応）:** `PlayerKindEndToEndTests.ReadGameLog`（`PlayerKindEndToEndTests.cs:253-254` の `DateTime.Parse` と `:270-271` の `DateTime.TryParse`）が `DateTimeStyles.RoundtripKind | DateTimeStyles.AdjustToUniversal` を渡し、.NET はこの組を `ArgumentException` で拒む。`quitObservedUtc` が空でなく game の log の folder がある起動（`LaunchSmoke`、`LaunchPlayable`、`LaunchPlayableHuman`）では必ず投げ、record の行が書かれない。違反根拠: §4 の `PlayerKindEndToEndTests` の形（record に case ごとに 1 行）と §2.2 の AC1・AC4・AC5・AC6 が record で読む条件。この head では AC1・AC4・AC5・AC6 の証拠を取れない。一次証拠: invocation `ee9c94fe` の XML の `LaunchSmoke` の失敗（`The DateTimeStyles value RoundtripKind cannot be used with the values AssumeLocal, AssumeUniversal or AdjustToUniversal.`、`ReadGameLog` ← `Finish` ← `Launch`）と、`record.jsonl` に `LaunchSmoke` の行が無いこと。修正先: B 適応（§3 の file の中の不具合の修正で、契約と責務配置を変えない）。
+- 判定の読み方の確定（条件の追加ではない）:
+  - **J2:** Unity の `-testFilter` は名前を正規表現として test の完全名に当てるので、§5 の `-Filter T.LaunchSmoke` は `LaunchSmokeOverride` にも、`T.LaunchPlayable` は `LaunchPlayable*` の 5 つ（`LaunchPlayableHuman` を含む）にも当たり、§5 の「それぞれ別の Unity process」と §0 の AC6 の時期を破る。判定 C は (4)〜(10) の filter の末尾に `$` を付けて（例 `-Filter 'OneStarMaker.Tests.Editor.Build.PlayerKindEndToEndTests.LaunchPlayable$'`）走らせ、XML の total が 1 であることで 1 つだけ走ったことを確かめる。§5 のコマンドが選ぶつもりの test と同じで、どの AC の合否も変えない。
+- strip の検出語と実際の log の文言（§2.2）: この run で起動した 2 つの Player の log（smoke の成功と override の失敗）には strip の検出語は無かった。`Exception` の probe は例外の行のほか stack の行（`UnityEngine.Debug:LogException(Exception)` など）にも当たる。strip の実際の文言は観測していないので、検出語は変えない。照合は次の判定 C の run でもう一度行う。
+- (u1)〜(u5)・(u1b): (u1) は build と起動まで届いた（smoke の Player は 6000.6.9f1 で build でき、成功の receipt を書いた。exit code は J1 で record に無い）。(u1b) は (2)(3) とも publish の access denied は出なかった。(u2)〜(u5) は未確認。
+- 後続スライスへ移送する findings:
+  - F3（BuildSystem の入力。program §10 の未所有の候補）: Player の build の後に、空の `Assets/StreamingAssets/`・`Assets/Resources/BS4/` と `.meta` が残る。`PlayerBuildProjectMutation.Dispose` が identity の folder と `bs4-runtime.json` だけを消し、親の folder を消さないため（このスライスの diff の外。§4 の禁止で build の設定は変えない）。smoke の build では `Assets/OneStarMakerGenerated/` と `.meta` も残った（`UnityContentDirectoryAdapter` の `DeleteIfEmpty`。こちらも diff の外）。どの AC も見ないが、§5 の事後の `git status --porcelain` に出るので、判定 C は build の後に中身が空であることを確かめて消し、その事実を記録する。
+- 判定必須のうち未実行: (5)〜(11)。(1)〜(4) も欠陥のある head の run なので、修正後の head でやり直す。
+- 未確認事項: AC1〜AC11 の全て（この run では判定しない）。
+- 担当・モデル: 本 session（Claude Opus 5.5、Anthropic）、実行担当と判断担当を兼ねた。`独立性制約あり`: Phase B と同じ系列（owner の指示。§0）。残存リスク: 同じ系列の見落としが B と重なりうる。C' の OpenAI の系列で補う。
 
 ## 8. Phase C'
 
