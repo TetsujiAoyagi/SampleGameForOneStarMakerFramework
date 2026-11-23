@@ -27,7 +27,8 @@
   - 読む範囲: 既定（§0〜§8。§5.1 は読まなくてよい）。
   - 引き継ぐ commit: この票を含む commit（発見 C の 2 回目の記録 commit。SHA は起動指示と PR #209 の状態ブロックで渡す）。implementation head は欄の SHA のまま動かない。
   - 必要な権限: Unity の batch test（`pwsh tools/run-tests.ps1`、sandbox 外）、content と Player の build、Player の起動（18 回）、条件付きで `-WithGraphics` の Editor の対照、Artifacts の evidence 操作（tools/Artifacts/README.md の事前承認の範囲）。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
-  - 停止規則: 判定 C の規則（osm-workflow の phase-c.md）と §4 の「Phase A へ差し戻す条件」、§2 の未判定の定義に従う。判定 C で B へ戻す時は巡の数を 2 巡目として数える（上限 4 巡）。Unity の終了 stall は Harness README の停止規則に従い、XML と record で判定する。
+  - 停止規則: 判定 C の規則（osm-workflow の phase-c.md）と §4 の「Phase A へ差し戻す条件」、§2 の未判定の定義に従う。判定 C で B へ戻す時は巡の数を 2 巡目として数える（上限 4 巡）。Unity の終了 stall は Harness README の停止規則に従い、XML と record で判定する。stall は起きる前提で動く: XML と record の終了行を監視し、揃った後も Unity の process が残れば `Get-CimInstance Win32_Process` で確かめて `Invoke-CimMethod -MethodName Terminate` で止め、時刻・PID・CPU の数値を §7 の note に残す。`Get-Process` の「見つからない」は終了の証拠にしない。
+  - 独立性: 判定 C は Phase B と同じ系列で行う。§7 に「独立性制約あり（owner 受容）」と記録する。
   - 引き渡さないもの: 発見 C の 1 回目・2 回目の所見を C' に渡さない（§7 の発見 C の節を C' 用 bundle に入れない）。
 
 ## 1. 目的と対象外
