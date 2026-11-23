@@ -120,7 +120,7 @@ namespace OneStarMaker.Editor.Build.Content
                 if (!File.Exists(manifest) || !Directory.Exists(metadata))
                     throw new IOException("Staging copy missed Unity metadata.");
                 Directory.CreateDirectory(Path.GetDirectoryName(final)!);
-                Directory.Move(staging, final);
+                ContentStagingMove.Move(staging, final);
                 published = true;
                 // publish の索引は、adapter が root に entry を書いたのと同じ関数で projection の root から作る。
                 // 記録するのは成功した build だけで、失敗の result は記録なし（null）のまま。
