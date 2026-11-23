@@ -18,6 +18,7 @@
 - task: `debugstudio-s3`（開始済み）
 - 引継ぎ票: 次は判定 C。
   - 作業: implementation head を GO 候補 head として、§5.2 の判定必須テスト（最終の全 EditMode 回帰、contract-audit、docs-audit、AC3 の diff 確認、§5.4 の実機手順）を揃え、§5.5 のとおり原記録と期待を対にした表で §2.2 の I1〜I3・E1 を判定する。判定 C と C′ 用の evidence bundle を GO 候補 head から作る。発見 C（§7）は阻害する指摘なし。§7 の「判定 C への申し送り」のとおり、動作確認の Git 外の原記録には V3・V4 の send の stdout と eval の戻り値などがファイルとして無いので、元の出力を取得できなければ §5.4 V0〜V6 を取り直す。
+  - 全 EditMode の既知事項（主担当の追記）: 空 filter・描画なしの標準実行は VFX の 25 件が `GraphicsDeviceType.Null` で Inconclusive になり、Harness は exit 1 を返す。revision 3 の判定 C は標準と `-WithGraphics` の両方を同じ head で実行し、非 0 の終了を原記録のまま残して判定した（commit `d1d11e0c` の本 HANDOFF §7）。§5.2 の「読み替えの規則を置かない」はそのまま守り、両方の結果と理由を記録する。
   - 読む範囲: 既定（§0〜§8）。
   - 必要な権限: 専用 worktree（`osm-ds3-a2`、`b3f105e1` に detach、`unity/Library` は import 済み）での sandbox 外の `pwsh tools/run-tests.ps1` と Editor の起動・eval、Release の WPF・CLI の build と起動。共有 Editor は使わない。
   - 停止規則: 共有 Editor・人間が開いた Editor を操作も強制終了もしない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。高コスト証拠なし。判定必須と操作の証拠が GO 候補 head で揃うまで判定 C を完了と記録せず C′ を起動しない。
