@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1）
-- status: `B`（Phase A の revision 0 を 2026-11-23 に凍結した。Phase B は未着手）
+- status: `C`（Phase B を 2026-11-23 に完了した。発見 C は未着手）
 - branch: `claude/playable-content-player`（PR の base は `develop`）
 - implementation base commit: `32d3e04306d49dac4a8055caaca0196d10df11ad`（`develop` の head、2026-11-23。凍結の前に本ブランチへ merge した。§1 の現況と A2 の固定 base は 1 つ前の `9de34cc2` で、2 つの差は S5-0（PR #210: content の build と transport の publish の staging → final の移動の再試行、`ContentOverlayReuse` の別名の file の報告、その harvest）だけである。§3 の file はどれも変わっていない）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - A3 凍結記録: 承認者は root（owner）、2026-11-23、対象は revision 0（この記録を含む commit。外部計画レビューの 2 巡目まで統合した commit `68f71368` の本書に、凍結の記録・status・引継ぎ票・§5.1 の凍結の行と、A3 の統合で落としていたテンプレートの §6〜§9 の空欄を足し、凍結の前に merge した `develop`（S5-0）に合わせて implementation base・§5 の全 EditMode 回帰の読み方・(u1b)・§2.3 の 1 行を改めた物で（program の S4-1 の行の状態も改めた）、目的・条件・責務マップは変えていない）。承認の根拠: 外部計画レビューの 2 巡目までを A3 で統合した後に、owner が凍結を指示した（「Freeze it」）。§2.5 の 4 点と、2 巡目の後の追記（`content:playerKind` を必須にしたこと、名前の改め、C' の予約、AC6 (5)）も、この指示で承認された
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`）と Player の protected config を変える。動作確認の Player（BS4）の契約を壊すと、BS4 を起動して receipt を読む担当と Artifacts の Player の保存の経路が黙って変わる。Player を遊べる形で起動するのはこの project で初めてで、独立して失敗しうる未知が複数ある。§5）
 - owner: root（依頼者）
@@ -21,13 +21,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §3 の file を §4 の順序で実装する。Unity は Editor でのコンパイルの確認まで行う（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) の規則）。Unity の test の実行、content と Player の build、Player の起動は行わず、§6 に未実行として書く（Phase C の担当）。出口で §6 を書き、status と本票を発見 C 向けに改めて commit する。動作確認は `対象なし`（§5）。
-  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。上の implementation head 欄が `未固定` で、A3 凍結記録に承認者・日付・対象 revision があり、本票の次の担当が Phase B であること。食い違えば引き継がずに止まる。task は開始済みで、新しく start しない（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player` で確かめる）。
-  - 読む範囲: 既定（§0〜§5。§5.1 は読まなくてよい）。
-  - 引き継ぐ commit: この票を含む commit（A3 凍結版。SHA は起動指示と PR #211 の状態ブロックで渡す）。
-  - 必要な権限: Unity Editor の起動とコンパイルの確認。push はしない（実装の push は、判定 C と C' の後の公開点で行う）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たったら、実装を進めずに止まって返す。§4 の「禁止」は B 適応にしない。設計判断を増やさず、§3 に無い file・asmdef・参照・製品の変更を足さない。Phase B・C の担当に OpenAI の系列を使わない（C' に予約。§5）。
+  - 次の Phase・役割: 発見 C（一次レビュー。動作確認は `対象なし` なので Phase B の次は発見 C）。
+  - 次の作業: 実装 diff（implementation base と implementation head の間）を §3 の責務マップ・§2 の条件・§4 の禁止と照らす構造レビューと、§5 の判定必須テストのうち発見 C で走らせる範囲の実行。Player の build と起動を伴う (2)〜(10) は判定 C の実行担当が凍結済みのコマンドで行う（§5。AC6 は owner が押す）。Phase B の実装の要点・HANDOFF との差・未実行は §6。
+  - 開始時の照合: 起動指示で渡された SHA と自分の HEAD が一致し、作業ツリーが clean で、ブランチが `claude/playable-content-player` であること。implementation head 欄が「この票を含む commit」で、HEAD と親の差分（`git diff --stat HEAD^ HEAD`）に `docs/handoff/` 以外の file があること（無ければ停止）。PR #211 の状態ブロックの `引き継ぐ commit` が渡された SHA と HEAD に一致すること。食い違えば引き継がずに止まる。task は開始済み（`pwsh tools/workflow-task.ps1 status -Task s4-1-playable-content-player`）。
+  - 読む範囲: 既定（§0〜§8）。
+  - 引き継ぐ commit: この票を含む commit（実装と票を 1 つにした Phase B の出口の commit。SHA は起動指示と PR #211 の状態ブロックで渡す）。次の記録 commit を切る担当は、その欄に渡された SHA を書く（句を引き継がない）。
+  - 必要な権限: Unity の batch テストと Player の build・起動（窓を出せる利用者の desktop の session）。push は公開点の規則に従う（C と C' の後）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §2.4 (d)。新しい事実は分類してから扱う。Phase C に OpenAI の系列を使わない（C' に予約。§5）。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -329,18 +329,30 @@
 
 ## 6. Phase B 実装結果
 
-- 実装:
-- HANDOFF との差:
-- 未実行:
-- implementation head commit:
-- Phase B 担当・モデル・ベンダー:
+- 実装: §3 の file を §4 の順序で実装した（新しい asmdef・参照・公開 API は無い。足した公開面は protected `IsPlayablePlayerKind` 1 つと menu 1 つ）。
+  - `PlayerBakedContentConfiguration`: internal enum `PlayerContentKind { Smoke, Playable }`、`PlayerKindRaw`・`PlayerKind`、key 定数 `PlayerKindKey`、必須の読み `ParsePlayerKind`（無い・空・`smoke`/`playable` 以外は `ContentDirectoryException(InvalidConfiguration)`）、latch の判定 `LatchPlayerKind`（ordinal に `playable` の時だけ Playable）。
+  - `PlayerContentConfiguration.Resolve`: 今の 9 つの比較の後に、`PlayerKindRaw` と重ねた後の `GetString("content:playerKind","")` の ordinal 比較を足した（message は今と同じ `Protected Player content configuration was overridden.`）。
+  - `AbstractApplicationInitializer`: 末尾の 2 段の `if` を `RouteFirstScene`（internal enum `PlayerFirstSceneRoute`）の switch にし、`LoadPlayerFirstSceneAsync`（stage `load-player-first-scene:<Scene>`、log `[AppInit] Player content first scene: scene=… identity=… kind=playable stable=…`）を足した。分岐の種類は検証済みの baked から読む。`RunsPlayerContentSmoke` を消し、失敗時の unload を `UnloadsFirstSceneOnStartupFailure` に、派生への通知を `RunStartupFailureHooksAsync`（別々の try）にした。`BuildConfig` が baked の検証より前に `_latchedPlayerKind` を決め、`BootstrapBeforeSceneLoad` の冒頭で Smoke に戻す（`ReleaseAll` では消さない）。`OnApplicationQuitting` の始めに `[AppInit] Application quitting.` を出す。
+  - `AppInitializer`（SampleGame）: 失敗の override を「`IsPlayablePlayerKind` が偽なら今と同じ receipt、`finally` で `Application.Quit(1)`」にした。
+  - `SampleGamePlayerBuildCoordinator`: `Build(PlayerBuildKind)`、種類ごとの値を `SettingsOf`（宣言・probe の有無・出力先の folder 名・baked の `playerKind`）と `ArtifactsRootOf` の 1 か所で選ぶ。共通部分を `BuildPlayer` にした。menu `Tools/OSM/Content/Build Spring Playable Player` を足した（今の menu は `Build(Smoke)`）。`RuntimeJson` に `playerKind` の引数と欄を足した。build の結果 `PlayerBuildResult`（identity、publish 先、transport、build report の options、mutation の中で build の直前に読んだ backend と stripping）を返す。`BuildReceipt` は変えていない。
+  - テスト: `PlayerContentConfigurationTests` に AC9 (1)〜(6)（今の 9 つの key の override の拒みを key ごとに含む）、`Bs4FixtureComposerTests` に AC3（2 つの種類の 13 の key の全集合を `JsonConfigFlattener` で平らにして比べる、`artifactsRoot`）。`PlayerKindEndToEndTests`（新規、`[Explicit, Timeout(7200000)]`）に §4 の build 2 つと起動 7 つ。
+- HANDOFF との差（どれも設計判断を足していない）:
+  - 派生への通知の失敗の log は、どちらの hook かを括弧で足した（`[AppInit] Cleanup after failed AfterSceneLoad initialization also failed (derived cleanup): …` と `(player content failure notification)`）。AC はこの文言を見ない。
+  - AC9 の表の test は、internal の enum を public の test の引数・戻り値にできないので、種類を bool、結果を enum の名前の文字列で表した。
+  - 種類ごとの値は coordinator の file の中の internal の `PlayerBuildKindSettings` と、build の結果は同じ file の internal の `PlayerBuildResult` に置いた（§3 の「internal static の 1 か所」「internal の値」）。
+  - 行数: coordinator 152 → 229（予想 205）、`PlayerKindEndToEndTests` 0 → 445（予想 320）、`AbstractApplicationInitializer` 1326 → 1419（予想 1380）、`PlayerContentConfigurationTests` 174 → 320、`Bs4FixtureComposerTests` 85 → 158、`AppInitializer` 431 → 441。責務は §3 のまま。
+  - `PlayerKindEndToEndTests` の観測の細部（判定 C が record を読む時に要る）: `quitObservedUtc` は test が 500 ms の刻みで log を読み直して初めて quitting の行を見た時刻。game の log は `OneStarMakerLocal/Log/` の全 file の `{` で始まる行を `JsonConfigFlattener` で読み、Error・Critical の行と `GameLogProbes` の message の行だけを record に書く（`Timestamp` と `quitObservedUtc` で `beforeQuit` を付ける）。Player の log は検出語ごとに当たった行（無ければ `line` 0 の 1 件）と、quitting の行より前かを書く。`LaunchPlayable` は初回 Scene の行が出ないか 60 秒の間に終わったら閉じる要求を送らない（kill は finally）。AC6 の起動は `<run>/LaunchPlayableHuman/started.json` に pid と開始の時刻を書き、test の進捗の出力に owner への手順を出す。同じ run id で build や case を 2 回走らせると test は失敗する（上書きしない）。
+- 未実行: Unity の test（起点 filter、判定必須の (1)〜(11)）、content と Player の build、Player の起動は全て未実行（Phase C の担当）。単体テストもコンパイルを確かめただけで走らせていない。
+- 実行した確認: Editor 6000.6.9f1 を `unity open` で起動して import を待ち、`EditorUtility.scriptCompilationFailed` が偽・`isCompiling` が偽であること、`PlayerKindEndToEndTests`・`PlayerBuildKind`・`PlayerContentKind` の型が load された assembly にあることを eval で確かめた。dirty な Scene が 0 であることを確かめて Editor を正常終了した（`git status` は実装の file と新しい test の `.cs`・`.meta` だけ）。`pwsh tools/contract-audit.ps1` は errors 0・warnings 0。
+- implementation head commit: §0 の implementation head 欄のとおり（実装と本票を 1 つの commit で切った）。
+- Phase B 担当・モデル・ベンダー: 本 session（Claude Opus 5.5、Anthropic）。
 
 ### 動作確認
 
-- 対象 head:
-- 条件ごとの実行担当・環境・実行したコマンド:
-- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態:
-- 検証経路の期待と違う観測と、B への差し戻し:
+- 対象 head: なし（動作確認は `対象なし`）
+- 条件ごとの実行担当・環境・実行したコマンド: なし
+- 生の観測（出力、事前・事後の観測。合否は書かない）と保存先・状態: なし
+- 検証経路の期待と違う観測と、B への差し戻し: なし
 - `未実施` の条件と理由・担当: `対象なし`（§5）
 
 ## 7. Phase C
