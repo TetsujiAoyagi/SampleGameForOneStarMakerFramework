@@ -382,7 +382,17 @@ App の composition root が `DebugCommandCatalog` を作り、初期登録を�
 同じ instance を内部呼出し側と `CatalogDebugCommandDispatcher` へ明示的に渡す。
 この adapter は opt-in であり、default の `CreateDebugCommandDispatcher` と
 組込 `ping` / `runtime-diagnostics` の経路はそのまま使える。
-SampleGame に catalog が配線されているという意味ではない。
+
+SampleGame は Editor のときだけ catalog を配線し、`debug.set-active` を 1 つ登録する
+（Player では既定の dispatcher のままで、DebugSocket を有効にしても登録しない）。
+このコマンドは、今の hierarchy で payload の NodeId が指す既存の GameObject の activeSelf を指定値にする。
+対象を名前・タグ・印・許可リストで絞らず、SampleGame は GameObject を作らない。
+handler は `DebugSocketService.TryGetHierarchyGameObject` で NodeId を GameObject に解決する。
+これは inspect と同じ lookup を包む読み取り口で（main thread で呼ぶ）、
+未 capture・prune 済み・接続の切替えによる reset 後・破棄済み・hierarchy に出ない GameObject、
+および service の Dispose 後は false を返す。書き込みの意味は Game 側のコマンドが持ち、Framework は書き込み口を持たない。
+NodeId は Play ごとに 1 から振り直されるので、前の Play の NodeId が次の Play の別の GameObject を指すことがある。
+送り方と結果の読み方は `tools/DebugStudio/src/DebugStudio.Cli/README.md` にある。
 
 catalog は handler の依存を取得・Dispose しない。
 closure は App 寿命の依存だけを保持し、Scene 所有オブジェクトの強参照登録は非対応。

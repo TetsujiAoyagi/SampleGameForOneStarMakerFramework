@@ -30,6 +30,31 @@ Use a NodeId from the current Play's `hierarchy` output for `inspect`. After sto
 
 The local control listener processes connections sequentially. A read can occupy it for its request timeout. Whole-frame reception is limited to 15 seconds, response sending to 3 seconds, and socket close to 3 seconds. A CLI process disappearing need not be detected immediately; request subscriptions end on observed disconnection or their deadline.
 
+### Setting an existing GameObject's activeSelf (SampleGame, Editor Play)
+
+In Editor Play only, SampleGame registers the command `debug.set-active`. It sets the `activeSelf` of one existing GameObject that appears in the current `hierarchy`, chosen by NodeId. Any such GameObject can be targeted; there is no filtering by name, tag, marker or allow list, and SampleGame creates no GameObject for this. Players do not register the command. GameObjects not shown in `hierarchy` (such as DontDestroyOnLoad) cannot be targeted.
+
+Pick the row in `hierarchy`, then send its NodeId as a JSON number with an explicit value. The payload has exactly two fields, both required: `nodeId` (positive integer) and `active` (JSON `true` or `false`). The command sets the value; it does not toggle.
+
+```powershell
+debugstudio-cli hierarchy
+debugstudio-cli send --command debug.set-active --payload '{"nodeId":2,"active":false}'
+debugstudio-cli inspect 2
+debugstudio-cli send --command debug.set-active --payload '{"nodeId":2,"active":true}'
+debugstudio-cli inspect 2
+```
+
+Reading the result (send output and exits are unchanged):
+
+- `success=true message=applied` with payload `{"nodeId":2,"name":"Directional Light","activeSelf":false}` (exit `0`, stdout): applied to the GameObject named `name` that had that NodeId when the command ran; `activeSelf` is the value read after `SetActive`. The result is returned on the main thread after `SetActive`, so the change is already applied when it arrives and a following `inspect` reads the applied value.
+- The command itself calls `SetActive` only on that one GameObject. Game code run by `SetActive` (`OnEnable`, `OnDisable` and similar) may change other GameObjects or the target itself; that is not guaranteed against.
+- `activeSelf` is the GameObject's own flag. If a parent is inactive, the GameObject stays hidden even with `activeSelf` true, and its `hierarchy` flags do not include `ActiveInHierarchy`.
+- `success=false` with a message starting `rejected: ` (exit `1`; this line goes to stderr): nothing was changed. Reasons are `invalid-payload` (unparseable, `nodeId` missing or below 1, `active` missing) and `node-not-found` (the NodeId does not point to a live GameObject in the current hierarchy, or no DebugSocket).
+- Any other `success=false` (handler exception, unregistered command) and any ending without a `CommandResult` line (timeout exit `2`, other failures exit `1`) is unknown: the change may or may not have been applied. A timeout does not mean the command did not run. The CLI never resends automatically.
+- After an unknown result, `inspect` shows the value at the time of reading, not evidence that the request ran. To reach the value you want, rerun `hierarchy` and send the explicit value again; because the value is explicit, resending does not flip it back.
+- Write `active` as JSON `true` or `false`. Other values are not guaranteed to be rejected: in measurement, `"false"` and `null` were applied as `false`, and `"true"` as `true`. Read the applied value from the result's `activeSelf`.
+- NodeIds across Plays: after restarting Play, rerun `hierarchy` before sending. A NodeId from a previous Play can be applied to a different GameObject that has the same number in the next Play. Check which GameObject was changed with the result's `name`.
+
 ## Offline comparison
 
 ```sh

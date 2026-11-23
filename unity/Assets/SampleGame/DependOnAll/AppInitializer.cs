@@ -6,11 +6,14 @@ using OneStarMaker.Runtime.CameraSystem.Abstractions;
 using OneStarMaker.Runtime.CameraSystem.BackgroundApplier;
 using OneStarMaker.Runtime.CameraSystem.Cinemachine;
 using OneStarMaker.Runtime.CameraSystem.Hosting;
+using OneStarMaker.Runtime.DebugCommands;
+using OneStarMaker.Runtime.DebugSocketServices;
 using OneStarMaker.Runtime.Rendering.Environments;
 using OneStarMaker.Runtime.Rendering.Vfx;
 using OneStarMaker.Runtime.SceneSystem;
 using OneStarMaker.Runtime.UpdateSystem.Api;
 using SampleGame.Common.Rendering.Vfx;
+using SampleGame.DependOnAll.DebugCommands;
 using SampleGame.InGame.Streaming;
 using System;
 using System.Collections.Generic;
@@ -199,6 +202,22 @@ namespace SampleGame.DependOnAll
             ReleaseCameraSystem();
             ReleaseRenderEnvironment();
             ReleaseProfilerTelemetry();
+        }
+
+        /// <summary>
+        /// Editor のときだけ、DebugStudio の <c>debug.set-active</c> を登録した catalog の dispatcher を返す。
+        /// Player（DebugSocket を有効にした場合を含む）では既定の dispatcher のままにし、書き込みコマンドを出さない。
+        /// この呼出しは DebugSocketService の構築より前（BeforeSceneLoad）なので、service は handler の実行時に読む。
+        /// </summary>
+        protected override IDebugCommandDispatcher CreateDebugCommandDispatcher()
+        {
+            var catalog = new DebugCommandCatalog();
+            if (!SetActiveDebugCommand.Register(catalog, Application.isEditor, () => DebugSocket))
+            {
+                return base.CreateDebugCommandDispatcher();
+            }
+
+            return new CatalogDebugCommandDispatcher(catalog);
         }
 
         private void InitializeCameraSystem()

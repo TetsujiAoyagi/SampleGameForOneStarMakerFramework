@@ -145,6 +145,12 @@ namespace OneStarMaker.Runtime
         /// </summary>
         protected AppLoggerFactory? LoggerFactory => _services?.LoggerFactory;
 
+        /// <summary>
+        /// Framework 標準の DebugSocketService。debugSocket:enabled=false または BeforeSceneLoad 前・解放後は null。
+        /// 寿命は Framework が持つので、派生クラスは参照を保持せず使う時に読む。
+        /// </summary>
+        protected DebugSocketService? DebugSocket => _services?.DebugSocket;
+
         /// <summary>Framework 標準の更新 coordinator。BeforeSceneLoad 完了後に有効。</summary>
         protected UpdateCoordinator? UpdateCoordinator => _services?.UpdateSystemHost?.Coordinator;
 
