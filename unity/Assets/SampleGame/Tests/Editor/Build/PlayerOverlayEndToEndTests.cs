@@ -416,37 +416,65 @@ namespace SampleGame.Tests.Editor.Build
         }
 
         /// <summary>
-        /// AC8 (c): 作り直せない root だけの計画。base にある root の Scene の file（と .meta）を Assets の外へ退かして入口を実行する。
-        /// 退かした file は case の終わりに戻す（driver も git checkout で戻す）。
+        /// AC8 (c): 作り直せない root だけの計画。base に閉包の記録がある時、計画は編集が当たる root だけを見る
+        /// （<c>ContentOverlayPlanner.Classify</c>）。root の Scene の file を退かすだけでは編集が 0 件で <c>NotRequired</c> になる
+        /// （手元に無い asset は編集に数えない）。そこで、記録の閉包で Scene の root だけが持つ text の asset を 1 つ編集してから、
+        /// それを持つ全ての root の Scene の file（と .meta）を Assets の外へ退かす。編集は記録の閉包でそれらの root に当たり、
+        /// root の file が無いのでどれも作り直せない root（<c>SourceAbsent</c>）になり、編集は他の root に当たらないので作れる root は 0 個になる。
+        /// 入口の前に、入口と同じ計画の port で <c>UnbuildableOnly</c> になったことを確かめ、作れなければ入口を呼ばずに落とす。
+        /// 編集と退かした file は case の終わりに戻す（driver も git checkout で戻す）。
         /// </summary>
         [Test, Explicit, Timeout(TestTimeoutMs)]
         public void Y17_UnbuildableOnly()
         {
             var record = Begin(nameof(Y17_UnbuildableOnly));
-            var scene = PickNonBootstrapScene();
-            record.Note("movedScene", scene);
+            var ports = ProductPorts(record);
+            var player = ports.LocatePlayer();
+            if (!player.IsFound) Assert.Fail("AC8 (c) needs a playable Player: " + player.Failure);
+            var install = ports.ResolveBase(player).Install ?? throw new AssertionException("AC8 (c) needs the installed base of the Player.");
+            var target = PickUnbuildableTarget(install);
+            record.Note("movedScenes", string.Join(" ", target.ScenePaths));
+            record.Note("editedAsset", target.AssetPath);
+            var editedFull = Path.Combine(ProjectRoot(), target.AssetPath);
+            var originalBytes = File.ReadAllBytes(editedFull);
             var aside = Path.Combine(record.CaseDirectory, "aside");
-            Directory.CreateDirectory(aside);
-            var full = Path.Combine(ProjectRoot(), scene);
-            File.Move(full, Path.Combine(aside, Path.GetFileName(full)));
-            File.Move(full + ".meta", Path.Combine(aside, Path.GetFileName(full) + ".meta"));
+            // 退かした file は Assets からの相対 path のまま aside の下に置く（同じ名前の Scene が別の folder にあっても衝突しない）。
+            var moved = target.ScenePaths.SelectMany(x => new[] { x, x + ".meta" })
+                .Select(x => (From: Path.Combine(ProjectRoot(), x), To: Path.Combine(aside, x))).ToArray();
+            // 末尾に改行を 1 つ足す。YAML の意味は変わらず、file の SHA-256 だけが base の記録と違う。
+            File.WriteAllBytes(editedFull, originalBytes.Concat(new[] { (byte)'\n' }).ToArray());
+            foreach (var (from, to) in moved)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                File.Move(from, to);
+            }
             AssetDatabase.Refresh();
-            // 退かした Scene が Addressables の entry なら、Refresh で Addressables が group から entry を外し、group の asset が
-            // 未保存になる。入口はそれを未保存の asset として保存の確認に通し、batch の dialog は Cancel を返すので、AC8 (c) の
-            // 初期状態（Assets/ の Dirty が 0 件）にならない。退かした状態を disk に保存してから、0 件であることを確かめる。
-            // 保存した group の file は driver が case の後の git checkout で戻す。
-            AssetDatabase.SaveAssets();
-            var unsaved = PlayEntryInterceptor.EnumerateUnsavedAssets().ToArray();
-            record.Note("unsavedAfterMove", string.Join(" ", unsaved));
-            if (unsaved.Length != 0) Assert.Fail("AC8 (c) needs no unsaved assets before the entry runs: " + string.Join(", ", unsaved));
             try
             {
+                // 退かした Scene が Addressables の entry なら、Refresh で Addressables が group から entry を外し、group の asset が
+                // 未保存になる。入口はそれを未保存の asset として保存の確認に通し、batch の dialog は Cancel を返すので、AC8 (c) の
+                // 初期状態（Assets/ の Dirty が 0 件）にならない。退かした状態を disk に保存してから、0 件であることを確かめる。
+                // 保存した group の file は driver が case の後の git checkout で戻す。
+                AssetDatabase.SaveAssets();
+                var unsaved = PlayEntryInterceptor.EnumerateUnsavedAssets().ToArray();
+                record.Note("unsavedAfterMove", string.Join(" ", unsaved));
+                if (unsaved.Length != 0) Assert.Fail("AC8 (c) needs no unsaved assets before the entry runs: " + string.Join(", ", unsaved));
+
+                // 入口と同じ計画の port（準備と計画は読むだけで、認め・build はしない）で初期状態を確かめる。
+                var overlayPorts = ports.OverlayPorts(install);
+                overlayPorts.Prepare();
+                var plan = overlayPorts.Plan();
+                record.Note("planBeforeEntry", plan.State + " overlayRoots=" + plan.OverlayRootCount + " unbuildable=" +
+                    string.Join(",", plan.Unbuildable.Select(x => x.Label)));
+                if (plan.State != PlayEntryOverlayPlanState.UnbuildableOnly || plan.OverlayRootCount != 0 || plan.Unbuildable.Count == 0)
+                    Assert.Fail("AC8 (c) needs a plan with unbuildable roots only before the entry runs; got " + plan.State + ".");
+
                 EntryLaunch(record, null);
             }
             finally
             {
-                File.Move(Path.Combine(aside, Path.GetFileName(full)), full);
-                File.Move(Path.Combine(aside, Path.GetFileName(full) + ".meta"), full + ".meta");
+                foreach (var (from, to) in moved) if (File.Exists(to)) File.Move(to, from);
+                File.WriteAllBytes(editedFull, originalBytes);
                 AssetDatabase.Refresh();
             }
             Finish(record);
@@ -590,6 +618,9 @@ namespace SampleGame.Tests.Editor.Build
             var ports = PlayerOverlayLaunch.ProductPorts();
             // batch には dialog が無い。止めた理由は Console と記録に残る。
             ports.Stop = message => { record.Note("stopMessage", message); Debug.LogWarning(message); };
+            // 入口の通知（作り直せない root の組など。AC8 (c) が読む）を Console と記録の両方に残す。
+            ports.Warn = message => { record.Note("entryWarning", message); Debug.LogWarning(message); };
+            ports.Info = message => { record.Note("entryInfo", message); Debug.Log(message); };
             return ports;
         }
 
@@ -770,19 +801,66 @@ namespace SampleGame.Tests.Editor.Build
             record.Note("gitHead", string.Join("", Git("rev-parse HEAD")));
         }
 
-        private static string PickNonBootstrapScene()
+        private sealed class UnbuildableTarget
         {
-            var map = AssetDatabase.LoadAssetAtPath<SceneResourceMap>(SampleGameBootstrapContentComposer.SceneResourceMapPath)
-                      ?? throw new AssertionException("SceneResourceMap is missing.");
+            internal UnbuildableTarget(string assetPath, IReadOnlyList<string> scenePaths) { AssetPath = assetPath; ScenePaths = scenePaths; }
+            internal string AssetPath { get; }
+            internal IReadOnlyList<string> ScenePaths { get; }
+        }
+
+        // 退かす Scene の数の上限。多すぎる候補は選ばない（退かす file が増えると Refresh と戻しが重くなる）。
+        private const int MaxMovedScenes = 16;
+
+        /// <summary>
+        /// AC8 (c) の編集の対象。base の閉包の記録から、持ち主の root が全て開始 Scene と UICommon 以外の Scene の root で、
+        /// それらの Scene の file が手元にある text（YAML）の asset を選ぶ。VFX Graph（.vfx。再 import が重く、compile の log を出しうる）でない物、持ち主の少ない物、
+        /// path の ordinal 順の順に優先する。script・Scene の file は選ばない（script を書き換えると compile と domain reload で test が切れる）。
+        /// Object の root が持つ asset は選ばない（その root の file は退かさないので、編集で作れる root になる）。
+        /// 選べなければ AC8 (c) の初期状態を作れないので落とす。
+        /// </summary>
+        private static UnbuildableTarget PickUnbuildableTarget(ContentInstallResult install)
+        {
+            var manifest = JsonUtility.FromJson<ContentTransportManifest>(File.ReadAllText(Path.Combine(install.RevisionRoot, "transport.json")));
+            var closure = ContentSourceClosureRecord.Read(manifest);
+            if (closure.State != ContentSourceClosureState.Present)
+                Assert.Fail("AC8 (c) needs a base with a source closure record; got " + closure.State + " " + closure.Detail);
             var firstScene = SampleGameBuildPurposes.FirstSceneOf(SampleGameBuildPurposes.SpringFull.Name);
-            foreach (var resource in map.SceneResources.Where(x => x != null).Reverse())
+            var rootGuids = new HashSet<string>(closure.Roots.Select(x => x.Guid), StringComparer.Ordinal);
+            var owners = new Dictionary<string, List<ContentSourceClosureRootRecord>>(StringComparer.Ordinal);
+            foreach (var root in closure.Roots)
+                foreach (var guid in root.Assets.Select(x => x.Guid).Distinct(StringComparer.Ordinal))
+                {
+                    if (!owners.TryGetValue(guid, out var list)) owners[guid] = list = new List<ContentSourceClosureRootRecord>();
+                    list.Add(root);
+                }
+            var candidates = new List<(UnbuildableTarget Target, bool Vfx)>();
+            foreach (var pair in owners)
             {
-                if (resource.Identity == firstScene || resource.Identity == SampleGameBootstrapContentComposer.UiCommonLogicalKey) continue;
-                var path = AssetDatabase.FindAssets(resource.Identity + " t:Scene").Select(AssetDatabase.GUIDToAssetPath)
-                    .FirstOrDefault(x => Path.GetFileNameWithoutExtension(x) == resource.Identity && x.StartsWith("Assets/", StringComparison.Ordinal));
-                if (path != null) return path;
+                if (rootGuids.Contains(pair.Key)) continue;
+                var roots = pair.Value;
+                if (roots.Count > MaxMovedScenes || roots.Any(x => x.Kind != "Scene" || x.LogicalKey == firstScene
+                        || x.LogicalKey == SampleGameBootstrapContentComposer.UiCommonLogicalKey)) continue;
+                var path = AssetDatabase.GUIDToAssetPath(pair.Key);
+                if (string.IsNullOrEmpty(path) || !path.StartsWith("Assets/", StringComparison.Ordinal)
+                    || path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".unity", StringComparison.OrdinalIgnoreCase)) continue;
+                var file = Path.Combine(ProjectRoot(), path);
+                if (!File.Exists(file) || !IsYamlText(file)) continue;
+                var scenes = roots.Select(x => AssetDatabase.GUIDToAssetPath(x.Guid)).Distinct(StringComparer.Ordinal).ToArray();
+                if (scenes.Any(x => string.IsNullOrEmpty(x) || !File.Exists(Path.Combine(ProjectRoot(), x)))) continue;
+                candidates.Add((new UnbuildableTarget(path, scenes.OrderBy(x => x, StringComparer.Ordinal).ToArray()),
+                    path.EndsWith(".vfx", StringComparison.OrdinalIgnoreCase)));
             }
-            throw new AssertionException("No non-bootstrap scene file was found in the SceneResourceMap.");
+            var chosen = candidates.OrderBy(x => x.Vfx).ThenBy(x => x.Target.ScenePaths.Count)
+                .ThenBy(x => x.Target.AssetPath, StringComparer.Ordinal).Select(x => x.Target).FirstOrDefault();
+            return chosen ?? throw new AssertionException(
+                "AC8 (c): no text asset in the base closure belongs only to Scene roots other than the first scene and UICommon.");
+        }
+
+        private static bool IsYamlText(string file)
+        {
+            using var stream = File.OpenRead(file);
+            var head = new byte[5];
+            return stream.Read(head, 0, head.Length) == head.Length && System.Text.Encoding.ASCII.GetString(head) == "%YAML";
         }
 
         /// <summary>
