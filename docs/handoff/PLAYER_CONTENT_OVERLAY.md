@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。次は発見 C）
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。次は B の修正。B と発見 C の往復の 1 巡目（上限 4 巡））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `ae49bebfbc6748d748fe307d24b982706bed2e47`
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C（発見 C）。動作確認（Phase B の後）は §5 のとおり `対象なし`。
-  - 次の作業: §5 の「発見 C の最初の限定実行」（driver `tools/s42-player-overlay.ps1` の先頭: X の build、Y への写し、AC8 (d)、install、AC8 (a)、AC1）を構造の ledger より前に通し、続けて構造適合・受け入れ条件・判定必須テストを確認する。Unity の test・Build・Player の起動は Phase C の責任で、B は 1 つも実行していない（§6.4）。
-  - 読む範囲: 既定のとおり（§0〜§8）。§6.3 の B 適応と AC8 (c) の未確認を先に読む。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head はその親で、HANDOFF だけが違う。
-  - 必要な権限: Unity の batch test・Player の build と起動（窓を出す）、2 つの新しい worktree（X・Y）の作成、repo の外の短い path への run ごとの cache の作成と削除、AC1 の「スタート」の押下のための画面の取り込みと OS の mouse の入力。push は公開点の規則に従う。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §5 の u ごとの不成立時の扱いに従う。実装の欠陥は B へ戻す。
+  - 次の Phase・役割: Phase B（発見 C の 1 巡目の差し戻しの修正）。
+  - 次の作業: §7 の発見 C（1 巡目）の DC1〜DC3 を直す。DC1・DC2 は test の修正（B 適応）。DC3 は §7 の観測（mutation の値が build の途中で disk に保存され、戻しはメモリの上だけ）に対して、mutation の戻しを disk に反映させる修正（指紋の範囲は変えない。B 適応）を入れる。指紋の比較から外す規則が要ると判断したら、u10 の凍結文のとおり実装せずに停止して owner へ返す（Phase A の再開）。Unity の test は実行しない（確認は次の発見 C が行う）。Editor での compile の確認は §6.4 と同じ形で行う。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
+  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（1 巡目）を先に読む。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
+  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§5 の u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -456,7 +456,26 @@ AC4 (a) と AC9 は単体テスト。
 
 ## 7. Phase C
 
-（未着手）
+### 発見 C（1 巡目）
+
+- 種別: 発見。GO 判定はしない。C' も起動しない。
+- 対象: implementation base `1fd200b5`、head `ae49bebf`（引き継ぐ commit `ba6fa74d`。作業ツリーは clean で HEAD と一致、`ae49bebf` からの差は本書だけ、PR #212 の状態ブロックの引き継ぐ commit も同じ）。
+- evidence の状態: 取得案内は無い（bundle・snapshot は未生成。commit で固定した head の差分を直接読んだ）。限定実行の生の証拠は git 管理外（X・Y の worktree の `TestResults/` と進行役の作業 directory）に残り、判定の証拠には使わない。
+- 機械検査: `contract-audit` errors 0・warnings 0。
+- 構造適合: §3 の責務マップのとおり。Runtime に判定と digest、SampleGame の Editor に Player の決定・指紋・入口、test の補助は test の側。新しい asmdef 参照・公開 API の逸脱は無い。`PlayerOverlayEndToEndTests.cs` は 955 行で予想（480）と 500 行の警報を超えるが、判定の case の列という 1 責務で、process の操作は `PlayerProcessRun`、製品の経路は `PlayerOverlayLaunch` に分かれているので分割は求めない。
+- 限定実行（§5 の「発見 C の最初の限定実行」。Unity 6000.6.9f1、sandbox 外、新しい worktree X・Y を `ba6fa74d` から作成、run `dc1`）:
+  - 最初の import を兼ねて、X で起点 filter と新しい単体テストの class（`ContentOverlayStartupTests`、`ContentOverlayDigestTests`、`PlayerContentConfigurationTests`、`PlayerCompatibilityTests`、`PlayablePlayerLocatorTests`、`PlayerOverlayStartupObserverTests`、`PlayerOverlayLaunchTests`、`PlayerInputFilesTests`、`PlayEntryCandidatesTests`）: 116 件、Passed 112、Failed 4（全て `PlayerOverlayLaunchTests`。DC2）。Y は `PlayerInputFilesTests` 1 件 Passed。どちらも最初の起動の後に URP の global settings を戻した。
+  - driver の X1・写し・Y01〜Y04 と X2: X1 Passed（XML。record は DC3）、写し（identity `20261124T130352253Z-5ff033e6de0d4875bb11c309e52bfb89`）、Y01（AC8 (d)）Passed、Y02（install）Passed、Y03（AC8 (a)）Failed、Y04（AC1）Failed（どちらも DC1）、X2 Passed（差分 0 件。driver が case の後に checkout を戻した後の新しい process）。全段で `git status --porcelain` は前後で一致。X1 の後に Unity の終了 stall（XML の 5 分後に 1 thread で CPU 時間が増加）が出て、その PID だけを CIM の `Terminate` で止めた（Harness README の既知の事象）。
+  - 製品の経路の観測（判定ではない）: Y03 は `outcome` `LaunchedWithoutOverlay`・`startup` `Observed`、Player の log に `Content directory registered: … from=installed` → `Bootstrap UICommon: source=content` → `Bootstrap SceneResourceMap: source=content hash=…` → 初回 Scene `stable=True`。Y04 は `Launched`・`Observed`・上書きの root `Title`、`Content overlay registered: identity=<上書き> baseRevision=<Player の identity>` → installed の登録 → UICommon・map とも content → 初回 Scene `stable=True`。上書きの前の経路と上書きの経路は、test が落ちた点（game の log の読み）の前まで動いている。
+  - DC3 の観測（Phase C の限定実行。X1 を driver を通さずに 2 回、run `dc1b`・`dc1c`）: build を返した同じ process の比較で 2 回とも `ProjectSettings/ProjectSettings.asset (changed)`。2 回目は X1 の間、disk の file を 0.5 秒ごとに読んで版を写した: build の途中で disk が mutation の値（Standalone の scripting backend `1`、stripping `3`、`preloadedAssets` に `Assets/InputSystem_Actions.inputactions`）に書かれ、Unity の終了まで変わらず、終了時に元の bytes へ戻った。Player の `player-compat.json` の hash は commit の file と同じ。
+- 現在の問いを阻害する指摘:
+  - **DC1（B 適応）:** 判定の test が、動いている Player の game の log を共有の指定なしで開き（`PlayerProcessRun.cs:154` の `File.ReadLines`、`PlayerOverlayEndToEndTests.cs:726–727` の `GameLogHas` から待ちの中で呼ぶ）、`IOException: Sharing violation` で落ちる。Y03・Y04 の両方で、Title の画像・「スタート」・閉じる段の前に止まる。違反: AC8 (a)・AC1（判定の case が条件を読めない）。
+  - **DC2（B 適応）:** `PlayerOverlayLaunchTests` の `_calls`（`PlayerOverlayLaunchTests.cs:24`）が fixture の field で、test ごとに消されないので、前の test の呼び出しの列が後の test の順の assert に混ざり、`NoEdits_LaunchesWithoutOverlayKeys`、`SavingChangesAPlayerInput_StopsAsPlayerInputDiffers_BeforePrepareAndLaunch`、`OverlayChangedBetweenTheRecordAndTheRecheck_StopsWithoutAProcess`、`Reused_LaunchesWithoutBuilding_AndRecordsReused` が落ちる。製品の `PlayerOverlayLaunch.Run` の順の違反を示す証拠は無い。違反: AC9・AC4 (a)（単体テストが条件を証明しない）。
+  - **DC3（B 適応）:** 遊べる Player の build の mutation（`PlayerBuildProjectMutation`）が設定した値が、build の途中の `AssetDatabase.SaveAssets()`（`CopyGraphClosure`）で `ProjectSettings.asset` に保存され、`Dispose` の戻しはメモリの上だけで保存しないので、build を返した同じ Editor の disk の指紋が Player の `player-compat.json` と違う。違反: AC17 の 1 つ目の時点（差分 0 件）と u10（build の後の `ProjectSettings/` が build の前と同じ bytes）。利用者が build した Editor のまま入口を使うと `PlayerInputDiffers` で止まる。修正先: 戻しを disk に反映させる修正は指紋の範囲を変えないので B 適応（D11「言えない物で不一致が出たら Phase A へ戻す」、u10「指紋の比較から外す規則を `PlayerCompatibility` に足すのは Phase A」は、除外を足す場合の規則）。
+- 後続へ移送する指摘（違反根拠なし）: なし。
+- 未確認事項: AC1 の画像と「スタート」の後の Home（u6 を含む）、AC8 (a) の閉じる段と exit code、u4、AC8 (c)（§6.3）、driver の Y05 以降と X の残りの段、全 EditMode 回帰。限定実行の run `dc1`・`dc1b`・`dc1c` は判定の証拠に使わない。
+- 担当・モデル・ベンダー: レビュー（構造・契約・指摘の分類）は Codex CLI（`codex exec`、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。新しい session で 1 回、追加の証拠で同じ session を 1 回再開した。Unity の実行・証拠の梱包・DC3 の観測・この欄の転記は進行役（Claude Code の desktop の session、Claude Opus 5.5、Anthropic。Phase B の session とは別）が行った。
+- 独立性: レビューは Phase B（Claude Opus 5.5、Anthropic）と違うモデル・ベンダー。実行担当の進行役は Phase B と同じモデルで、凍結した手順と限定実行だけを行い、合否は書いていない。
 
 ## 8. Phase C'
 
