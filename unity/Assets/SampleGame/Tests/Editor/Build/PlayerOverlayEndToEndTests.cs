@@ -431,6 +431,14 @@ namespace SampleGame.Tests.Editor.Build
             File.Move(full, Path.Combine(aside, Path.GetFileName(full)));
             File.Move(full + ".meta", Path.Combine(aside, Path.GetFileName(full) + ".meta"));
             AssetDatabase.Refresh();
+            // 退かした Scene が Addressables の entry なら、Refresh で Addressables が group から entry を外し、group の asset が
+            // 未保存になる。入口はそれを未保存の asset として保存の確認に通し、batch の dialog は Cancel を返すので、AC8 (c) の
+            // 初期状態（Assets/ の Dirty が 0 件）にならない。退かした状態を disk に保存してから、0 件であることを確かめる。
+            // 保存した group の file は driver が case の後の git checkout で戻す。
+            AssetDatabase.SaveAssets();
+            var unsaved = PlayEntryInterceptor.EnumerateUnsavedAssets().ToArray();
+            record.Note("unsavedAfterMove", string.Join(" ", unsaved));
+            if (unsaved.Length != 0) Assert.Fail("AC8 (c) needs no unsaved assets before the entry runs: " + string.Join(", ", unsaved));
             try
             {
                 EntryLaunch(record, null);
