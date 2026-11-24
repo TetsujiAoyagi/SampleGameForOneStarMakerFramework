@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。B は 2026-11-25 に DC5 を直した（§6.7）。次は発見 C の 4 巡目。B と発見 C の往復の 3 巡目を終えた（上限 4 巡。次の発見 C が最後））
+- status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。B は 2026-11-25 に DC5 を直した（§6.7）。発見 C の 4 巡目が阻害の指摘 0 件で閉じた（§7）。次は判定 C）
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `df1d731cb4d59e8cfef92149ca6f1d0c97a85add`
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（4 巡目。往復の上限の最後）。動作確認の対象は無い（修正は判定の case の初期状態だけで、利用者の操作の経路を変えない）。
-  - 次の作業: §6.7 の修正が §7 の DC5 を解いたかを確かめる。Y17 の record で `planBeforeEntry` が `UnbuildableOnly`・`overlayRoots=0`、`entryWarning` に作り直せない root の組の通知、`last-attempt.json` の `outcome` が `LaunchedWithoutOverlay`・`startup` が `Observed` であることを読む。Y17 が入口の前に落ちたら（`editedAsset` が選べない、計画が `UnbuildableOnly` にならない、未保存の asset が残る）、その message で AC8 (c) の初期状態が作れなかったと読み、往復の上限なので owner へ返す。
-  - 読む範囲: 既定のとおり（§0〜§8）。§6.7 と §7 の発見 C（3 巡目）を先に読む。
+  - 次の Phase・役割: 判定 C（GO 候補 head は欄の implementation head）。
+  - 次の作業: §5 の判定必須テストを GO 候補 head で全て実行する。新しい worktree の X と Y で、起点 filter、driver の全段（新しい run id、AC1 の「スタート」は実行担当が画像で位置を読んで 1 回押す）、最終の全 EditMode 回帰（空 filter。合否の規則は §5）。XML の test 名と件数で集合を確かめ、record・log・画像を AC ごとに読む。証拠は evidence bundle にし、C' の blind bundle を同じ head から作る。結果は §7 に書く。発見 C の run `dc1`〜`dc4` の証拠は判定に使わない。
+  - 読む範囲: 既定のとおり（§0〜§8）。§5 と §7 の発見 C（4 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
-  - 停止規則: §5 の発見 C の手順と u3・u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。往復の上限（4 巡）の最後なので、阻害の指摘が残れば B へ戻さず owner へ返す。
+  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める、evidence の stage（Artifact Storage のローカル固定）。push は公開点の規則に従う。
+  - 停止規則: §5 の判定 C の手順と Unity の終了 stall の規則に従う。判定 C で阻害の指摘が出たら、B と発見 C の往復は上限に達しているので B へ戻さず owner へ返す。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
