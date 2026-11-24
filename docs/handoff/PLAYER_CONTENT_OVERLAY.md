@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。次は B の修正。B と発見 C の往復の 1 巡目（上限 4 巡））
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。次は発見 C の 2 巡目。B と発見 C の往復の 1 巡目を終えた（上限 4 巡））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: `ae49bebfbc6748d748fe307d24b982706bed2e47`
+- implementation head commit: `6f58156bd5530794953f03838b3e57cb023d3c3b`
 - A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の 1 巡目の差し戻しの修正）。
-  - 次の作業: §7 の発見 C（1 巡目）の DC1〜DC3 を直す。DC1・DC2 は test の修正（B 適応）。DC3 は §7 の観測（mutation の値が build の途中で disk に保存され、戻しはメモリの上だけ）に対して、mutation の戻しを disk に反映させる修正（指紋の範囲は変えない。B 適応）を入れる。指紋の比較から外す規則が要ると判断したら、u10 の凍結文のとおり実装せずに停止して owner へ返す（Phase A の再開）。Unity の test は実行しない（確認は次の発見 C が行う）。Editor での compile の確認は §6.4 と同じ形で行う。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
-  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（1 巡目）を先に読む。
+  - 次の Phase・役割: 発見 C（2 巡目）。動作確認の対象は無い（差し戻しの修正は test 2 件と build の戻しの保存で、利用者の操作の経路を変えない）。
+  - 次の作業: §6.5 の修正が §7 の DC1〜DC3 を解いたかを確かめ、1 巡目で未確認のまま残った事項（§7 の「未確認事項」）へ進む。DC3 は X1（build を返した同じ process の比較で差分 0 件）で確かめる。
+  - 読む範囲: 既定のとおり（§0〜§8）。§6.5 と §7 の発見 C（1 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§5 の u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
+  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
+  - 停止規則: §5 の発見 C の手順と u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -453,6 +453,16 @@ AC4 (a) と AC9 は単体テスト。
 - patch と driver: 新しい checkout では `.patch` が CRLF で取り出され、`eol=lf` の Unity の YAML に当たらなかった。`.gitattributes` に patch の folder だけ `text eol=lf` の 1 行を足した（他の file の取り出しは変えない）。その後、implementation head から作った新しい worktree 2 つ（X・Y）で `tools/s42-player-overlay.ps1 -DryRun` を流し、全 23 段で patch の適用・戻し・`git status --porcelain` の前後の一致が通った（Unity は起動しない）。AC13・AC3 が case の中で当てる `ac12-uicommon.patch` は、`ac01-title.patch` と別の file だけを変える。
 - Editor での compile の確認: この worktree の Editor（Unity 6000.6.9f1、新しい worktree の初回の import）で、全ての assembly が compile した（`Tundra build success`、`error CS` 0 件）。最初の compile で test の 2 件の型の誤りが出たので直してから取り直した。Editor は自分で起動した物だけを閉じた。閉じた後に `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` が書き換わっていた（S4-1 から移送した (7) と同じ現象）ので `git checkout` で戻し、commit に入れていない。driver は各段の Unity の起動の前にこの file を戻す。
 - 未実行（Phase C の責任）: Unity の EditMode の test（単体テストを含む全て）、Player の build・起動、判定の case、driver の本番の実行（`-DryRun` だけを流した）。u1〜u6・u9〜u12 は全て未確認のまま。
+
+### 6.5 発見 C（1 巡目）の差し戻しの修正
+
+担当: Phase B の session（2026-11-25）。引き継いだ commit `23517f3c` を worktree の HEAD と照合し（一致、clean、implementation head `ae49bebf` から HEAD までの差は本書だけ、PR の状態ブロックの引き継ぐ commit と implementation base / head も一致）、§7 の DC1〜DC3 を直した。3 件とも B 適応で、指紋の範囲・契約・責務配置は変えていない。
+
+- **DC1:** `PlayerProcessRun.ReadGameLog` が game の log を `FileShare.ReadWrite | FileShare.Delete` で開く（Player の log の `ReadLog` と同じ指定）。`GameLogHas` と case の後の読みは同じ口を通る。
+- **DC2:** `PlayerOverlayLaunchTests` に `[SetUp]` を足し、test ごとに呼び出しの列・書いた記録・起動の要求を空にする。製品の `PlayerOverlayLaunch` は変えていない。
+- **DC3:** `PlayerBuildProjectMutation.Dispose` が値を戻した後、`ProjectSettings/ProjectSettings.asset` の object に dirty を付けて `AssetDatabase.SaveAssets()` を呼び、戻したメモリの値を disk に書く（§7 の観測で、Editor の終了の時の保存が元の bytes を書いたのと同じ内容）。build の前処理が足して後処理が外す preloaded asset と、Addressables の設定の戻しも同じ保存で disk に入る。指紋の比較から外す規則は足していない（u10 の Phase A の条件に当たらない）。
+- 確認: `pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`。この worktree の Editor（Unity 6000.6.9f1）を開いて compile を待ち、`EditorUtility.scriptCompilationFailed` が false、読み込まれた assembly に 3 件の新しい method（`SaveRestoredSettings`、`ResetRecordedCalls`、`ReadSharedLines`）があることを確かめた。Editor は自分で開いた物だけを閉じ、閉じた後の作業ツリーに URP の global settings の書き換えは無かった。
+- 未実行（Phase C の責任）: Unity の test（DC2 の 4 件を含む）、X1 での DC3 の確認、Y03・Y04 以降の判定の case。
 
 ## 7. Phase C
 
