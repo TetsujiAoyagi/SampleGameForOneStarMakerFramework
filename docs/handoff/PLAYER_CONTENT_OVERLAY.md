@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。次は B の修正。B と発見 C の往復の 2 巡目（上限 4 巡））
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。次は発見 C の 3 巡目。B と発見 C の往復の 2 巡目を終えた（上限 4 巡））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: `6f58156bd5530794953f03838b3e57cb023d3c3b`
+- implementation head commit: `0704f05f2be0e99be320a94816e03d73864c708f`
 - A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の 2 巡目の差し戻しの修正）。
-  - 次の作業: §7 の発見 C（2 巡目）の DC4・DC5 を直す。DC4 は u3 の不成立時の扱いに従い、AC12 の編集の対象を UICommon の root の閉包にある、Title の画面に見える別の物に替える（patch と、必要なら case の読み）。なぜ見えるかを source から説明して §6 に書く。閉包に見える物が無いと分かったら実装せずに停止して owner へ返す。AC12 の文（UXML の label）を変える必要が出たら、それは Phase A の再開なので停止する。DC5 は AC8 (c) の case の初期状態を直す（入口の保存の確認は凍結した製品の動作なので変えない）。Unity の test は実行しない（確認は次の発見 C が行う）。Editor での compile の確認は §6.4 と同じ形で行う。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
-  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（2 巡目）を先に読む。
+  - 次の Phase・役割: 発見 C（3 巡目）。動作確認の対象は無い（修正は判定の case の patch と初期状態だけで、利用者の操作の経路を変えない）。
+  - 次の作業: §6.6 の修正が §7 の DC4・DC5 を解いたかを確かめ（Y11 の Title の画像に `S42-AC12-UICOMMON-TOKEN` が見えるか、Y17 が AC8 (c) を判定できるか）、2 巡目の「未確認事項」へ進む。`ac12-uicommon.patch` を当てる Y10（AC13）・Y14（AC3）も通るかを見る。
+  - 読む範囲: 既定のとおり（§0〜§8）。§6.6 と §7 の発見 C（2 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§5 の u3 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
+  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
+  - 停止規則: §5 の発見 C の手順と u3・u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -463,6 +463,17 @@ AC4 (a) と AC9 は単体テスト。
 - **DC3:** `PlayerBuildProjectMutation.Dispose` が値を戻した後、`ProjectSettings/ProjectSettings.asset` の object に dirty を付けて `AssetDatabase.SaveAssets()` を呼び、戻したメモリの値を disk に書く（§7 の観測で、Editor の終了の時の保存が元の bytes を書いたのと同じ内容）。build の前処理が足して後処理が外す preloaded asset と、Addressables の設定の戻しも同じ保存で disk に入る。指紋の比較から外す規則は足していない（u10 の Phase A の条件に当たらない）。
 - 確認: `pwsh tools/contract-audit.ps1` は `errors=0 warnings=0`。この worktree の Editor（Unity 6000.6.9f1）を開いて compile を待ち、`EditorUtility.scriptCompilationFailed` が false、読み込まれた assembly に 3 件の新しい method（`SaveRestoredSettings`、`ResetRecordedCalls`、`ReadSharedLines`）があることを確かめた。Editor は自分で開いた物だけを閉じ、閉じた後の作業ツリーに URP の global settings の書き換えは無かった。
 - 未実行（Phase C の責任）: Unity の test（DC2 の 4 件を含む）、X1 での DC3 の確認、Y03・Y04 以降の判定の case。
+
+### 6.6 発見 C（2 巡目）の差し戻しの修正
+
+担当: Phase B の session（2026-11-25）。引き継いだ commit `af84905f` を worktree の HEAD と照合し（一致、clean、implementation head `6f58156b` から HEAD までの差は本書だけ、PR の状態ブロックの引き継ぐ commit と implementation base / head も一致）、§7 の DC4・DC5 を直した。2 件とも判定の case の入力の修正（B 適応）で、製品の code と AC の文は変えていない。
+
+- **DC4（u3 の B 適応）: token が見えなかった理由（source から）:** UICommon の Scene（`OneStarMaker/Scenes/UISystem/UIScene.unity`）の `UIPanel` の PanelRenderer は `UISystemDocument.uxml` を読む。`UICommon.OnPanelReload` → `BuildLayerContainers`（`UICommon.cs:286-305`）は、その root に UI の層ごとの container（全画面の absolute）を **UXML の子の後に** `Add` する。UI Toolkit は同じ panel の中を木の順に描くので、UXML に足した label は全ての層の container の下になる。Title の画面では、`OutGameBackgroundView`（`GetUILayer() == Background`）が Background 層の container に全画面の背景画像を描くので、label はその下に隠れる。patch が足した label は UICommon に届いていて（Y11 の `Bootstrap UICommon: source=content`）、隠れていたのは描く順のためである。
+- **DC4 の修正:** `ac12-uicommon.patch` は今の label（`UISystemDocument.uxml`、AC12 の文のまま）に加えて、UICommon の root の子に GameObject `S42TokenPanel` を足す。この GameObject の PanelRenderer は同じ `UISystemDocument.uxml` を、新しい PanelSettings（`S42TokenPanelSettings.asset`。`UISystemPanelSettings` の写しで `m_SortingOrder` だけ 100）で描く。sorting order の大きい panel は小さい panel の上に描かれる（UI Toolkit の PanelSettings の仕様）ので、2 つ目の panel の label は Title の UI と背景より上に出る。2 つ目の panel の中身はこの label だけで、label は `picking-mode="Ignore"`。どちらも UICommon の root の閉包（UICommon の Scene と、それが参照する PanelSettings・UXML）にある。root ではなく子にしたのは、`BootstrapUiCommonLoader.cs:128` が UICommon の Scene の最初の root を UICommon とみなすため。新しい PanelSettings の folder は Addressables の group に入っていない（folder の guid が group の asset に無い）ので、case の中で patch を当てた後の `AssetDatabase.Refresh` は group を変えない。
+  - 確認: patch を当てた状態で Editor を開き、UIScene の root が `UICommon` の 1 つで、`UIPanel` と `S42TokenPanel` の PanelRenderer がそれぞれ `UISystemPanelSettings`・`S42TokenPanelSettings`（sorting order 100）と `UISystemDocument` を参照し、Scene が dirty にならず、未保存の asset が 0 件であることを読んだ。patch は Editor を閉じた後の差分から作り直し、`git apply`・`git apply -R` で当てて戻せることを確かめた。Player の上で見えるかは未確認（発見 C が Y11 の画像で見る）。2 つ目の panel の root が Player の窓の入力を遮るかも測っていない。この patch を当てる case（Y10・Y11・Y14）は「スタート」を押さない。
+- **DC5:** `Y17_UnbuildableOnly` は Scene を退かして `AssetDatabase.Refresh` した後に `AssetDatabase.SaveAssets()` を呼び、Addressables が entry を外した group を disk に保存する。そのうえで、入口と同じ検出（`PlayEntryInterceptor.EnumerateUnsavedAssets`）が 0 件であることを確かめ（record の note `unsavedAfterMove`）、0 件でなければ入口を呼ばずに test を落とす（初期状態が作れていない）。D6 (3) の「判定の E2E の初期状態は `Assets/` の Dirty が 0 件」に合わせる修正で、入口の保存の確認は変えていない。保存した group の file は driver が case の後の `git checkout` で戻す。§6.3 の「source の欠けだけで `UnbuildableOnly` になるか」は未確認のまま。
+- 確認: `pwsh tools/contract-audit.ps1` は違反なし。Editor（Unity 6000.6.9f1）で `EditorUtility.scriptCompilationFailed` が false。Editor は自分で開いた物だけを閉じ、閉じた後の作業ツリーは patch を当てた file のほかに変更が無かった。
+- 未実行（Phase C の責任）: Unity の test、Y10・Y11・Y14・Y17 と driver の全段。
 
 ## 7. Phase C
 
