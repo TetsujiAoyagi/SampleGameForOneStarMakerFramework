@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `C`（発見 C・判定 C を終えた。阻害する指摘は 0 件で、判定必須の証拠は GO 候補 head（implementation head）で全て揃った。次は C'。GO は C' の後に判断する）
+- status: `C'`（発見 C・判定 C・最終 C' を終えた。C' の blocking は 0 件。次は Phase D（owner による C と C' の突き合わせとマージ判断）。implementation head と記録 commit は未 push）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `ec2d4944abef3c0117986de912cb72cca57aac76`
@@ -20,16 +20,16 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と program だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の生証拠（run `j1`、74 file）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内はこの PC の git 管理外の運用 directory の `handoff-guides/s4-1a-playable-player-startup-order/judgement.md`。別 process の fetch で閲覧を確認済み（2026-11-24）
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C と同じ生証拠に、凍結した Phase A（A3 の本書）と所見を含まない Phase B の実装結果を足した 74 file。引渡し先・担当は C'（Grok の系列か人間）。取得案内は同 directory の `cprime.md`。別 process の fetch で閲覧を確認済み（2026-11-24）
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C と同じ生証拠に、凍結した Phase A（A3 の本書）と所見を含まない Phase B の実装結果を足した 74 file。引渡し先・担当は C'（Grok の系列か人間）。取得案内は同 directory の `cprime.md`。別 process の fetch で閲覧を確認済み（2026-11-24）。C' はこの bundle を fetch して使った（§8）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C'（独立監査。Grok の系列か人間）。動作確認（Phase B の後）は `対象なし`（§5）。
-  - 次の作業: C' の blind bundle だけを入力に、1 巡目として全体を初見で監査する（[Phase C'](../../.agents/skills/osm-workflow/references/phase-c-prime.md)）。同じテストの再実行は必須でない。高コスト証拠は無い（§5）ので、この C' が最終 C'。
-  - 読む範囲: C' は所定の blind 入力だけ（本書の可変な全文は読まない）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は上の欄。C' は PR を読まない。
-  - 取得案内: C' blind bundle は上の欄。判定 C の evidence bundle は Phase D・owner 向けで C' に渡さない。
-  - 必要な権限: blind bundle の fetch（Artifact Storage のローカル固定の取得）。C' は Unity を起動しなくてよい。
-  - 停止規則: §2 の判定定義と停止規則のまま。判定 C は Claude Sonnet 5.5（独立性制約あり、§7）。
-  - 引き渡さないもの: C' に発見 C・判定 C の所見（§7 の本文を含む）を渡さない。
+  - 次の Phase・役割: Phase D（owner）。動作確認（Phase B の後）は `対象なし`（§5）。
+  - 次の作業: §7 の判定 C と §8 の C' を突き合わせ、マージを判断する。その前に branch の push（implementation head と記録 commit は未 push）と、[Phase D の保存・引渡し確認](../../.agents/skills/osm-workflow/references/review-evidence.md#phase-d-の保存引渡し確認)（evidence bundle と C' blind bundle はローカル固定・未昇格）を行う。
+  - 読む範囲: 既定（§0、§7、§8、§9）。
+  - 引き継ぐ commit: この票を含む commit（SHA は PR の状態ブロックと owner への報告で渡す）。implementation head は上の欄。
+  - 取得案内: 判定 C の evidence bundle と C' blind bundle は上の欄。
+  - 必要な権限: push、Artifact Storage の操作（昇格する場合）、task の終了（`tools/workflow-task.ps1 end`）。
+  - 停止規則: §2 の判定定義と停止規則のまま。発見 C・判定 C は Claude Sonnet 5.5（独立性制約あり、§7）。
+  - 引き渡さないもの: なし（C' は完了した）。
 - task の開始（`tools/workflow-task.ps1 start`）: 済み（Phase B の担当、2026-11-24）。taskId `s4-1a-playable-player-startup-order`。
 
 ## 1. 目的と対象外
@@ -442,7 +442,22 @@ A2 の観点の再レビュー（外部 1 巡目と 2 巡目の後）: 要らな
 
 ## 8. Phase C'
 
-未着手。
+### 最終 C'（1 巡目。高コスト証拠は無いので最終）
+
+- 種別: 最終 C'。対象は base `116b0091` / implementation head `ec2d4944`。判定 C と同じ run `j1` の証拠。
+- 入力: C' blind bundle（§0 の欄。74 file）を fetch した写しを、加工せずに使った。足したのは bundle の外の物だけで、head の `git archive`（変更した file とその folder、`AGENTS.md`、04 章、`unity/Assets/README.md`）、osm-workflow の規則の写し（phase-c-prime、phases-and-handoff、review-evidence、architecture-gates）、指示書。fetch の直後に、発見 C・判定 C の所見が混入していないかを grep で確かめた。当たったのは凍結版の計画文と Phase B の票の文面だけだった。発見 C・判定 C の所見、§7、PR は渡していない。
+- 担当・モデル: `cursor-agent`（ask モード、読み取り専用）、Grok 4.7 High（`grok-4.7-high`）、xAI の系列。新しい session で、約 13 分。担当の起動・入力の梱包・この欄の転記は進行役（Claude Opus 5.5）が行い、所見の内容には手を加えていない。
+- 独立性: Phase A（Anthropic・OpenAI）、Phase B（Anthropic）、発見 C・判定 C（Anthropic）のどれにも関与していない系列で、強化条件を満たす。
+- 結論: blocking defects は無い。不変条件 I1〜I5 と成立条件 E1〜E5 は、差分と生証拠の範囲で満たしている。常時契約の違反（`#nullable enable`、Unity 側の `record`、依存の向き、Editor のコードを Runtime に置かない、偽 null）は差分に無い。
+- 後続スライスへの入力: 新しいものは無い（上書き、installed の成功起動、起動時間の上限は、凍結済みの §2.3 のまま）。
+- 残存リスク（担当の記述の要約）:
+  - Editor の snapshot、上書き、Addressables 互換の Play は取り直していない。守っているのは表と全 EditMode と、検証 Play の 1 経路である。
+  - AC12 は `Editor.log` の file が増えなかったので console から取った。必要な行と `isPlaying` は `ac12/` にある。
+  - AC6 の窓を閉じる操作は × の click ではなく `WM_CLOSE` である。受け入れ条件が許す代わりの手段で、exit 0 だった。
+  - directory の設定が無い遊べる Player の `Plan` の失敗は、表の test だけで確かめている。同じ try の例外が exit 1 に届くことは AC9・AC10・AC14 で見ている。
+  - `PlayerBuildReportVerifier` は 62 → 158 行で、50% 超の警報に当たる。中身は build report の検査という 1 責務のままで、分けないのは妥当とした。
+- 監査できなかった範囲: Unity は再実行していない。packed assets の binary は開かず、record の件数を読んだ。game log は `record.jsonl` の `gameLog` で読み、zip は展開していない。
+- 担当の出力の原文は git 管理外に残してある（stream-json の log）。
 
 ## 9. Phase D
 
