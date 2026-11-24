@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。次は発見 C の 3 巡目。B と発見 C の往復の 2 巡目を終えた（上限 4 巡））
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。次は B の修正。B と発見 C の往復の 3 巡目（上限 4 巡。次の発見 C が最後））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `0704f05f2be0e99be320a94816e03d73864c708f`
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（3 巡目）。動作確認の対象は無い（修正は判定の case の patch と初期状態だけで、利用者の操作の経路を変えない）。
-  - 次の作業: §6.6 の修正が §7 の DC4・DC5 を解いたかを確かめ（Y11 の Title の画像に `S42-AC12-UICOMMON-TOKEN` が見えるか、Y17 が AC8 (c) を判定できるか）、2 巡目の「未確認事項」へ進む。`ac12-uicommon.patch` を当てる Y10（AC13）・Y14（AC3）も通るかを見る。
-  - 読む範囲: 既定のとおり（§0〜§8）。§6.6 と §7 の発見 C（2 巡目）を先に読む。
+  - 次の Phase・役割: Phase B（発見 C の 3 巡目の差し戻しの修正）。
+  - 次の作業: §7 の発見 C（3 巡目）の DC5 を直す。`Y17_UnbuildableOnly` が Y の source の編集で計画を `UnbuildableOnly` にし、入口の前にそうなったこと（作り直せない root があり、作れる root が無い）を test が確かめ、入口の `UnbuildableOnly` の通知（`PlayerOverlayLaunch.cs:164`）と `LaunchedWithoutOverlay`・`Observed` を record で読めるようにする。`UnbuildableOnly` を作る手を source から決めて §6 に書く（既存の計画の test、例えば `OverlayFromLocalEditsIntegrationTests` の R4 が `SourceAbsent` を作る形を参照）。Y の source の編集だけでは作れないと分かったら実装せずに停止して owner へ返す（AC8 (c) の作り方の変更は Phase A）。製品の code と AC の文は変えない。Unity の test は実行しない（確認は次の発見 C）。Editor での compile の確認は §6.4 と同じ形。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
+  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（3 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
-  - 停止規則: §5 の発見 C の手順と u3・u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
+  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§2.1 の D11 の除外の規則に従う。往復の上限（4 巡）に近いので、次の発見 C で解けなければ owner へ返す。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -516,6 +516,21 @@ AC4 (a) と AC9 は単体テスト。
 - 後続へ移送する指摘（違反根拠なし）: `SaveRestoredSettings`（`PlayerBuildProjectMutation.cs:140-144`）は全体の `AssetDatabase.SaveAssets()` を呼ぶので、build の時に別の未保存の asset があればそれも保存しうる。今回その証拠は無く、凍結条件の違反にも当たらない。
 - 未確認事項: AC12 の画像（DC4 の修正の後）、AC8 (c)（DC5 の修正の後）、全 EditMode 回帰。他の AC と u は記録が条件を満たした（レビューの読み）が、判定は判定 C が行う。run `dc2` は判定の証拠に使わない。
 - 担当・モデル・ベンダー: レビューは Codex CLI（`codex exec resume` で 1 巡目と同じ session を再開、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。Unity の実行・「スタート」の操作・証拠の梱包・この欄の転記は進行役（Claude Code の desktop の session、Claude Opus 5.5、Anthropic。Phase B の session とは別）。DC4 の分類（スパイクではなく u3 の B 適応）は、レビューの「原因未確定」の読みに対して進行役が凍結した u3 の文に当てて決めた。
+- 独立性: 1 巡目と同じ。
+
+### 発見 C（3 巡目）
+
+- 種別: 発見。GO 判定はしない。C' も起動しない。
+- 対象: implementation base `1fd200b5`、head `0704f05f`（引き継ぐ commit `97f260d5`。作業ツリーは clean で HEAD と一致、`0704f05f` からの差は本書だけ）。レビューの対象は `6f58156b..0704f05f`（§6.6 の修正）。
+- evidence の状態: 取得案内は無い（bundle は未生成）。実行の生の証拠は git 管理外に残り、判定の証拠には使わない。
+- 機械検査: `contract-audit` errors 0・warnings 0。
+- 実行（Unity 6000.6.9f1、sandbox 外、X・Y を `97f260d5` に detach、run `dc3`）: 差分が Y の側の判定の入力（`ac12-uicommon.patch` と `Y17_UnbuildableOnly`）だけなので、X の段は流さず、2 巡目の X1 の Player を使った。実行の前に、前の run が Y に作った artifacts（`artifacts/bs2b`、`artifacts/playable`。git 管理外）を repo の外へ退かした（消していない）。driver の写しと Y01〜Y17 と CleanupCache は全て XML Passed、total 1、`git status --porcelain` は前後で一致。AC1 の「スタート」は実行担当が画像で位置を読んで 1 回押した。Unity の終了 stall が Y04・Y11・Y13 の後に出て、その PID だけを CIM の `Terminate` で止めた。
+- DC4 の解消: Y11 の Title の画像に `S42-AC12-UICOMMON-TOKEN` が見え、AC1 の Y04 の画像には無い（対照）。修正は同じ UICommon の Scene の子に 2 つ目の PanelRenderer を足して同じ UXML を前面に描く形で、u3 の B 適応の範囲（同じ root の閉包の見える物）に収まり、AC12 の文は変えていない。
+- 現在の問いを阻害する指摘:
+  - **DC5（未解消。B 適応）:** Y17 は XML Passed だが、入口の出力は「上書きなし（content の編集なし）… (NotRequired)」で、record の `overlayRoots` は空。Scene の file を退かしても計画は `UnbuildableOnly` にならず、AC8 (c) の初期状態（作り直せない root だけの計画）と「Editor の入口と同じ通知」（`PlayerOverlayLaunch.cs:164`）を示していない。test が条件を作れず、作れたことを確かめずに通る（§6.3 の「source の欠けだけで `UnbuildableOnly` になるか」の不成立）。違反: AC8 (c)（判定が誤って通る）。修正先は判定の case（初期状態の作り方と、`UnbuildableOnly` になったことの assert）。製品の不具合を示す証拠は無い。Y の source の編集だけでは `UnbuildableOnly` を作れないと分かったら、AC8 (c) の作り方を変える判断になるので、B は実装せずに停止して owner へ返す。
+- 後続へ移送する指摘（違反根拠なし）: DC4 の 2 つ目の panel が Player の窓の入力を遮るかは測っていない（この patch を当てる case は「スタート」を押さない）。2 巡目の `SaveRestoredSettings` の全体保存の項は引き続き後続。
+- 未確認事項: AC8 (c)、全 EditMode 回帰、X の段の取り直し（判定 C で全段を流す）。run `dc3` は判定の証拠に使わない。
+- 担当・モデル・ベンダー: レビューは Codex CLI（`codex exec resume` で同じ session を再開、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。実行・「スタート」の操作・証拠の梱包・この欄の転記は進行役（Claude Opus 5.5、Anthropic。Phase B の session とは別）。進行役は Y17 の入口の出力（`NotRequired`）を XML で確かめた。
 - 独立性: 1 巡目と同じ。
 
 ## 8. Phase C'
