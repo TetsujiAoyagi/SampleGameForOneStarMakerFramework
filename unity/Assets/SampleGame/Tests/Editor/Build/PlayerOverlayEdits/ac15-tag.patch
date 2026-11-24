@@ -1,0 +1,13 @@
+diff --git a/unity/ProjectSettings/TagManager.asset b/unity/ProjectSettings/TagManager.asset
+--- a/unity/ProjectSettings/TagManager.asset
++++ b/unity/ProjectSettings/TagManager.asset
+@@ -3,7 +3,8 @@
+ --- !u!78 &1
+ TagManager:
+   serializedVersion: 2
+-  tags: []
++  tags:
++  - S42PlayerInputTag
+   layers:
+   - Default
+   - TransparentFX

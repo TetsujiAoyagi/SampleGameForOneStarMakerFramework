@@ -110,6 +110,12 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// <summary>上書きの contentSet。base と別の名前を宣言の名前から機械で作る（coordinator は base と同じ contentSet を拒む）。</summary>
         internal static string OverlayContentSetOf(BuildPurposeDeclaration declaration) => declaration.Name + "-local-edits";
 
+        /// <summary>
+        /// 遊べる Player に重ねる上書きの contentSet。Editor の Play の入口と contentSet だけで分け、置き場（<see cref="ArtifactsRoot"/>）は同じにする
+        /// （Framework の build が許す出力の root は 1 つ）。再利用の記録は contentSet ごとなので、2 つの入口が同じ記録を取り合わない。
+        /// </summary>
+        internal static string PlayerOverlayContentSetOf(BuildPurposeDeclaration declaration) => declaration.Name + "-player-local-edits";
+
         internal static string ArtifactsRoot =>
             Path.GetFullPath(Path.Combine(Path.GetFullPath(Path.Combine(Application.dataPath, "..")), "..", "artifacts", "bs2b"));
 
@@ -118,9 +124,12 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// 計画の object をこの中に持つ（入口は SampleGame の要約の型だけを扱う）。1 回の tick で使い切る。
         /// </summary>
         /// <param name="suppliedSceneKeys">複製にして載せる Scene のうち SceneResourceMap にあるものの logical key。</param>
+        /// <param name="overlayContentSet">上書きの contentSet（Editor の Play は <see cref="OverlayContentSetOf"/>、遊べる Player は
+        /// <see cref="PlayerOverlayContentSetOf"/>）。</param>
         internal static PlayEntryOverlayPorts OverlayPorts(BuildPurposeDeclaration declaration, ContentInstallResult baseInstall,
-            IReadOnlyList<string> suppliedSceneKeys, Func<double> now)
+            IReadOnlyList<string> suppliedSceneKeys, string overlayContentSet, Func<double> now)
         {
+            if (string.IsNullOrWhiteSpace(overlayContentSet)) throw new ArgumentException("The overlay content set is empty.", nameof(overlayContentSet));
             if (declaration == null) throw new ArgumentNullException(nameof(declaration));
             if (baseInstall == null) throw new ArgumentNullException(nameof(baseInstall));
             BuildPlan? plan = null;
@@ -157,7 +166,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 Plan = () =>
                 {
                     if (plan == null || snapshot == null || resolution == null) throw new InvalidOperationException("The selection has not been prepared.");
-                    overlay = ContentOverlayPlanner.Plan(baseInstall, plan, snapshot, suppliedSceneKeys, OverlayContentSetOf(declaration),
+                    overlay = ContentOverlayPlanner.Plan(baseInstall, plan, snapshot, suppliedSceneKeys, overlayContentSet,
                         ArtifactsRoot, declaration, resolution.Requirements);
                     return new PlayEntryOverlayPlanSummary(
                         overlay.State switch
@@ -168,7 +177,8 @@ namespace SampleGame.DependOnAll.Editor.Build
                         },
                         overlay.OverlayRoots.Count,
                         overlay.Unbuildable.Select(x => new PlayEntryUnbuildableRoot(x.Root.LogicalKey, x.Root.Kind, x.Root.Representation,
-                            x.Reason.ToString())).ToArray());
+                            x.Reason.ToString())).ToArray(),
+                        overlay.OverlayRoots.Select(x => x.Root.LogicalKey).Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToArray());
                 },
                 AcknowledgeAndReuse = () =>
                 {
@@ -179,7 +189,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 {
                     var result = new BuildContentCoordinator().Build(new BuildContentRequest(Acknowledged()));
                     if (result.IsSuccess)
-                        Debug.Log(LogPrefix + "Overlay (" + OverlayContentSetOf(declaration) + "): " + result.ContentPath + " / outcome: " + result.OutcomePath);
+                        Debug.Log(LogPrefix + "Overlay (" + overlayContentSet + "): " + result.ContentPath + " / outcome: " + result.OutcomePath);
                     return Artifact(result);
                 },
             };

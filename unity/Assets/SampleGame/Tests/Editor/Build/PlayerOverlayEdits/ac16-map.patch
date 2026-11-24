@@ -1,0 +1,9 @@
+diff --git a/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset b/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
+--- a/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
++++ b/unity/Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset
+@@ -470,4 +470,4 @@
+   - {fileID: 11400000, guid: 89d939d031db8984b98fd6e23d7fdae6, type: 2}
+   - {fileID: 11400000, guid: 32083e46bc7f7ed4b999c83b5ebd54d8, type: 2}
+   - {fileID: 11400000, guid: 2f2362783d3e36c468d7c4d4f51fda4d, type: 2}
+-  _generateHash: 1c7f335c98ef307a
++  _generateHash: s42-ac16-map-token

@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は未着手）
+- status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。次は発見 C）
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: 未固定
+- implementation head commit: この票を含む commit
 - A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
@@ -17,18 +17,17 @@
 - harvest to: [04 章](../../unity/Assets/Docs/Architecture/04-app-startup.md) §4.6「起動の構成」（map の log の `hash=`）と §4.7「上書きの起動の設定」（Player の分岐と digest の key）、[13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」の「範囲」（Player の禁止を解いた範囲）、[18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」（Player の入口）、[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（G0 と u8 の実測）、repo の README の「試す」、[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2 の行と §2.3 の後続へ送る入力
 - 関連: [program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2 の行、「S4-0 の A1 が振り分けた入力」「S4-0 から移送した入力」「S4-1 から移送した入力」「S4-1a から移送した入力」の S4-2 の項目、§5.3「上書きの方式を選ぶ理由と見直しの条件」「Windows の Player での上書きの実測」
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と program だけ）。G0 の harness の差分と record は Phase A の gate の証拠で、状態は §2.5 の 10
-- Phase B result snapshot の取得案内・状態: 未生成
+- Phase B result snapshot の取得案内・状態: 該当なし（B は Unity の test を実行していない。結果は §6 と implementation head の差分だけ）
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装）。
-  - 次の作業: §3 の責務マップと §4 の順で実装し、§6 に結果と未実行事項を書く。Unity の test・Build・Player の起動は行わない（Phase C の責任。Editor での compile の確認まで）。
-  - 読む範囲: 既定のとおり（§0〜§5。§5.1 は経緯で、既定の範囲に入らない）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: source の編集と、Editor での compile の確認（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)）。push は公開点の規則に従う。
-  - 停止規則: 設計判断を増やさない。§4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。凍結済みの条件（§2）と責務マップ（§3）を変える必要が出た時も同じ。
-  - 引き渡さないもの: なし。
-
+  - 次の Phase・役割: Phase C（発見 C）。動作確認（Phase B の後）は §5 のとおり `対象なし`。
+  - 次の作業: §5 の「発見 C の最初の限定実行」（driver `tools/s42-player-overlay.ps1` の先頭: X の build、Y への写し、AC8 (d)、install、AC8 (a)、AC1）を構造の ledger より前に通し、続けて構造適合・受け入れ条件・判定必須テストを確認する。Unity の test・Build・Player の起動は Phase C の責任で、B は 1 つも実行していない（§6.4）。
+  - 読む範囲: 既定のとおり（§0〜§8）。§6.3 の B 適応と AC8 (c) の未確認を先に読む。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head も同じ commit。
+  - 必要な権限: Unity の batch test・Player の build と起動（窓を出す）、2 つの新しい worktree（X・Y）の作成、repo の外の短い path への run ごとの cache の作成と削除、AC1 の「スタート」の押下のための画面の取り込みと OS の mouse の入力。push は公開点の規則に従う。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §5 の u ごとの不成立時の扱いに従う。実装の欠陥は B へ戻す。
+  - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
 - 目的: 編集する開発者が、検証済みの base（遊べる Player と同じ build の、検証済みの installed revision）を載せた Windows の遊べる Player に、手元の編集から作った上書きを 1 つ重ねて起動し、編集した Scene と asset を Player の上で確かめられるようにする。重ねられない時（上書きが base と合わない、上書きが build の後に書き換わった）は、base だけの起動に縮退せず、Player を起動する前か起動の失敗として理由を示す。Player は build した時の script で動き、script の code か field の違いや、上書きが Player に無い型を使うことでは止めない（その部分は Unity の扱いのとおり欠けて動く）。動作確認の Player（BS4）の receipt と exit code の契約、Player の protected config、起動の fail-closed は弱めない。
@@ -392,7 +391,68 @@ A2 の観点の再レビュー: 行わない。D6 の順の入れ替えと空の
 
 ## 6. Phase B 実装結果
 
-（未着手）
+担当: Phase B の session（2026-11-24）。引き継いだ commit `50541d25` を worktree の HEAD と照合し（一致、clean、§0 の凍結記録・revision 0・票の次担当 B を確認）、§3 の責務マップと §4 の順で実装した。設計判断は増やしていない（下の「B 適応」以外）。
+
+### 6.1 変更した file（§3 との対応）
+
+| §3 の行 | 実装 |
+|---|---|
+| `ContentOverlayDigest.cs`（新規） | D3 の規則。root と中の reparse point は辿らずに `ContentDirectoryException`。file の hash は `ContentDeliveryFiles.Sha256` |
+| `ContentOverlayStartup.cs` | `Decide` に digest の key と baked の `PlayerContentKind` を足した。3 key のどれか 1 つで判定に入る。`smoke` と Player でも Editor の Play でもない起動は pair より前に今の文、pair の無い `playable` は Editor と同じ installed の文、`playable` で digest が無い・空は `Content overlay on a Player needs editor:contentOverlayDigest.`。決定に `Digest` を持たせた（Editor の Play は key がある時だけ値、無ければ null）。定数 `OverlayDigestKey`・`DigestMismatchReason`・`PlayerFirstSceneLogMarker` を足した |
+| `AbstractApplicationInitializer.cs` | Decide に baked の種類（`ReadBakedPlayerKind()`）と digest の key を渡す。Player の分岐で `Overlay` を `ContentDirectoryConfiguration` に渡す。`InstallConfiguredContentDirectoryAsync` の中、`RegisterVerifiedWithOverlay` の前に `VerifyOverlayDigest`（`ContentRevisionGate.TryNormalize` と存在の確認を登録と同じ文で行い、digest が違えば `DigestMismatchReason`）。map の log に ` hash=<GenerateHash>`。初回 Scene の行の先頭を定数にした。登録の位置（`BootstrapSourcePolicy`）は変えていない |
+| `ContentOverlayPlayConfig.cs` | `OverlayDigestKey`、`PlayerFirstSceneLogMarker`、`ComputeOverlayDigest(string)`（絶対 path を要求）を public で足し、remarks を Player の渡し方に直した |
+| `PlayerCompatibility.cs`（新規） | D11 の集合の除外の規則、指紋（D3 と同じ書式）、`player-compat.json` の形と読み書き（schema・digest の自己照合）、比較（`<path> (changed|added|removed)`） |
+| `PlayerInputFiles.cs`（新規） | 集める唯一の口。`ProjectSettings/` の再帰、package の 2 file、render pipeline の起点 3 つ（`GraphicsSettings.defaultRenderPipeline`、`QualitySettings.GetRenderPipelineAssetAt` の全 level、`GraphicsSettings.GetGraphicsSettings()` の `m_RenderPipelineGlobalSettingsMap` の参照を SerializedObject で辿る）の `AssetDatabase.GetDependencies` の閉包の `Assets/` の file と `.meta`、`Assets/` の下の全ての `Resources` folder、`Assets/StreamingAssets/`、開始 Scene と `.meta`。起点に挙げた file が無ければ例外 |
+| `SampleGamePlayerBuildCoordinator.cs` | 遊べる Player だけ、mutation の前に指紋を取り、Unity の Player の build が返った後・`Publish` の前に `playerWork` へ `player-compat.json` を書く。`smoke` は書かない。Publisher は変えていない |
+| `PlayablePlayerLocator.cs`（新規） | D6 の (1)。規則（`Choose`）は folder の値の列だけで決め、読み（`Scan`）を分けた。最新の folder が使えない（receipt が読めない、identity が folder 名と違う、digest が無い、compat が無い）時は古い方へ戻らず止める |
+| `PlayEntryCandidates.cs` | 既存の検証を `Validate` に切り出して Editor の Play の候補と共有し、`ResolvePlayerBase`（宣言・target・revision = Player の identity・manifest の digest = `transportManifestSha256` の 1 件だけ）を足した。結果は `PlayerBaseResolution`（install、未 install、検証の失敗） |
+| `PlayerOverlayAttemptRecord.cs`（新規） | `PlayerOverlayOutcome`・`PlayerOverlayStartup` の enum、`last-attempt.json`（`PlayerOverlayAttempt`）と `<identity>/overlay-record.json`（`PlayerOverlayBuildRecord`）の形、別名に書いて `File.Replace` で置き換える読み書き |
+| `PlayerOverlayStartupObserver.cs`（新規） | `Step`（Unity を呼ばない 1 回分）、`ObserveOnce`（記録・Player の log・pid と開始時刻から 1 回観測して書き換え、`Failed`・`TimedOut` は Console の Error と dialog）、`[InitializeOnLoad]` と `Begin` の update の pump（約 1 秒ごと）。log は `FileShare.ReadWrite | FileShare.Delete` で開く。入口がもう一度実行されて記録が置き換わっていたら、前の観測の結果で上書きしない |
+| `PlayEntryOverlay.cs`、`SampleGameContentBuild.cs` | 計画の要約と結果に `OverlayRootKeys`（任意の引数。既存の呼び手は変えずに済む）。`OverlayPorts` に contentSet の引数、`PlayerOverlayContentSetOf`（`<宣言>-player-local-edits`）。Editor の Play の入口は今の `OverlayContentSetOf` を渡す |
+| `PlayEntryInterceptor.cs` | `EnumerateUnsavedAssets` を internal にし、`OverlayPorts` に今の contentSet を渡すだけ |
+| `PlayerOverlayLaunch.cs`（新規） | menu `Tools/OSM/Content/Play Playable Player With Local Edits`。D6 の (1)〜(7) の順、再利用の包み（`VerifiedReuse`）、`BuildEnvironment`（継承の `SAMPLEGAME_*` を全て消して pair と上書きの 3 key だけ）、`BeforeProcessStart`、process の handle を結果で返す。`Built` の後に入口が `overlay-record.json` を書く。content の編集が無い時は Console に `上書きなし（content の編集なし）` の 1 行 |
+| `tools/s42-player-overlay.ps1`（新規） | §5 の driver。X の 6 段、X から Y への写しと run ごとの cache（repo の外の `<drive>\s42c\<RunId>`、Y の `UserSettings/OSMContentDelivery.json` の `cacheRoot`）、Y の 17 段、cache の後始末。各段で URP の global settings を戻し、patch の適用、`run-tests.ps1 -Filter <case>$`、XML の total = 1 の確認、`git checkout`・`git clean -fd`、`git status --porcelain` の前後の一致（違えば止める）。`-DryRun` は Unity を起動しない |
+| `PlayerOverlayEdits/*.patch`（新規、5 file） | `ac01-title`、`ac05-field`、`ac12-uicommon`、`ac15-tag`、`ac16-map`。§3 の「7 file」のうち AC13 は `ac12-uicommon` を case の中で当てる（AC3 も同じ）ので、5 file で足りた |
+| `PlayerProcessRun.cs`（新規） | `PlayerKindEndToEndTests` の `PlayerRun` と game の log の読みを移した。観測の時刻と結果はこの object に持ち、呼び手が自分の record に写す（`PlayerKindEndToEndTests` は薄い包みで写す。挙動は変えていない）。刻みごとの任意の callback と `WaitUntil` を足した。`PlayerKindEndToEndTests.BuildAndCopy` は internal にし、結果を返す |
+| `PlayerOverlayEndToEndTests.cs`（新規） | X1〜X3、Y01〜Y17（下の表）。入口は製品の port で呼び、差し替えは AC10 の時点を取る起動の包みと AC18 (b) の `BeforeProcessStart` と、batch で dialog を出さない `Stop` だけ |
+
+単体テスト: Framework に `ContentOverlayStartupTests`（表を書き直した）と `ContentOverlayDigestTests`（新規）。SampleGame に `PlayerCompatibilityTests`、`PlayablePlayerLocatorTests`、`PlayerOverlayStartupObserverTests`、`PlayerOverlayLaunchTests`（入口の port、再利用の包み、記録の読み書き、AC4 (a)）、`PlayerInputFilesTests`（この project の集合）、`PlayEntryCandidatesTests` に base の決定の 4 件。
+
+### 6.2 判定の case と受け入れ条件
+
+| case（driver の名前） | AC |
+|---|---|
+| X1 `X1_BuildPlayableAndCompareInputs` | AC17 の 1 つ目、AC11 の X の側（run の写しは AC14 が使う） |
+| X2 `X2_CompareInputsInANewProcess` | AC17 の 2 つ目 |
+| X-LaunchPlayable（既存 `PlayerKindEndToEndTests.LaunchPlayable`） | AC14 |
+| X-BuildSmoke・X-LaunchSmoke（既存） | AC2 の key なしの起動 |
+| X3 `X3_SmokeRejectsOverlayKeys` | AC2 の上書きの 3 key、compat の不在、mutation の root の残り |
+| Y01〜Y03 | AC8 (d)・AC10、install、AC8 (a)(e)・AC10 |
+| Y04 `Y04_TitleEdits` | AC1・AC10・AC11 |
+| Y05 `Y05_ProductObservation`（`[UnityTest]`） | AC18 (a)(b) |
+| Y06〜Y08 | AC4 (e) の (i)〜(iii)（別の Unity process） |
+| Y09 `Y09_DirectDigestRejections` | AC4 (b)(c)(d)（(b) の書き換えは起動の後に元の bytes へ戻す） |
+| Y10 `Y10_SecondPlayerWhileFirstRuns` | AC13 |
+| Y11 `Y11_UiCommonAndMapEdits` | AC12・AC16 |
+| Y12・Y13 | AC15、AC5 |
+| Y14 `Y14_OverlayForAnotherBase` | AC3（別の base は `artifacts/playable/ac3-transport/<identity>` に publish） |
+| Y15・Y16・Y17 | AC7、AC8 (b)、AC8 (c) |
+
+AC4 (a) と AC9 は単体テスト。
+
+### 6.3 B 適応と新しい事実
+
+- **D11 の `ProjectSettings` の除外の一覧（§4 の B 適応の例）:** `EditorSettings.asset`、`EditorBuildSettings.asset`、`PackageManagerSettings.asset`、`VersionControlSettings.asset`、`PresetManager.asset`（以上は §2.1 の例）、`ProjectAuditorSettings.asset`（Project Auditor の Editor の設定）、`SceneTemplateSettings.json`（Scene template の Editor の設定）、`CsprojModifierSettings.json`（IDE の project の生成の設定）。`ShaderGraphSettings.asset`・`UnityConnectSettings.asset`・`URPProjectSettings.asset`・`MemorySettings.asset`・`XRSettings.asset`・`MultiplayerManager.asset` は「入らない」と言えないので入れた。加えて、mutation が一時に書いて消す `Assets/Resources/BS4/` の下と `Assets/Resources/BS4.meta`、`Assets/StreamingAssets/bs4-runtime.json` とその `.meta` を除いた（§2.1 の除外の明記どおり。`BS4.meta` と `.meta` は mutation の後に残りうる親 folder・import の file で、同じ理由の除外）。
+- **AC1 の第 2 の token の対象（u3 の B 適応）:** Title の Scene の file が持つ値は view の 2 つの参照（`_visualTreeAsset`・`_backgroundDefinition`）だけで、文字列や色を持たない。そこで `ac01-title.patch` は、Scene の `_visualTreeAsset` の参照を新しい UXML（`TitleS42Token.uxml`。Title の UXML を template として包み、`S42-AC1-SCENE-TOKEN` の label を足す）に替える。第 1 の token は Title の UXML の button の文字列（`S42-AC1-UXML-TOKEN`）で、包む側からも表示される。
+- **AC5 の script（同じ B 適応の範囲）:** Title の root の閉包に prefab は無く、Title の Scene の view（`TitleView`）が閉包の SampleGame の script である。`ac05-field.patch` はこれに `int _s42AddedField` を足し、Title の Scene の file に値 42 を入れる。
+- **AC8 (c) の作り方（未確認）:** `Y17_UnbuildableOnly` は map の root のうち Title・UICommon 以外の Scene の file と `.meta` を Assets の外へ退かして入口を実行する。source の欠けだけで計画が `UnbuildableOnly` になるかは、既存の計画の test（`OverlayFromLocalEditsIntegrationTests` の R4 は別の編集と組で `SourceAbsent` を作る）から確かめきれていない。`NotRequired` になれば AC8 (c) の初期状態が作れていないので、判定の担当は B へ戻す（退かす物を変えるのは B 適応）。
+
+### 6.4 確認したこと・未実行
+
+- `pwsh tools/contract-audit.ps1`: `errors=0 warnings=0`（検査 1〜9。path の予算を含む）。
+- patch: 5 つとも、この worktree（CRLF の作業ツリー）で `git apply --check` が通った。
+- Editor での compile の確認: この worktree の Editor（Unity 6000.6.9f1、新しい worktree の初回の import）で、全ての assembly が compile した（`Tundra build success`、`error CS` 0 件）。最初の compile で test の 2 件の型の誤りが出たので直してから取り直した。Editor は自分で起動した物だけを閉じた。閉じた後に `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` が書き換わっていた（S4-1 から移送した (7) と同じ現象）ので `git checkout` で戻し、commit に入れていない。driver は各段の Unity の起動の前にこの file を戻す。
+- 未実行（Phase C の責任）: Unity の EditMode の test（単体テストを含む全て）、Player の build・起動、判定の case、driver の実行（`-DryRun` を含む）。u1〜u6・u9〜u12 は全て未確認のまま。
 
 ## 7. Phase C
 

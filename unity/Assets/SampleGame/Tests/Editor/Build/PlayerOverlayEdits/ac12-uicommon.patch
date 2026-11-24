@@ -1,0 +1,11 @@
+diff --git a/unity/Assets/OneStarMaker/Scenes/UISystem/UISystemDocument.uxml b/unity/Assets/OneStarMaker/Scenes/UISystem/UISystemDocument.uxml
+--- a/unity/Assets/OneStarMaker/Scenes/UISystem/UISystemDocument.uxml
++++ b/unity/Assets/OneStarMaker/Scenes/UISystem/UISystemDocument.uxml
+@@ -5,5 +5,5 @@
+     xmlns:uie="UnityEditor.UIElements"
+     xsi:noNamespaceSchemaLocation="../../../../UIElementsSchema/UIElements.xsd"
+ >
+-    
++    <ui:Label name="s42-uicommon-token" text="S42-AC12-UICOMMON-TOKEN" picking-mode="Ignore" style="position: absolute; right: 16px; top: 16px; font-size: 32px; color: rgb(0, 255, 255);" />
+ </ui:UXML>
+\ No newline at end of file

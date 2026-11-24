@@ -88,10 +88,14 @@ namespace SampleGame.DependOnAll.Editor.Build
                 Path.Combine(artifactsRoot, "transport", result.Identity));
             var exe = Path.Combine(playerWork, "SampleGame.exe");
             var runtimeJson = RuntimeJson(result.Identity, declaration, probeToken, settings.PlayerKindValue);
+            // Player の入力の指紋は mutation（IL2CPP と High、baked config、Resources/BS4 の印）を始める前の project から取る。
+            // 入口は mutation の後の手元と比べるので、mutation が一時に変える物を指紋に入れると、自分で build した checkout でも止まる。
+            // 動作確認の Player は compat を書かない（出力と receipt を変えない）。
+            var compatibility = settings.CopiesBootstrap ? null : PlayerCompatibility.CreateRecord(result.Identity, PlayerInputFiles.Collect());
             using (var mutation = new PlayerBuildProjectMutation(result.Identity, runtimeJson))
             {
                 if (!settings.CopiesBootstrap)
-                    return BuildPlayableFromStartScene(kind, result, input, artifactsRoot, playerWork, transportPath, exe, mutation);
+                    return BuildPlayableFromStartScene(kind, result, input, artifactsRoot, playerWork, transportPath, exe, mutation, compatibility!);
 
                 mutation.CopyGraphClosure(MapPath);
                 var bootstrap = mutation.CopyBootstrapScene(BootstrapScene);
@@ -124,7 +128,8 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// mutation（root と所有の印、baked config、IL2CPP と High、戻し）は動作確認の Player と同じで、root には所有の印だけが入る。
         /// </summary>
         private static PlayerBuildResult BuildPlayableFromStartScene(PlayerBuildKind kind, BuildContentResult result, ValidatedPlayerBuildInput input,
-            string artifactsRoot, string playerWork, string transportPath, string exe, PlayerBuildProjectMutation mutation)
+            string artifactsRoot, string playerWork, string transportPath, string exe, PlayerBuildProjectMutation mutation,
+            PlayerCompatibilityRecord compatibility)
         {
             var startRootCount = CountStartSceneRoots(PlayableStartScene);
             if (startRootCount != 0)
@@ -157,6 +162,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                 scenes = new[] { PlayableStartScene }, bootstrapSceneName = DirectoryBootstrapKeys.PlayableStartSceneName,
                 checkedRootGuids = verification.CheckedGuids,
             }, true);
+            // compat は Unity の Player の build が返った後・publish の前に playerWork へ書く。publish が Player の file と一緒に
+            // staging から players/<identity> へ原子的に置くので、compat の無い遊べる Player の folder が見える時間が無い。
+            File.WriteAllText(Path.Combine(playerWork, PlayerCompatibility.FileName), PlayerCompatibility.ToJson(compatibility),
+                new System.Text.UTF8Encoding(false));
             var playerDirectory = new PlayerBuildPublisher().Publish(artifactsRoot, result.Identity, playerWork, result.ContentPath!, receipt);
             var playable = new PlayableBuildObservation(mutationRootFiles, startRootCount, mapSceneResourceCount,
                 verification.Playable!.ForbiddenGuidCount, verification.Playable.StartScenePackCount);
