@@ -133,7 +133,7 @@ function Copy-PlayerToY {
 
 function Invoke-Case([hashtable]$Step) {
     $root = if ($Step.Root -eq 'X') { $XRoot } else { $YRoot }
-    $before = Get-Porcelain $root
+    $before = @(Get-Porcelain $root)
     Restore-UrpGlobalSettings $root
     foreach ($patch in $Step.Patches) {
         & git -C $root apply --whitespace=nowarn (Join-Path $root "$patchDirectory/$patch")
@@ -155,7 +155,7 @@ function Invoke-Case([hashtable]$Step) {
         }
     } finally {
         Restore-Checkout $root
-        $after = Get-Porcelain $root
+        $after = @(Get-Porcelain $root)
         $same = (($before -join "`n") -ceq ($after -join "`n"))
         Write-DriverRecord @{ step=$Step.Name; root=$Step.Root; filter=$Step.Filter; patches=@($Step.Patches); status=$status; total=$total
             stepPath=$stepPath; gitStatusSame=$same; gitStatusBefore=@($before); gitStatusAfter=@($after) }
@@ -166,7 +166,7 @@ function Invoke-Case([hashtable]$Step) {
 
 foreach ($root in $XRoot, $YRoot) {
     Restore-UrpGlobalSettings $root
-    $dirty = Get-Porcelain $root
+    $dirty = @(Get-Porcelain $root)
     if ($dirty.Count -ne 0) { throw "$root is not clean: $($dirty -join '; ')" }
 }
 
