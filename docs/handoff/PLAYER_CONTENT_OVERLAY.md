@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。次は発見 C の 2 巡目。B と発見 C の往復の 1 巡目を終えた（上限 4 巡））
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。次は B の修正。B と発見 C の往復の 2 巡目（上限 4 巡））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `6f58156bd5530794953f03838b3e57cb023d3c3b`
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（2 巡目）。動作確認の対象は無い（差し戻しの修正は test 2 件と build の戻しの保存で、利用者の操作の経路を変えない）。
-  - 次の作業: §6.5 の修正が §7 の DC1〜DC3 を解いたかを確かめ、1 巡目で未確認のまま残った事項（§7 の「未確認事項」）へ進む。DC3 は X1（build を返した同じ process の比較で差分 0 件）で確かめる。
-  - 読む範囲: 既定のとおり（§0〜§8）。§6.5 と §7 の発見 C（1 巡目）を先に読む。
+  - 次の Phase・役割: Phase B（発見 C の 2 巡目の差し戻しの修正）。
+  - 次の作業: §7 の発見 C（2 巡目）の DC4・DC5 を直す。DC4 は u3 の不成立時の扱いに従い、AC12 の編集の対象を UICommon の root の閉包にある、Title の画面に見える別の物に替える（patch と、必要なら case の読み）。なぜ見えるかを source から説明して §6 に書く。閉包に見える物が無いと分かったら実装せずに停止して owner へ返す。AC12 の文（UXML の label）を変える必要が出たら、それは Phase A の再開なので停止する。DC5 は AC8 (c) の case の初期状態を直す（入口の保存の確認は凍結した製品の動作なので変えない）。Unity の test は実行しない（確認は次の発見 C が行う）。Editor での compile の確認は §6.4 と同じ形で行う。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
+  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（2 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
-  - 停止規則: §5 の発見 C の手順と u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
+  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§5 の u3 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -486,6 +486,26 @@ AC4 (a) と AC9 は単体テスト。
 - 未確認事項: AC1 の画像と「スタート」の後の Home（u6 を含む）、AC8 (a) の閉じる段と exit code、u4、AC8 (c)（§6.3）、driver の Y05 以降と X の残りの段、全 EditMode 回帰。限定実行の run `dc1`・`dc1b`・`dc1c` は判定の証拠に使わない。
 - 担当・モデル・ベンダー: レビュー（構造・契約・指摘の分類）は Codex CLI（`codex exec`、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。新しい session で 1 回、追加の証拠で同じ session を 1 回再開した。Unity の実行・証拠の梱包・DC3 の観測・この欄の転記は進行役（Claude Code の desktop の session、Claude Opus 5.5、Anthropic。Phase B の session とは別）が行った。
 - 独立性: レビューは Phase B（Claude Opus 5.5、Anthropic）と違うモデル・ベンダー。実行担当の進行役は Phase B と同じモデルで、凍結した手順と限定実行だけを行い、合否は書いていない。
+
+### 発見 C（2 巡目）
+
+- 種別: 発見。GO 判定はしない。C' も起動しない。
+- 対象: implementation base `1fd200b5`、head `6f58156b`（引き継ぐ commit `90cfd7f1`。作業ツリーは clean で HEAD と一致、`6f58156b` からの差は本書だけ）。レビューの対象は `ae49bebf..6f58156b`（§6.5 の修正）と、新しい証拠が指す範囲の slice の全体。
+- evidence の状態: 取得案内は無い（bundle は未生成）。実行の生の証拠は git 管理外（X・Y の worktree の `TestResults/` と進行役の作業 directory）に残り、判定の証拠には使わない。
+- 機械検査: `contract-audit` errors 0・warnings 0。
+- 実行（Unity 6000.6.9f1、sandbox 外、1 巡目と同じ worktree X・Y を `90cfd7f1` に detach、run `dc2`）:
+  - X で起点 filter: 116 件、全て Passed。
+  - driver の全段（`-Only` なし）: X1・X2・X-LaunchPlayable・X-BuildSmoke・X-LaunchSmoke・X3・写し・Y01〜Y16 は XML Passed、Y17 は Failed（DC5）。全ての Unity の段で XML の total 1、`git status --porcelain` は前後で一致。CleanupCache は run の cache を消した。X1・X-BuildSmoke の `step.json` の `failed` は Project Auditor の post-build の `error CS8773`（[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の既知の事象）だけで、XML は Passed。
+  - AC1 の「スタート」: Y04 が `press-start.txt` を書いた後、実行担当が Player の client 領域を画像に取り、ボタンの位置を読んで 1 回押した。game の log に `OnStabledImpl HomeScene`。
+  - Unity の終了 stall: Y04・Y08・Y13・Y14 の後に 1 回ずつ（XML の 5 分後に 1 thread で CPU 時間が増加）。どれもその PID だけを CIM の `Terminate` で止めた（Harness README の既知の事象）。
+- DC1〜DC3 の解消: DC1 は Y03・Y04 が game の log を読んで最後まで通った。DC2 は起点 filter が全件 Passed。DC3 は X1（同じ process）と X2（新しい process）の両方で `compatDifferenceCount=0` で、指紋の範囲は変えていないので u10 の Phase A の条件に当たらない。
+- 現在の問いを阻害する指摘:
+  - **DC4（B 適応。u3 の不成立）:** AC12 の Y11 は `Launched`・`Observed`、上書きの root に UICommon と map、Player の log に `Bootstrap UICommon: source=content` があるが、Title の画像に `S42-AC12-UICOMMON-TOKEN` が見えない（`ac12-uicommon.patch` が `UISystemDocument.uxml` に足す label）。違反: AC12（「Title の画像に token が見える」）と u3。原因（表示・反映・撮影のどこか）はこの証拠では決まらない。分類は凍結した u3 の不成立時の扱い「編集の対象を同じ root の閉包の別の見える物に変えるのは B 適応」に従う。見える物が UICommon の root の閉包に無いと分かったら、B は実装せずに停止して owner へ返す。
+  - **DC5（B 適応）:** AC8 (c) の Y17 は、test が Scene を退かして `AssetDatabase.Refresh` した後、Addressables の `Default Local Group.asset` が未保存になり、入口の保存の確認（`PlayerOverlayLaunch.cs:297` の `DisplayDialog`、D6 (3)）が batch で Assert の log を出して、test が「予期しない log」で落ちた。保存の確認は凍結した製品の動作で、AC8 (c) の判定の case の初期状態の問題。違反: AC8 (c)（判定できない）。
+- 後続へ移送する指摘（違反根拠なし）: `SaveRestoredSettings`（`PlayerBuildProjectMutation.cs:140-144`）は全体の `AssetDatabase.SaveAssets()` を呼ぶので、build の時に別の未保存の asset があればそれも保存しうる。今回その証拠は無く、凍結条件の違反にも当たらない。
+- 未確認事項: AC12 の画像（DC4 の修正の後）、AC8 (c)（DC5 の修正の後）、全 EditMode 回帰。他の AC と u は記録が条件を満たした（レビューの読み）が、判定は判定 C が行う。run `dc2` は判定の証拠に使わない。
+- 担当・モデル・ベンダー: レビューは Codex CLI（`codex exec resume` で 1 巡目と同じ session を再開、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。Unity の実行・「スタート」の操作・証拠の梱包・この欄の転記は進行役（Claude Code の desktop の session、Claude Opus 5.5、Anthropic。Phase B の session とは別）。DC4 の分類（スパイクではなく u3 の B 適応）は、レビューの「原因未確定」の読みに対して進行役が凍結した u3 の文に当てて決めた。
+- 独立性: 1 巡目と同じ。
 
 ## 8. Phase C'
 
