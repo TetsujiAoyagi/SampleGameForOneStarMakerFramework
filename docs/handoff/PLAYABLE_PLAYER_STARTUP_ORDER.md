@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `B`（Phase B の実装を終えた。§4 の (0)〜(7) と Editor のコンパイル確認まで。Unity の test と build は未実行。次は発見 C）
+- status: `C`（発見 C を終えた。阻害する指摘は 0 件。次は判定 C。GO 候補 head は implementation head）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `ec2d4944abef3c0117986de912cb72cca57aac76`
@@ -22,13 +22,13 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の発見 C（一次レビュー）。動作確認（Phase B の後）は `対象なし`（§5。offline のテストで閉じない条件は全て Player の build か Editor の Play を要し、Phase C が担当する）。
-  - 次の作業: implementation head の差分を §2〜§5 と照合し、§5 の判定必須テストと検証経路のうち発見 C で走らせる範囲を決めて実行する（Phase B は Unity の test・build・Player の起動を 1 つも実行していない。§6 の「未実行」）。u7 の疎通は §6 のとおり今ある S4-1 の Player で確かめ済みで、その手段（§6）を AC6 に使える。
+  - 次の Phase・役割: Phase C の判定 C。動作確認（Phase B の後）は `対象なし`（§5）。
+  - 次の作業: GO 候補 head（implementation head 欄）で §5 の判定必須テスト (1)〜(16) を新しい `S41_RUN_ID` で全て取り直す。発見 C（§7）の `dc1` は証拠に使わない。AC6 は AI の desktop 操作で、AC12 の後に全 EditMode 回帰を行う。
   - 読む範囲: 既定（§0〜§8）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は上の欄。
-  - 取得案内: Phase B result snapshot は未生成（Phase B は stage していない。発見 C は commit で固定した implementation head の差分を読む）。evidence bundle・C' blind bundle も未生成。
-  - 必要な権限: Unity の Editor と batch の test・Player の build（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、[Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）、Player の起動、利用者の desktop の操作（AC6。画面の取り込みと mouse）。
-  - 停止規則: §2 の判定定義と停止規則、§4 の差し戻しの条件のまま。C' は Grok の系列か人間に予約してあるので、Phase C に Grok の系列を使わない（§5）。Phase C は Phase B（Anthropic の系列、§6）と違うモデルが担当する。
+  - 取得案内: 発見 C の evidence bundle は無い（commit で固定した差分を読んだ）。判定 C は同一 commit から evidence bundle を作る。C' blind bundle は未生成。
+  - 必要な権限: Unity の Editor と batch の test・Player の build（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、[Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）、Player の起動、利用者の desktop の操作（AC6）。
+  - 停止規則: §2 の判定定義と停止規則のまま。C' は Grok の系列か人間に予約してあるので判定 C に Grok の系列を使わない。発見 C は Claude Sonnet 5.5（独立性制約あり、§7）。
   - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない。
 - task の開始（`tools/workflow-task.ps1 start`）: 済み（Phase B の担当、2026-11-24）。taskId `s4-1a-playable-player-startup-order`。
 
@@ -379,7 +379,25 @@ A2 の観点の再レビュー（外部 1 巡目と 2 巡目の後）: 要らな
 
 ## 7. Phase C
 
-未着手。
+### 発見 C（1 巡目）
+
+- 種別: 発見。GO 判定はしない。C' も起動しない。
+- 対象: implementation base `116b0091`、head `ec2d4944`（引き継ぐ commit `31a0522a`。作業ツリーは clean で HEAD と一致）。
+- evidence の状態: 取得案内は無い（bundle・snapshot は未生成。commit で固定した head の差分を直接読んだ）。実行の証拠は git 管理外の `TestResults/s41/dc1/`（`record.jsonl`、`playable.json`、`smoke.json`、各 case の folder、AC6 の `title.png`・`ingame.png`）に残り、判定の証拠には使わない（判定 C は GO 候補 head で取り直す）。
+- 構造適合: §3 の責務マップのとおり。新しい asmdef 参照・公開 API・`SceneState`・baked の key・hook は無い。`smoke` の build と起動の呼び出しの列、`PlayerBuildProjectMutation`、`RouteFirstScene`、`WireContentResolution` は変わっていない。`contract-audit` は errors 0・warnings 0。変更した `.cs` は `#nullable enable` を持ち、`record`・`Task.Delay`・`Thread.Sleep` は 0。偽 null は `!= null` / `== null`。行数の増加は §6 の説明どおりで責務の混在は無い。
+- 現在の問いを阻害する指摘: 0 件。
+- 後続へ移送する指摘（違反根拠なし）: (1) 判定の step.json が Player の build で `failed`（`CS8773` 57 行。S4-1 の build の log にも同じ行があり、この差分の起因ではない）。合否は XML と record で読む。(2) `PlayableBuildObservation.MapSceneResourceCount` は重複を除かず `ForbiddenGuidCount` は除く（今回は 457 で一致）。(3) Player の log の `未登録のシーンをスキップ: PlayablePlayerStart` と `UIScene`（Error ではない）。
+- 実行したコマンドと結果（Unity 6000.6.9f1、sandbox 外、`S41_RUN_ID=dc1`）:
+  - 起点 filter（`PlayerContentConfigurationTests`、`PlayerContentSmokeSequenceTests`、`BootstrapSourcePolicyTests`、`PlayerModeLatchTests`、`Bs4FixtureComposerTests`、`PlayerBuildIntegrationPolicyTests`）: 114 件 Passed、failed 0。
+  - `T.BuildPlayable$`（AC3）: XML Passed。`scenes` は開始 Scene 1 つ、`bootstrapSceneName` は `PlayablePlayerStart`、mutation の root の file は `.bs4-owner` のみ、root の GameObject 0、`mapSceneResourceCount` 457 = `forbiddenGuidCount` 457、`startScenePackCount` 1、`GameAssembly.dll` あり・`Managed/` なし・Development なし・strip High、build 直後に mutation の path なし。
+  - `T.LaunchPlayable$`（AC4・AC5）: 登録 → UICommon（content）→ map（content）→ 初回 Scene の順（行 40・111・141・236）、`stable=True`、窓を閉じて exit 0。strip の行は例外扱いの URP shader のみ、game log に Error 以上なし。
+  - `T.LaunchPlayableHuman$`（AC6。desktop 操作は git 管理外の `TestResults/s41a-u7/u7.ps1`）: click 00:27:30、`WM_CLOSE` 00:28:22（UTC、2026-11-24）。`OnStabledImpl HomeScene`・`initial season ensure started`・`Player ready at Cell stream spawn` がこの順、exit 0。画像 2 枚は真っ黒・マゼンタでなく、Title に「スタート」が見える。
+  - `T.LaunchPlayableEmptyContent$`（AC9）、`T.LaunchPlayableBrokenCompanion$`（AC10）、`T.LaunchPlayableAsSmoke$`（AC14 b）、`T.BuildSmoke$`・`T.LaunchSmoke$`（AC1。receipt は schema 2・10 段が今の順）、`T.LaunchSmokeAsPlayable$`（AC14 a）: どれも §2.2 の期待どおり（AC9・AC10・AC14 は exit 1、AC10 は後始末の失敗の行が出る）。
+  - u1・u2・u3・u4・u5・u7 は成立。
+- 判定必須のうち未実行: `LaunchSmokeOverride`（AC2）、`LaunchPlayableKindOverride`・`LaunchPlayableAddressables`（AC7）、`LaunchPlayableMissingInstall`（AC8）、AC12（検証 Play。u6）、全 EditMode 回帰。run `dc1` は判定の証拠に使わず、GO 候補 head で (1)〜(16) を取り直す。
+- 未確認事項: AC12 と u6、全 EditMode 回帰、protected・BeforeSceneLoad の失敗の 3 種の起動、AC4 の「最後の行の後 60 秒生存」の厳密な確認（今回は約 60 秒後に閉じて exit 0 を確認した）。
+- 担当・モデル・ベンダー: Claude Code の subagent、Claude Sonnet 5.5、Anthropic。
+- 独立性: 独立性制約あり。Phase B と同じベンダー（Anthropic）。owner の指示で codex が使えず、Opus は Phase B と同じモデルのため。残存リスクは、B と同系列の見落としが共有されうること（判定 C と C' で補う。C' は Grok の系列か人間）。
 
 ## 8. Phase C'
 
