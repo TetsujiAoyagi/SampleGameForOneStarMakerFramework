@@ -8,7 +8,7 @@
 - status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。次は発見 C）
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: この票を含む commit
+- implementation head commit: `ae49bebfbc6748d748fe307d24b982706bed2e47`
 - A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
@@ -24,7 +24,7 @@
   - 次の Phase・役割: Phase C（発見 C）。動作確認（Phase B の後）は §5 のとおり `対象なし`。
   - 次の作業: §5 の「発見 C の最初の限定実行」（driver `tools/s42-player-overlay.ps1` の先頭: X の build、Y への写し、AC8 (d)、install、AC8 (a)、AC1）を構造の ledger より前に通し、続けて構造適合・受け入れ条件・判定必須テストを確認する。Unity の test・Build・Player の起動は Phase C の責任で、B は 1 つも実行していない（§6.4）。
   - 読む範囲: 既定のとおり（§0〜§8）。§6.3 の B 適応と AC8 (c) の未確認を先に読む。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head も同じ commit。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head はその親で、HANDOFF だけが違う。
   - 必要な権限: Unity の batch test・Player の build と起動（窓を出す）、2 つの新しい worktree（X・Y）の作成、repo の外の短い path への run ごとの cache の作成と削除、AC1 の「スタート」の押下のための画面の取り込みと OS の mouse の入力。push は公開点の規則に従う。
   - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」と §5 の u ごとの不成立時の扱いに従う。実装の欠陥は B へ戻す。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
@@ -450,9 +450,9 @@ AC4 (a) と AC9 は単体テスト。
 ### 6.4 確認したこと・未実行
 
 - `pwsh tools/contract-audit.ps1`: `errors=0 warnings=0`（検査 1〜9。path の予算を含む）。
-- patch: 5 つとも、この worktree（CRLF の作業ツリー）で `git apply --check` が通った。
+- patch と driver: 新しい checkout では `.patch` が CRLF で取り出され、`eol=lf` の Unity の YAML に当たらなかった。`.gitattributes` に patch の folder だけ `text eol=lf` の 1 行を足した（他の file の取り出しは変えない）。その後、implementation head から作った新しい worktree 2 つ（X・Y）で `tools/s42-player-overlay.ps1 -DryRun` を流し、全 23 段で patch の適用・戻し・`git status --porcelain` の前後の一致が通った（Unity は起動しない）。AC13・AC3 が case の中で当てる `ac12-uicommon.patch` は、`ac01-title.patch` と別の file だけを変える。
 - Editor での compile の確認: この worktree の Editor（Unity 6000.6.9f1、新しい worktree の初回の import）で、全ての assembly が compile した（`Tundra build success`、`error CS` 0 件）。最初の compile で test の 2 件の型の誤りが出たので直してから取り直した。Editor は自分で起動した物だけを閉じた。閉じた後に `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` が書き換わっていた（S4-1 から移送した (7) と同じ現象）ので `git checkout` で戻し、commit に入れていない。driver は各段の Unity の起動の前にこの file を戻す。
-- 未実行（Phase C の責任）: Unity の EditMode の test（単体テストを含む全て）、Player の build・起動、判定の case、driver の実行（`-DryRun` を含む）。u1〜u6・u9〜u12 は全て未確認のまま。
+- 未実行（Phase C の責任）: Unity の EditMode の test（単体テストを含む全て）、Player の build・起動、判定の case、driver の本番の実行（`-DryRun` だけを流した）。u1〜u6・u9〜u12 は全て未確認のまま。
 
 ## 7. Phase C
 
