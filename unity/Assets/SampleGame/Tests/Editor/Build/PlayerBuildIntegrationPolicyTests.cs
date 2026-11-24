@@ -53,6 +53,81 @@ namespace OneStarMaker.Tests.Editor.Build
                 new[] { "selected" }, "source", "generated"), Is.EqualTo(new[] { "selected" }));
         }
 
+        // ─── 遊べる Player の pack の検査（bootstrap を写さない build） ───
+
+        private const string MutationRoot = "Assets/Resources/BS4/id";
+
+        private static PlayablePackChecks PlayableChecks(params string[] forbidden) =>
+            new(forbidden, MutationRoot, "start");
+
+        private static PlayerPackedAssetData Pack(string name, string[] guids, string[]? paths = null) =>
+            new(name, guids, paths ?? guids.Select(g => "Assets/Other/" + g + ".asset"));
+
+        [Test]
+        public void PlayablePackedPolicy_ForbiddenGuidPacked_Rejects()
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "start", "resource-b" }) }, new[] { "selected" }, "source", PlayableChecks("resource-a", "resource-b")));
+            StringAssert.Contains("resource-b", ex!.Message);
+        }
+
+        [Test]
+        public void PlayablePackedPolicy_AssetUnderMutationRootPacked_Rejects()
+        {
+            // 写しは新しい GUID を持つので、GUID の検査では見つからない。元の path で拒む。
+            var ex = Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "start", "copy" }, new[] { "Assets/PlayerStart/PlayablePlayerStart.unity", MutationRoot + "/SceneResourceMap.asset" }) },
+                new[] { "selected" }, "source", PlayableChecks("resource-a")));
+            StringAssert.Contains(MutationRoot + "/SceneResourceMap.asset", ex!.Message);
+        }
+
+        [Test]
+        public void PlayablePackedPolicy_StartSceneInTwoPacks_Rejects()
+        {
+            Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "start" }), Pack("two", new[] { "start" }) }, new[] { "selected" }, "source", PlayableChecks("resource-a")));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void PlayablePackedPolicy_StartSceneInZeroOrOnePack_Accepts(int startPacks)
+        {
+            var packs = startPacks == 0
+                ? new[] { Pack("one", new[] { "other" }) }
+                : new[] { Pack("one", new[] { "start", "start" }), Pack("two", new[] { "other" }) };
+            var (checkedGuids, playable) = PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                packs, new[] { "selected" }, "source", PlayableChecks("resource-a", "resource-b"));
+            Assert.That(checkedGuids, Is.EqualTo(new[] { "selected" }));
+            Assert.That(playable.StartScenePackCount, Is.EqualTo(startPacks));
+            Assert.That(playable.ForbiddenGuidCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void PlayablePackedPolicy_NoForbiddenGuids_RejectsTheEmptyCheck()
+        {
+            Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "start" }) }, new[] { "selected" }, "source", PlayableChecks()));
+        }
+
+        [Test]
+        public void PlayablePackedPolicy_KeepsTheCurrentChecks()
+        {
+            // selected の root の重複と、元の UICommon の Scene は遊べる Player でも拒む。
+            Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "selected" }) }, new[] { "selected" }, "source", PlayableChecks("resource-a")));
+            Assert.Throws<InvalidOperationException>(() => PlayerBuildReportVerifier.VerifyPlayablePackedAssets(
+                new[] { Pack("one", new[] { "source" }) }, new[] { "selected" }, "source", PlayableChecks("resource-a")));
+        }
+
+        [Test]
+        public void SmokePackedPolicy_IgnoresSourcePaths()
+        {
+            // 足した入力を渡さない動作確認の Player の検査は、mutation の root の下の写し（生成した UICommon）を今までどおり受け入れる。
+            Assert.That(PlayerBuildReportVerifier.VerifyPackedAssets(
+                new[] { Pack("one", new[] { "generated", "resource-a" }, new[] { MutationRoot + "/UICommon.unity", MutationRoot + "/Title.asset" }) },
+                new[] { "selected" }, "source", "generated"), Is.EqualTo(new[] { "selected" }));
+        }
+
         [TestCase("SampleGame_BackUpThisFolder_ButDontShipItWithYourGame", true)]
         [TestCase("samplegame_backupthisfolder_butdontshipitwithyourgame", true)]
         [TestCase("SampleGame_Data", false)]

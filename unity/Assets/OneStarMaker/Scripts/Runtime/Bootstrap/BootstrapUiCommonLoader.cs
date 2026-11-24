@@ -17,9 +17,9 @@ namespace OneStarMaker.Runtime
     /// <summary>
     /// <see cref="BootstrapUiCommonLoader.LoadAsync"/> が UICommon をどこから取るかを決める入力。
     /// <para>
-    /// initializer の virtual（<c>UseRequiredPlayerFileConfiguration</c> と 2 つの hook）は値ではなく関数で受け、
-    /// loader の中の、initializer にあったときと同じ時点・同じ分岐でだけ評価する。先に評価して mode を確定すると、
-    /// 派生クラスの getter / hook が呼ばれる回数と時点が変わる（ロード済み UICommon の経路では 1 つも呼ばない）。
+    /// 規則は initializer が起動の最初に <see cref="BootstrapSourcePolicy.Plan"/> で決めた値で受ける。
+    /// 2 つの hook（logical key と address）は値ではなく関数で受け、読む経路が決まった後にだけ評価する
+    /// （借用の経路では 1 つも呼ばない。派生の hook が呼ばれる時点と回数を今までと同じにする）。
     /// directory か否かだけは副作用の無い field の読み取りなので、呼び出し時の bool で受ける。
     /// </para>
     /// </summary>
@@ -27,22 +27,34 @@ namespace OneStarMaker.Runtime
     {
         internal BootstrapUiCommonSource(
             bool useContentDirectory,
-            Func<bool> useRequiredPlayerFileConfiguration,
+            BootstrapUiCommonRule rule,
             Func<string> directorySceneLogicalKey,
             Func<string> uiCommonPrefabAddress)
         {
             UseContentDirectory = useContentDirectory;
-            UseRequiredPlayerFileConfiguration = useRequiredPlayerFileConfiguration
-                ?? throw new ArgumentNullException(nameof(useRequiredPlayerFileConfiguration));
+            Rule = rule;
             DirectorySceneLogicalKey = directorySceneLogicalKey
                 ?? throw new ArgumentNullException(nameof(directorySceneLogicalKey));
             UICommonPrefabAddress = uiCommonPrefabAddress ?? throw new ArgumentNullException(nameof(uiCommonPrefabAddress));
         }
 
         internal bool UseContentDirectory { get; }
-        internal Func<bool> UseRequiredPlayerFileConfiguration { get; }
+        internal BootstrapUiCommonRule Rule { get; }
         internal Func<string> DirectorySceneLogicalKey { get; }
         internal Func<string> UICommonPrefabAddress { get; }
+    }
+
+    /// <summary><see cref="BootstrapUiCommonLoader.LoadAsync"/> の結果。取得した UICommon と、それを読んだ先（起動の log に出す）。</summary>
+    internal readonly struct BootstrapUiCommonLoadResult
+    {
+        internal BootstrapUiCommonLoadResult(UICommon uiCommon, BootstrapUiCommonOrigin origin)
+        {
+            UICommon = uiCommon;
+            Origin = origin;
+        }
+
+        internal UICommon UICommon { get; }
+        internal BootstrapUiCommonOrigin Origin { get; }
     }
 
     /// <summary>
@@ -68,34 +80,31 @@ namespace OneStarMaker.Runtime
         /// <summary>LoadAsync でロードした UICommon シーンのハンドル。</summary>
         private ISceneHandle? _uiSceneHandle;
 
-        internal async UniTask<UICommon> LoadAsync(IAssetManagement assetManagement, BootstrapUiCommonSource source)
+        internal async UniTask<BootstrapUiCommonLoadResult> LoadAsync(IAssetManagement assetManagement, BootstrapUiCommonSource source)
         {
-            UICommon? uiCommon = null;
-
+            // active な Scene の検査は今までと同じ（名前が UICommon で、root UICommon に component がある）。
+            // 借用するかは規則と合わせて policy が決める。遊べる Player は UICommon を持つ Scene から始まったら借用せずに失敗する。
+            UICommon? borrowed = null;
             var activeScene = SceneManager.GetActiveScene();
-            if(activeScene.name == "UICommon")
+            if (activeScene.name == "UICommon")
             {
-                // 既に UICommon シーンがロードされている場合は、そこから UICommon を探す
                 var tempGo = activeScene.GetRootGameObjects().FirstOrDefault(g => g.name == "UICommon");
                 if (tempGo != null)
-                {
-                    uiCommon = tempGo.GetComponent<UICommon>();
-                    if (uiCommon != null)
-                    {
-                        return uiCommon;
-                    }
-                }
+                    borrowed = tempGo.GetComponent<UICommon>();
             }
 
-            if (source.UseRequiredPlayerFileConfiguration())
-                throw new InvalidOperationException("The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.");
+            var decision = BootstrapSourcePolicy.DecideUiCommon(source.Rule, borrowed != null, source.UseContentDirectory);
+            if (decision.Failure != null)
+                throw new InvalidOperationException(decision.Failure);
+            if (decision.Origin == BootstrapUiCommonOrigin.ActiveScene)
+                return new BootstrapUiCommonLoadResult(borrowed!, BootstrapUiCommonOrigin.ActiveScene);
 
             string bootstrapIdentity;
-            if (source.UseContentDirectory)
+            if (decision.Origin == BootstrapUiCommonOrigin.Content)
             {
                 var logicalKey = source.DirectorySceneLogicalKey();
                 if (string.IsNullOrEmpty(logicalKey))
-                    throw new InvalidOperationException("Directory Editor Play requires a bootstrap Scene logical key.");
+                    throw new InvalidOperationException("Content directory startup requires a bootstrap Scene logical key.");
                 bootstrapIdentity = logicalKey;
                 _uiSceneHandle = await assetManagement.LoadContentSceneAsync(
                     logicalKey,
@@ -124,7 +133,7 @@ namespace OneStarMaker.Runtime
             go.name = "[UICommon]";
             _uiCommonObject = go;
 
-            uiCommon = go.GetComponent<UICommon>();
+            var uiCommon = go.GetComponent<UICommon>();
             if (uiCommon == null)
             {
                 throw new InvalidOperationException(
@@ -133,7 +142,7 @@ namespace OneStarMaker.Runtime
 
             EnsureEventSystem();
 
-            return uiCommon;
+            return new BootstrapUiCommonLoadResult(uiCommon, decision.Origin);
         }
 
         /// <summary>

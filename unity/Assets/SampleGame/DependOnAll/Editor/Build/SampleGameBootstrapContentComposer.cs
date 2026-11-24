@@ -18,7 +18,7 @@ namespace SampleGame.DependOnAll.Editor.Build
     }
 
     /// <summary>
-    /// 季節選択の後に、Editor directory Play 用の UICommon Scene と SceneResourceMap を
+    /// 季節選択の後に、content から起動する時（Editor の directory Play と遊べる Player）に読む UICommon Scene と SceneResourceMap を
     /// 同じ plan/snapshot へ合成する。季節 policy は知らない。
     /// </summary>
     internal static class SampleGameBootstrapContentComposer

@@ -135,8 +135,16 @@ namespace SampleGame.DependOnAll
             => "SAMPLEGAME_";
 
         protected override bool UseRequiredPlayerFileConfiguration => _useBs4PlayerMode;
-        private static bool IsBs4PlayerMode(bool isEditor, string activeSceneName) =>
-            !isEditor && string.Equals(activeSceneName, "UICommon", StringComparison.Ordinal);
+        /// <summary>
+        /// Player の構成の latch。開始 Scene の名前を成果物の marker として読む: 動作確認の Player は生成した <c>UICommon</c>、
+        /// 遊べる Player は commit した空の <see cref="DirectoryBootstrapKeys.PlayableStartSceneName"/>。
+        /// baked config の有無を marker にしないのは、config が欠けた exe を Addressables の起動へ落とさず fail-closed にするため。
+        /// 開始 Scene と baked の種類の食い違いは Framework の起動の規則が両方の向きで起動の失敗にする。
+        /// </summary>
+        internal static bool IsBs4PlayerMode(bool isEditor, string activeSceneName) =>
+            !isEditor
+            && (string.Equals(activeSceneName, "UICommon", StringComparison.Ordinal)
+                || string.Equals(activeSceneName, DirectoryBootstrapKeys.PlayableStartSceneName, StringComparison.Ordinal));
         protected override string GetRequiredPlayerConfigurationPath() => Path.Combine(Application.streamingAssetsPath, "bs4-runtime.json");
         protected override SceneResourceMap LoadPlayerSceneResourceMap()
         {

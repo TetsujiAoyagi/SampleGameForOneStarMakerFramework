@@ -16,8 +16,8 @@ AfterSceneLoad         → content登録・UI / Map・Factory / Director構築 �
 
 **設計意図:**
 - Editor Playはロード済みSceneを登録する。通常directory Playには検証済みcontentの準備が必要で、任意の未取得Sceneが自動取得されるわけではない。
-- 通常PlayerはBS4が生成する単一のUICommon bootstrap Sceneから開始し、固定configの論理`firstScene`をcontentからロードする。旧Build Settings Scene 0をそのままゲームの初回Sceneとする案内は使わない。
-- Player には build の時に baked config の `content:playerKind` で決める 2 つの種類がある。**動作確認の Player**（`smoke`、menu `Tools/OSM/Content/Build BS4 Spring Player`）は初回 Scene から fixture を確かめ、receipt を書いて自分で終わる。**遊べる Player**（`playable`、menu `Tools/OSM/Content/Build Spring Playable Player`）は初回 Scene を load したまま起動を終え、利用者が窓を閉じるまで動く。どちらも同じ protected config と fail-closed で起動し、構成は IL2CPP・managed stripping High・development build でない、で同じである（§4.6・§4.7）。
+- Player は Player の Scene を 1 つだけ持つ開始 Scene から始め、固定configの論理`firstScene`をcontentからロードする。開始 Scene は、動作確認の Player では BS4 が生成する UICommon bootstrap Scene、遊べる Player では commit した空の Scene `PlayablePlayerStart` である。旧Build Settings Scene 0をそのままゲームの初回Sceneとする案内は使わない。
+- Player には build の時に baked config の `content:playerKind` で決める 2 つの種類がある。**動作確認の Player**（`smoke`、menu `Tools/OSM/Content/Build BS4 Spring Player`）は初回 Scene から fixture を確かめ、receipt を書いて自分で終わる。**遊べる Player**（`playable`、menu `Tools/OSM/Content/Build Spring Playable Player`）は初回 Scene を load したまま起動を終え、利用者が窓を閉じるまで動く。どちらも同じ protected config と fail-closed で起動し、構成は IL2CPP・managed stripping High・development build でない、で同じである。起動の順は種類で違い、遊べる Player は Editor の directory Play と同じく content を登録してから UICommon と SceneResourceMap を content から読み、動作確認の Player は exe に写した UICommon と map を使ってサービスの開始の後に登録する（§4.2・§4.6・§4.7）。
 - サービスの Dispose は `Application.quitting` で保証する（SubsystemRegistration で二重保護）。
 
 ## 4.2 クラス構造
@@ -28,24 +28,26 @@ AbstractApplicationInitializer (OneStarMaker.Runtime)
   ├── BootstrapBeforeSceneLoad()
   │     └── AssetManagement / AppConfig / directory設定 / logger / UpdateSystem等の準備
   └── BootstrapAfterSceneLoad()
-        ├── Editor directoryのみ: sessionを先に登録
+        ├── 起動の構成を決める（BootstrapSourcePolicy.Plan、stage plan-bootstrap）
+        ├── Editor directory・遊べる Player: sessionを先に登録
         ├── UICommon / SceneResourceMapの取得
-        │     ├── Editor directory: contentのbootstrap entry
-        │     ├── BS4 Player: 生成済みUICommon / graph metadata
+        │     ├── Editor directory・遊べる Player: contentのbootstrap entry
+        │     ├── 動作確認の Player: 生成済みUICommon / graph metadata
         │     └── 明示Addressables互換: 互換ロード
         ├── Framework・アプリサービス開始 → CreateSceneFactory()
-        ├── 起動表現確定（BS4はここでdirectory登録）→ SceneDirector構築
+        ├── 起動表現確定（動作確認の Playerはここでdirectory登録）→ SceneDirector構築
         └── RegisterAlreadyLoadedScenes() / 必要な論理初回Sceneロード
 
 initializer が使う internal の部品（同じ Bootstrap folder・namespace）
   ├── FrameworkServiceSet         … 常駐サービス（logger factory / DebugSocket / UpdateSystemHost / VfxRuntimeHost）の入れ物と開始・破棄の順序
-  ├── BootstrapUiCommonLoader     … UICommon の取得（借用 / directory / Addressables の 3 経路）と、取得した GameObject の破棄
+  ├── BootstrapSourcePolicy       … 登録の位置・UICommon の規則・map の読み口と、UICommon を読む先の判定（状態なし、Unity を呼ばない。§4.6「起動の構成」）
+  ├── BootstrapUiCommonLoader     … UICommon の取得（借用 / directory / Addressables の 3 経路を policy の判定で選ぶ）と、取得した GameObject の破棄
   └── LegacyRemoteCatalogProbe    … 旧リモート catalog の案内経路（通常起動から切断済み。§20）
 ```
 
 initializer に残るのは、3 フェーズの順序、派生クラス向けの hook、失敗境界、Content Directory の起動である。常駐サービスは派生クラスの `Create*` hook が作り、`FrameworkServiceSet` は受け取って持つだけにする。BeforeSceneLoad は最初の `Create*` より前に空の set を field に入れ、hook の戻り値を 1 つ作るたびに set へ入れる。こうすると、後の hook は前に作ったサービスを protected accessor（`UpdateCoordinator` / `LoggerFactory` / `Vfx`）で読め、途中の hook が投げても作り済みのものは `ReleaseAll` で破棄される。hook の中で `ReleaseAll` が走って set が外れた場合も、hook が返した値は同じ set を field に戻してから入れるので、次の hook から見え、後の `ReleaseAll` が破棄する。
 
-実際の派生クラスは [SampleGameのAppInitializer](../../SampleGame/DependOnAll/AppInitializer.cs)、共通順序は [AbstractApplicationInitializer](../../OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs) を参照する。3つのRuntimeInitializeOnLoadMethodから対応するBootstrap関数を呼ぶ。Editorのdirectory logical key、互換Addressables key、BS4のrequired file config / graph metadataを同じアドレスとして扱わない。残存するEditor設定読取と旧Variant検証の不一致候補は§4.7 / §4.8に分けて示す。
+実際の派生クラスは [SampleGameのAppInitializer](../../SampleGame/DependOnAll/AppInitializer.cs)、共通順序は [AbstractApplicationInitializer](../../OneStarMaker/Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs) を参照する。3つのRuntimeInitializeOnLoadMethodから対応するBootstrap関数を呼ぶ。Editorのdirectory logical key、互換Addressables key、BS4のrequired file config / 動作確認の Player の graph metadataを同じアドレスとして扱わない。残存するEditor設定読取と旧Variant検証の不一致候補は§4.7 / §4.8に分けて示す。
 
 ## 4.3 リソース解放の保証
 
@@ -222,11 +224,22 @@ Editorでは開いているSceneを初期登録の入力にする。通常direct
 - **上書きの Play（経路 `Built + local edits`、S3-4b）。** 入口は経路 `Built + open scenes` と同じ複製と key に、手元の編集から作った上書きの key 2 つを足す（上書きが要らない Play では足さない）。起動の段の列は snapshot の Play と同じで、directory を登録する段（`register-content-directory`）だけが base → 上書きの 2 層で登録する（§4.7「上書きの起動の設定」）。登録に成功すると `[AppInit] Content overlay registered: identity=… baseRevision=… path=…` の 1 行を出し、要求時解決の配線は 2 層の session からそのまま作られる（上書きの供給元が base より前に並ぶ。[§13](13-resource-system.md)「登録した directory の供給元」）。上書きの登録の失敗は起動の失敗で、base だけの Play として続けない。
 - **Editor snapshot の取り込み（経路 `Built + open scenes`）。** 入口が開いている Scene を Play 前の複製にし、空の開始 Scene を `playModeStartScene` にして directory の Play に入る（[§18](18-asset-description.md)「宣言からの Play 経路」）。Runtime は `AfterSceneLoad` の段（`#if UNITY_EDITOR` だけ）で、宣言の複製を並び順に 1 つずつ additive で load して完了を待ち、全部を照合し、active Scene を合わせ、Scene ごとに 1 行 log（末尾に ` requested=true|false`）を出す。宣言は `OneStarMaker.Editor` の `PlaySnapshotSession` が Runtime の `EditorPlaySnapshotBridge` に置く（`SceneVariantRuntimeBridge` と同じ形）。段は config に `editor:playSnapshotExpected` が真の時だけ bridge を読み、key があって bridge が無ければ起動の失敗にする（Domain Reload 有効でも `[InitializeOnLoad]` が `SessionState` から置き直す）。load が null を返す、完了しても Scene が有効でない、照合が合わない、のどれも起動の失敗で、この段が load した複製を全て unload してから例外を出す。snapshot の Play の段の列は `plan-editor-snapshots` → `intake-editor-snapshots` → `request-snapshot-scenes` で、`register-loaded-scenes` は走らない。起動の計画（`EditorPlaySnapshotIntake.PlanStartup`）は複製を load する前に、key と mode の組を決める: key が無いか偽なら今までの既ロード登録、key が真で directory mode・要求時解決を配線済み・宣言ありなら snapshot の Play、key が真でそれ以外（directory mode でない、検証済みでない directory で配線していない、宣言が無い）は起動の失敗。起動時に要求する印のある Scene が SceneResourceMap に無い時も起動の失敗にする。`request-snapshot-scenes` は印のある Scene だけを宣言の並び順に `SceneDirector.AddScene` で要求し（要求ごとに `[AppInit] Editor play snapshot request: scene=… stable=…`）、印が 0 件なら何も要求しない。未要求の複製は load 済みのまま lifecycle の外に居る。複製は台帳に預かって loader の経路で採り、起動の後に unload して再要求しても複製から読み直す（[§13](13-resource-system.md)「Editor snapshot の供給元」）。key は `content:` の名前空間に置かないので、Player の protected config の照合の対象にならない。Player にこの段は無い。
 - **要求時解決の配線（Editor の directory Play）。** `AfterSceneLoad` は directory を登録した後、`SceneDirector` を作る前に、session があって Player の構成（`UseRequiredPlayerFileConfiguration`）でない時だけ stage `wire-content-resolution` で `RegisteredDirectoryRoute.TryCreate` を呼ぶ（[§13](13-resource-system.md)「登録した directory の供給元」）。登録が検証済みの installed revision からなら、できた loader を `SceneDirector` に渡し、`[AppInit] Content resolution: wired=true provider=… contentSet=… revision=… target=… manifestSha256=…` の 1 行を出す。経路 Built・検証 Play・Delivery の Play は検証済みの登録なので、利用者の新しい入力なしに `SceneDirector` が directory から読む Scene に record が付く。検証済みでない登録（`directoryPath` の明示など）は `wired=false reason=…` の 1 行を出して配線せず、今までどおり content 入口を直接呼ぶ。検証済みの登録で組み立てが失敗した時（例外）と、asset manager が実物の `AssetManagement` でない時は握らず起動の失敗にする。黙って直接の経路で Play を続けない。Player と Addressables の起動は配線しない。host は protected の `ContentLoader` で同じ loader を受け取り、`SceneDirector` を通さずに Scene / Object を要求できる（配線しない時は null。解放は `AssetManagement` の既存 API）。snapshot の Play では、配線は預け元と snapshot の供給元を作り、預け元を `AssetManagement` に据え、供給元を policy の先頭に置いて `[AppInit] Content resolution: snapshot provider=editor-play-snapshot scenes=… requested=…` の 1 行を出す。複製の Scene は loader を通るので `EditorSnapshot` の record が付く。snapshot の無い Play で `register-loaded-scenes` が登録した既ロードの Scene は loader を通らないので record は無い。配線は static な状態を持たず、Play 停止の `ReleaseAll` で loader を手放す。
-- BS4 Playerは生成済みbootstrap Sceneと、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。
+- Playerは開始 Scene（動作確認の Player は生成済みbootstrap Scene、遊べる Player は空の `PlayablePlayerStart`）と、そこからロードする論理`firstScene`を区別する。`RegisterAlreadyLoadedScenes`だけでPlayerの初期contentロードが完了するわけではない。content から読んだ UICommon の Scene の Unity の上の名前は `UIScene` で、開始 Scene と同じく SceneResourceMap に無いので既ロードの登録は飛ばす（log の `未登録のシーンをスキップ`）。
+- **起動の構成（`BootstrapSourcePolicy`、internal、S4-1a）。** `AfterSceneLoad` は try の最初に stage `plan-bootstrap` で `Plan(Player の構成か, 種類, directory か)` を 1 回呼び、登録を先にするか・UICommon の規則・map の読み口を一度に決める。種類は `RouteFirstScene` と同じ検証済みの baked の値（`ReadBakedPlayerKind`）で、重ねた後の値ではない。
+
+  | Player の構成 | 種類 | directory | 登録を先に | UICommon の規則 | map の読み口 |
+  |---|---|---|---|---|---|
+  | 偽 | — | 真 | 真 | `BorrowOrLoad` | content |
+  | 偽 | — | 偽 | 偽 | `BorrowOrLoad` | Addressables |
+  | 真 | `Smoke` | 真・偽 | 偽 | `BorrowOnly` | Player の `Resources`（`LoadPlayerSceneResourceMap`） |
+  | 真 | `Playable` | 真 | 真 | `ContentOnly` | content |
+  | 真 | `Playable` | 偽 | 起動の失敗（`A playable Player requires a content directory.`） | — | — |
+
+  loader は active な Scene の検査（名前が `UICommon` で、root `UICommon` に component がある）の結果と規則を `DecideUiCommon` に渡す。`BorrowOrLoad` は、あれば借用、無ければ directory なら content・そうでなければ Addressables。`BorrowOnly` は、あれば借用、無ければ `The Player bootstrap scene must contain UICommon; Addressables fallback is forbidden.` の失敗。`ContentOnly` は、あれば借用せずに `A playable Player must not start from a scene that contains UICommon.` の失敗、無ければ content（directory が無ければ失敗）。このため、開始 Scene の名前と baked の種類が食い違う exe（`bs4-runtime.json` を手で書き換えた時だけ起きる）は、どちらの向きでも stage `load-ui-common` の起動の失敗になり、別の種類として動き続けない（S4-1a で 2 つの向きを Player の実機で確かめた）。起動の順と読んだ先は、Editor と 2 つの種類の Player のどれでも次の 3 行で外から読める: 登録に成功した時に `[AppInit] Content directory registered: identity=… from=<installed|directory>`（`installed` は検証済みの pair、`directory` は path の指定で同梱の directory を含む）、`[AppInit] Bootstrap UICommon: source=<active-scene|content|addressables>`、`[AppInit] Bootstrap SceneResourceMap: source=<player-resources|content|addressables>`。protected virtual の `UseRequiredPlayerFileConfiguration` は「`BeforeSceneLoad` が始まってから同じ起動の間は、副作用なしに同じ値を返す。Framework はどの時点でも何度でも読む」を契約にする（`Plan` は UICommon より前に読む）。`GetDirectoryBootstrapSceneLogicalKey`・`GetDirectoryBootstrapMapLogicalKey` は Editor の directory Play と遊べる Player の両方で、読む経路が決まった後にだけ呼ぶ。
 - Editor の directory Play で `content:firstScene` があれば、directory の登録の後にその Scene をロードし、Play の間ロードしたままにする（stage `load-editor-first-scene:<Scene 名>`、ロード後に `[AppInit] Editor content directory first scene: scene=… identity=… stable=…` の 1 行）。空 Scene から始める検証 Play（[§18](18-asset-description.md)）がこれを使う。Editor では失敗しても別の Scene へ逃がさない。値を決めるのは App で、Framework は Scene 名の意味を知らない。
 - **初回 Scene の経路（`RouteFirstScene`、internal）。** `AfterSceneLoad` の末尾は、Player の構成かどうかと baked の種類（§4.7「Player の種類」）から 3 値を選ぶ。`Editor`（Player の構成でない）は上の `load-editor-first-scene`。`Smoke` は動作確認の段（`RunPlayerContentSmokeAsync`: 初回 Scene の load → fixture → 初回 Scene の unload → directory close → 完了通知 `OnPlayerContentShutdownCompletedAsync`。SampleGame はここで receipt を書いて `Application.Quit(0)` を呼ぶ）。`Playable` は stage `load-player-first-scene:<Scene 名>` で初回 Scene を load し、`[AppInit] Player content first scene: scene=… identity=… kind=playable stable=…` の 1 行を Player の log に出して、load したまま起動を終える（成功の hook は無く、receipt も書かない）。分岐が読む種類は検証済みの baked の値で、環境変数や command line で重ねた後の値ではない。初回 Scene が空なら何もしない。
-- **遊べる Player の終わり方。** 起動を終えた後は利用者が窓を閉じるまで動き、閉じると `Application.quitting` → `ReleaseAll` が登録したままの directory を `CompletePlayStop` で解除して exit 0 で終わる（S4-1 で Title と InGame の上の両方を 6000.6.9f1 の実機で確かめた）。`OnApplicationQuitting` は始めに `[AppInit] Application quitting.` を Unity の log に出す。Player の log を閉じる前と閉じた後に分ける境に使える（Editor の Play の停止でも出る）。
-- **起動の失敗（Player）。** `AfterSceneLoad` の例外の後始末は、Player の構成なら種類によらず初回 Scene を unload し（`UnloadsFirstSceneOnStartupFailure`）、directory を close し、派生の `OnAfterSceneLoadInitializationFailed` と `OnPlayerContentStartupFailedAsync` を**別々の** try で呼ぶ（`RunStartupFailureHooksAsync`。前者が投げても失敗の通知は必ず呼ぶ）。SampleGame の失敗の通知は、動作確認の Player なら失敗の receipt を書き、遊べる Player なら書かず、どちらでも `finally` で `Application.Quit(1)` を呼ぶ。遊べる Player の失敗は Player の log（stage と例外）と exit 1 で示す。**起動の段が終わらない（hang）時は fail-closed にならない。** 起動の段に時間の上限は無く、どこかの await が終わらなければ、Player は失敗も成功もしないまま動き続ける（動作確認の Player も同じ）。
+- **遊べる Player の終わり方。** 起動を終えた後は利用者が窓を閉じるまで動き、閉じると `Application.quitting` → `ReleaseAll` が登録したままの directory を `CompletePlayStop` で解除して exit 0 で終わる（Title と InGame の上の両方を 6000.6.9f1 の実機で確かめた。S4-1a からは UICommon と SceneResourceMap を content から保持したままで通る）。`OnApplicationQuitting` は始めに `[AppInit] Application quitting.` を Unity の log に出す。Player の log を閉じる前と閉じた後に分ける境に使える（Editor の Play の停止でも出る）。
+- **起動の失敗（Player）。** `AfterSceneLoad` の例外の後始末は、Player の構成なら種類によらず初回 Scene を unload し（`UnloadsFirstSceneOnStartupFailure`）、directory を close し、派生の `OnAfterSceneLoadInitializationFailed` と `OnPlayerContentStartupFailedAsync` を**別々の** try で呼ぶ（`RunStartupFailureHooksAsync`。前者が投げても失敗の通知は必ず呼ぶ）。SampleGame の失敗の通知は、動作確認の Player なら失敗の receipt を書き、遊べる Player なら書かず、どちらでも `finally` で `Application.Quit(1)` を呼ぶ。遊べる Player の失敗は Player の log（stage と例外）と exit 1 で示す。遊べる Player は登録を UICommon より前に行うので、登録の失敗は stage `register-content-directory` で UICommon を読む前に起き、session も UICommon も無いまま後始末と通知が動いて exit 1 になる。UICommon と map を content から読んだ後の失敗では、map の handle が生きているので後始末の directory の close が `Content directory cleanup after startup failure also failed` で失敗し、log に出して通知へ進み、exit 1 で終わる（native の登録は process の終了で消える。同じ process の中で登録を解いて再試行できることは確かめていない）。**起動の段が終わらない（hang）時は fail-closed にならない。** 起動の段に時間の上限は無く、どこかの await が終わらなければ、Player は失敗も成功もしないまま動き続ける（動作確認の Player も同じ）。
 
 ## 4.7 設定の読み込み（AppConfig）
 
@@ -316,14 +329,18 @@ key の名前と log の marker の正本は Runtime の internal の定数で�
 上書きを作る手順は [§18](18-asset-description.md)「上書きの build と逆引き」、SampleGame の入口は [§18](18-asset-description.md)「宣言からの Play 経路」。
 登録は上書きの中身の hash を見ないので、build の後に上書きの directory が書き換わったことは見分けない（directory が無い時だけ失敗する）。
 
-Editorのdirectory sessionはAfterSceneLoadでUICommon / SceneResourceMapより先に登録する。起動時に選んだ
-representation は Scene lifecycle の間固定する。通常の Editor directory Play は UICommon Scene と
+Editorのdirectory sessionと遊べる Player の session はAfterSceneLoadでUICommon / SceneResourceMapより先に登録する（§4.6「起動の構成」）。起動時に選んだ
+representation は Scene lifecycle の間固定する。通常の Editor directory Play と遊べる Player は UICommon Scene と
 SceneResourceMap を Content Directory の bootstrap entry（SampleGame 固定 logical key）から読む。
 UICommon / SceneResourceMapのAddressablesロードは明示`addressables`互換起動だけが使う。config読取には下記の実装整合の未決がある。
-directory Player は生成した `UICommon` bootstrap Scene と graph metadata、
-`StreamingAssets/bs4-runtime.json` を使い、対応する local content directory を登録して論理初回 Scene を
-ロードする。この Player mode は生成 bootstrap Scene の runtime 名と Player 実行で latch し、環境変数や
-command line だけでは有効にならない。
+動作確認の Player は生成した `UICommon` bootstrap Scene と graph metadata（`Resources/BS4/<identity>/` の写し）、
+`StreamingAssets/bs4-runtime.json` を使い、サービスの開始の後に対応する local content directory を登録して論理初回 Scene を
+ロードする。遊べる Player は commit した空の開始 Scene と `StreamingAssets/bs4-runtime.json` だけを使い、UICommon と map を exe に写さない
+（build の検査は [§18](18-asset-description.md)「Runtime の Content Directory 解決とロード」）。
+この Player mode は開始 Scene の runtime 名（ordinal に `UICommon` か `PlayablePlayerStart`。SampleGame の `IsBs4PlayerMode`、名前の定数は
+`DirectoryBootstrapKeys`）と Player 実行で latch し、環境変数や command line だけでは有効にならない。marker を `bs4-runtime.json` の有無にしないのは、
+file が欠けた exe が Player の構成でなくなり Addressables の起動へ落ちる（fail-closed を弱める）ためである。種類（`content:playerKind`）は
+baked を読む前に決まる latch の材料にできないので、開始 Scene の名前と種類の食い違いは §4.6 の UICommon の規則が起動の失敗にする。
 
 **Player の種類（`content:playerKind`、S4-1）:** coordinator が `bs4-runtime.json` に `smoke` か `playable` を書く。key は必須で、
 無い・空・この 2 つ以外（大小違いの `Playable` を含む）は `InvalidConfiguration` の起動の失敗にする。`PlayerContentConfiguration.Resolve` は
@@ -338,7 +355,7 @@ command line だけでは有効にならない。
 content は probe の無い `spring-full` で、`probeToken` は空である。
 
 **`bs4` の名を改名しない理由:** `bs4-runtime.json`、`Resources/BS4/`、`.bs4-owner`、`bs4-smoke-receipt.json`、SampleGame の bootstrap の latch（`_useBs4PlayerMode`）は
-遊べる Player も使うが、改名しない。動作確認の Player の receipt と出力の名前は、repo の外で BS4 の Player を起動して receipt を読む担当と
+遊べる Player も使うが（遊べる Player の `Resources/BS4/<identity>/` には所有の印だけが入る）、改名しない。動作確認の Player の receipt と出力の名前は、repo の外で BS4 の Player を起動して receipt を読む担当と
 Artifacts の Player の保存の経路（`build collect`）が名前で読む契約で、改名するとそれらが黙って変わるためである。
 
 事前検証の結果は利用 lease ではない。directory session は登録 reservation を取得した後に
@@ -347,7 +364,9 @@ root、token、drain、unregister は引き続き `ContentDirectorySession` が�
 
 動作確認の Player（`smoke`）の正常終了は、UICommon ready、directory 登録、初回 Scene stable、代表 Object の
 load / instantiate / verify / destroy / release、初回 Scene unload、directory close の順序を完了してから
-行う。完了段階は immutable snapshot と schema v2 receipt に記録する。fixture failure でも instance と
+行う。完了段階は immutable snapshot と schema v2 receipt に記録する。この段の列（`PlayerContentStage`）は動作確認の Player の receipt 専用で、
+起動の汎用の時系列ではない。遊べる Player は登録を UICommon より前に行うが、列への `ContentDirectoryRegistered` の追加はサービスの開始の後の位置のままなので、
+遊べる Player の進捗や診断にこの列を使うと、実際の登録と記録の順が逆になる。fixture failure でも instance と
 handle を finally で回収し、実際に完了した段階だけを記録する。
 
 診断用 hold は代表 Prefab の検証後から destroy 前までに限り、有限 deadline と明示 signal で解除する。

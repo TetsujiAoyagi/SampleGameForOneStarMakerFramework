@@ -17,6 +17,8 @@ namespace SampleGame.DependOnAll.Editor.Build
         private const string ProbeMarker = "Assets/OneStarMakerGenerated/BS4/.bs4-fixture-owner";
         private const string MapPath = "Assets/OneStarMakerCommon/SceneMap/SceneResourceMap.asset";
         internal const string BootstrapScene = "Assets/OneStarMaker/Scenes/UISystem/UIScene.unity";
+        /// <summary>遊べる Player の開始 Scene（commit した空の Scene。名前は <see cref="DirectoryBootstrapKeys.PlayableStartSceneName"/>）。</summary>
+        internal const string PlayableStartScene = "Assets/SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity";
 
         [MenuItem("Tools/OSM/Content/Build BS4 Spring Player")]
         private static void BuildMenu() => Build(PlayerBuildKind.Smoke);
@@ -31,8 +33,8 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// </summary>
         internal static PlayerBuildKindSettings SettingsOf(PlayerBuildKind kind) => kind switch
         {
-            PlayerBuildKind.Smoke => new PlayerBuildKindSettings(SampleGameBuildPurposes.Bs4SpringFull, usesProbe: true, "bs4", "smoke"),
-            PlayerBuildKind.Playable => new PlayerBuildKindSettings(SampleGameBuildPurposes.SpringFull, usesProbe: false, "playable", "playable"),
+            PlayerBuildKind.Smoke => new PlayerBuildKindSettings(SampleGameBuildPurposes.Bs4SpringFull, usesProbe: true, "bs4", "smoke", copiesBootstrap: true),
+            PlayerBuildKind.Playable => new PlayerBuildKindSettings(SampleGameBuildPurposes.SpringFull, usesProbe: false, "playable", "playable", copiesBootstrap: false),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown Player build kind."),
         };
 
@@ -88,6 +90,9 @@ namespace SampleGame.DependOnAll.Editor.Build
             var runtimeJson = RuntimeJson(result.Identity, declaration, probeToken, settings.PlayerKindValue);
             using (var mutation = new PlayerBuildProjectMutation(result.Identity, runtimeJson))
             {
+                if (!settings.CopiesBootstrap)
+                    return BuildPlayableFromStartScene(kind, result, input, artifactsRoot, playerWork, transportPath, exe, mutation);
+
                 mutation.CopyGraphClosure(MapPath);
                 var bootstrap = mutation.CopyBootstrapScene(BootstrapScene);
                 // 構成の観測（BuildReceipt の backend・stripping は定数なので観測にならない）。mutation が設定した後、build の直前に読む。
@@ -111,6 +116,77 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return new PlayerBuildResult(kind, result.Identity, playerDirectory, transportPath,
                     report.summary.options.ToString(), backendDuringBuild, strippingDuringBuild);
             }
+        }
+
+        /// <summary>
+        /// 遊べる Player の build（bootstrap を写さない）。UICommon の Scene と SceneResourceMap・SceneResource を Player に写さず、
+        /// commit した空の開始 Scene 1 つだけを Player の Scene にする。Runtime は登録した content から UICommon と map を読む。
+        /// mutation（root と所有の印、baked config、IL2CPP と High、戻し）は動作確認の Player と同じで、root には所有の印だけが入る。
+        /// </summary>
+        private static PlayerBuildResult BuildPlayableFromStartScene(PlayerBuildKind kind, BuildContentResult result, ValidatedPlayerBuildInput input,
+            string artifactsRoot, string playerWork, string transportPath, string exe, PlayerBuildProjectMutation mutation)
+        {
+            var startRootCount = CountStartSceneRoots(PlayableStartScene);
+            if (startRootCount != 0)
+                throw new InvalidOperationException($"Playable start Scene must have no root GameObjects; roots={startRootCount}: {PlayableStartScene}");
+            var startSceneGuid = AssetDatabase.AssetPathToGUID(PlayableStartScene);
+            if (string.IsNullOrEmpty(startSceneGuid))
+                throw new InvalidOperationException("Playable start Scene has no GUID: " + PlayableStartScene);
+            var (forbiddenGuids, mapSceneResourceCount) = SceneResourceGuidsOf(MapPath);
+            var sourceBootstrapGuid = AssetDatabase.AssetPathToGUID(BootstrapScene);
+            if (string.IsNullOrEmpty(sourceBootstrapGuid))
+                throw new InvalidOperationException("Production bootstrap Scene is missing: " + BootstrapScene);
+
+            // 判定の record 用。Unity の build の直前に mutation の root の下にある file（遊べる Player では所有の印だけのはず）。
+            var mutationRootFiles = Directory.GetFiles(mutation.AssetRoot, "*", SearchOption.AllDirectories)
+                .Select(x => x.Substring(mutation.AssetRoot.Length).Replace('\\', '/').TrimStart('/'))
+                .OrderBy(x => x, StringComparer.Ordinal).ToArray();
+            var backendDuringBuild = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone).ToString();
+            var strippingDuringBuild = PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone).ToString();
+            var report = new UnityPlayerBuildAdapter().Build(PlayableStartScene, exe, result.MetadataPath!);
+            var selectedRootGuids = input.Preflight.selected.Select(ParseSelectedPhysicalGuid).ToArray();
+            var verification = PlayerBuildReportVerifier.VerifyPlayable(report, selectedRootGuids, sourceBootstrapGuid,
+                new PlayablePackChecks(forbiddenGuids, mutation.AssetRoot, startSceneGuid));
+            var receipt = JsonUtility.ToJson(new BuildReceipt
+            {
+                identity = result.Identity, contentReportPath = result.OutcomePath,
+                transportPath = transportPath,
+                transportManifestSha256 = HashFile(Path.Combine(transportPath, "transport.json")),
+                target = "StandaloneWindows64-Player",
+                playerBuildGuid = verification.BuildGuid, backend = "IL2CPP", stripping = "High",
+                scenes = new[] { PlayableStartScene }, bootstrapSceneName = DirectoryBootstrapKeys.PlayableStartSceneName,
+                checkedRootGuids = verification.CheckedGuids,
+            }, true);
+            var playerDirectory = new PlayerBuildPublisher().Publish(artifactsRoot, result.Identity, playerWork, result.ContentPath!, receipt);
+            var playable = new PlayableBuildObservation(mutationRootFiles, startRootCount, mapSceneResourceCount,
+                verification.Playable!.ForbiddenGuidCount, verification.Playable.StartScenePackCount);
+            return new PlayerBuildResult(kind, result.Identity, playerDirectory, transportPath,
+                report.summary.options.ToString(), backendDuringBuild, strippingDuringBuild, playable);
+        }
+
+        /// <summary>開始 Scene を additive で開いて root の GameObject を数え、閉じる。物を置いた開始 Scene で build しない（content 以外の物が Player に入る）。</summary>
+        private static int CountStartSceneRoots(string path)
+        {
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(path) == null)
+                throw new InvalidOperationException("Playable start Scene is missing: " + path);
+            var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(path, UnityEditor.SceneManagement.OpenSceneMode.Additive);
+            try { return scene.rootCount; }
+            finally { UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true); }
+        }
+
+        /// <summary>map が参照する各 SceneResource の GUID（遊べる Player に入ってはいけない物）。</summary>
+        private static (string[] Guids, int MapCount) SceneResourceGuidsOf(string mapPath)
+        {
+            var map = AssetDatabase.LoadAssetAtPath<OneStarMaker.Runtime.SceneSystem.SceneResourceMap>(mapPath)
+                ?? throw new InvalidOperationException("Production SceneResourceMap is missing.");
+            var guids = map.SceneResources.Select(resource =>
+            {
+                if (resource == null) throw new InvalidOperationException("Production graph contains a null SceneResource.");
+                var path = AssetDatabase.GetAssetPath(resource);
+                var guid = string.IsNullOrEmpty(path) ? string.Empty : AssetDatabase.AssetPathToGUID(path);
+                return string.IsNullOrEmpty(guid) ? throw new InvalidOperationException("SceneResource is external to AssetDatabase.") : guid;
+            }).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            return (guids, map.SceneResources.Count);
         }
 
         internal static string ParseSelectedPhysicalGuid(string value)
@@ -197,8 +273,16 @@ namespace SampleGame.DependOnAll.Editor.Build
     internal readonly struct PlayerBuildKindSettings
     {
         internal PlayerBuildKindSettings(OneStarMaker.Build.Selection.BuildPurposeDeclaration declaration, bool usesProbe,
-            string artifactsDirectoryName, string playerKindValue)
-        { Declaration = declaration; UsesProbe = usesProbe; ArtifactsDirectoryName = artifactsDirectoryName; PlayerKindValue = playerKindValue; }
+            string artifactsDirectoryName, string playerKindValue, bool copiesBootstrap)
+        {
+            Declaration = declaration; UsesProbe = usesProbe; ArtifactsDirectoryName = artifactsDirectoryName; PlayerKindValue = playerKindValue;
+            CopiesBootstrap = copiesBootstrap;
+        }
+        /// <summary>
+        /// UICommon の Scene と SceneResourceMap・SceneResource を Player に写し、生成した UICommon の Scene から始めるか（動作確認の Player）。
+        /// 偽なら写さず、空の開始 Scene から始めて content から読む（遊べる Player）。
+        /// </summary>
+        internal bool CopiesBootstrap { get; }
         internal OneStarMaker.Build.Selection.BuildPurposeDeclaration Declaration { get; }
         /// <summary>動作確認の fixture（probe の prefab）を content に合成するか。</summary>
         internal bool UsesProbe { get; }
@@ -211,11 +295,14 @@ namespace SampleGame.DependOnAll.Editor.Build
     internal sealed class PlayerBuildResult
     {
         internal PlayerBuildResult(PlayerBuildKind kind, string identity, string playerDirectory, string transportDirectory,
-            string buildOptions, string scriptingBackendDuringBuild, string managedStrippingDuringBuild)
+            string buildOptions, string scriptingBackendDuringBuild, string managedStrippingDuringBuild, PlayableBuildObservation? playable = null)
         {
             Kind = kind; Identity = identity; PlayerDirectory = playerDirectory; TransportDirectory = transportDirectory;
             BuildOptions = buildOptions; ScriptingBackendDuringBuild = scriptingBackendDuringBuild; ManagedStrippingDuringBuild = managedStrippingDuringBuild;
+            Playable = playable;
         }
+        /// <summary>遊べる Player（bootstrap を写さない build）の時だけ。</summary>
+        internal PlayableBuildObservation? Playable { get; }
         internal PlayerBuildKind Kind { get; }
         internal string Identity { get; }
         /// <summary>publish した <c>players/&lt;identity&gt;</c>。</summary>
@@ -225,5 +312,26 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal string BuildOptions { get; }
         internal string ScriptingBackendDuringBuild { get; }
         internal string ManagedStrippingDuringBuild { get; }
+    }
+
+    /// <summary>遊べる Player の build の観測（判定の record 用）。publish する file には書かない。</summary>
+    internal sealed class PlayableBuildObservation
+    {
+        internal PlayableBuildObservation(string[] mutationRootFilesBeforeBuild, int startSceneRootCount, int mapSceneResourceCount,
+            int forbiddenGuidCount, int startScenePackCount)
+        {
+            MutationRootFilesBeforeBuild = mutationRootFilesBeforeBuild; StartSceneRootCount = startSceneRootCount;
+            MapSceneResourceCount = mapSceneResourceCount; ForbiddenGuidCount = forbiddenGuidCount; StartScenePackCount = startScenePackCount;
+        }
+        /// <summary>Unity の build の直前に mutation の root の下にあった file（root からの相対）。所有の印だけのはず。</summary>
+        internal string[] MutationRootFilesBeforeBuild { get; }
+        /// <summary>開始 Scene の root の GameObject の数（0 でなければ build しない）。</summary>
+        internal int StartSceneRootCount { get; }
+        /// <summary>map が参照する SceneResource の数（GUID の重複を除く）。</summary>
+        internal int MapSceneResourceCount { get; }
+        /// <summary>verifier に渡した「入ってはいけない GUID」の件数。</summary>
+        internal int ForbiddenGuidCount { get; }
+        /// <summary>開始 Scene の GUID を持つ pack の数（0 か 1）。</summary>
+        internal int StartScenePackCount { get; }
     }
 }
