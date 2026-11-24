@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-1a）
-- status: `C`（発見 C を終えた。阻害する指摘は 0 件。次は判定 C。GO 候補 head は implementation head）
+- status: `C`（発見 C・判定 C を終えた。阻害する指摘は 0 件で、判定必須の証拠は GO 候補 head（implementation head）で全て揃った。次は C'。GO は C' の後に判断する）
 - branch: `claude/gracious-noether-o0vn1y`（PR の base は `develop`）
 - implementation base commit: `116b00918dbdefa9f2dff5aeec7e43ef4a8b4a30`（`develop` の head、2026-11-23。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `ec2d4944abef3c0117986de912cb72cca57aac76`
@@ -19,17 +19,17 @@
 - PR #212 との順: この branch は `develop` から切り、program の S4-1a の行だけを足した。PR #212 も同じ位置に S4-1a の行を足すので、後から merge する側で 1 行の衝突が出る。本書へのリンクを持つこの branch の行を残す。
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と program だけ）
 - Phase B result snapshot の取得案内・状態: 未生成
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の生証拠（run `j1`、74 file）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内はこの PC の git 管理外の運用 directory の `handoff-guides/s4-1a-playable-player-startup-order/judgement.md`。別 process の fetch で閲覧を確認済み（2026-11-24）
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C と同じ生証拠に、凍結した Phase A（A3 の本書）と所見を含まない Phase B の実装結果を足した 74 file。引渡し先・担当は C'（Grok の系列か人間）。取得案内は同 directory の `cprime.md`。別 process の fetch で閲覧を確認済み（2026-11-24）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の判定 C。動作確認（Phase B の後）は `対象なし`（§5）。
-  - 次の作業: GO 候補 head（implementation head 欄）で §5 の判定必須テスト (1)〜(16) を新しい `S41_RUN_ID` で全て取り直す。発見 C（§7）の `dc1` は証拠に使わない。AC6 は AI の desktop 操作で、AC12 の後に全 EditMode 回帰を行う。
-  - 読む範囲: 既定（§0〜§8）。
-  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は上の欄。
-  - 取得案内: 発見 C の evidence bundle は無い（commit で固定した差分を読んだ）。判定 C は同一 commit から evidence bundle を作る。C' blind bundle は未生成。
-  - 必要な権限: Unity の Editor と batch の test・Player の build（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)、[Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則)）、Player の起動、利用者の desktop の操作（AC6）。
-  - 停止規則: §2 の判定定義と停止規則のまま。C' は Grok の系列か人間に予約してあるので判定 C に Grok の系列を使わない。発見 C は Claude Sonnet 5.5（独立性制約あり、§7）。
-  - 引き渡さないもの: C' に発見 C・判定 C の所見を渡さない。
+  - 次の Phase・役割: Phase C'（独立監査。Grok の系列か人間）。動作確認（Phase B の後）は `対象なし`（§5）。
+  - 次の作業: C' の blind bundle だけを入力に、1 巡目として全体を初見で監査する（[Phase C'](../../.agents/skills/osm-workflow/references/phase-c-prime.md)）。同じテストの再実行は必須でない。高コスト証拠は無い（§5）ので、この C' が最終 C'。
+  - 読む範囲: C' は所定の blind 入力だけ（本書の可変な全文は読まない）。
+  - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は上の欄。C' は PR を読まない。
+  - 取得案内: C' blind bundle は上の欄。判定 C の evidence bundle は Phase D・owner 向けで C' に渡さない。
+  - 必要な権限: blind bundle の fetch（Artifact Storage のローカル固定の取得）。C' は Unity を起動しなくてよい。
+  - 停止規則: §2 の判定定義と停止規則のまま。判定 C は Claude Sonnet 5.5（独立性制約あり、§7）。
+  - 引き渡さないもの: C' に発見 C・判定 C の所見（§7 の本文を含む）を渡さない。
 - task の開始（`tools/workflow-task.ps1 start`）: 済み（Phase B の担当、2026-11-24）。taskId `s4-1a-playable-player-startup-order`。
 
 ## 1. 目的と対象外
@@ -398,6 +398,47 @@ A2 の観点の再レビュー（外部 1 巡目と 2 巡目の後）: 要らな
 - 未確認事項: AC12 と u6、全 EditMode 回帰、protected・BeforeSceneLoad の失敗の 3 種の起動、AC4 の「最後の行の後 60 秒生存」の厳密な確認（今回は約 60 秒後に閉じて exit 0 を確認した）。
 - 担当・モデル・ベンダー: Claude Code の subagent、Claude Sonnet 5.5、Anthropic。
 - 独立性: 独立性制約あり。Phase B と同じベンダー（Anthropic）。owner の指示で codex が使えず、Opus は Phase B と同じモデルのため。残存リスクは、B と同系列の見落としが共有されうること（判定 C と C' で補う。C' は Grok の系列か人間）。
+
+### 判定 C（1 巡目）
+
+- 対象: implementation base `116b0091`、head `ec2d4944`（引き継ぐ commit `49916c51`。作業ツリーは clean で HEAD と一致。`49916c51` までの差は本書だけ）。Unity 6000.6.9f1、Windows、`S41_RUN_ID=j1`（発見 C の `dc1` は使っていない）。evidence bundle は §0。
+- 結果: 阻害する指摘 0 件。§2.2 の AC1〜AC14 を、GO 候補 head の run `j1` の record・receipt・log・画像・XML で全て満たした。高コスト証拠は無い（§5）。C' は未実施で、GO はまだ判断しない。
+- 判定必須テスト (1)〜(16) の読み（XML の total は (2)〜(14) が全て 1、名前は filter の case と一致）:
+
+| 段 | 対象 | 結果 |
+|---|---|---|
+| (1) | 起点 filter（6 class） | 114 件 Passed、failed 0。`BootstrapSourcePolicyTests` 18、`PlayerModeLatchTests` 11、`Bs4FixtureComposerTests` 11、`PlayerBuildIntegrationPolicyTests` 21、`PlayerContentConfigurationTests` 48、`PlayerContentSmokeSequenceTests` 5（AC11） |
+| (2)(3) | `BuildSmoke`・`BuildPlayable` | XML Passed。`step.json` は `failed`（`CS8773` 57 行。発見 C の移送 (1) と同じ形で、`error CS` は他に 0）。(2) は XML の後に Unity が終わらず CIM で止めた（下の実行の記録） |
+| (4)〜(13) | 起動 10 件 | XML Passed |
+| (14) | `LaunchPlayableHuman`（AC6） | XML Passed |
+| (15) | AC12 | 下の AC12 |
+| (16) | 全 EditMode 回帰（空 filter） | total 2378、Passed 2338、Failed 0、Inconclusive 25（全て `SampleGame.Tests.Rendering.Vfx`）、Skipped 15（全て `[Explicit]`）。`step.json` の `failed` は Inconclusive の分だけ。`Directory.Move` で落ちた test は無く、取り直しは不要 |
+
+- AC ごとの読み（log の行番号は record の `player.log` の行）:
+  - AC1: `LaunchSmoke` 6.8 秒で exit 0。receipt は schema 2・`succeeded` 真・`stage` `completed`・10 段（`ui-common-ready`、`content-directory-registered`、`first-scene-stable`、`fixture-loaded`、`fixture-instantiated`、`fixture-behavior-verified`、`fixture-destroyed`、`fixture-handle-released`、`first-scene-unloaded`、`content-directory-closed`）。transport の `unityVersion` は `6000.6.9f1`。log は `source=active-scene`（45）→ `source=player-resources`（66）→ `registered … from=directory`（95）。game の log は Error 以上 0、`<unparsed>` 0（87 行を独立に数えた）。
+  - AC2: `LaunchSmokeOverride` 2.7 秒で exit 1。receipt は `succeeded` 偽・`before-scene-load`・`completedStages` 空・`error` に `Protected Player`。
+  - AC3: (a) `scenes` は `Assets/SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity` 1 つ、`bootstrapSceneName` は `PlayablePlayerStart`、`mapSceneResourceCount` 457 = `forbiddenGuidCount` 457、`startScenePackCount` 1、mutation の root の file は `.bs4-owner` のみ、`startSceneRootCount` 0、`GameAssembly.dll` あり・`Managed/` なし・options に `Development` なし・strip `High`。(b) `smoke` は `UICommon.unity` 1 つで `bootstrapSceneName` `UICommon`。(c) 2 つの build の直後に mutation の root と `bs4-runtime.json` は無い（`unity/Assets/Resources/BS4.meta`・`unity/Assets/StreamingAssets.meta` が未追跡で残る。移送した入力 (6) の既知の形）。
+  - AC4: `LaunchPlayable` で、`registered … from=directory`（41）→ `source=content`（57）→ `source=content`（map。142）→ `Player content first scene: scene=Title … kind=playable stable=True`（237）。各行 1 回。最後の行の後 61 秒生存してから閉じた。閉じる前の log に `active-scene`・`player-resources`・`run-player-content-smoke`・`unload-player-first-scene`・`close-player-content-directory`・`AfterSceneLoad failed`・`Exception`・`is missing`・`Could not produce class` は無い。`stripped` は URP の 3 種の shader の行（`Hidden/Universal Render Pipeline/…` で除外の定義どおり）だけ。receipt は無い。game の log に `TitleScene` の `Loaded.`、Error 以上 0、`<unparsed>` 0（2560 行を独立に数えた）。
+  - AC5: 閉じる要求の後 exit 0（record の quit から 1 秒以内）。
+  - AC6: 手段は `TestResults/s41a-u7/u7.ps1` と同じ（shell から画面の取り込み、`SetCursorPos`・`mouse_event`、`PostMessage`）。対象の build identity `20261124T010140781Z-12c4da925d594fafab90cf62f41c208b`。Title を取り込み 01:17:08Z、「スタート」を画像の (540,401) で 1 回だけ click 01:17:17Z、InGame を取り込み 01:17:26Z、× は click せず `WM_CLOSE` 01:17:36Z（UTC、2026-11-24）。(1) quit から 1 秒以内に exit 0、(2) game の log に `OnStabledImpl HomeScene`・`[InGameSession] initial season ensure started`・`Player ready at Cell stream spawn (125.0, 28.0, 1125.0)` がこの順（01:17:17Z）、(3) Error 以上 0・`<unparsed>` 0（1746 行）、(4) Player の log に `AfterSceneLoad failed`・`Exception`・strip の検出語（URP の行を除く）が無く AC4 の 4 行がある、(5) `title.png` は青い背景に「OneStarMaker Sample」と「スタート」「タイトルを揺らす」の button、`ingame.png` は HUD・地面・player の capsule が見え、真っ黒・マゼンタでない。画像は bundle の `ac6/`。
+  - AC7: (a)(b) とも exit 1（3.2 秒・4.4 秒）。log に `Protected Player content configuration was overridden.`／`Protected Player runtime mode was overridden.`、`Content directory registered:`・`Bootstrap UICommon:`・`Player content first scene` は無く、receipt は無い。
+  - AC8: exit 1（3.2 秒）。`ContentDeliveryException: Only an installed revision root can be registered.` と `BeforeSceneLoad が失敗したため AfterSceneLoad をスキップします。`、`registered`・`first scene` の行と receipt は無い。
+  - AC9: exit 1（4.8 秒）。`AfterSceneLoad failed at stage 'register-content-directory'`（41）で、`loading UICommon.`・`registered`・`first scene` の行と receipt は無い。
+  - AC10: exit 1（4.4 秒）。`source=content`（66）→ `source=content`（151）→ `AfterSceneLoad failed at stage 'create-scene-factory': System.FormatException`（198）。`Content directory cleanup after startup failure also failed: … live asset, scene, cache, or instance tokens.`（241）が出た（見込みどおり。合否には使わない）。`first scene` の行と receipt は無い。
+  - AC14: (a) 3.5 秒で exit 1。`registered`（38）→ `loading UICommon.`（47）→ `AfterSceneLoad failed at stage 'load-ui-common': … A playable Player must not start from a scene that contains UICommon.`（54）。`Bootstrap UICommon:`・`first scene` の行と receipt は無い。(b) 4.8 秒で exit 1。`AfterSceneLoad failed at stage 'load-ui-common': … The Player bootstrap scene must contain UICommon`（48）、`registered`・`Bootstrap UICommon:`・`first scene` の行は無い。receipt は `succeeded` 偽・`stage` `load-ui-common`・`completedStages` 空。(a)(b) とも `Addressables backend sealed` の行があり、`source=addressables` は無い。
+  - AC12: Editor を自分で開き、開いている Scene を untitled の空の Scene 1 つ（`list_open_scenes` で `rootCount` 0）にして、eval から `VerifyPlayLauncher.VerifyAsync(spring-full, interactive: false)` を reflection で呼び、`Task` は待たなかった。`[VerifyPlay] verify spring-full: Play requested.`（01:26:05Z）の後に、`registered … from=installed`・`Bootstrap UICommon: source=content`・`Bootstrap SceneResourceMap: source=content`・`Editor content directory first scene: scene=Title … stable=True` がこの順（seq 585・588・590・598）。`AfterSceneLoad failed` は無い。止める前に読んだ `EditorApplication.isPlaying` は真。Play を止めると `Application quitting.` が出た。保存先は bundle の `ac12/`（`TestResults/s41/j1/ac12/`）。
+  - AC13: 上の (16)。
+- 実行の記録（根拠は bundle の `executor-notes.md`・`MANIFEST.md`）:
+  - Unity の終了 stall: (2) `BuildSmoke` と (16) 全 EditMode で、XML の完成後も Unity が終わらず（thread 1 本で CPU 時間が増加）、完成の 7 分後と 4 分後に、その PID だけを CIM の `Terminate` で止めた。Terminate は exit 0 を作るので、自然終了ではない。他の 13 件は自然に終わった。XML は止める前に完成し、合否は XML と record で読んだ（既知の事象。AGENTS.md の停止規則に従い、原因調査はしていない）。
+  - AC12 の 1 回目（2026-11-24T01:23:08Z）は、開発者のローカル設定（git 管理外の `UserSettings/OneStarMaker/DeveloperVariantSettings.asset`）に Variant profile の選択（`fc9baeaf9941481598b8cf0c344b6a29`）があり、`[VerifyPlay] … Rejected at Start: A Variant profile is active …` で Play に入らなかった（§5 の (ii)。初期状態の不備）。選択を空にして 2 回目（01:24:50Z）を行い、終わった後に同じ値へ戻した（asset の中身で確認）。AC12 の合否は 2 回目で読んだ。
+  - Editor の `Editor.log` はこの session で更新されなかったので（3692 byte のまま）、Editor の console をパイプラインの `console` command で取り込んで読んだ（§5 の「Editor.log で読む」の代替。同じ `[VerifyPlay]`・`[AppInit]` の行）。
+  - `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` は変わらず、作業ツリーは未追跡の 2 つの `.meta` を除いて clean。record の process は全て終わり、Unity と `SampleGame.exe` は残っていない（CIM で確認）。Editor は自分で開いて閉じた。
+- 機械検査: `contract-audit` errors 0・warnings 0、`docs-audit` errors 0・warnings 2（§0・§7・§8 の欄を数える既存の検査 3 の警告）。
+- 構造レビュー: 発見 C の結論（構造適合）と照合し、起動の順を決める `BootstrapSourcePolicy.Plan`・`DecideUiCommon` の表、loader、initializer の配線を読み直した。差分は §3 の責務マップのとおりで、`smoke` の build と起動の呼び出しの列は変わっていない。新しい違反は見つからなかった。
+- 後続へ移送する指摘（違反根拠なし）: 発見 C の (1)〜(3) と同じ。加えて、(4) 開発者のローカルの Variant profile の選択が AC12 の入口を拒む（初期状態の手順の入力。次に AC12 を行う担当は、先に選択を空にし、後で戻す）。(5) この PC の Editor の `Editor.log` が更新されない件（原因は未調査）。
+- 未確認事項: なし（§5 の判定必須はすべて取った）。AC12 の Editor の `Editor.log` は上の代替で読んだ。
+- 担当・モデル・ベンダー: Claude Code の subagent、Claude Sonnet 5.5、Anthropic。
+- 独立性: 独立性制約あり。Phase B（Claude Opus 5.5）・発見 C と同じベンダー（Anthropic）。残存リスクは、B と同系列の見落としが共有されうること（C' は Grok の系列か人間が補う）。
 
 ## 8. Phase C'
 
