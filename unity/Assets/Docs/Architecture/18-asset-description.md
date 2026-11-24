@@ -333,9 +333,19 @@ directory path、build identity、representation の欠損や不整合は起動�
 Addressables へ暗黙 fallback しない。SampleGame の Content build は季節選択のあと、UICommon Scene と
 SceneResourceMap を bootstrap content entry として同じ directory に合成する。DIST の transport
 `files` 規則と install レイアウトは変えない。
-directory Player は build transaction が生成した bootstrap Scene、
-graph metadata、runtime config を使い、対応 Content BuildReport directory を Player build へ渡す。
-Player Scene は bootstrap 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。
+動作確認の directory Player（`smoke`）は build transaction が生成した bootstrap Scene、
+graph metadata、runtime config を使う。遊べる directory Player（`playable`、S4-1a）は commit した空の開始 Scene
+（`SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity`）と runtime config だけを使い、UICommon Scene と SceneResourceMap は
+起動の時に content の bootstrap entry から読む（[§04](04-app-startup.md) §4.6「起動の構成」）。遊べる Player の build は
+bootstrap Scene と graph metadata の写し（`CopyBootstrapScene`・`CopyGraphClosure`）を作らず、開始 Scene の root の GameObject が 0 であることを
+確かめてから build する。どちらも対応 Content BuildReport directory を Player build へ渡す。
+Player Scene は開始 Scene 一件に固定し、選択済み content root GUID の packed assets 混入を拒否する。遊べる Player ではさらに、
+map が参照する各 SceneResource の GUID が packed assets に無いこと（渡す GUID が 0 件なら検査の空振りとして build を失敗にする）、
+packed assets の元の path に mutation の root（`Resources/BS4/<identity>/`）の下の物が無いこと、開始 Scene の GUID を持つ pack が 1 つ以下であることを
+検査する。`build-receipt.json` の `scenes` と `bootstrapSceneName` は、動作確認の Player では生成した `UICommon.unity` と `UICommon`、
+遊べる Player では開始 Scene の path と `PlayablePlayerStart` になる（欄は同じ）。content の UICommon Scene の形（root が 1 つで EventSystem がある）の
+build の時の検査は `CopyBootstrapScene` の中にあるので動作確認の Player の build でだけ走り、遊べる Player では Runtime の loader が root と component を検査し、
+EventSystem が無ければ作る。
 publish 後の shipping tree は content root 一件だけを持ち、Unity の backup directory は除外する。
 物理削除、取得済み成果物だけからの起動、別 process の OS lease は DIST が所有する。disk cache と known-good の契約は `13-resource-system.md`、installed override と Player 起動は `04-app-startup.md` を正とする。
 同一 session 内で Whitebox 要求を Full entry へ fallback した後に、同じ Scene identity を

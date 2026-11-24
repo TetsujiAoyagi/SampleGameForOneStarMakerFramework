@@ -461,4 +461,35 @@ A2 の観点の再レビュー（外部 1 巡目と 2 巡目の後）: 要らな
 
 ## 9. Phase D
 
-未着手。
+### Evidence の保存・引渡し確認（2026-11-24）
+
+- 担当: Phase C〜C' の進行役の session が、owner の指示（「Phase D をやってマージして後始末まで」、2026-11-24）で続けて行った。HEAD `9437894b`（push 済み、PR #213 の head と同じ）、作業ツリーは clean。implementation head `ec2d4944` からの差分は本書だけ。
+- 判定用 evidence bundle: §0 の取得案内の reference と期待 packageSha256 を使い、非仮想化の pwsh から fetch して `passed`（74 file）。(1)〜(14) と (16) の XML 15 本を読めた。root は全て `Passed` で、total は 114・1×13・2378、failed は 0。状態: **確認済み**（ローカル固定、未昇格）。
+- C' blind bundle: C' の入力にするとき同じ手順で fetch して `passed`（74 file）。発見 C・判定 C の所見の混入が無いことを確かめ、加工せずに C' へ渡した（§8）。状態: **確認済み**（ローカル固定、未昇格）。
+- 昇格しない理由: 読み手はすべて同じ PC・同じ Windows ユーザーの session で、Cloud・別 host の読み手は無く、owner の昇格の指示も無い。保持は Storage の条件（task 終了 + 30 日）に従う。
+- 未保存分: 無い。判定 C と C' の所見、AC の根拠、後続への移送は本書（git 履歴）にあり、harvest 先と program へ移した。C' の担当の出力の原文（stream-json の log）は git 管理外に残してある。
+- Evidence の日次清掃 job: `pwsh tools/artifacts.ps1 evidence schedule status` が `passed`（登録あり、次回 2026-11-25 03:00）。job 自身の前回の結果は `partial`（blocked 5）で、この確認の基準（`passed`）の外なので直していない。
+
+### 判定 C と C' の突き合わせ
+
+- 結論: 判定 C（§7）は GO 候補 head で AC1〜AC14 をすべて満たし、阻害する指摘は 0 件。C'（§8）は 1 巡目（最終 C'）で blocking defects なし。食い違いは無い。
+- 両方に出た事実: `PlayerBuildReportVerifier` の行数の増加（どちらも 1 責務のままで分けないのが妥当とした）、AC6 の窓を閉じる操作が `WM_CLOSE` であること、AC12 を `Editor.log` ではなく console から取ったこと。どれも凍結条件の合否を変えない。
+- 判定 C だけが記録した実行の事実（Unity の終了 stall の 2 回の Terminate、AC12 の 1 回目が Variant profile の選択で拒まれたこと）は C' の入力にあり（bundle の executor-notes）、C' の結論とも矛盾しない。
+- 阻害する指摘: 両方とも残っていない。
+
+### PR のレビューへの対応
+
+- cursor[bot] の実装レビュー（2026-11-24、head `9437894`）: マージを止める欠陥なし。非阻害の 1 件（`PlayableBuildObservation.MapSceneResourceCount` の summary が「重複を除く」と書くが、実際は除く前の件数）は、発見 C の移送と同じ事実で、program の「S4-1a から移送した入力」の S4-2 (6) に 1 回だけ書いた。本文の要約が計画のままだという注記は、PR 本文を実装と C / C' の結果の要約に替えて解消した。
+- owner の account の外部独立レビュー（2026-11-24、head `9437894`）: マージを阻害する新しい欠陥なし（owner も会話で「blocker 無し」と確認した）。S4-2 へ渡す 2 点は program の S4-2 の入力 (4)(5) に移した。(4) は `PlayerContentStages` が smoke の receipt 専用の段列で汎用の時系列ではないこと、(5) は AC10 の後始末の失敗の既知の境界と、S4-4 へ成功の範囲を広げないこと。program の S4-1a の行、04 章・18 章との整合は harvest で行った。
+
+### harvest と後始末
+
+- harvest:
+  - [04 章](../../unity/Assets/Docs/Architecture/04-app-startup.md): §4.1（種類ごとの開始 Scene と起動の順）、§4.2（`plan-bootstrap` と `BootstrapSourcePolicy`）、§4.6（起動の構成の表、3 行の log、`UseRequiredPlayerFileConfiguration` の契約、content から保持した UICommon と map の終わり方、新しい順の失敗）、§4.7（latch の marker と、`PlayerContentStage` が receipt 専用であること）。
+  - [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md): Player の種類ごとの bootstrap Scene と graph metadata の使い方、遊べる Player の verifier の検査。
+  - repo の README の「試す」5 の確認の記録。
+  - [実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md): UICommon を Player の build から外した時の strip。
+  - program: §8 の S4-1a の行の完了、「S4-1a から移送した入力」（S4-2 への (1)〜(8)）、§10 の U11 の (h)〜(j)。
+- 削除: 本書を次の commit で消す。git 履歴のこの commit に全文が残る。
+- task の終了（`workflow-task.ps1 end`）: owner の完了指示を受けて、マージの後に進行役が行う。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。harvest の文書変更は同じ系列の subagent が書き、進行役が差分を確かめた。
