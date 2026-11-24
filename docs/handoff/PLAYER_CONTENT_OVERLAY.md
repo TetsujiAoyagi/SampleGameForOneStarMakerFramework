@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。次は B の修正。B と発見 C の往復の 3 巡目（上限 4 巡。次の発見 C が最後））
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。B は 2026-11-25 に DC5 を直した（§6.7）。次は発見 C の 4 巡目。B と発見 C の往復の 3 巡目を終えた（上限 4 巡。次の発見 C が最後））
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
-- implementation head commit: `0704f05f2be0e99be320a94816e03d73864c708f`
+- implementation head commit: `df1d731cb4d59e8cfef92149ca6f1d0c97a85add`
 - A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の 3 巡目の差し戻しの修正）。
-  - 次の作業: §7 の発見 C（3 巡目）の DC5 を直す。`Y17_UnbuildableOnly` が Y の source の編集で計画を `UnbuildableOnly` にし、入口の前にそうなったこと（作り直せない root があり、作れる root が無い）を test が確かめ、入口の `UnbuildableOnly` の通知（`PlayerOverlayLaunch.cs:164`）と `LaunchedWithoutOverlay`・`Observed` を record で読めるようにする。`UnbuildableOnly` を作る手を source から決めて §6 に書く（既存の計画の test、例えば `OverlayFromLocalEditsIntegrationTests` の R4 が `SourceAbsent` を作る形を参照）。Y の source の編集だけでは作れないと分かったら実装せずに停止して owner へ返す（AC8 (c) の作り方の変更は Phase A）。製品の code と AC の文は変えない。Unity の test は実行しない（確認は次の発見 C）。Editor での compile の確認は §6.4 と同じ形。修正の結果は §6 に足し、§7 の所見を §6 に転記しない。
-  - 読む範囲: 既定のとおり（§0〜§5）。差し戻しなので §6〜§8 も読む。§7 の発見 C（3 巡目）を先に読む。
+  - 次の Phase・役割: 発見 C（4 巡目。往復の上限の最後）。動作確認の対象は無い（修正は判定の case の初期状態だけで、利用者の操作の経路を変えない）。
+  - 次の作業: §6.7 の修正が §7 の DC5 を解いたかを確かめる。Y17 の record で `planBeforeEntry` が `UnbuildableOnly`・`overlayRoots=0`、`entryWarning` に作り直せない root の組の通知、`last-attempt.json` の `outcome` が `LaunchedWithoutOverlay`・`startup` が `Observed` であることを読む。Y17 が入口の前に落ちたら（`editedAsset` が選べない、計画が `UnbuildableOnly` にならない、未保存の asset が残る）、その message で AC8 (c) の初期状態が作れなかったと読み、往復の上限なので owner へ返す。
+  - 読む範囲: 既定のとおり（§0〜§8）。§6.7 と §7 の発見 C（3 巡目）を先に読む。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: compile の確認のための Editor の起動（自分で開いた物だけを閉じる）。Unity の batch test は使わない。push は公開点の規則に従う。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」、§2.1 の D11 の除外の規則に従う。往復の上限（4 巡）に近いので、次の発見 C で解けなければ owner へ返す。
+  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める。push は公開点の規則に従う。
+  - 停止規則: §5 の発見 C の手順と u3・u10 の不成立時の扱い、§2.1 の D11 の除外の規則に従う。往復の上限（4 巡）の最後なので、阻害の指摘が残れば B へ戻さず owner へ返す。
   - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
 ## 1. 目的と対象外
 
@@ -474,6 +474,19 @@ AC4 (a) と AC9 は単体テスト。
 - **DC5:** `Y17_UnbuildableOnly` は Scene を退かして `AssetDatabase.Refresh` した後に `AssetDatabase.SaveAssets()` を呼び、Addressables が entry を外した group を disk に保存する。そのうえで、入口と同じ検出（`PlayEntryInterceptor.EnumerateUnsavedAssets`）が 0 件であることを確かめ（record の note `unsavedAfterMove`）、0 件でなければ入口を呼ばずに test を落とす（初期状態が作れていない）。D6 (3) の「判定の E2E の初期状態は `Assets/` の Dirty が 0 件」に合わせる修正で、入口の保存の確認は変えていない。保存した group の file は driver が case の後の `git checkout` で戻す。§6.3 の「source の欠けだけで `UnbuildableOnly` になるか」は未確認のまま。
 - 確認: `pwsh tools/contract-audit.ps1` は違反なし。Editor（Unity 6000.6.9f1）で `EditorUtility.scriptCompilationFailed` が false。Editor は自分で開いた物だけを閉じ、閉じた後の作業ツリーは patch を当てた file のほかに変更が無かった。
 - 未実行（Phase C の責任）: Unity の test、Y10・Y11・Y14・Y17 と driver の全段。
+
+### 6.7 発見 C（3 巡目）の差し戻しの修正
+
+担当: Phase B の session（2026-11-25）。引き継いだ commit `86a04d18` を worktree の HEAD と照合し（一致、clean、implementation head `0704f05f` から HEAD までの差は本書だけ、PR の状態ブロックの引き継ぐ commit と implementation base / head も一致）、§7 の DC5 を直した。判定の case の初期状態の修正（B 適応）で、製品の code と AC の文は変えていない。
+
+- **`UnbuildableOnly` にならなかった理由（source から）:** base に閉包の記録がある時（`ContentSourceClosureState.Present`）、計画は編集が当たる root だけを影響ありにする（`ContentOverlayPlanner.Classify`、`ContentOverlayPlanner.cs:144-153`。記録にある root は `edits.Count != 0` の時だけ）。編集の検出（`ContentOverlayEditDetection.Detect`、`:60-76`）は、手元で GUID が解決しない asset を編集に数えず「解決しない」に分ける。Scene の file を退かすだけでは編集が 0 件なので、root は影響なしになり、計画は `NotRequired` になる。
+- **作り方（R4 と同じ形）:** `OverlayFromLocalEditsIntegrationTests` の R4 は、2 つの root が共有する asset を編集し、片方の root の Scene を退かして、その root を `SourceAbsent` にする。Y17 では、編集する asset を **記録の閉包で持ち主の root が全て Scene の root**（開始 Scene と UICommon を除く）である text（`%YAML`）の asset にし、持ち主の全ての Scene の file と `.meta` を退かす。編集（末尾に改行を 1 つ足す。YAML の意味は変わらず SHA-256 だけが変わる）は記録の閉包で（GUID で、`HitsRecord`）それらの root に当たり、root の file が無い（absence）ので `:157-158` で作り直せない root（理由 `SourceAbsent`）になる。編集は他の root の閉包に無いので、作れる root は 0 個で、計画は `UnbuildableOnly` になる。Object の root が持つ asset は選ばない（その root の file は退かさないので、編集で作れる root になる）。
+- **選び方（`PickUnbuildableTarget`）:** Player の base（入口と同じ `LocatePlayer`・`ResolveBase`）の `transport.json` から記録を読み（`ContentSourceClosureRecord.Read`）、上の条件の asset のうち、VFX Graph（`.vfx`。再 import が重く compile の log を出しうる）でない物、持ち主の少ない物、path の ordinal 順の順に選ぶ。script と Scene の file は選ばず、持ち主が 16 個を超える asset も選ばない。選べなければ test を落とす（AC8 (c) の初期状態が作れない）。この worktree の Editor で、手元の依存（`AssetDatabase.GetDependencies`。記録の閉包の近似）で同じ条件の候補を数えると 3 つあった（`.vfx` 2 つと、春の Cell の Scene 7 つが持つ `Spring_Representative.lighting`）。base の記録（Object の root を含む）での候補は未確認。
+- **入口の前の確認:** 退かした後の `AssetDatabase.Refresh` と `SaveAssets`（§6.6 のとおり、未保存の asset が 0 件であることを確かめる）の後、入口と同じ計画の port（`OverlayPorts(install)` の `Prepare` と `Plan`。読むだけで、認め・build はしない）で計画を作り、`UnbuildableOnly`・作れる root 0 個・作り直せない root 1 個以上でなければ入口を呼ばずに落とす。record の note は `movedScenes`、`editedAsset`、`unsavedAfterMove`、`planBeforeEntry`。
+- **入口の通知を record に残す:** 判定の case の `ProductPorts` で `Info` と `Warn` を包み、Console に出したまま record の note（`entryInfo`・`entryWarning`）にも写す。作り直せない root の組の通知（`PlayerOverlayLaunch.cs:164` が `PlayEntryOverlay.Warnings` の行を `Warn` に出す）と、上書きなしの行（`:202`、計画の状態つき）が record で読める。他の case でも note が増えるだけで、挙動は変えていない。
+- 戻し: case の終わりに、退かした file を戻し、編集した asset を元の bytes に戻して `Refresh` する。保存した Addressables の group の file は driver が case の後の `git checkout` で戻す。
+- 確認: `pwsh tools/contract-audit.ps1` は違反なし。Editor（Unity 6000.6.9f1）で `EditorUtility.scriptCompilationFailed` が false、`SampleGame.Tests.Editor` の dll が最後の編集より新しく、未保存の asset が 0 件。Editor は自分で開いた物だけを閉じ、閉じた後の作業ツリーは case の file のほかに変更が無かった。
+- 未実行（Phase C の責任）: Unity の test（Y17 を含む）。
 
 ## 7. Phase C
 
