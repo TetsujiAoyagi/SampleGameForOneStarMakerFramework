@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `A`（Phase A の revision 0。2026-11-24 に S4-1a の後の `develop` へ載せ替えて A1 を改め、A2 を取り直し、A3 の統合案まで進め、外部計画レビュー 6・7 巡目の採否を反映した。**凍結していない**）
+- status: `B`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は未着手）
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: 未固定
-- A3 凍結記録: 未凍結
+- A3 凍結記録: 承認者は owner（root）、2026-11-24、対象は revision 0（この記録を含む commit の本書）。承認の根拠: S4-1a の後の `develop` への載せ替え、G0 (a)(b)(d) と u8 の実測、取り直した A2 の 2 件、外部計画レビュー 6・7 巡目の採否の反映の後、8 巡目の review（HEAD `b7a61c50`）が新規の blocker なしで凍結を推奨し、owner が同日に凍結を裁定した。凍結は計画としての承認で、実装の GO や実機の確認済みを意味しない。
 - risk: `high`（Framework の起動（`AbstractApplicationInitializer`、`ContentOverlayStartup`）の Player の分岐と、Player が受け付ける config を変える。上書きの登録を Player で初めて製品の口から行う。独立して失敗しうる未知が複数ある（§5 の u1〜u6・u9〜u12））
 - owner: root（依頼者）
 - created: 2026-11-23
@@ -21,12 +21,12 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（owner の凍結判断）。
-  - 次の作業: (1) owner がこの統合案を読み、凍結するかを決める。(2) 追加の外部計画レビューがあれば、指摘を §5.1 へ採否として足す（設計・受け入れ条件を変えたら、影響する A2 観点の再レビューの要否と理由も書く）。(3) 凍結するなら A3 凍結記録・本票（次の担当を Phase B へ）・PR の状態ブロックを改めて、凍結版を commit する。
-  - 読む範囲: 全節。
+  - 次の Phase・役割: Phase B（実装）。
+  - 次の作業: §3 の責務マップと §4 の順で実装し、§6 に結果と未実行事項を書く。Unity の test・Build・Player の起動は行わない（Phase C の責任。Editor での compile の確認まで）。
+  - 読む範囲: 既定のとおり（§0〜§5。§5.1 は経緯で、既定の範囲に入らない）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 文書だけ。push は公開点の規則に従う。
-  - 停止規則: 目的・利用者の欄を変える指摘は owner が裁定する（目的レビューのやり直しは使い切った。§5.1）。
+  - 必要な権限: source の編集と、Editor での compile の確認（[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)）。push は公開点の規則に従う。
+  - 停止規則: 設計判断を増やさない。§4 の「Phase B から Phase A へ差し戻す条件」に当たったら実装を止めて返す。凍結済みの条件（§2）と責務マップ（§3）を変える必要が出た時も同じ。
   - 引き渡さないもの: なし。
 
 ## 1. 目的と対象外
@@ -197,7 +197,7 @@
 
 ### 2.5 A3 の決定
 
-答えが決まる点は担当が決めた（覆す時だけ改める）。owner の決定は日付つきで書いた。owner に残るのは凍結の判断だけである。
+答えが決まる点は担当が決めた（覆す時だけ改める）。owner の決定は日付つきで書いた。owner は 2026-11-24 に凍結を裁定した（§0）。
 
 1. **G0:** (a)「同じ」、(b) 材料あり、(d) は §1 の現況のとおり。
 2. **digest:** Player では必須、Editor の Play では key があれば照合する（Editor の入口と record を変えない）。
@@ -270,6 +270,7 @@ namespace・asmdef は既存の file と同じ（Runtime は `OneStarMaker.Runti
   - (u11) 動いている Player（Unity）が上書きの directory へ file を書かないか（確認地点 AC13 の「A の directory が変わらない」。G0 の record では書かなかった）。不成立時: Phase A へ戻す（digest と再利用の前提が変わる）。
   - (u12) batch の EditMode の `[UnityTest]` が frame を譲る間に、製品の `EditorApplication.update` の観測が進むか（確認地点 AC18。S4-0 の第 2 process は同じ形の `[UnityTest]` で frame を進めた）。不成立時: 開いた Editor で入口だけを呼び、記録を外から読む形に替えるのは B 適応。製品の update の経路を測らずに AC18 を外すことはしない。
   - **判定の process の列（driver `tools/s42-player-overlay.ps1` が実行し、Phase C の実行担当はこの driver を呼ぶ）:** (1) X（新しい worktree）で、環境変数 `S41_RUN_ID` を 1 つの値に固定して（既存の `PlayerKindEndToEndTests` は、この値の `TestResults/s41/<id>/` に Player の写しと record を置き、無ければ失敗する）、`run-tests.ps1 -Filter <BuildPlayable の case>$`（AC17 の 1 つ目の時点を record に取る）、別の Unity process で AC17 の 2 つ目の時点の case、`LaunchPlayable$`（AC14）、`BuildSmoke$` と AC2 の case。AC2・AC14・AC17 は X で走らせる（既存の test は、同じ checkout の同じ run の写しから Player を起動する）。(2) X の `artifacts/playable/players/<id>/` と `transport/<id>/` を Y の同じ path へ写す。(3) driver は run ごとに、repo の外に固有の cache の folder を作り（path の予算に収まる短い path）、Y の `UserSettings/OSMContentDelivery.json` の `cacheRoot` にその path を書く（設定が空だと、入口と install は同じ Windows の user の既定の cache `%LOCALAPPDATA%/OSM/ContentCache` を共有し、別の run や他の作業の install と混ざる。この file は git が無視する）。install と入口が同じ path を使ったことを record に残し、終わりにその run の cache だけを消す（既定の cache には触らない）。続けて Y で AC8 (d)（install の前）。(4) Y で X の transport を install する case（install は disk に残る）。(5) case ごとに、driver が `PlayerOverlayEdits/` の patch を `git apply` し、`run-tests.ps1 -Filter <case>$` を別の Unity process で走らせ、XML の total を確かめ（`-Filter` は正規表現の部分一致なので末尾に `$` を付ける）、`git checkout`・`git clean -fd`（`-x` は付けない。`.gitignore` が無視する `artifacts/` の Player・上書き・記録を消さないため）で戻し、`git status --porcelain` が case の前と同じことを確かめる（違えば以後の case を止める）。上書きの artifacts と 2 つの記録は case の間で消さない（AC4 (e)・AC13 が前の結果を使う）。新しい worktree の最初の Unity の起動が書き換える `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset`（S4-1 から移送した (7)。D11 の指紋に当たる）は、X と Y のどちらも最初の起動の後に `git checkout` で戻してから (1) と (3) に入る。Y の順は AC8 (d) → install → AC8 (a)(e) → AC1 → AC18 → AC4 → AC13 → AC12・AC16 → AC15 → AC5 → AC3 → AC7 → AC8 (b)(c) で、AC5（`.cs` の変更で再 compile する）を後ろに置く。AC10 は AC1・AC8 (a)・AC8 (d) の case の中で測る。AC12 と AC16 は 2 つの patch を当てた 1 回の起動で両方を読んでよい（合否は別々に書く）。AC13 は 1 つの case の中で Player A を起動し、test が patch を当てて（Unity の外の file の書き換えと `AssetDatabase.Refresh`）入口をもう一度呼び、最後に A と B を閉じる。AC1 の「スタート」は、case が Title の画像を file に取った後、game の log の `OnStabledImpl HomeScene` を 180 秒待つ間に、実行担当が画像で位置を読んで 1 回押す。
+  - **判定の実装への注記（外部 8 巡目。AC は変えない）:** AC4 (e) の 3 つの段と AC18 (a)(b) は、他の case が書き換えた上書きに依らず、同じ編集のまま process ごとに走らせ、各段の `last-attempt.json` と Player の log を、次の段が上書きする前に case の証拠の folder へ写す。AC18 (b) で期待する Editor の Error の行は、`[UnityTest]` の「予期しない log」の失敗と区別し（期待する log として宣言する）、その行自体は生の証拠に残す。
   - 編集を伴う AC（AC1・AC5・AC12・AC15・AC16。AC13 は case の中で当てる）は、Y の Unity process を起動する前に編集し、別の process で入口を実行する（実行中の test の中で `.cs` を足すと compile と domain reload で test が切れる）。
   - **判定の担当への注記（移送された入力）:** Project Auditor の post-build 監査で Player の build の `step.json` が `failed` になりうる（S4-0 の J2、S4-1a でも同じ形）ので、合否は XML と record で読む。record の `PlayableBuildObservation.MapSceneResourceCount` は重複を除く前の件数である（S4-1a から移送した (6)）。Editor の検証 Play を判定に使うなら、開発者のローカル設定の Variant profile の選択を空にしてから行い、後で戻す（同 (7)）。このスライスは Editor の上書きの Play の起動の判定（Decide の Editor の分岐）に digest の任意の照合を足すので、Editor の上書きの Play を 1 回取り直す（同 (8)。起点は S3-4b の判定の case）。
 - 人間の判断が必要な条件: なし（AC1・AC12 の画像の判定は判定の担当と C' が画像で行う）。
@@ -356,7 +357,7 @@ namespace・asmdef は既存の file と同じ（Runtime は `OneStarMaker.Runti
 | AC-E | major | AC10 の終わりの時点が、process を作らない停止と case の後の `git status` で二通りに読める。§5 の順に AC10 が無い | 採用 | I6、AC10（測る case と時点）、§5 の順 |
 | I6 | minor | 入口の base の検証が cache の lock の file（`control/transaction.lock`）を作りうる | 採用 | I6・AC10 の対象を revision の tree にし、cache の制御の file を除いた |
 
-**A3 の統合（2026-11-24。統合担当: 本 session）:** 取り直した A2 の 19 件（(4) の 14 件、(5) の 5 件）は全て採用した。どれも凍結済みの条件を変える物ではなく（未凍結）、責務マップの抜け、文の書き分け、検証経路の実行可能性の補正である。目的と利用者の欄は変えていない。採用による設計の追加は、public の marker 1 つ（A-5）、file 2 つ（`PlayerInputFiles`、test の補助 `PlayerProcessRun`）、AC17 と u10・u11 で、Runtime の判断と依存の向きは変えていないので、A2 の再々レビューは行わない。owner の凍結判断は未記録（§0）。
+**A3 の統合（2026-11-24。統合担当: 本 session）:** 取り直した A2 の 19 件（(4) の 14 件、(5) の 5 件）は全て採用した。どれも凍結済みの条件を変える物ではなく（この時点では凍結の前）、責務マップの抜け、文の書き分け、検証経路の実行可能性の補正である。目的と利用者の欄は変えていない。採用による設計の追加は、public の marker 1 つ（A-5）、file 2 つ（`PlayerInputFiles`、test の補助 `PlayerProcessRun`）、AC17 と u10・u11 で、Runtime の判断と依存の向きは変えていないので、A2 の再々レビューは行わない。
 
 **外部計画レビュー 6 巡目（2026-11-24、入力は HEAD `f3e46fb6` の HANDOFF と base `1fd200b5` の code。PR の `@cursoragent` の review（Grok 4.7、SpaceXAI。Y1〜Y5）と、owner の account からの review 1 本・5 スレッド（ChatGPT、OpenAI。Z1〜Z5。「まだ凍結しない方がよい」。軸は、test の PASS と、開発者が実際に使う製品の経路の成功を混同しないこと））:**
 
@@ -386,6 +387,8 @@ A2 の観点の再レビュー: 行わない。足したのは AC18 と u12、AC
 | V3 | X・Y が clean でも、install の cache は同じ user の既定の場所を共有する | 採用 | code で確かめた（`VerifyPlayLauncher.ResolveCacheRoot` の既定）。§5 の driver の (3)（run ごとの cache を Y の設定に書き、record に残し、その run の分だけ消す） |
 
 A2 の観点の再レビュー: 行わない。D6 の順の入れ替えと空の port は入口の file の中の順で、責務マップの file・依存・公開面・不変条件は変えていない。他は AC の観測と判定の手順である。目的と利用者の欄も変えていない。
+
+**外部計画レビュー 8 巡目と凍結（2026-11-24、入力は HEAD `b7a61c50` の HANDOFF と base `1fd200b5` の code。owner の account からの review 1 本（ChatGPT、OpenAI））:** 新規の blocker なし、凍結を推奨。7 巡目の V1〜V3・W1・W2 の反映を認めた。Phase B・C への非阻害の注意（AC4 (e) と AC18 の段ごとの証拠の退避、AC18 (b) の期待する Error の扱い）は、AC を変えない判定の実装の注記として §5 に写した（採用）。残る未知は §5 の u1〜u6・u9〜u12 と発見 C の最初の限定実行で扱う。owner（root）は同日、この版の凍結を裁定した（§0 の A3 凍結記録）。
 
 ## 6. Phase B 実装結果
 
