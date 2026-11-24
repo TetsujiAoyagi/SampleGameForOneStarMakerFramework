@@ -25,6 +25,16 @@ namespace SampleGame.Tests.Editor.Build
         private PlayerOverlayAttempt? _written;
         private PlayerLaunchRequest? _launched;
 
+        // NUnit は 1 つの fixture の instance を全ての test で使い回す。呼び出しの列と記録を test ごとに空にしないと、
+        // 前の test の列が後の test の順の assert に混ざる。
+        [SetUp]
+        public void ResetRecordedCalls()
+        {
+            _calls.Clear();
+            _written = null;
+            _launched = null;
+        }
+
         private static ContentInstallResult Install() =>
             new(@"D:\cache\installed\spring-full\" + PlayerId, @"D:\cache\installed\spring-full\" + PlayerId + @"\content",
                 new ValidatedContentManifest("manifest-sha", new ContentTransportManifest { contentSet = "spring-full", revision = PlayerId, target = "t" },

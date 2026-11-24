@@ -151,7 +151,7 @@ namespace SampleGame.Tests.Editor.Build
             var lines = new List<PlayerGameLogLine>();
             foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
             {
-                foreach (var raw in File.ReadLines(file))
+                foreach (var raw in ReadSharedLines(file))
                 {
                     if (raw.Length == 0 || raw[0] != '{') continue;
                     var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -173,6 +173,18 @@ namespace SampleGame.Tests.Editor.Build
                 }
             }
             return lines.ToArray();
+        }
+
+        // game の log は動いている Player が書き込み中のまま開いている。File.ReadLines は FileShare.Read で開くので
+        // 書き手と衝突して Sharing violation になる。Player の log（ReadLog）と同じ共有の指定で開く。
+        private static List<string> ReadSharedLines(string path)
+        {
+            var lines = new List<string>();
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            string? line;
+            while ((line = reader.ReadLine()) != null) lines.Add(line);
+            return lines;
         }
 
         private static string Value(IReadOnlyDictionary<string, string> values, string key) => values.TryGetValue(key, out var value) ? value : string.Empty;
