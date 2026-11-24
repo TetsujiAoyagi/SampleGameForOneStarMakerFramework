@@ -143,6 +143,20 @@ namespace OneStarMaker.Tests.Editor.Build
                 Is.EqualTo(System.IO.Path.Combine(artifacts, "playable")));
         }
 
+        [Test]
+        public void SettingsOf_CopiesBootstrapOnlyForTheSmokePlayer()
+        {
+            // 動作確認の Player は UICommon と map を Player に写す今の build、遊べる Player は写さずに空の開始 Scene から始める。
+            Assert.That(SampleGamePlayerBuildCoordinator.SettingsOf(PlayerBuildKind.Smoke).CopiesBootstrap, Is.True);
+            var playable = SampleGamePlayerBuildCoordinator.SettingsOf(PlayerBuildKind.Playable);
+            Assert.That(playable.CopiesBootstrap, Is.False);
+            Assert.That(playable.Declaration.Name, Is.EqualTo("spring-full"));
+            Assert.That(playable.UsesProbe, Is.False);
+            Assert.That(playable.PlayerKindValue, Is.EqualTo("playable"));
+            Assert.That(SampleGamePlayerBuildCoordinator.PlayableStartScene,
+                Is.EqualTo("Assets/SampleGame/DependOnAll/PlayerStart/PlayablePlayerStart.unity"));
+        }
+
         private static Dictionary<string, string> Flatten(string json)
         {
             var values = new Dictionary<string, string>(StringComparer.Ordinal);
