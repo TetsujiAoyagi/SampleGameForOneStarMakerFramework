@@ -4,8 +4,8 @@
 
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
-- type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3。A0 は S4-3 の行の全体を入力にし、行を分ける案を §2.2 に書く。分ける案が通れば、本書は最初の行（Local）の HANDOFF になる）
-- status: `A`（A0 の初版。A1 は未着手。owner が §2.7 の未決事項を確認した後に A1 を始める）
+- type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3。A0 は S4-3 の行の全体を入力にし、行を 4 つに分けた（§2.2）。本書は最初の行 S4-3a（Local）の HANDOFF である）
+- status: `A`（A0 の初版。A1 は未着手。owner は 2026-11-25 に §2.2 の 4 行の分け方を承認した（§2.7 の Q-1）。残る未決事項を owner が確認した後に A1 を始める）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況はこの base。S4-2 は未 merge なので、A1 の着手時に S4-2 の Phase D の後の `develop` で取り直す）
 - implementation head commit: `未固定`
@@ -18,11 +18,11 @@
 - Phase A snapshot の取得案内・状態: 未生成
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: owner が §2.2・§2.3 の案と §2.7 の未決事項（Q-1〜Q-7）を確認する。その後に Phase A の A1（主担当）。
+  - 次の Phase・役割: owner が §2.3 の案と §2.7 の未決事項（Q-2〜Q-7。Q-3 は A0 の推奨つき）を確認する。その後に Phase A の A1（主担当）。
   - 次の作業: 確認の結果を §2 に反映し、A1 の初稿（進める最低条件を不変条件と成立条件に分ける、受け入れ条件、UC ごとの利用者の入力、責務マップ、テスト方針、検証経路、分割の判断）を書く。program §8 の S4-3 の行は A0 では変えていない（S4-2 の branch が隣の行を変えているので、S4-2 の merge の後、A1 で行を本書への link と分割の案に直す）。
   - 引き継ぐ commit: この票を含む commit（SHA は tree の外で渡す）。
   - 必要な権限: なし（文書のみ）。
-  - 停止規則: S4-2 の Phase D より前に本書を凍結しない（program §8 の S4-3 の行の「実機の経路（S4-2）が決まった後に A1 を始める」。A0 は owner の指示で先行した）。§2.7 の Q-1・Q-3 の答えが無いまま A1 で差込口の形を決めない。
+  - 停止規則: S4-2 の Phase D より前に本書を凍結しない（program §8 の S4-3 の行の「実機の経路（S4-2）が決まった後に A1 を始める」。A0 は owner の指示で先行した）。§2.7 の Q-3 の答えが無いまま A1 で差込口の形を決めない。
   - 引き渡さないもの: なし。
 
 ### 実測の方法
@@ -81,7 +81,7 @@
 - 理由 2: 独立して失敗しうる未知が別々にある（[分割の契機](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の内部フロー)）。Local の未知は、差込口・選択・pin の契約で、network の無い test と 1 台の PC で閉じる。LAN の未知は、不達・timeout・切断、遅い転送の間の取消と lease、期待 digest をどの経路で得るか、別の PC で作った base の 4 つで、検証に 2 台目の PC か模擬が要る（検証経路の成立が別の問題になる）。
 - 理由 3: Local だけでも利用者に届く物がある。手元で publish した content（検証 Play・batch の出力）を、Delivery の窓の手入力なしに base にできる。CI の無い現場（U9）の経路になる。
 
-**行の案（owner の提起は a と b。c と d は、S4-3 の行の「prefetch と base の選び方をさらに分けるかは A1 が決める」に対する A0 の案）:**
+**行（owner の提起は a と b。c と d は、S4-3 の行の「prefetch と base の選び方をさらに分けるかは A1 が決める」に対する A0 の案。owner は 2026-11-25 に 4 行とも承認した）:**
 
 | 行 | 答える問い | gate の主な中身 |
 |---|---|---|
@@ -173,15 +173,21 @@ program §8 の「S4-0 の A1 が振り分けた入力」が S4-3 へ送った�
 
 ### 2.7 未決事項（owner の確認を待つ。A1 の前に要る物に ★）
 
-- ★ **Q-1（行の分け方）:** §2.2 の 4 行（a Local、b LAN、c 先読みと hook、d base の選び方）でよいか。owner の提起は a と b の 2 つで、c と d を別の行にするのは A0 の案である。
+- **Q-1（行の分け方）: 決定済み。** owner（root）が 2026-11-25 に、§2.2 の 4 行（a Local、b LAN、c 先読みと hook、d base の選び方）を承認した。program §8 の行への反映は A1 で行う（§0 の票）。
 - **Q-2（名前）:** 本書が扱う物を「取得元」と呼び、`IContentProvider` の「供給元」と分けてよいか。HANDOFF 名は A1 で決め直す。
 - ★ **Q-3（期待 digest の出所）:** 取得元と同じ経路で得た digest（共有の上の一覧に書いた digest）を認めるか。認めれば設定は取得元の場所 1 つで済むが、保証は破損の検出までになる。認めなければ、digest を運ぶ別の経路（VCS で管理する file、CI の結果 file）が要り、「自分の base」の選び方（S4-3d）とつながる。Local（自分の PC で publish した物）と LAN で答えを分けてよい。
+  - **A0 の推奨（owner の裁定ではない）:** どちらか一方に決めず、digest の出所を 2 種類（pin: bytes と別の経路で得た物。申告: 取得元の一覧に書いてあった物）として持ち、install の記録と Play の記録に残す。installer が必ず期待 digest を受け取る契約は変えない。
+  - 既定の受け入れ: Local は申告を認める（書いた本人の同じ disk で、別の経路を求めても保証が増えない。検証 Play は今も自分の publish の結果から digest を取る）。LAN は申告を認め、記録に「破損の検出まで」と残す（pin を必須にすると、CI と VCS の連携が出来るまで LAN を使えない）。cloud は pin だけ（最終の決定は cloud の行）。Player は今のまま pin だけ（I10）。host は policy で「pin だけ」に締められる。
+  - pin があれば申告は使わない。pin と一致しなければ fail-closed にし、申告の digest や別の revision に落とさない。
+  - 申告を認める時の手当て: 一覧は 1 つの file で、bytes を全て置いた後に最後に書く（半端な publish が一覧に出ない）。一度 install した revision に、同じ名前で違う digest が来たら拒む（今の cache の契約「同じ revision の違う manifest は上書きしない」で成り立つ）。
+  - 理由: 開発の LAN で起きる事故は、半端な publish・上書き・取り違えが主で、申告と上の手当てで防げる。pin が効くのは「自分の checkout に合う base はどれか」の方で、commit ごとに contentSet・revision・digest を書いた file があれば、base の選択と信頼の格上げが同時に片付く（S4-3d）。差込口を「呼び手が pin を渡すのが主で、一覧は pin が無い時の探し方」の形にしておけば、S4-3d は差込口を変えずに pin の出所を足せる。弱い根拠を隠さず記録に残す扱いは、I2 の Editor snapshot と同じである。
+  - 払う物: LAN の既定は、共有に書ける人による差し替えを検出しない（記録には出るが止めない）。出所の区別を記録に足す分、S4-3a の範囲が増える。`ContentAcceptanceBasis` に値を足すかは A1 が決める。
 - **Q-4（2 台目の PC）:** 別の PC で build した base を測る環境があるか。あれば、手で運んだ base で S4-3a の前に測る。無ければ、S4-3b の「LAN」は同じ PC の中の模擬（loopback の HTTP、同じ PC の共有）で判定し、実の別の PC は未確認として残す。
 - **Q-5（LAN の形）:** 想定する LAN の取得元は、file 共有（UNC）、HTTP の server、その両方のどれか。今の Delivery の窓は両方を持つ。
 - **Q-6（cloud の読み方の見込み）:** cloud の取得元を後で足す時、Unity から直接読む（公開か期限つきの URL の HTTP）形と、Artifacts の `content fetch` の取得物を手元の directory として読む形のどちらを見込むか。前者なら §2.3 の条件 2（資格情報）と HTTP の取得口の拡張が S4-3b に効き、後者なら cloud は「手元の directory の取得元」に還元されて S4-3a で足りる。
 - **Q-7（cache の増え方）:** 取得が自動になると cache が黙って増える。`Evict` と known-good の呼び手を S4-3a が持つか、別の行に送るか。
 
-- スライス分割の判断: §2.2（A0 の案。A1 の終わりに確定し、A3 で owner が承認する）。
+- スライス分割の判断: §2.2 の 4 行（owner が 2026-11-25 に承認した）。本書は S4-3a の HANDOFF になる。A1 の終わりに、S4-3a をさらに分ける契機が無いかだけを検討する。
 - 判定定義・停止規則・受け入れ条件: A1 で書く。
 - A3 後の例外承認: なし。決定記録: なし。
 
