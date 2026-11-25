@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2）
-- status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。B は 2026-11-25 に DC5 を直した（§6.7）。発見 C の 4 巡目が阻害の指摘 0 件で閉じた（§7）。次は判定 C）
+- status: `C`（Phase A は revision 0 で 2026-11-24 に凍結した。Phase B は 2026-11-24 に終えた。発見 C の 1 巡目が阻害の指摘 3 件で B へ戻した（§7）。B は 2026-11-25 に DC1〜DC3 を直した（§6.5）。発見 C の 2 巡目が DC1〜DC3 の解消を確かめ、阻害の指摘 2 件で B へ戻した（§7）。B は 2026-11-25 に DC4・DC5 を直した（§6.6）。発見 C の 3 巡目が DC4 の解消を確かめ、DC5 が解けていないので B へ戻した（§7）。B は 2026-11-25 に DC5 を直した（§6.7）。発見 C の 4 巡目が阻害の指摘 0 件で閉じた（§7）。判定 C は 2026-11-25 に阻害の指摘 0 件で、C' へ進める GO 候補とした（§7）。次は C'）
 - branch: `claude/player-content-overlay`（PR の base は `develop`）
 - implementation base commit: `1fd200b5ba835c833035d153579216e14cb823af`（`develop` の head、2026-11-24、S4-1a の merge の後。§1 の現況と A2 の固定 base もこれ）
 - implementation head commit: `df1d731cb4d59e8cfef92149ca6f1d0c97a85add`
@@ -18,16 +18,16 @@
 - 関連: [program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-2 の行、「S4-0 の A1 が振り分けた入力」「S4-0 から移送した入力」「S4-1 から移送した入力」「S4-1a から移送した入力」の S4-2 の項目、§5.3「上書きの方式を選ぶ理由と見直しの条件」「Windows の Player での上書きの実測」
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と program だけ）。G0 の harness の差分と record は Phase A の gate の証拠で、状態は §2.5 の 10
 - Phase B result snapshot の取得案内・状態: 該当なし（B は Unity の test を実行していない。結果は §6 と implementation head の差分だけ）
-- evidence bundle の取得案内・状態: 未生成
-- C' blind bundle の取得案内・状態: 未生成
+- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の生証拠（run `j1`、185 file）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内はこの PC の git 管理外の運用 directory の `handoff-guides/` の `judgement.md`。別 process の取得で閲覧を確認済み（2026-11-25）
+- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。凍結した Phase A、Phase C の前の Phase B 結果、本書を除いた diff、判定 C と同じ生証拠（187 file。所見なし）。引渡し先・担当は C' の担当。取得案内は同じ directory の `cprime.md`
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（GO 候補 head は欄の implementation head）。
-  - 次の作業: §5 の判定必須テストを GO 候補 head で全て実行する。新しい worktree の X と Y で、起点 filter、driver の全段（新しい run id、AC1 の「スタート」は実行担当が画像で位置を読んで 1 回押す）、最終の全 EditMode 回帰（空 filter。合否の規則は §5）。XML の test 名と件数で集合を確かめ、record・log・画像を AC ごとに読む。証拠は evidence bundle にし、C' の blind bundle を同じ head から作る。結果は §7 に書く。発見 C の run `dc1`〜`dc4` の証拠は判定に使わない。
-  - 読む範囲: 既定のとおり（§0〜§8）。§5 と §7 の発見 C（4 巡目）を先に読む。
+  - 次の Phase・役割: C'（1 巡目。新しい session。モデルは Phase B・判定 C と違う物）。
+  - 次の作業: C' の blind bundle（§0）だけを入力に、GO 候補 head を独立に監査する。本書と PR は読まない。結果は進行役が §8 に転記する。
+  - 読む範囲: C' の担当は blind bundle と、head の source の写し（本書を除く）だけ。
+  - 引き渡さないもの: 発見 C・判定 C の所見（§7）と本書。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。implementation head は欄の SHA で、そこから HEAD までの差は本書だけ。
-  - 必要な権限: Unity の batch test と Player の build・起動（sandbox 外）、AC1・AC12 の画像の取得と「スタート」の操作、自分で起動した Unity と Player だけを止める、evidence の stage（Artifact Storage のローカル固定）。push は公開点の規則に従う。
-  - 停止規則: §5 の判定 C の手順と Unity の終了 stall の規則に従う。判定 C で阻害の指摘が出たら、B と発見 C の往復は上限に達しているので B へ戻さず owner へ返す。
-  - 引き渡さないもの: なし（C' へは発見 C・判定 C の所見を渡さない）。
+  - 必要な権限: C' の担当は読み取りだけ（Unity・test・GitHub は使わない）。bundle の取得と写しは進行役が行う。push は公開点の規則に従う。
+  - 停止規則: C' の阻害の指摘による差し戻しは別に数えて 3 巡まで。
 ## 1. 目的と対象外
 
 - 目的: 編集する開発者が、検証済みの base（遊べる Player と同じ build の、検証済みの installed revision）を載せた Windows の遊べる Player に、手元の編集から作った上書きを 1 つ重ねて起動し、編集した Scene と asset を Player の上で確かめられるようにする。重ねられない時（上書きが base と合わない、上書きが build の後に書き換わった）は、base だけの起動に縮退せず、Player を起動する前か起動の失敗として理由を示す。Player は build した時の script で動き、script の code か field の違いや、上書きが Player に無い型を使うことでは止めない（その部分は Unity の扱いのとおり欠けて動く）。動作確認の Player（BS4）の receipt と exit code の契約、Player の protected config、起動の fail-closed は弱めない。
@@ -545,6 +545,41 @@ AC4 (a) と AC9 は単体テスト。
 - 未確認事項: AC8 (c)、全 EditMode 回帰、X の段の取り直し（判定 C で全段を流す）。run `dc3` は判定の証拠に使わない。
 - 担当・モデル・ベンダー: レビューは Codex CLI（`codex exec resume` で同じ session を再開、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。実行・「スタート」の操作・証拠の梱包・この欄の転記は進行役（Claude Opus 5.5、Anthropic。Phase B の session とは別）。進行役は Y17 の入口の出力（`NotRequired`）を XML で確かめた。
 - 独立性: 1 巡目と同じ。
+
+### 発見 C（4 巡目）
+
+- 種別: 発見。GO 判定はしない。C' も起動しない。
+- 対象: implementation base `1fd200b5`、head `df1d731c`（引き継ぐ commit `9b033c2e`。作業ツリーは clean で HEAD と一致、`df1d731c` からの差は本書だけ）。レビューの対象は `0704f05f..df1d731c`（§6.7 の修正）。
+- evidence の状態: 取得案内は無い（bundle は未生成）。実行の生の証拠は git 管理外に残り、判定の証拠には使わない。
+- 機械検査: `contract-audit` errors 0・warnings 0。
+- 実行（Unity 6000.6.9f1、sandbox 外、X・Y を `9b033c2e` に detach、run `dc4`）: 差分は Y の判定の test だけなので X の段は流さず、2 巡目の X1 の Player を使った。実行の前に run `dc3` が Y に作った artifacts を repo の外へ退かした（消していない）。driver の写しと Y01〜Y17 と CleanupCache は全て XML Passed、total 1、`git status --porcelain` は前後で一致。AC1 の「スタート」は実行担当が画像で位置を読んで 1 回押した。Unity の終了 stall が Y10・Y13 の後に出て、その PID だけを CIM の `Terminate` で止めた。
+- DC5 の解消: Y17 の record で、入口の前の計画が `UnbuildableOnly`（上書きの root 0 個、作り直せない root 7 個、理由は全て `SourceAbsent`）、入口の通知（作り直せない root の組の警告と「上書きなし（content の編集なし）… (UnbuildableOnly)」）、`LaunchedWithoutOverlay`・`Observed`、Title の `Loaded.`、exit 0。asset 1 つの末尾の改行は、記録の閉包でその asset を持つ root を影響ありにするための編集で、AC8 (c) の作り方（Y の source から root の file を退かす）と目的を変えていない。入口の前の計画の確認は同じ port で読むだけで、入口は製品の `PlayerOverlayLaunch.Run` が実行する。
+- 現在の問いを阻害する指摘: 0 件。
+- 後続へ移送する指摘（違反根拠なし）: 2 巡目の `SaveRestoredSettings` の全体保存の項と、3 巡目の 2 つ目の panel の入力の項は引き続き後続。
+- 未確認事項: X の段の取り直しと全 EditMode 回帰（判定 C で行う）。run `dc4` は判定の証拠に使わない。
+- 発見 C の結論: B と発見 C の往復は 4 巡で閉じた。判定 C へ進める。
+- 担当・モデル・ベンダー: レビューは Codex CLI（`codex exec resume` で同じ session を再開、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。実行・「スタート」の操作・証拠の梱包・この欄の転記は進行役（Claude Opus 5.5、Anthropic。Phase B の session とは別）。
+- 独立性: 1 巡目と同じ。
+
+### 判定 C
+
+- 種別: 判定。対象は implementation base `1fd200b5`、GO 候補 head `df1d731c`（引き継ぐ commit `ded50b94`。作業ツリーは clean で HEAD と一致、`df1d731c` からの差は本書だけ）。
+- evidence bundle: §0 のとおり。判定 C の生証拠（run `j1`、185 file）をローカル固定し、別 process の取得で全 file を閲覧できることを確かめた。判断担当の Codex の読み取り専用の sandbox は Artifacts の取得先を読めなかったので、取得した copy を repo の外へ写して全 file の SHA-256 が同じことを確かめ、その写しを読ませた。
+- 機械検査: `contract-audit` errors 0・warnings 0。`docs-audit` は違反 0、警告 1 件（program の harvest の時期。この slice の判定に関係しない）。
+- 実行（Unity 6000.6.9f1、Windows 11、sandbox 外）: 新しい worktree の X・Y を `ded50b94` から作成（別の `Library`）。最初の import を兼ねて X で起点 filter、Y で `PlayerInputFilesTests` 1 件（warm-up）。両方の後に URP の global settings を `git checkout` で戻した。driver を `-RunId j1` で全段（`-Only` なし）、その後に X で全 EditMode 回帰（空 filter）。
+- 判定必須テストの結果:
+  - 起点 filter: 116 件、全て Passed（9 class）。
+  - driver: X1・X2・X-LaunchPlayable・X-BuildSmoke・X-LaunchSmoke・X3・Y01〜Y17 が各 1 件 Passed、XML の test 名は各 case と一致、`git status --porcelain` は全段の前後で一致、run の cache は CleanupCache が消した。X1・X-BuildSmoke の `step.json` の `failed` は Project Auditor の post-build の `error CS8773`（既知）だけ。
+  - 全 EditMode 回帰: total 2443、Passed 2383、Failed 0、Inconclusive 25、Skipped 35（全て `[Explicit]`）。Inconclusive の 25 件は全て S4-1a の判定 C（run `j1`）の集合（`SampleGame.Tests.Rendering.Vfx` の 25 件）と一致し、集合の外は 0 件。基準の集合は、S4-1a の判定 C の記録（total 2378、Passed 2338、Failed 0、Inconclusive 25）と件数・時刻が一致する、この PC の main の checkout の XML から名前を取った（S4-1a の evidence bundle は取得していない）。`Directory.Move` で落ちた test は無い。`run-tests.ps1` の exit 1 は Inconclusive の分だけ。
+  - Unity の終了 stall: Y06・Y08・Y10・Y13 の後に 1 回ずつ。XML の完成の 5 分後に 1 thread で CPU 時間が増え続けた PID だけを CIM の `Terminate` で止めた（Terminate は exit 0 を作り、自然終了ではない）。
+- AC の判定: AC1〜AC5・AC7〜AC18 は全て合格（AC6 は欠番）。AC1 は Y04 の Title の画像に 2 つの token、実行担当が画像で位置を読んで「スタート」を 1 回押した後の game の log に `OnStabledImpl HomeScene`、exit 0。AC12 は Y11 の Title の画像に UICommon の token が見え、対照の AC1 の画像には無い。AC8 (c) は Y17 で入口の前の計画が `UnbuildableOnly`、入口の通知、`LaunchedWithoutOverlay`・`Observed`。AC17 は X1（build を返した同じ process）と X2（新しい process）の両方で指紋の差分 0 件。
+- u の判定: u1〜u6・u9〜u12 は run `j1` の record で成立。u7・u8 は凍結の前の実測（§1）による。
+- 現在の問いを阻害する指摘: 0 件。
+- 後続へ移送する指摘（違反根拠なし）: AC12 の patch が足す 2 つ目の panel が Player の窓の入力を遮るかは測っていない。`SaveRestoredSettings` の全体の `AssetDatabase.SaveAssets()` は、build の時に別の未保存の asset があればそれも保存しうる（今回その証拠は無い）。
+- 判定: C' へ進める GO 候補。最終の GO は C' の後。
+- 未確認事項: u7・u8 の元の測定資料は bundle に無い（§1 の記録による）。
+- 担当・モデル・ベンダー: 判断は Codex CLI（`codex exec`、新しい session、読み取り専用の sandbox）、`gpt-6-luna`、effort medium、OpenAI。最初の 1 回は bundle の取得先を読めず判定不能で終わり、同じ session を再開して読める写しで判定をやり直した（前の結論は捨てさせた）。実行・「スタート」の操作・証拠の梱包と stage・この欄の転記は進行役（Claude Code の desktop の session、Claude Opus 5.5、Anthropic。Phase B の session とは別）。
+- 独立性: 判断担当は Phase B（Claude Opus 5.5、Anthropic）と違うモデル・ベンダー。実行担当は Phase B と同じモデルで、凍結した手順の実行と梱包だけを行い、合否は判断担当が読んだ。
 
 ## 8. Phase C'
 
