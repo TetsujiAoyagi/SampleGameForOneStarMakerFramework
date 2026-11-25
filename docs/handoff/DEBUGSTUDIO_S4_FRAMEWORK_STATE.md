@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合案 revision 6。A2 の 2 件と外部計画レビューの 1 巡目を反映した。**凍結はまだ。実装キューではない**）
+- status: `A`（A3 統合案 revision 7。A2 の 2 件と外部計画レビューの 1・2 巡目を反映した。**凍結はまだ。実装キューではない**）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `未固定`
@@ -40,7 +40,8 @@
 - revision 3（commit `7948b6a7`）: owner の補足（2026-11-25、§1.1）で目的を「Hierarchy と同じように Scene の存在・状態・寿命を観測する方向の最初の一歩」に戻し、基盤の整備を目的から外した。owner の判断「共通の口にしたのが無理をさせてるならやめてもいい」（2026-11-25）で共通の口（hook の置き換え）をやめ、revision 1 と同じ形の内部の振り分けに戻した。これにより、owner が 2026-11-25 に決めた「既存の `CreateDebugCommandDispatcher()` の override は新しい hook へ移して廃止」は取り消した。D1〜D9 / L1〜L10 の表は [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md) へ移した。
 - revision 4（commit `c79bc8f9`）: owner が渡した最終の提言（2026-11-25。§1.5 の意見 Z）を反映した。§1.9 の U1・U2 と risk を確定した。目的の「表示のための GameObject や MonoBehaviour を作らずに」を、本スライスの範囲の記述に改め、Framework の設計原則や将来の制約として読めないようにした（§1.1）。Scene の存在の意味を写しと event で分けて書いた（§1.3、§1.6）。旧 service の handler が新しい Play の SceneDirector を読みうることを、解決ではなく読み取りに限って許容した制約として書き直した（§2.2）。cancel 済みの Framework のコマンドを Game へ渡さないように振り分けを改めた（§2.1 の 1）。
 - revision 5（commit `748d4c8e`。A3 統合案）: A2 の目的レビューとアーキテクチャゲートの指摘を §5.1 の採否のとおり反映した。主な変更: Editor / Player の判定と Framework のコマンドの登録を構成の関数 `FrameworkDebugCommands.Compose` に切り出した、新規 file の namespace を folder で分けない、振り分けは内部の `CatalogDebugCommandDispatcher` へ委譲する、出力の整形を純関数 `Format` にした、`ReleaseAll` の null 化を AC にした、dispatcher の鎖を通した同一性のテストを足した。A3 で固定する物（oracle の導出の規則、比較の規則、V3 の操作、V5 の識別の条件）を §5 に固定した。
-- revision 6（本書）: PR #216 の外部計画レビュー 1 巡目（2026-11-25、owner のアカウントのコメント）を §5.1 の採否のとおり反映した。unload の待ちが true になる場面の単体テスト（AC4b）、比較の規則の強化（存在の条件・形・件数・一意性・順・保留と未判定の扱い）、V3 の完了の観測、I1 の主張と証拠の分担と oracle の観測項目の追加、名前の振り分けが完全一致であることの明記、組込みのコマンドの確認。
+- revision 6（commit `0e800529`）: PR #216 の外部計画レビュー 1 巡目（2026-11-25、owner のアカウントのコメント）を §5.1 の採否のとおり反映した。unload の待ちが true になる場面の単体テスト（AC4b）、比較の規則の強化（存在の条件・形・件数・一意性・順・保留と未判定の扱い）、V3 の完了の観測、I1 の主張と証拠の分担と oracle の観測項目の追加、名前の振り分けが完全一致であることの明記、組込みのコマンドの確認。
+- revision 7（本書）: PR #216 の外部計画再レビュー（2 巡目）を反映した。V3 の完了の観測が不成立なら未判定で止めること（E2 を狭めない）と印の扱い、V6 の復元、V2 の変化の扱い。
 
 ## 1. 目的と対象外
 
@@ -283,7 +284,7 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 
 - GO: I1〜I4 と E1〜E4 を同じ GO 候補 head で満たし、判定必須テスト（§5）が全て通る。
 - NO-GO: 上のどれかが満たせない。
-- 未判定: §5 の「保留」が 3 回続いた段、または oracle が確立できない段がある。GO の証拠にも NO-GO にもせず、原因を整理して再実行する（判定の条件を弱めない）。
+- 未判定: §5 の「保留」が 3 回続いた段、oracle が確立できない段、疎通 (a)・(b) の不成立、V3 の完了の印が 60 秒で決まらない、V2 で自然な進行と切り分けられない変化、のどれかがある。GO の証拠にも NO-GO にもせず、原因を整理して再実行する（判定の条件を弱めない）。
 
 ### 2.6 risk の理由
 
@@ -352,17 +353,21 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
     - `capturedFrame`: 整数として存在することだけを見て、値は比べない。
     - 終わり方: exit 0、stdout に `success=true message=captured`。
   - 実行担当は結果を見て期待値を決めない。期待値は毎回 oracle から得るので、機械向けの期待値 file は作らない。
-  - Phase C の冒頭の疎通（今回新しい経路なので、判定の前に分けて記録する。外部計画レビュー 1 巡目の P1-2）: (a) oracle の eval が規則どおりの JSON を返すこと、(b) eval で `SwitchScene` を駆動し、その完了と例外を観測できること（V3 の観測の方法）。どちらも、不成立なら判定に進まず、検証の基盤の不備として記録する。
+  - 新しい経路の疎通（判定とは分けて記録する。外部計画レビュー 1 巡目の P1-2、2 巡目の P1）: (a) oracle の eval が規則どおりの JSON を返すこと。Phase C の冒頭、V1 の前に確かめる。(b) eval で `SwitchScene` を駆動し、その完了と例外を検証用の印で観測できること。(b) は Title → HomeScene の遷移を伴うので冒頭では行わず、V3 の開始時に兼ねる（V1 の初期状態を崩さないため）。どちらも不成立なら、その段から先を未判定で止め、検証の基盤の不備として記録する。E2 を狭めて進めない。
 - 操作・実行時の条件の検証経路（AC11。実行担当は判定 C 用に開いた session。S3 の §5.4 と同じ環境の作り方）:
   - V0: clean な検証用 checkout を GO 候補 head に detach し、その `unity/` を自分で開いた Editor 6000.6.9f1。DebugStudio の App・CLI を Release で build し、App を `--listen` で起動して PID を記録する。
   - V1（E1）: SampleGame の Title から Play を始め、`hierarchy` が `hasSnapshot: true` になるまで読み直す（上限 60 秒）。oracle が `sceneDirector: true`、`Title` あり、全ての `state` が `Stable` になるまで oracle を読み直し（上限 60 秒）、比較の規則で照合する。
-  - V2（I1）: V1 の有効な比較を 5 回続け、各回の前後の oracle の全ての項目（管理集合・状態・unload の待ち・履歴・進行中の操作の key・Unity の読み込み済みの Scene・AssetManagement の台帳の件数）が変わらないことを記録する。変わった場合は、自然な進行による変化か（`osm.scenes` を送らない間にも同じ変化が起きるか）を分けて記録し、判定の担当へ返す。`hierarchy` の revision は参考として記録するだけで判定に使わない。
-  - V3（E2）: oracle と同じ入口で取った SceneDirector に対し、eval で `SwitchScene("Title", "HomeScene", CancellationToken.None)` を呼ぶ（`TitleScene.cs:80` が Title の開始の操作で呼ぶのと同じ `SwitchScene` の呼び出し。`recordHistory: true` の経路を通る）。完了の観測: 同じ eval で、戻り値の UniTask の完了と例外を検証用の印に書き残し（例: 戻り値を `Task` にして継続で `AppDomain.CurrentDomain.SetData` に `completed` か例外の文言を書く）、後の eval で読む。この方法が Phase C の冒頭の疎通 (b) で成り立たない場合は、E2 の「例外なく完了した」を主張せず、oracle の観測（`HomeScene` の `Stable`、`Title` の不在、履歴の先頭）と Console に `SwitchScene` の例外が出ていないことまでに E2 を狭めて記録する。完了が観測できたら、oracle が `HomeScene` あり・`Title` 無し・全て `Stable` になるまで読み直し（上限 60 秒）、比較の規則で照合する。`history` の先頭が `{from: "Title", to: "HomeScene"}`、`canGoBack` が true であることも記録する。
+  - V2（I1）: oracle → `osm.scenes` → oracle を 5 回続け、各回の前後の oracle の全ての項目（管理集合・状態・unload の待ち・履歴・進行中の操作の key・Unity の読み込み済みの Scene・AssetManagement の台帳の件数）が変わらないことを確かめる。V2 では前後の変化は保留ではなく副作用の候補として扱う（外部計画レビュー 2 巡目の P2）: 全ての試行の oracle と出力を保存し、変化のあった回を捨てて一致した回だけを集めない。変化があったら、同じ間隔で `osm.scenes` を送らずに oracle を 2 回読み、同じ変化が起きるか（自然な進行か）を確かめて記録する。`osm.scenes` に起因する変化（送らない間には起きない）は I1 の NO-GO、自然な進行と切り分けられない変化は未判定とする。`hierarchy` の revision は参考として記録するだけで判定に使わない。
+  - V3（E2）: oracle と同じ入口で取った SceneDirector に対し、eval で `SwitchScene("Title", "HomeScene", CancellationToken.None)` を呼ぶ（`TitleScene.cs:80` が Title の開始の操作で呼ぶのと同じ `SwitchScene` の呼び出し。`recordHistory: true` の経路を通る）。この段が疎通 (b) を兼ねる。
+    - 完了の観測（検証用の一時的な印。製品の code には何も足さない）: 要求ごとに固有の key（例: `osm-s4-v3-` と UTC の ticks を連ねた文字列）を決め、呼ぶ前に `AppDomain.CurrentDomain.SetData(key, "pending")` を書く。同じ eval で戻り値を `Task` にし、継続で成功なら `"success"`、例外なら `"failure:"` と例外の型と文言を同じ key に書く。後の eval でその key だけを読み、`"pending"` の間は読み直す（上限 60 秒）。読み終えたら、または打ち切ったら `SetData(key, null)` で消す。Domain Reload が無効なので、前の実行の印を拾わないよう key を使い回さない。
+    - 裁定: `"success"` を読めたら完了とする。`"failure:…"` なら E2 の NO-GO。60 秒たっても `"pending"`、または印を書けない・読めない（疎通 (b) の不成立）なら未判定で止め、基盤の不備として記録する。Console に例外が無いことを完了の代わりにしない。E2 を観測の境界まで狭めて進めることはしない（狭めるなら A3 の凍結の前に E2 と規則を揃えるか、凍結の後なら owner の裁定と revision の更新を先に行う。判定 C の担当は結果を見て E2 を弱めない）。
+    - 完了を確かめた後、oracle が `HomeScene` あり・`Title` 無し・全て `Stable` になるまで読み直し（上限 60 秒）、比較の規則で照合する。`history` の先頭が `{from: "Title", to: "HomeScene"}`、`canGoBack` が true であることも記録する。
   - V4（E4・I4）: V3 の後の Play で `hierarchy` を読み直し、今の hierarchy で名前が一意の root を選んで、その現在の NodeId で S3 の固定版 §5.4 と同じ手順（`debug.set-active` を false → true、各回の `inspect` の rawValue と、独立した eval による同じ GameObject の `activeSelf` の照合）を行う。前の段で読んだ NodeId を使い回さない。あわせて `send --command debugsocket.ping` を 1 回送り、組込みのコマンドが今どおり応答することを記録する。
   - V5（E3・I2）: V3 を済ませた Play を止め、同じ Editor で再び Play し、何も操作せずに V1 と同じ条件で照合する。`history` が `[]`、`canGoBack` が false であることを記録する。
+  - V6（終了処理）: Play を止め、WPF に通常の終了を要求し（`CloseMainWindow`）、実際の終了と終了コードを記録する（S3 の固定版 §5.4 と同じ）。開いている Scene が clean か、tracked の変更が無いかを記録し、自分で開いた Editor を通常終了する。V1〜V5 のどこかで未判定や失敗で止めた場合も、実行担当が起動した Play・WPF・Editor について、この終了処理を行ってから記録を返す。
   - 遷移の途中の状態と unavailable の出力は実機で見ず、AC4・AC5・AC6 で閉じる。
   - 保存: 各段のコマンド、開始・終了の UTC、stdout / stderr / exit、oracle の戻り値、比較の結果。Git に入れず、[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従って保存する。
-- 未知の操作経路の疎通結果: `send` の経路は S3 で成立済み。oracle の reflection と、eval による `SwitchScene` の駆動と完了の観測は未確認で、初回確認は Phase C の冒頭の疎通（比較の規則の最後の項）。不成立なら基盤の不備か設計の不備かを分けて記録し、判定の担当が A3 の新しい revision の要否を判断する。
+- 未知の操作経路の疎通結果: `send` の経路は S3 で成立済み。oracle の reflection と、eval による `SwitchScene` の駆動と完了の観測は未確認で、初回確認は Phase C の疎通 (a)（V1 の前）と (b)（V3 の開始時）。不成立なら基盤の不備か設計の不備かを分けて記録し、判定の担当が A3 の新しい revision の要否を判断する。
 - 人間の判断が必要な条件: なし。
 - 高コスト証拠: なし。
 - 判定 C の照合 script の方式: 判定 C の offline 実行（上の比較の規則）。A3 の時点に存在する機械向けの期待値・合成 fixture・script は無いので、Phase A snapshot は不要。
@@ -434,6 +439,14 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 | P2 名前の振り分けは登録した名前の完全一致で、接頭辞では振り分けないことを明記し、AC に同名の衝突・未登録の `osm.*`・大小文字の違いを入れる | 採用 | §1.9 U2、§2.1 の 1・5、AC7 (5) |
 | P2 組込みのコマンドの確認の所在と、V4 で S3 の独立した照合を残し NodeId を選び直す | 採用 | I4 (c)、§5 の判定必須テストと V4 |
 | P2 構想の §4 の表の空行 | 採用 | 構想 §4 |
+
+- 外部計画再レビュー（2 巡目。PR #216 のコメント、2026-11-25、owner のアカウント。対象 revision 6 `0e800529`。結論は「設計への追加要求はなし。手順の不整合を直し、docs-audit を通せば A3 の凍結に進んでよい」）の採否:
+
+| 指摘 | 採否 | 反映先 |
+|---|---|---|
+| P1 V3 の完了の観測が不成立の時の裁定を一本化する（E2 を維持し、観測できなければ未判定で止める。疎通 (b) は V1 の初期状態を崩さないよう V3 で兼ねる。印は要求ごとの固有の key、pending → success / failure、timeout、後の掃除） | 採用 | §5 の疎通の項、V3 |
+| P2 V6 を戻す（WPF の実終了、Scene の clean、tracked の差分。未判定・失敗の時も終了処理を行う） | 採用 | §5 V6 |
+| P2 V2 の変化は保留ではなく副作用の候補として扱う（全試行の保存、送らない間の観測で切り分け、コマンドに起因すれば NO-GO、切り分けられなければ未判定） | 採用 | §5 V2 |
 
 - 外部計画レビューの反映による A2 の観点の再レビューの要否: 変更は検証計画と受け入れ条件の具体化、出力の `pendingUnload` の意味の明記（U1 の範囲）で、責務の配置・依存・公開面は変えていないので、A2 のやり直しはしない。目的・利用者の文言も変えていない。
 
