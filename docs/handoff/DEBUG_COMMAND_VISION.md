@@ -71,7 +71,6 @@ DontDestroyOnLoad に置くデバッグ表示用の GameObject は、今の Debu
 | D. 共通の登録の口 | Framework と Game が同じ catalog に登録する hook（例: `RegisterDebugCommands(DebugCommandCatalog)`）。古い `CreateDebugCommandDispatcher` からの移行 | Game のコマンドが増えた時、Framework と Game の名前の衝突が実際に起きた時 | 名前空間（下の §5）、登録の順と衝突の扱い、登録の失敗の方針（原則 8）。hook の引数は catalog の object そのものにする（宣言付きの登録などを overload で足しても hook の signature が変わらない） |
 | E. 自己説明 | 宣言（名前・説明・読み取りか書き込みか・使える場・入力と出力の例）を catalog の overload で足し、`osm.commands`（一覧・help）を足す。宣言なしの登録は名前だけ出す | コマンドが README で追えなくなった時、AI が動的にコマンドを選ぶ・自動検証が一覧を要る時 | 宣言の項目。README との役割の分担 |
 | F. 寿命と公開範囲 | Scene 寿命のコマンド（登録の解除の handle。登録も実行も main thread なので「初期化の時だけ」を緩められる）。書き込みのコマンドの Play の世代。Development Player への公開（明示して足す登録） | Scene ごとのデバッグ操作が要る時、Player でデバッグしたい時（program の S4 系の後） | 公開範囲の方針（原則 5）。既存の Editor 用の登録が Player へ漏れない足し方 |
-
 | G. Unity の Inspector からの観測 | DontDestroyOnLoad のデバッグ表示用の GameObject と MonoBehaviour（または custom editor）で、Scene・asset・update の状態を Hierarchy・Inspector に出す。各機能の写しの口を使う | Editor で開発している人が DebugStudio を起動せずに内部の状態を見たくなった時 | 表示を置くか・消すかの切替え（ゲームの動作に影響しない形）、表示されている間だけ写しを取る方法、composition root のどこで作るか（§2.1 の守ること） |
 
 順は固定しない。A・B・G は観測を増やし、C〜F は口を整える。口の整備は、観測を足す作業の中で具体的に困った時に始める。
