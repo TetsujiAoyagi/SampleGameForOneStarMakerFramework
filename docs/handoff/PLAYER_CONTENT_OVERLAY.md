@@ -605,4 +605,29 @@ AC4 (a) と AC9 は単体テスト。
 
 ## 9. Phase D
 
-（未着手）
+### Evidence の保存・引渡し確認（2026-11-25）
+
+- 担当: Phase C〜C' の進行役の session が、owner の指示（「後続で、その記録作ったら phaseD やって、マージして後始末して」、2026-11-25）で続けて行った。HEAD `62249d63`（push 済み、PR #212 の head と同じ）。implementation head `df1d731c` からの差分は本書と harvest の文書だけ。
+- 判定用 evidence bundle（run `j1`、185 file）、判定 C の追加の bundle（run `ed1`、16 file）、C' blind bundle（187 file）: どれも §0 の取得案内の reference と期待 packageSha256 で、非仮想化の pwsh から別 process で取得して `passed`、全 file を閲覧でき、判断担当には SHA-256 が同じ写しを読ませた（§7・§8）。`evidence inspect` で 3 つとも `staged`（`locality` は `local`）。状態: **確認済み**（ローカル固定、未昇格）。
+- 昇格しない理由: 読み手はすべて同じ PC・同じ Windows ユーザーの session（と外部の CLI）で、Cloud・別 host の読み手は無く、owner の昇格の指示も無い。保持は Storage の条件（task 終了 + 30 日）に従う。
+- 未保存分: 無い。判定 C・C' の所見、AC の根拠、後続への移送は本書（git 履歴）にあり、harvest 先と program へ移した。発見 C の run `dc1`〜`dc4` の生の証拠と、外部の CLI の出力の原文は git 管理外に残してある（判定の証拠ではない）。
+- Evidence の日次清掃 job: `pwsh tools/artifacts.ps1 evidence schedule status` が `passed`（登録あり、次回 2026-11-26 03:00）。job 自身の前回の結果は `partial`（blocked 6）で、この確認の基準（`passed`）の外なので直していない。
+
+### PR のレビューへの対応
+
+- cursor[bot] の実装レビュー（2026-11-25、head `62249d63`）: 新しい阻害なし。前の計画レビューの 3 件がコードになっていることを確かめた。
+- owner の account の再レビュー（2026-11-25、head `62249d63`）: P2「`player-compat.json` の `identity` を選んだ Player の identity と照合していない」と、非阻害の「観測が log の読みと process の終了の確認の間の窓で古い写しから `Failed` に決まりうる」。P2 は code で事実を確かめたが、凍結した D11 の条件（同じ口で集めた指紋の照合）の違反ではなく、手で別の compat を写し違えた時だけの経路なので、owner が後続へ送ると決めた（今直すと implementation head が変わり、判定 C と C' をやり直すことになる）。2 件とも program の「S4-2 から移送した入力」の (1)(2) に書いた。
+
+### harvest と後始末
+
+- harvest:
+  - [04 章](../../unity/Assets/Docs/Architecture/04-app-startup.md): §4.6（遊べる Player の上書きの起動、map の log の `hash=`）、§4.7（上書きの 3 key、Player の分岐、digest の必須と任意、登録の前の照合、`ContentOverlayPlayConfig` の公開面）。
+  - [13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「base と上書きの登録契約」: Player の禁止を解いた範囲と、製品の口で測った設定。
+  - [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」: Player の入口（Player と base の決め方、指紋、上書きの置き場と再利用、記録と観測、既知の制約）。
+  - [実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md): G0 (a)(b)(d)、u8、u12、発見 C で分かった事実（build の途中の保存が mutation の値を disk に残したこと、UICommon の UXML の label が層の container の下に隠れること、root の file を退かすだけでは `UnbuildableOnly` にならないこと）、driver による測り直しの手順。
+  - repo の README の「試す」6。
+  - program: §8 の S4-2 の行の完了、§5.3、「S4-2 から移送した入力」、§10 の U11 の (k)〜(o)。
+- 判定の driver（`tools/s42-player-overlay.ps1`）と `PlayerOverlayEdits/` の patch は、測り直しの手段として残す（§3 の「Phase D で残すかを決める」の答え。実測の事実の「測り直し」が参照する）。
+- 削除: 本書を次の commit で消す。git 履歴のこの commit に全文が残る。
+- task の終了（`workflow-task.ps1 end`）と、worktree・判定用の作業 folder の後始末: owner の完了指示を受けて、マージの後に進行役が行う。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。harvest の文書変更は同じ系列の subagent が書き、進行役が差分を確かめた。

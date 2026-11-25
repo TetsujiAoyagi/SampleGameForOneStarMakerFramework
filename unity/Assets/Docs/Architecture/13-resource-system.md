@@ -105,9 +105,9 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 
 #### base と上書きの登録契約（S2-2 で定めた。強制は internal の登録の口にあり、起動から呼ぶ（S3-4b））
 
-開発時の Editor の Play で、取得した目的 build（base）に手元で build した上書きを重ねる時の文である。
+開発時の Editor の Play と遊べる Player で、取得した目的 build（base）に手元で build した上書きを重ねる時の文である。
 上書きの作り方は [18 章](18-asset-description.md)「上書きの build と逆引き（現況）」、実測は
-[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の 2 つの上書きの節と、6000.6.9f1 の測り直しの節と、部分 checkout の上書きの節。
+[実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md) の 2 つの上書きの節と、6000.6.9f1 の測り直しの節と、部分 checkout の上書きの節と、Windows の Player の上書きの節。
 「禁止」は未測定のため契約で塞ぐ意味で、後続が測れば解ける。
 
 **強制する実装（S3-2）:** internal の `ContentDirectorySession.RegisterVerifiedWithOverlay(VerifiedInstalledRevision, overlayPath, overlayIdentity)` が、
@@ -115,10 +115,10 @@ directory Scene は `ReleaseSceneTokenAfterPlayStop` で token だけ返し、`R
 （`ContentDirectoryLayers`）で所有し、`AssetManagement` は今までどおり session を 1 つだけ install する（2 件目を拒む）。
 token・発行済みの処理・失敗した後始末は層をまたいで session で 1 組だけ数え、`ContentRevisionGate` は層 2 つを 1 件の登録として予約する
 （どちらの層の path・revision の削除の許可も拒み、層どうしの path か revision の重複は予約の前に拒む）。
-失敗は例外で返し、base だけの session を返さない。製品で呼ぶのは起動（`AbstractApplicationInitializer`）だけで、config に上書きの key 2 つがある
-Editor の directory Play で、検証済みの base（installed の pair）に対してだけ呼び、その例外を握らず起動の失敗にする（base だけの登録へやり直さない。
-[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」）。key を置くのは SampleGame の Play の入口の経路 Built + local edits と、
-自分で作った上書きを渡す別の host の入口である（[18 章](18-asset-description.md)「宣言からの Play 経路」）。
+失敗は例外で返し、base だけの session を返さない。製品で呼ぶのは起動（`AbstractApplicationInitializer`）だけで、config に上書きの key がある
+Editor の directory Play と遊べる Player（S4-2）で、検証済みの base（installed の pair）に対してだけ呼び、その例外を握らず起動の失敗にする（base だけの登録へやり直さない。
+[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」）。key を置くのは SampleGame の Play の入口の経路 Built + local edits、
+遊べる Player を起動する SampleGame の menu、自分で作った上書きを渡す別の host の入口である（[18 章](18-asset-description.md)「宣言からの Play 経路」）。
 強制を確かめた設定は、Domain Reload 無効の Play、同じ PC・同じ `Library` で作った base と上書き、要求時解決の loader の経路で、
 製品の build 経路の base（build → publish → install → 検証）と上書き（逆引き → 上書きの build）を実機で登録・読み・解除した。S3-4b で、SampleGame の
 実 Editor の Play ボタンから起動の登録までを、Domain Reload の無効と有効の両方で通した（上書きの Play → 停止 → 再 Play で 2 回とも登録が成功した）。
@@ -154,7 +154,7 @@ S3-4b は見直しの条件（program §5.3）に当たらずに縦断を実証�
   どの経路も層の列の 1 つの method（`TryUnregisterAll`）で逆順に 1 層ずつ解除し、上書きの解除が失敗したら base を解除せず、成功した層は再び解除せず、
   全ての層を解除してから予約を返す。登録の巻き戻しと Play 停止で解除が失敗した層の列は、process に 1 つの再試行として保留し、次の登録が native の登録の前に走らせる
   （失敗すれば登録を拒む）。
-- **範囲:** 上書きは Editor の Play だけで使い、Player は 1 つの目的 build だけを載せる。Player で測ったのは、Windows の IL2CPP・managed stripping High の Player で Unity の native の登録を base → 上書きの順に直接呼んだ時に、読まれる版・class・実体の数・寿命が Editor の Play と同じだったことまでである（S4-0。範囲は下の「測った設定」）。製品の登録の口と検証済みの base で Player に重ねることは測っておらず、この禁止を解くかは S4-2 が決める。
+- **範囲:** 上書きを重ねるのは Editor の Play と、Windows の遊べる Player（`content:playerKind` = `playable`）に installed の pair（Player と同じ build の検証済みの revision）を渡した起動だけである（S4-2 で Player の禁止をこの範囲で解いた）。遊べる Player では上書きの digest の key が必須で、native の登録の前に Player が digest を取り直して比べる（[04 章](04-app-startup.md#47-設定の読み込みappconfig) §4.7「上書きの起動の設定」）。動作確認の Player（`smoke`）と、installed の pair の無い Player（同梱の directory）には重ねず、起動の失敗にする。base は Player と同じ build の revision だけで、別に build した base を Player に載せる形は無い。Player は要求時解決を配線しないので record は付かず、層の選び方と id による影は content 入口が守る。上の順序・個数・時点・照合・解除は Player でも同じ口が守る。
 - **実体の重複:** 上書きの root と base の root の両方が直接参照する共有 asset は実体が 2 つになり、状態を持つ asset（参照の同一性で共有する ScriptableObject 等）は別の実体に分かれる。上書きの build は、`Assets/` の下の該当 asset の一覧を preflight に出す（実測で一覧と実体の数が合った）。
 - **上書きの中身:** 上書きの root は build の時の手元の版で作られる。渡していない手元の編集も、上書きの root が直接参照していれば入るので、同じ Play に同じ asset の 2 つの版が出うる（実測）。
 - **作り直せない root:** 手元の編集の影響を受けるが手元の source で作り直せない root（[18 章](18-asset-description.md)「上書きの build と逆引き」の計画の分類。呼び手がその集合を認めた時だけ上書きが作られる）は、上書きに版を持たない。その root の entry は base から載り（record は base を指す）、その root が直接参照する asset は base の build の時の bytes で出る（Scene の直接参照は Scene のある directory の中で解決される。合成 fixture、製品の build 経路、6000.6.9f1 の実測）。同じ asset を直接参照する root が上書きに入っていれば、同じ Play に手元の版も出る（上の「上書きの中身」と同じ性質）。上書きにある id の物をこの root から id で引いた時の版は、上の「同じ id の物」と「id による影」のとおりで、この root のための別の規則は無い。
@@ -163,8 +163,9 @@ S3-4b は見直しの条件（program §5.3）に当たらずに縦断を実証�
   native の登録は Play を終えても Unity が自分では解除せず（Domain Reload の有無によらない）、script の reload の後は一覧が 0 件になった。
   Domain Reload 有効の Play は S3-4b が入口から確かめた。製品は Play の終わりに解除するので、停止の後の Edit mode で native の一覧は 0 件で、次の Play で
   登録と read lease の取り直しが成功した（上書きなしと上書きあり。SampleGame の実 Editor、6000.6.9f1）。製品が解除し損ねた時に Play に入る時の reload が残りを消すか、
-  reload の後の OS の lease の file handle、Play の間の script の compile で session が失われた後の扱いは測っておらず S4-4、別の PC の base は S4-3（Player では別の `Library` の base を S4-2）。
-  Player: 1 台の PC・同じ `Library` で base → Player（base の build report を渡す）→ 上書きの順に build した、IL2CPP・managed stripping High・development build でない Windows の Player を `-batchmode`（graphics の device あり）で起動し、合成 fixture・base → 上書きの順で、製品の登録の口・検証と起動を通さずに測った（S4-0）。上書きだけが使う script の型は、base が使う型と同じ assembly にあり Player に残っていた。他の Player の構成、型が Player に無い時、実データは測っていない。実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Windows の Player での上書きの登録（6000.6.9f1）」。
+  reload の後の OS の lease の file handle、Play の間の script の compile で session が失われた後の扱いは測っておらず S4-4、別の PC の base は S4-3。
+  Player: 1 台の PC・同じ `Library` で base → Player（base の build report を渡す）→ 上書きの順に build した、IL2CPP・managed stripping High・development build でない Windows の Player を `-batchmode`（graphics の device あり）で起動し、合成 fixture・base → 上書きの順で、製品の登録の口・検証と起動を通さずに測った（S4-0）。上書きだけが使う script の型は、base が使う型と同じ assembly にあり Player に残っていた。
+  製品の口（S4-2）: 同じ PC の別の checkout（別の `Library`）で build した遊べる Player と base（installed）に、手元の checkout で build した上書きを SampleGame の menu から重ね、窓を出した通常の起動で、実データ（`spring-full`。Title の Scene・UICommon・SceneResourceMap の編集を含む）を上書きの版で読み、Title から操作を続けて窓を閉じて exit 0 で終わった。digest の不一致・key の欠け・別の base の記録・同梱の directory・`smoke` は、どれも UICommon を読む前の起動の失敗（exit 1）だった。script の差を製品の口で確かめたのは field を足す時だけで、Player に無い型を上書きが使う時は確かめていない。実測は [実測の事実](../../../../docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)「Windows の Player での上書きの登録（6000.6.9f1）」「別の `Library` の上書きと script の field の差（Player、6000.6.9f1）」「遊べる Player に製品の口で上書きを重ねる（6000.6.9f1）」。
 
 ### DIST transport と disk cache の境界
 
