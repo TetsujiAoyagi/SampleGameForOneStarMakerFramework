@@ -388,7 +388,10 @@ namespace OneStarMaker.Runtime
                     BootstrapMapSource.Addressables => await LoadSceneResourceMapAsync(),
                     _ => throw new InvalidOperationException("Unknown SceneResourceMap source."),
                 };
-                Debug.Log($"[AppInit] Bootstrap SceneResourceMap: source={BootstrapSourcePolicy.FormatMapSource(bootstrapPlan.MapSource)}");
+                // hash= は読んだ map の GenerateHash。上書きの map が読まれたことを Player の log だけで見分ける印で、判断には使わない。
+                // 行の先頭と source= の値は既存の読み手（先頭の一致）のために変えない。
+                var mapHash = _sceneResourceMap != null ? _sceneResourceMap.GenerateHash : string.Empty;
+                Debug.Log($"[AppInit] Bootstrap SceneResourceMap: source={BootstrapSourcePolicy.FormatMapSource(bootstrapPlan.MapSource)} hash={mapHash}");
 
                 if (_assetManagement == null || _cts == null)
                 {
@@ -558,7 +561,7 @@ namespace OneStarMaker.Runtime
             progress.Stage = "load-player-first-scene:" + firstScene;
             await _sceneDirector!.AddScene(firstScene, null, ct);
             // 起動の到達を外から読む印（Player の log）。文言は判定の照合が探すので変えない。
-            Debug.Log($"[AppInit] Player content first scene: scene={firstScene} " +
+            Debug.Log($"{ContentOverlayStartup.PlayerFirstSceneLogMarker}scene={firstScene} " +
                       $"identity={_contentDirectoryConfiguration!.BuildIdentity} kind=playable stable={_sceneDirector!.IsSceneStable(firstScene)}");
         }
 
@@ -834,6 +837,8 @@ namespace OneStarMaker.Runtime
             var overlay = configuration.Overlay;
             if (overlay != null && configuration.VerifiedRevision == null)
                 throw new InvalidOperationException("A content overlay requires a verified base revision.");
+            if (overlay?.Digest != null)
+                VerifyOverlayDigest(overlay, configuration.VerifiedRevision!);
             var session = overlay != null
                 ? ContentDirectorySession.RegisterVerifiedWithOverlay(configuration.VerifiedRevision!, overlay.Path, overlay.Identity)
                 : configuration.VerifiedRevision != null
@@ -862,6 +867,25 @@ namespace OneStarMaker.Runtime
             // installed は検証済みの pair、directory は path の指定（Player の同梱の directory を含む）。
             Debug.Log($"[AppInit] Content directory registered: identity={session.BuildIdentity} " +
                       $"from={(configuration.VerifiedRevision != null ? "installed" : "directory")}");
+        }
+
+        /// <summary>
+        /// 上書きの directory の digest を取り直し、起動の config の値と比べる。native の登録より前に呼ぶので、違えば上書きの中身を
+        /// 1 つも load しないまま起動の失敗になる。path は登録と同じ正規化を通し、不正な path は登録と同じ失敗にする
+        /// （digest を別の path で取ると、照合した directory と登録した directory が食い違いうる）。
+        /// 取り直しから native の登録までの間の書き換えは見分けない（開発用の Player では受け入れる窓）。
+        /// </summary>
+        private static void VerifyOverlayDigest(ContentOverlayStartupDecision overlay, OneStarMaker.Runtime.BuildContent.Distribution.VerifiedInstalledRevision baseRevision)
+        {
+            if (!ContentRevisionGate.TryNormalize(overlay.Identity, baseRevision.Target, overlay.Path, out var normalized))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Overlay content directory path or identity is invalid.", baseRevision.Identity, baseRevision.Target);
+            if (!Directory.Exists(normalized))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    "Overlay content directory path must exist.", baseRevision.Identity, baseRevision.Target);
+            if (!string.Equals(ContentOverlayDigest.Compute(normalized), overlay.Digest, StringComparison.Ordinal))
+                throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration,
+                    ContentOverlayStartup.DigestMismatchReason, baseRevision.Identity, baseRevision.Target);
         }
 
         /// <summary>
@@ -1206,11 +1230,13 @@ namespace OneStarMaker.Runtime
             var installedRoot=config.GetString("content:installedRevisionPath",string.Empty);
             var installedDigest=config.GetString("content:manifestSha256",string.Empty);
             // 上書きの key は、addressables と決めて config を返さない分岐と Player の分岐より前に見る（key を残したまま base だけ・
-            // addressables で始めない）。重ねられる設定は検証済みの base の分岐にだけ渡る。
+            // addressables で始めない）。重ねられる設定は検証済みの base の分岐（Editor）と遊べる Player の分岐にだけ渡る。
+            // Player の種類は検証済みの baked から読む（重ねた後の config の値で smoke を playable に見せかけさせない）。
             var overlay = ContentOverlayStartup.Decide(
                 config.ContainsKey(ContentOverlayStartup.OverlayPathKey), config.GetString(ContentOverlayStartup.OverlayPathKey, string.Empty),
                 config.ContainsKey(ContentOverlayStartup.OverlayIdentityKey), config.GetString(ContentOverlayStartup.OverlayIdentityKey, string.Empty),
-                Application.isEditor && Application.isPlaying, UseRequiredPlayerFileConfiguration, specified, mode,
+                config.ContainsKey(ContentOverlayStartup.OverlayDigestKey), config.GetString(ContentOverlayStartup.OverlayDigestKey, string.Empty),
+                Application.isEditor && Application.isPlaying, UseRequiredPlayerFileConfiguration, ReadBakedPlayerKind(), specified, mode,
                 installedRoot.Length > 0 && installedDigest.Length > 0);
             if (overlay.Kind == ContentOverlayStartupKind.Rejected)
                 throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, overlay.Reason);
@@ -1245,7 +1271,10 @@ namespace OneStarMaker.Runtime
                 var player = PlayerContentConfiguration.Resolve(baked,config, Path.GetDirectoryName(Application.dataPath)!, ContentDirectoryTarget);
                 if (!Directory.Exists(player.Path))
                     throw new ContentDirectoryException(ContentDirectoryFailureCode.InvalidConfiguration, "Configured Player content directory does not exist.", player.Identity, ContentDirectoryTarget);
-                return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene,player.VerifiedRevision);
+                // 上書きの決定は Decide が遊べる Player と pair の時だけ Overlay にする。Resolve が pair を検証済みにした後なので、
+                // 登録は Editor と同じ RegisterVerifiedWithOverlay（base の記録の照合と巻き戻し）を通る。
+                return new ContentDirectoryConfiguration(player.Path, player.Identity, player.Representation, player.FirstScene,player.VerifiedRevision,
+                    overlay.Kind == ContentOverlayStartupKind.Overlay ? overlay : null);
             }
             var path = config.GetString("content:directoryPath", string.Empty);
             var identity = config.GetString("content:buildIdentity", string.Empty);

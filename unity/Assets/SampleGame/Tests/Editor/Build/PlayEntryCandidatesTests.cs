@@ -139,6 +139,61 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(selection.Warnings.Single(), Does.Contain("rev-newer"), "黙って別の revision へ切り替えない");
         }
 
+        // ─── 遊べる Player の base（D6 の (2)）───
+
+        private PlayerBaseResolution ResolveBase(string identity, string sha) =>
+            PlayEntryCandidates.ResolvePlayerBase(_cache, SampleGameBuildPurposes.SpringFull, VerifyPlayLauncher.Target, identity, sha, @"D:\transport\" + identity);
+
+        [Test]
+        public void PlayerBase_WithoutAnyInstall_IsNotInstalled_WithTheInstallGuidance()
+        {
+            var resolution = ResolveBase("rev-a", "abc");
+            Assert.That(resolution.Install, Is.Null);
+            Assert.That(resolution.IsNotInstalled, Is.True);
+            StringAssert.Contains(@"D:\transport\rev-a", resolution.Failure);
+            Assert.That(Directory.Exists(_cache), Is.False);
+        }
+
+        [Test]
+        public async Task PlayerBase_UsesTheInstallOfThePlayersRevisionAndDigest_EvenWhenANewerInstallExists()
+        {
+            var player = await InstallAsync("rev-player", "spring-full", "Full", "Full");
+            var newer = await InstallAsync("rev-newer", "spring-full", "Full", "Full");
+            SetInstalledUtc(player.RevisionRoot, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            SetInstalledUtc(newer.RevisionRoot, new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+            var resolution = ResolveBase("rev-player", player.ManifestSha256);
+            Assert.That(resolution.Install, Is.Not.Null, resolution.Failure);
+            Assert.That(resolution.Install!.RevisionRoot, Is.EqualTo(player.RevisionRoot));
+            Assert.That(resolution.Install.Revision, Is.EqualTo("rev-player"));
+        }
+
+        [Test]
+        public async Task PlayerBase_OtherRevisionOrDigest_IsNotInstalled()
+        {
+            var installed = await InstallAsync("rev-a", "spring-full", "Full", "Full");
+            Assert.That(ResolveBase("rev-b", installed.ManifestSha256).IsNotInstalled, Is.True, "別の revision へ縮退しない");
+            var digestMismatch = ResolveBase("rev-a", new string('0', 64));
+            Assert.That(digestMismatch.Install, Is.Null);
+            Assert.That(digestMismatch.IsNotInstalled, Is.True);
+            StringAssert.Contains("manifest digest", digestMismatch.Failure);
+        }
+
+        [Test]
+        public async Task PlayerBase_DeclarationMismatchOrTamperedContent_IsInvalid()
+        {
+            var planner = await InstallAsync("rev-a", "spring-planner-whitebox", "Whitebox", "Planner");
+            var mismatch = ResolveBase("rev-a", planner.ManifestSha256);
+            Assert.That(mismatch.Install, Is.Null);
+            Assert.That(mismatch.IsNotInstalled, Is.False);
+            StringAssert.Contains("spring-planner-whitebox", mismatch.Failure);
+
+            var full = await InstallAsync("rev-b", "spring-full", "Full", "Full");
+            File.WriteAllText(Path.Combine(full.RevisionRoot, "content", "payload.bin"), "tampered bytes");
+            var tampered = ResolveBase("rev-b", full.ManifestSha256);
+            Assert.That(tampered.Install, Is.Null);
+            Assert.That(tampered.IsNotInstalled, Is.False);
+        }
+
         // ─── fixture ───
 
         private async Task<InstalledContent> InstallAsync(string revision, string declaration, string representation, string companion)

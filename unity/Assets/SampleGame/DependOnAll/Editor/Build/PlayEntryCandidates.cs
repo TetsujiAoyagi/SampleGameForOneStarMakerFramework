@@ -80,8 +80,22 @@ namespace SampleGame.DependOnAll.Editor.Build
             BuildPurposeDeclaration declaration, string target, Func<string, string> firstSceneOf, out string problem,
             out ContentInstallResult? install)
         {
+            install = Validate(store, entry, declaration, target, out problem, out var recorded);
+            if (install == null) return null;
+            return PurposeLaunchSettings.DirectoryPlay(install.RevisionRoot, install.ManifestSha256, install.Revision,
+                recorded!.representation, recorded.runtimeDefaults.Select(x => new KeyValuePair<string, string>(x.key, x.value)),
+                firstSceneOf(declaration.Name));
+        }
+
+        /// <summary>
+        /// install の検証（<c>ValidateInstalled</c>）と、manifest に記録した宣言の照合。Editor の Play の候補と、Player の base の決定が
+        /// 同じ検証を通る（複製しない）。失敗は null で、理由は <paramref name="problem"/>。
+        /// </summary>
+        private static ContentInstallResult? Validate(ContentCacheStore store, ContentCacheEntry entry, BuildPurposeDeclaration declaration,
+            string target, out string problem, out ContentManifestDeclaration? recorded)
+        {
             problem = string.Empty;
-            install = null;
+            recorded = null;
             try
             {
                 var validated = store.ValidateInstalled(entry.RevisionRoot, entry.ManifestSha256, entry.ContentSet, entry.Revision, target);
@@ -89,12 +103,9 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var manifest = JsonUtility.FromJson<ContentTransportManifest>(File.ReadAllText(Path.Combine(validated.RevisionRoot, "transport.json")));
                 var mismatch = VerifyPlayLauncher.CompareDeclaration(manifest?.declaration ?? new ContentManifestDeclaration(), declaration);
                 if (mismatch != null) { problem = mismatch; return null; }
-                var recorded = manifest!.declaration;
-                // 検証した install の結果を捨てずに候補へ渡す（上書きの計画が base の manifest をこの値と照合して読む）。
-                install = validated;
-                return PurposeLaunchSettings.DirectoryPlay(validated.RevisionRoot, validated.ManifestSha256, validated.Revision,
-                    recorded.representation, recorded.runtimeDefaults.Select(x => new KeyValuePair<string, string>(x.key, x.value)),
-                    firstSceneOf(declaration.Name));
+                recorded = manifest!.declaration;
+                // 検証した install の結果を捨てずに返す（上書きの計画が base の manifest をこの値と照合して読む）。
+                return validated;
             }
             catch (Exception ex) when (ex is ContentDeliveryException or IOException or ArgumentException or UnauthorizedAccessException)
             {
@@ -102,5 +113,63 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return null;
             }
         }
+
+        /// <summary>
+        /// 遊べる Player の base を決める（D6 の (2)）。宣言と target が合い、revision が Player の identity と同じで、manifest の digest が
+        /// Player の <c>build-receipt.json</c> の <c>transportManifestSha256</c> と同じ install を 1 つだけ選び、Editor の Play の候補と
+        /// 同じ検証を通す。最新の install や別の revision へ縮退しない（Player が指す 1 つだけを使う）。Delivery の ledger は読まない。
+        /// </summary>
+        internal static PlayerBaseResolution ResolvePlayerBase(string cacheRoot, BuildPurposeDeclaration declaration, string target,
+            string playerIdentity, string transportManifestSha256, string transportDirectory)
+        {
+            if (declaration == null) throw new ArgumentNullException(nameof(declaration));
+            var installGuidance = "Install " + transportDirectory + " with the Content Delivery window.";
+            // 未作成の root を探索のためだけに作らない（ContentCacheStore は lock のために control を作る）。
+            if (!Directory.Exists(Path.Combine(cacheRoot, "installed")))
+                return PlayerBaseResolution.NotInstalled("No content is installed for the Player " + playerIdentity + ". " + installGuidance);
+
+            ContentCacheStore store;
+            ContentCacheSnapshot snapshot;
+            try
+            {
+                store = new ContentCacheStore(cacheRoot);
+                snapshot = store.Inspect();
+            }
+            catch (Exception ex) when (ex is ContentDeliveryException or ArgumentException)
+            {
+                return PlayerBaseResolution.Invalid("The content cache cannot be read: " + ex.Message);
+            }
+
+            var sameRevision = snapshot.Entries
+                .Where(x => string.Equals(x.ContentSet, declaration.Name, StringComparison.Ordinal)
+                            && string.Equals(x.Target, target, StringComparison.Ordinal)
+                            && string.Equals(x.Revision, playerIdentity, StringComparison.Ordinal))
+                .ToArray();
+            var entry = sameRevision.FirstOrDefault(x => string.Equals(x.ManifestSha256, transportManifestSha256, StringComparison.OrdinalIgnoreCase));
+            if (entry == null)
+                return PlayerBaseResolution.NotInstalled(sameRevision.Length == 0
+                    ? "The Player's content revision " + playerIdentity + " is not installed. " + installGuidance
+                    : "The installed revision " + playerIdentity + " has a different manifest digest from the Player's transport. " + installGuidance);
+            var install = Validate(store, entry, declaration, target, out var problem, out _);
+            return install == null
+                ? PlayerBaseResolution.Invalid("The installed revision " + playerIdentity + " failed verification: " + problem)
+                : PlayerBaseResolution.Resolved(install);
+        }
+    }
+
+    /// <summary>遊べる Player の base の決定の結果。<see cref="Install"/> が null なら <see cref="IsNotInstalled"/> と <see cref="Failure"/>。</summary>
+    internal sealed class PlayerBaseResolution
+    {
+        private PlayerBaseResolution(ContentInstallResult? install, bool isNotInstalled, string failure)
+        { Install = install; IsNotInstalled = isNotInstalled; Failure = failure; }
+
+        internal static PlayerBaseResolution Resolved(ContentInstallResult install) => new(install, false, string.Empty);
+        internal static PlayerBaseResolution NotInstalled(string failure) => new(null, true, failure);
+        internal static PlayerBaseResolution Invalid(string failure) => new(null, false, failure);
+
+        internal ContentInstallResult? Install { get; }
+        /// <summary>Player が指す install が無い（install の案内を出す）。偽で <see cref="Install"/> が null なら検証の失敗。</summary>
+        internal bool IsNotInstalled { get; }
+        internal string Failure { get; }
     }
 }

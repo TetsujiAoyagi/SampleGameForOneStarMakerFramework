@@ -124,8 +124,24 @@ namespace SampleGame.DependOnAll.Editor.Build
                 if (AssetDatabase.LoadMainAssetAtPath(_configPath) != null || File.Exists(_configPath)) AssetDatabase.DeleteAsset(_configPath);
                 var marker = Path.Combine(_assetRoot, Marker);
                 if (Directory.Exists(_assetRoot) && File.Exists(marker) && File.ReadAllText(marker) == _identity) AssetDatabase.DeleteAsset(_assetRoot);
+                SaveRestoredSettings();
                 AssetDatabase.Refresh();
             }
+        }
+
+        /// <summary>
+        /// 戻した値を disk にも書く。build の途中の <c>AssetDatabase.SaveAssets()</c>（<see cref="CopyGraphClosure"/>）は
+        /// mutation の値（scripting backend・stripping、build の前処理が足す preloaded asset、Addressables の設定）を
+        /// <c>ProjectSettings/ProjectSettings.asset</c> などへ保存する。Dispose の戻しはメモリの上だけなので、保存しないと
+        /// Editor を閉じるまで disk に mutation の値が残り、build を返した同じ Editor の Player の入力の指紋が
+        /// <c>player-compat.json</c> と食い違う。値が同じで戻しが dirty を付けない場合にも今のメモリの値を書くよう、
+        /// PlayerSettings の object に明示で dirty を付けてから保存する。
+        /// </summary>
+        private static void SaveRestoredSettings()
+        {
+            foreach (var settings in AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset"))
+                if (settings != null) EditorUtility.SetDirty(settings);
+            AssetDatabase.SaveAssets();
         }
 
         private static void RejectOrCleanStale(string root, string identity)

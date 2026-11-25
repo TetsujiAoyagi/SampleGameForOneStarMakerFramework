@@ -53,11 +53,14 @@ namespace SampleGame.DependOnAll.Editor.Build
     /// <summary>計画の port が返す要約。分類と理由の正本は計画で、ここはその写しだけを持つ。</summary>
     internal sealed class PlayEntryOverlayPlanSummary
     {
-        internal PlayEntryOverlayPlanSummary(PlayEntryOverlayPlanState state, int overlayRootCount, IReadOnlyList<PlayEntryUnbuildableRoot> unbuildable)
-        { State = state; OverlayRootCount = overlayRootCount; Unbuildable = unbuildable; }
+        internal PlayEntryOverlayPlanSummary(PlayEntryOverlayPlanState state, int overlayRootCount, IReadOnlyList<PlayEntryUnbuildableRoot> unbuildable,
+            IReadOnlyList<string>? overlayRootKeys = null)
+        { State = state; OverlayRootCount = overlayRootCount; Unbuildable = unbuildable; OverlayRootKeys = overlayRootKeys ?? Array.Empty<string>(); }
 
         internal PlayEntryOverlayPlanState State { get; }
         internal int OverlayRootCount { get; }
+        /// <summary>計画が上書きに入れた root の logical key（ordinal 順）。入口の記録が使い、上書きの段の判断には使わない。</summary>
+        internal IReadOnlyList<string> OverlayRootKeys { get; }
         /// <summary>今回の計画の作り直せない root（前回の build の preflight ではない）。</summary>
         internal IReadOnlyList<PlayEntryUnbuildableRoot> Unbuildable { get; }
     }
@@ -96,15 +99,18 @@ namespace SampleGame.DependOnAll.Editor.Build
     {
         internal PlayEntryOverlayResult(PlayEntryOverlayState state, int overlayRootCount, IReadOnlyList<PlayEntryUnbuildableRoot> unbuildable,
             double prepareSeconds, double planSeconds, double? reuseCheckSeconds, double? buildSeconds,
-            PlayEntryOverlayArtifact? artifact)
+            PlayEntryOverlayArtifact? artifact, IReadOnlyList<string>? overlayRootKeys = null)
         {
             State = state; OverlayRootCount = overlayRootCount; Unbuildable = unbuildable;
+            OverlayRootKeys = overlayRootKeys ?? Array.Empty<string>();
             PrepareSeconds = prepareSeconds; PlanSeconds = planSeconds; ReuseCheckSeconds = reuseCheckSeconds; BuildSeconds = buildSeconds;
             Artifact = artifact;
         }
 
         internal PlayEntryOverlayState State { get; }
         internal int OverlayRootCount { get; }
+        /// <summary>計画が上書きに入れた root の logical key（計画の要約の写し）。</summary>
+        internal IReadOnlyList<string> OverlayRootKeys { get; }
         internal IReadOnlyList<PlayEntryUnbuildableRoot> Unbuildable { get; }
         internal double PrepareSeconds { get; }
         internal double PlanSeconds { get; }
@@ -158,24 +164,24 @@ namespace SampleGame.DependOnAll.Editor.Build
             {
                 case PlayEntryOverlayPlanState.NotRequired:
                     return new PlayEntryOverlayResult(PlayEntryOverlayState.NotRequired, plan.OverlayRootCount, plan.Unbuildable,
-                        prepared - start, planned - prepared, null, null, null);
+                        prepared - start, planned - prepared, null, null, null, plan.OverlayRootKeys);
                 case PlayEntryOverlayPlanState.UnbuildableOnly:
                     return new PlayEntryOverlayResult(PlayEntryOverlayState.UnbuildableOnly, plan.OverlayRootCount, plan.Unbuildable,
-                        prepared - start, planned - prepared, null, null, null);
+                        prepared - start, planned - prepared, null, null, null, plan.OverlayRootKeys);
             }
 
             var reused = ports.AcknowledgeAndReuse();
             var checkedAt = ports.Now();
             if (reused != null && reused.IsSuccess)
                 return new PlayEntryOverlayResult(PlayEntryOverlayState.Reused, plan.OverlayRootCount, plan.Unbuildable,
-                    prepared - start, planned - prepared, checkedAt - planned, null, reused);
+                    prepared - start, planned - prepared, checkedAt - planned, null, reused, plan.OverlayRootKeys);
 
             var built = ports.AcknowledgeAndBuild();
             var builtAt = ports.Now();
             if (built == null || !built.IsSuccess)
                 throw new PlayEntryOverlayException("The overlay build failed: " + (built?.Failure ?? "no result"));
             return new PlayEntryOverlayResult(PlayEntryOverlayState.Built, plan.OverlayRootCount, plan.Unbuildable,
-                prepared - start, planned - prepared, checkedAt - planned, builtAt - checkedAt, built);
+                prepared - start, planned - prepared, checkedAt - planned, builtAt - checkedAt, built, plan.OverlayRootKeys);
         }
 
         internal static PlayEntryUnbuildableGroup GroupOf(string reason) => reason switch
