@@ -5,11 +5,11 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合案 revision 8。A2 の 2 件、外部計画レビューの 1・2 巡目、主担当の自己点検を反映した。**凍結はまだ。実装キューではない**）
+- status: `B`（A3 凍結済み、revision 8。次は Phase B）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `未固定`
-- A3 凍結記録: `未凍結`
+- A3 凍結記録: 承認者は owner（root、依頼者）。2026-11-25（UTC）。対象は revision 8（commit `d151fdc8` の本文に、この凍結の記録と引継ぎ票を足した版）。根拠: owner が本 session で「それ終わったら凍結しよ」と指示した（主担当の自己点検の反映の後）。PR #216 の外部計画再レビューは「文書の修正と既定の docs-audit が済めば A3 凍結に進んでよい」とし、docs-audit と contract-audit は head `d151fdc8` の CI の `audit` ジョブ（`offline-checks.yml`）で実行されている。次の担当は Phase B で、owner の指示により Cloud の session が担う（「ローカルが長めの試験やる予定なので実装自体はクラウドでやりたい」。下の引継ぎ票の例外）。
 - risk: `normal`（理由は §2.6）
 - owner: root（依頼者）
 - created: 2026-11-25
@@ -20,11 +20,14 @@
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - task: 未開始（`tools/workflow-task.ps1 start` は凍結の時に行う）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の主担当（A3 の外部計画レビューの反映と凍結の判断）。凍結の後は Phase B の実装担当。
-  - 次の作業: (1) Draft PR で外部計画レビューを受け、指摘の採否を §5.1 に足す（公開後の修正はレビュー 1 巡につき 1 commit）。(2) owner が凍結を判断したら、上の「A3 凍結記録」に承認者・日付・対象 revision・次担当 B を書いて凍結版を commit し、その SHA を tree の外で渡す。`tools/workflow-task.ps1 start` は凍結の時に行う。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表。Phase A は全節）。
-  - 必要な権限: なし（文書のみ）。
-  - 停止規則: 凍結の記録が無いまま Phase B を始めない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に Phase B を走らせない（§1.4）。
+  - 次の Phase・役割: Phase B（実装担当）。owner の指示で Cloud の session が担う（[Cloud の担当](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#cloud-の担当) の「B の修正ループに入るのは例外」に当たる、owner が明示した例外）。
+  - 次の作業: §2.1 と §3 のとおりに実装し、§2.4 の AC1〜AC10 の EditMode テストと harvest の文書（`12-telemetry.md` §10.5、`05-scene.md` §5.12、CLI の README）を書く。実装の commit を切ってから、§6 と §0 の implementation head 欄と引継ぎ票を書いた記録の commit を切る（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。
+  - 読む範囲: 既定（§0〜§5）。
+  - 必要な権限: `unity/Assets/` の C# と test の編集、文書の編集、PR #216 の branch への commit と push（Cloud の Phase B の出口として owner が認めた push）。Unity と .NET は Cloud の container に無いので使わない。
+  - Cloud の B の制約（この凍結で決めた扱い）: Unity の Editor でのコンパイル確認はできないので、§6 に「未確認」と明記する。`pwsh tools/contract-audit.ps1` は Cloud で実行できないので、push の後の CI の `audit` ジョブ（contract-audit と docs-audit）の結果を記録する。CI が赤なら原因を直してから引き継ぐ。Phase B result snapshot（Artifact Storage）は Cloud では作れないので、ローカルの次の担当が B の head から作る。
+  - B の後の担当: ローカルの動作確認の担当。最初に Editor のコンパイル確認を行い（失敗なら B へ戻す。この往復は差し戻しの巡に数えない最初の動作確認に含める）、続けて §5 の検証経路の動作確認を行う。その後に発見 C。
+  - task: `debugstudio-s4`。`tools/workflow-task.ps1 start` は pwsh が要るので、owner がローカルで行う（Cloud の B は行わない）。
+  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（§1.4）。凍結した条件を変える必要が出たら実装で吸収せず止める。判定 C の照合 script と oracle の eval は書かない（判定 C の担当が書く）。
   - 引き渡さないもの: なし。
 
 ### 実測の方法
@@ -42,7 +45,7 @@
 - revision 5（commit `748d4c8e`。A3 統合案）: A2 の目的レビューとアーキテクチャゲートの指摘を §5.1 の採否のとおり反映した。主な変更: Editor / Player の判定と Framework のコマンドの登録を構成の関数 `FrameworkDebugCommands.Compose` に切り出した、新規 file の namespace を folder で分けない、振り分けは内部の `CatalogDebugCommandDispatcher` へ委譲する、出力の整形を純関数 `Format` にした、`ReleaseAll` の null 化を AC にした、dispatcher の鎖を通した同一性のテストを足した。A3 で固定する物（oracle の導出の規則、比較の規則、V3 の操作、V5 の識別の条件）を §5 に固定した。
 - revision 6（commit `0e800529`）: PR #216 の外部計画レビュー 1 巡目（2026-11-25、owner のアカウントのコメント）を §5.1 の採否のとおり反映した。unload の待ちが true になる場面の単体テスト（AC4b）、比較の規則の強化（存在の条件・形・件数・一意性・順・保留と未判定の扱い）、V3 の完了の観測、I1 の主張と証拠の分担と oracle の観測項目の追加、名前の振り分けが完全一致であることの明記、組込みのコマンドの確認。
 - revision 7（commit `9c90c5fb`）: PR #216 の外部計画再レビュー（2 巡目）を反映した。V3 の完了の観測が不成立なら未判定で止めること（E2 を狭めない）と印の扱い、V6 の復元、V2 の変化の扱い。
-- revision 8（本書）: 主担当が Phase C の観点で読み直した自己点検を §5.1 のとおり反映した。V3 の切り替え先を `OutGameSession` に変えた（`HomeScene` は `Stable` で InGame へ自動で進むため）、V1 の Play の入口と初期状態、E3 の根拠、V4 の root の選び方、oracle の自動 property の読み方、AC9 の呼び方。
+- revision 8（本書。A3 凍結版）: 主担当が Phase C の観点で読み直した自己点検を §5.1 のとおり反映した。V3 の切り替え先を `OutGameSession` に変えた（`HomeScene` は `Stable` で InGame へ自動で進むため）、V1 の Play の入口と初期状態、E3 の根拠、V4 の root の選び方、oracle の自動 property の読み方、AC9 の呼び方。
 
 ## 1. 目的と対象外
 
@@ -382,7 +385,7 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 - A2 の担当と入力版（Cloud の計画 session の中の独立した subagent。互いの指摘を見せていない。どちらも A0/A1 の主担当とは別のモデル）:
   - 目的レビュー: Anthropic の別のモデル。入力は §1.1 の目的と利用者の原文だけ（sha256 `61ff31504ef5fa12117e03da4f799d45965a780c81e073f837b1c0f74f9f1dab`）。ファイルを読まずに回答した。
   - アーキテクチャゲート: Anthropic の別のモデル（目的レビューとも別）。base `07cc2c975b63cf5b668130a1c45490dd3e77c5f0` の clean な detached checkout と、revision 4 の HANDOFF の固定 copy（sha256 `60412cf3e8901057f3ecd5e2ba82c0aa49debd022c210291ac9aca8ec406ec3f`、commit `c79bc8f9` の版）。照合は担当が自分で行い一致した。構想の文書は base に無いので読んでいない。
-- A3 の統合: A0/A1 の主担当。owner の凍結の判断はまだ（Draft PR で外部計画レビューを受けてから）。
+- A3 の統合: A0/A1 の主担当。owner が revision 8 で凍結した（§0 の A3 凍結記録）。
 - 目的レビューの採否（初稿との突き合わせ）:
 
 | 指摘 | 採否 | 理由・反映先 |
