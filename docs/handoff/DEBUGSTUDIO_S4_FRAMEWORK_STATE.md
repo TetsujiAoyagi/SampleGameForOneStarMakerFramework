@@ -285,7 +285,7 @@ A1 自己点検: 準備の操作も開発時の宣言も無い。SampleGame の 
 
 - 行数警報: `AbstractApplicationInitializer.cs` は既に 500 行を超える。非分割の理由: 足すのは DebugSocket の生成の箇所の十数行の配線で、判断は新規 file に置く。initializer の分割は program の `RUNTIME_REFACTOR_*` 系の所有。
 - 配置の理由: 写しは SceneDirector の private field を読むので partial に置く。写しのモデルとコマンドは「Scene の診断」という別の変更理由を持つので `SceneSystem/Diagnostics/` に分ける。機能が自分の診断を持ち、コマンドは薄い adapter、登録は composition root、transport（`DebugSocketServices/`）は機能を知らない、という置き方の最初の例になる（構想の原則 2）。`Runtime/DebugCommands/` は System だけの決まりがあり、`JsonUtility` と SceneSystem を使うこのコマンドは置けない。
-- 新規 file の path は予算（repo 相対 150 文字）の範囲。最長は `Runtime/DebugSocketServices/FrameworkFirstDebugCommandDispatcher.cs.meta`（repo 相対で 104 文字）。
+- 新規 file の path は予算（repo 相対 150 文字）の範囲。最長は `Runtime/DebugSocketServices/FrameworkFirstDebugCommandDispatcher.cs.meta`（repo 相対で 106 文字）。
 
 ## 4. 実装計画（A1 初稿）
 
