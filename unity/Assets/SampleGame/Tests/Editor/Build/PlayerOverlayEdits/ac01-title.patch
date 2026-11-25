@@ -1,0 +1,49 @@
+diff --git a/unity/Assets/SampleGame/OutGame/Title/Title.uxml b/unity/Assets/SampleGame/OutGame/Title/Title.uxml
+--- a/unity/Assets/SampleGame/OutGame/Title/Title.uxml
++++ b/unity/Assets/SampleGame/OutGame/Title/Title.uxml
+@@ -4,7 +4,7 @@
+             <ui:Label name="title-label" text="Title" style="font-size: 48px; margin-bottom: 12px; -unity-text-align: middle-center; color: rgb(255, 255, 255);" />
+             <ui:Label name="subtitle-label" text="Subtitle" style="font-size: 18px; margin-bottom: 32px; -unity-text-align: middle-center; color: rgb(200, 200, 210);" />
+             <ui:Button name="start-button" text="スタート" style="width: 200px; height: 44px; margin-bottom: 12px; font-size: 18px;" />
+-            <ui:Button name="pulse-button" text="タイトルを揺らす" style="width: 200px; height: 40px; font-size: 14px;" />
++            <ui:Button name="pulse-button" text="S42-AC1-UXML-TOKEN" style="width: 200px; height: 40px; font-size: 14px;" />
+         </ui:VisualElement>
+     </ui:VisualElement>
+ </ui:UXML>
+diff --git a/unity/Assets/SampleGame/OutGame/Title/Title.unity b/unity/Assets/SampleGame/OutGame/Title/Title.unity
+--- a/unity/Assets/SampleGame/OutGame/Title/Title.unity
++++ b/unity/Assets/SampleGame/OutGame/Title/Title.unity
+@@ -148,7 +148,7 @@
+   m_Script: {fileID: 11500000, guid: 63f72c1f53aa8c04cb56b9f958a41555, type: 3}
+   m_Name: 
+   m_EditorClassIdentifier: SampleGame.OutGame::SampleGame.OutGame.Title.TitleView
+-  _visualTreeAsset: {fileID: 9197481963319205126, guid: 388f160d2963e9c4fa5442fa22b98af7, type: 3}
++  _visualTreeAsset: {fileID: 9197481963319205126, guid: 5342a1c0ffee4c2a8d1e0b7a9c3f2e10, type: 3}
+   _backgroundDefinition: {fileID: 11400000, guid: a788c89994528fc40bd1d2583cc0b6ef, type: 2}
+ --- !u!4 &238277026
+ Transform:
+diff --git a/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml b/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml
+new file mode 100644
+--- /dev/null
++++ b/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml
+@@ -0,0 +1,5 @@
++<ui:UXML xmlns:ui="UnityEngine.UIElements">
++    <ui:Template name="TitleBody" src="Title.uxml" />
++    <ui:Instance template="TitleBody" style="flex-grow: 1;" />
++    <ui:Label name="s42-scene-token" text="S42-AC1-SCENE-TOKEN" style="position: absolute; left: 16px; bottom: 16px; font-size: 32px; color: rgb(255, 255, 0);" />
++</ui:UXML>
+diff --git a/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml.meta b/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml.meta
+new file mode 100644
+--- /dev/null
++++ b/unity/Assets/SampleGame/OutGame/Title/TitleS42Token.uxml.meta
+@@ -0,0 +1,10 @@
++fileFormatVersion: 2
++guid: 5342a1c0ffee4c2a8d1e0b7a9c3f2e10
++ScriptedImporter:
++  internalIDToNameTable: []
++  externalObjects: {}
++  serializedVersion: 2
++  userData: 
++  assetBundleName: 
++  assetBundleVariant: 
++  script: {fileID: 13804, guid: 0000000000000000e000000000000000, type: 0}

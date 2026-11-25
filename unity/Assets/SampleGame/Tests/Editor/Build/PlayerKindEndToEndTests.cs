@@ -5,10 +5,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using NUnit.Framework;
 using OneStarMaker.Foundation.Config;
 using SampleGame.DependOnAll.Editor.Build;
+using SampleGame.Tests.Editor.Build;
 using UnityEngine;
 
 namespace OneStarMaker.Tests.Editor.Build
@@ -32,10 +32,9 @@ namespace OneStarMaker.Tests.Editor.Build
     public sealed class PlayerKindEndToEndTests
     {
         private const int TestTimeoutMs = 7200000;
-        private const int PollMs = 500;
         private const int MaxCopiedPathLength = 259;
         private const string FirstSceneLine = "[AppInit] Player content first scene:";
-        private const string QuittingLine = "[AppInit] Application quitting.";
+        private const string QuittingLine = PlayerProcessRun.QuittingLine;
         private const string ReceiptName = "bs4-smoke-receipt.json";
         private const string LocalDirectoryName = "OneStarMakerLocal";
         private static readonly string[] WindowArguments = { "-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720" };
@@ -145,7 +144,8 @@ namespace OneStarMaker.Tests.Editor.Build
 
         // ─── build ───
 
-        private static void BuildAndCopy(PlayerBuildKind kind)
+        /// <summary>build して run の写しを作る。上書きの判定の test も、同じ写しと record を作るためにここを呼ぶ。</summary>
+        internal static PlayerBuildResult BuildAndCopy(PlayerBuildKind kind)
         {
             var run = RunDirectory();
             var name = KindName(kind);
@@ -186,6 +186,7 @@ namespace OneStarMaker.Tests.Editor.Build
             File.WriteAllText(BuildRecordPath(run, kind), JsonUtility.ToJson(record, true));
             // Unity 同梱の Mono と Player は長い path を開けない（起動前の path の予算の検査の対象外なのでここで止める）。
             Assert.That(longest, Is.LessThanOrEqualTo(MaxCopiedPathLength), "Copied Player path is too long: " + longest);
+            return result;
         }
 
         private static string ReadUnityVersion(string transportDirectory)
@@ -258,7 +259,7 @@ namespace OneStarMaker.Tests.Editor.Build
             record.startedUtc = Utc(DateTime.UtcNow);
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Player process did not start.");
             record.pid = process.Id;
-            var state = new PlayerRun(process, logPath, caseDirectory, record);
+            var state = new PlayerRun(new PlayerProcessRun(process, logPath, caseDirectory), record);
             try
             {
                 drive(state);
@@ -276,6 +277,7 @@ namespace OneStarMaker.Tests.Editor.Build
                 record.seconds = clock.Elapsed.TotalSeconds;
                 record.exitCode = process.ExitCode;
                 state.ReadLog();
+                state.CopyObservation();
                 Finish(record, state, player, caseDirectory);
             }
         }
@@ -294,7 +296,7 @@ namespace OneStarMaker.Tests.Editor.Build
             if (Directory.Exists(local)) Directory.Move(local, movedLocal);
 
             record.playerLog = ProbePlayerLog(run.LogText);
-            record.gameLog = ReadGameLog(Path.Combine(movedLocal, "Log"), record.quitObservedUtc);
+            record.gameLog = PlayerProcessRun.ReadGameLog(Path.Combine(movedLocal, "Log"), record.quitObservedUtc, GameLogProbes);
             File.AppendAllText(Path.Combine(Path.GetDirectoryName(caseDirectory)!, "record.jsonl"), JsonUtility.ToJson(record, false) + "\n");
         }
 
@@ -318,134 +320,35 @@ namespace OneStarMaker.Tests.Editor.Build
             return hits.ToArray();
         }
 
-        // record の時刻は Utc の "o"（末尾 Z）、game の log の Timestamp は +00:00 などの offset 付きで書かれる。
-        // 両方を UTC の DateTime に直して比べるため AdjustToUniversal を使い、offset の無い文字列は UTC とみなす。
-        // RoundtripKind は AdjustToUniversal・AssumeUniversal と組めず、.NET が ArgumentException で拒むので混ぜない。
-        private const DateTimeStyles UtcTimestampStyles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
-
-        private static GameLogLine[] ReadGameLog(string directory, string quitObservedUtc)
-        {
-            if (!Directory.Exists(directory)) return Array.Empty<GameLogLine>();
-            DateTime? quit = quitObservedUtc.Length == 0 ? null
-                : DateTime.Parse(quitObservedUtc, CultureInfo.InvariantCulture, UtcTimestampStyles);
-            var lines = new List<GameLogLine>();
-            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal))
-            {
-                foreach (var raw in File.ReadLines(file))
-                {
-                    if (raw.Length == 0 || raw[0] != '{') continue;
-                    var values = new Dictionary<string, string>(StringComparer.Ordinal);
-                    try { JsonConfigFlattener.Flatten(raw, values); }
-                    catch (Exception) { lines.Add(new GameLogLine { file = Path.GetFileName(file), message = "<unparsed> " + raw }); continue; }
-                    var level = Value(values, "LogLevel");
-                    var message = Value(values, "Message");
-                    var isError = level == "Error" || level == "Critical";
-                    if (!isError && !GameLogProbes.Any(probe => message.Contains(probe))) continue;
-                    var timestamp = Value(values, "Timestamp");
-                    var beforeQuit = true;
-                    if (quit.HasValue && DateTime.TryParse(timestamp, CultureInfo.InvariantCulture, UtcTimestampStyles, out var at))
-                        beforeQuit = at < quit.Value;
-                    lines.Add(new GameLogLine
-                    {
-                        file = Path.GetFileName(file), timestamp = timestamp, level = level, category = Value(values, "Category"),
-                        message = message, exception = Value(values, "Exception:Message"), beforeQuit = beforeQuit,
-                    });
-                }
-            }
-            return lines.ToArray();
-        }
-
-        private static string Value(IReadOnlyDictionary<string, string> values, string key) => values.TryGetValue(key, out var value) ? value : string.Empty;
-
-        /// <summary>起動した Player の 1 回の観測。待ちは全て exit の signal の刻みで、刻みごとに Player の log を読み直す。</summary>
+        /// <summary>
+        /// 起動した Player の 1 回の観測（<see cref="PlayerProcessRun"/>）と、この test の record の組。観測の本体は共有の補助にあり、
+        /// ここは record の欄へ写すだけを持つ。
+        /// </summary>
         private sealed class PlayerRun
         {
-            private readonly Process _process;
-            private readonly string _logPath;
+            private readonly PlayerProcessRun _run;
 
-            internal PlayerRun(Process process, string logPath, string caseDirectory, LaunchRecord record)
-            { _process = process; _logPath = logPath; CaseDirectory = caseDirectory; Record = record; }
+            internal PlayerRun(PlayerProcessRun run, LaunchRecord record) { _run = run; Record = record; }
 
-            internal string CaseDirectory { get; }
+            internal string CaseDirectory => _run.CaseDirectory;
             internal LaunchRecord Record { get; }
-            internal string LogText { get; private set; } = string.Empty;
+            internal string LogText => _run.LogText;
 
-            /// <summary>行が出るまで待つ。出なければ（先に exit した、制限時間を超えた）偽。</summary>
-            internal bool WaitForLine(string line, TimeSpan limit, string phase)
+            internal bool WaitForLine(string line, TimeSpan limit, string phase) => _run.WaitForLine(line, limit, phase);
+            internal bool WaitForExit(TimeSpan limit, string phase) => _run.WaitForExit(limit, phase);
+            internal bool Survives(TimeSpan duration) => _run.Survives(duration);
+            internal void RequestClose() => _run.RequestClose();
+            internal void ReadLog() => _run.ReadLog();
+
+            /// <summary>観測した時刻と結果を record に写す（drive の後、record を書く前に 1 回）。</summary>
+            internal void CopyObservation()
             {
-                var clock = Stopwatch.StartNew();
-                while (true)
-                {
-                    var exited = Tick();
-                    if (LogText.Contains(line))
-                    {
-                        if (phase == "first-scene") Record.firstSceneLineUtc = Utc(DateTime.UtcNow);
-                        return true;
-                    }
-                    if (exited) return false;
-                    if (clock.Elapsed > limit) { MarkTimeout(phase); return false; }
-                }
-            }
-
-            /// <summary>exit を待つ。制限時間を超えたら timeout を記録して偽（kill は呼び出し元の finally）。</summary>
-            internal bool WaitForExit(TimeSpan limit, string phase)
-            {
-                var clock = Stopwatch.StartNew();
-                while (true)
-                {
-                    if (Tick()) return true;
-                    if (clock.Elapsed > limit) { MarkTimeout(phase); return false; }
-                }
-            }
-
-            /// <summary>exit を見ないまま時間が過ぎたら真。</summary>
-            internal bool Survives(TimeSpan duration)
-            {
-                var clock = Stopwatch.StartNew();
-                while (clock.Elapsed < duration)
-                    if (Tick()) return false;
-                return true;
-            }
-
-            /// <summary>
-            /// 主窓へ WM_CLOSE を post する（窓の × と同じ要求）。.NET の Process.CloseMainWindow の定義の動作だが、
-            /// test が動く Unity 同梱の Mono の CloseMainWindow は TerminateProcess(handle, -2) で強制終了するので使わない。
-            /// 主窓が無い（handle 0）か post に失敗した時は closeMessageSent を偽として record に残す。
-            /// </summary>
-            internal void RequestClose()
-            {
-                _process.Refresh();
-                var window = _process.MainWindowHandle;
-                Record.closeRequestedUtc = Utc(DateTime.UtcNow);
-                Record.closeMessageSent = window != IntPtr.Zero && PostMessage(window, WmClose, IntPtr.Zero, IntPtr.Zero);
-            }
-
-            private const uint WmClose = 0x0010;
-
-            [DllImport("user32.dll", SetLastError = true)]
-            [return: MarshalAs(UnmanagedType.Bool)]
-            private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-            internal void ReadLog()
-            {
-                if (!File.Exists(_logPath)) return;
-                using var stream = new FileStream(_logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var reader = new StreamReader(stream);
-                LogText = reader.ReadToEnd();
-                if (Record.quitObservedUtc.Length == 0 && LogText.Contains(QuittingLine)) Record.quitObservedUtc = Utc(DateTime.UtcNow);
-            }
-
-            private bool Tick()
-            {
-                var exited = _process.WaitForExit(PollMs);
-                ReadLog();
-                return exited;
-            }
-
-            private void MarkTimeout(string phase)
-            {
-                Record.timeout = true;
-                Record.timeoutPhase = phase;
+                Record.firstSceneLineUtc = _run.FirstSceneLineUtc;
+                Record.quitObservedUtc = _run.QuitObservedUtc;
+                Record.closeRequestedUtc = _run.CloseRequestedUtc;
+                Record.closeMessageSent = _run.CloseMessageSent;
+                Record.timeout = _run.Timeout;
+                Record.timeoutPhase = _run.TimeoutPhase;
             }
         }
 
@@ -464,7 +367,7 @@ namespace OneStarMaker.Tests.Editor.Build
         private static string KindName(PlayerBuildKind kind) => kind == PlayerBuildKind.Smoke ? "smoke" : "playable";
         private static string CopiedPlayerDirectory(string run, PlayerBuildKind kind) => Path.Combine(run, KindName(kind), "player");
         private static string BuildRecordPath(string run, PlayerBuildKind kind) => Path.Combine(run, KindName(kind) + ".json");
-        private static string Utc(DateTime value) => value.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture);
+        private static string Utc(DateTime value) => PlayerProcessRun.Utc(value);
         private static string Quote(string value) => value.IndexOf(' ') >= 0 ? "\"" + value + "\"" : value;
 
         private static IReadOnlyList<KeyValuePair<string, string>> Env(params string[] pairs)
@@ -551,7 +454,7 @@ namespace OneStarMaker.Tests.Editor.Build
             public string ownPlayerCopy = "";
             public int ownCopyLongestPathLength;
             public ProbeHit[] playerLog = Array.Empty<ProbeHit>();
-            public GameLogLine[] gameLog = Array.Empty<GameLogLine>();
+            public PlayerGameLogLine[] gameLog = Array.Empty<PlayerGameLogLine>();
         }
 
         [Serializable]
@@ -559,13 +462,6 @@ namespace OneStarMaker.Tests.Editor.Build
         {
             public string probe = "", text = "";
             public int line;
-            public bool beforeQuit;
-        }
-
-        [Serializable]
-        private sealed class GameLogLine
-        {
-            public string file = "", timestamp = "", level = "", category = "", message = "", exception = "";
             public bool beforeQuit;
         }
 

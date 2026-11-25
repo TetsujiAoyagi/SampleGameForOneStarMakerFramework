@@ -87,7 +87,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         /// 数百件 Dirty と出るので数えない。load されていない asset、Undo の履歴だけの変更、import の設定の未適用の変更は検出に掛からない
         /// （既知の限界。掛からない Dirty は確認なしで複製の保存に書かれうる）。
         /// </summary>
-        private static IReadOnlyList<string> EnumerateUnsavedAssets()
+        internal static IReadOnlyList<string> EnumerateUnsavedAssets()
         {
             var paths = new SortedSet<string>(StringComparer.Ordinal);
             foreach (var item in Resources.FindObjectsOfTypeAll<UnityEngine.Object>())
@@ -116,7 +116,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                           ?? throw new InvalidOperationException("The verified installed revision has no install result for the overlay plan.");
             var supplied = PlayEntryOverlay.SuppliedSceneKeys(PlaySnapshotSession.Declaration.Select(x => x.Identity), ReadSceneResourceMapNames());
             var ports = SampleGameContentBuild.OverlayPorts(SampleGameBuildPurposes.Find(facts.RunPurpose), install, supplied,
-                () => EditorApplication.timeSinceStartup);
+                SampleGameContentBuild.OverlayContentSetOf(SampleGameBuildPurposes.Find(facts.RunPurpose)), () => EditorApplication.timeSinceStartup);
             return PlayEntryOverlay.Run(ports);
         }
 
