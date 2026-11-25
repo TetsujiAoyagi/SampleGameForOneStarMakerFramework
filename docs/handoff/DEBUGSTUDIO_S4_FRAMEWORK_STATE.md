@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `A`（A3 統合案 revision 7。A2 の 2 件と外部計画レビューの 1・2 巡目を反映した。**凍結はまだ。実装キューではない**）
+- status: `A`（A3 統合案 revision 8。A2 の 2 件、外部計画レビューの 1・2 巡目、主担当の自己点検を反映した。**凍結はまだ。実装キューではない**）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `未固定`
@@ -41,7 +41,8 @@
 - revision 4（commit `c79bc8f9`）: owner が渡した最終の提言（2026-11-25。§1.5 の意見 Z）を反映した。§1.9 の U1・U2 と risk を確定した。目的の「表示のための GameObject や MonoBehaviour を作らずに」を、本スライスの範囲の記述に改め、Framework の設計原則や将来の制約として読めないようにした（§1.1）。Scene の存在の意味を写しと event で分けて書いた（§1.3、§1.6）。旧 service の handler が新しい Play の SceneDirector を読みうることを、解決ではなく読み取りに限って許容した制約として書き直した（§2.2）。cancel 済みの Framework のコマンドを Game へ渡さないように振り分けを改めた（§2.1 の 1）。
 - revision 5（commit `748d4c8e`。A3 統合案）: A2 の目的レビューとアーキテクチャゲートの指摘を §5.1 の採否のとおり反映した。主な変更: Editor / Player の判定と Framework のコマンドの登録を構成の関数 `FrameworkDebugCommands.Compose` に切り出した、新規 file の namespace を folder で分けない、振り分けは内部の `CatalogDebugCommandDispatcher` へ委譲する、出力の整形を純関数 `Format` にした、`ReleaseAll` の null 化を AC にした、dispatcher の鎖を通した同一性のテストを足した。A3 で固定する物（oracle の導出の規則、比較の規則、V3 の操作、V5 の識別の条件）を §5 に固定した。
 - revision 6（commit `0e800529`）: PR #216 の外部計画レビュー 1 巡目（2026-11-25、owner のアカウントのコメント）を §5.1 の採否のとおり反映した。unload の待ちが true になる場面の単体テスト（AC4b）、比較の規則の強化（存在の条件・形・件数・一意性・順・保留と未判定の扱い）、V3 の完了の観測、I1 の主張と証拠の分担と oracle の観測項目の追加、名前の振り分けが完全一致であることの明記、組込みのコマンドの確認。
-- revision 7（本書）: PR #216 の外部計画再レビュー（2 巡目）を反映した。V3 の完了の観測が不成立なら未判定で止めること（E2 を狭めない）と印の扱い、V6 の復元、V2 の変化の扱い。
+- revision 7（commit `9c90c5fb`）: PR #216 の外部計画再レビュー（2 巡目）を反映した。V3 の完了の観測が不成立なら未判定で止めること（E2 を狭めない）と印の扱い、V6 の復元、V2 の変化の扱い。
+- revision 8（本書）: 主担当が Phase C の観点で読み直した自己点検を §5.1 のとおり反映した。V3 の切り替え先を `OutGameSession` に変えた（`HomeScene` は `Stable` で InGame へ自動で進むため）、V1 の Play の入口と初期状態、E3 の根拠、V4 の root の選び方、oracle の自動 property の読み方、AC9 の呼び方。
 
 ## 1. 目的と対象外
 
@@ -259,8 +260,8 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 **成立条件（起きなければならないこと）**
 
 - **E1 安定した状態での完全一致。** 通常の SampleGame の Editor の Play（Title から起動）で、`hasSnapshot: true` になり、oracle が SceneDirector を返し、管理集合に `Title` があり、全ての管理下の Scene の `Stable` を返した後、Scene の操作をしていない間に、`send --command osm.scenes --payload '{}'` が exit 0 で、出力が §5 の比較の規則で oracle と完全に一致する（余計な Scene も欠けた Scene も無い）。
-- **E2 遷移の後の履歴。** §5 V3 の操作（Title → HomeScene の `SwitchScene`）が例外なく完了したことを §5 の観測で確かめ、oracle が `HomeScene` の `Stable`、`Title` の不在、全ての管理下の Scene の `Stable` を返してから読むと、出力が oracle と完全に一致し、`history` の先頭が `{from: "Title", to: "HomeScene"}`、`canGoBack` が true。
-- **E3 再 Play。** E2 を済ませた Play を止め、同じ Editor で再び Play し、何も操作せずに E1 と同じ条件（SceneDirector があり、`Title` があり、全て `Stable`）で読むと、出力が 2 回目の Play の oracle と完全に一致し、`history` が `[]`、`canGoBack` が false（1 回目の Play の履歴が出ない）。`capturedFrame` は識別に使わない（新しい Play で小さくなる保証が無い）。
+- **E2 遷移の後の履歴。** §5 V3 の操作（Title → OutGameSession の `SwitchScene`）が例外なく完了したことを §5 の観測で確かめ、oracle が `OutGameSession` の `Stable`、`Title` の不在、全ての管理下の Scene の `Stable` を返してから読むと、出力が oracle と完全に一致し、`history` の先頭が `{from: "Title", to: "OutGameSession"}`、`canGoBack` が true。
+- **E3 再 Play。** E2 を済ませた Play を止め、同じ Editor で再び Play し、何も操作せずに E1 と同じ条件（SceneDirector があり、`Title` があり、全て `Stable`）で読むと、出力が 2 回目の Play の oracle と完全に一致し、`history` が `[]`、`canGoBack` が false（1 回目の Play の履歴が出ない）。`[]` の根拠: 起動は全ての経路で `AddScene` を使い、`from` の無い遷移は履歴を積まない（`AbstractApplicationInitializer.cs:547`・`:562`・`:640`・`:697`・`:1020`）。V1 でも 1 回目の Play の初期の `history` が `[]` であることを記録し、`[]` でなければ想定外の事実として未判定で止める（期待を観測に合わせて変えない）。`capturedFrame` は識別に使わない（新しい Play で小さくなる保証が無い）。
 - **E4 既存のコマンド。** 同じ Play で S3 の手順（`hierarchy` → `debug.set-active` false → `inspect` → true → `inspect`）が S3 と同じ出力・exit で動く。
 
 ### 2.4 受け入れ条件（A3 統合案）
@@ -276,7 +277,7 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 | AC6 | I2 | `CreateHandler` の delegate が null を返すと unavailable、別の SceneDirector を返すとその SceneDirector の値だけが出る | EditMode 単体 |
 | AC7 | I4 | 振り分けの dispatcher: (1) Framework の名前は Game を呼ばない。(2) Framework の名前で事前に cancel 済みなら `Debug command was canceled.` で、handler も Game も呼ばない。(3) Framework の名前でない command（cancel 済みを含む）と null の command は Game を同じ command と token で 1 回だけ呼び、結果と例外をそのまま返す。(4) Game 側に実の `CatalogDebugCommandDispatcher`（`debug.set-active` 相当を登録した catalog）を置き、null の command・未登録の名前・事前に cancel 済み・登録済みの名前の 4 つで、振り分けを通した envelope と Game を直接呼んだ envelope の RequestId・Success・Message・PayloadJson が同一（A2 の H1）。(5) Game が `osm.scenes` と同じ名前を登録していても Framework の結果が返る（同名の衝突）。未登録の `osm.foo` と大小文字の違う `OSM.SCENES` は Game へ渡る | EditMode 単体（fake と実の Game の dispatcher） |
 | AC8 | I4（失敗経路） | `Compose(false, game, …)` が `game` と同じ参照を返す。`Compose(true, game, …)` が `osm.scenes` を解決し、他の名前を `game` へ渡す。initializer: enabled=true で `CreateDebugCommandDispatcher` が 1 回だけ呼ばれ、enabled=false で null を返して呼ばれない（enabled=true のテストは実の `DebugSocketService` を作るので、テストの中で Dispose を明示する。`Dispose` は `StopAsync().Forget()` を呼ぶ） | EditMode |
-| AC9 | I2（失敗経路） | `ReleaseAll` の後に initializer の `SceneDirector` が null（既存の Bootstrap の test にあればそれを参照し、無ければ足す） | EditMode |
+| AC9 | I2（失敗経路） | `ReleaseAll` の後に initializer の `SceneDirector` が null（既存の Bootstrap の test にあればそれを参照し、無ければ足す。`ReleaseAll` が test から呼べなければ既存の `InternalsVisibleTo` の範囲で呼び、公開 API は足さない。足さないと書けなければ Phase A へ戻す） | EditMode |
 | AC10 | I4 | 既存の `SetActiveDebugCommandTests` を変更なしで通す（回帰の確認。dispatcher の鎖は AC7 の (4) が見る） | EditMode |
 | AC11 | E1〜E4・I1・I2・I4 | 実 Editor の Play と Release の WPF・CLI で §5 の V1〜V6 | 実機（Phase C） |
 
@@ -336,13 +337,13 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 - **oracle の導出の規則（A3 で固定。eval の C# の本文は判定 C の担当がこの規則どおりに書き、git に入れない）:**
   - 入口: `SampleGame.DependOnAll.AppInitializer` の static の private field `s_instance`（`BindingFlags.Static | BindingFlags.NonPublic`。前例 `SampleGame/Tests/Rendering/Vfx/VfxScenePlayTests.cs`）。
   - SceneDirector: 基底型 `OneStarMaker.Runtime.Bootstrap.AbstractApplicationInitializer` に対して `GetField("_sceneDirector", BindingFlags.Instance | BindingFlags.NonPublic)`（派生型の `GetType().GetField` では見つからない）。null なら `{"sceneDirector": null}` を返す。
-  - 管理集合: `SceneDirector` の `_currentScenes` を reflection で読み、各 value（private の入れ子型 `ScenePair`）の `SceneBase` を reflection で読み、`SceneBase` の `_lifecycle` field、その `_state` field を直接読む（`CaptureDebugSnapshot` と `State` の getter を通らない）。状態は enum の名前の文字列にする。
+  - 管理集合: `SceneDirector` の `_currentScenes` を reflection で読み、各 value（private の入れ子型 `ScenePair`）の `SceneBase`（get だけの自動 property。getter に副作用は無いので、property の getter か backing field のどちらで読んでもよい）を reflection で読み、`SceneBase` の `_lifecycle` field、その `_state` field を直接読む（`CaptureDebugSnapshot` と `State` の getter を通らない）。状態は enum の名前の文字列にする。
   - unload の待ち: `_pendingUnloads` の集合をそのまま返す（Scene ごとの flag にしない。A2 の G1）。
   - 履歴: `_sceneHistory` を列挙し（stack の列挙は新しい順）、各 entry（private の struct `SceneHistoryEntry`）の `FromSceneId` / `ToSceneId` field を読む。`CanGoBack` は `_sceneHistory.Count > 0` を oracle 側でも計算する。
   - V2 の不変の観測用に足す物（外部計画レビュー 1 巡目の P1-3）: 進行中の操作の 4 つの辞書（`_inFlightAddScenes`・`_inFlightSceneBaseLoads`・`_inFlightUnitySceneLoads`・`_inFlightUnloads`）の key の集合。Unity の読み込み済みの Scene の名前と `isLoaded` の列（`SceneManager.sceneCount` と `GetSceneAt`）。AssetManagement の台帳の件数（基底型の `_assetManagement` field → `AssetManagement` の `_registry` field → `AssetRegistry` の `_assets` と `_scenes` の `Count`。method を呼ばない）。
   - 出力: `{"sceneDirector":true,"scenes":[{"id","state"}...],"pendingUnloads":[...],"history":[{"from","to"}...],"canGoBack":bool,"inFlight":{"add":[...],"sceneBase":[...],"unityScene":[...],"unload":[...]},"unityLoadedScenes":[{"name","isLoaded"}...],"assetCount":int,"assetSceneCount":int}`。何も書かない、`Count` と列挙と field の読み取り以外の method を呼ばない（`SceneManager.GetSceneAt` は読み取りの API として例外）。
 - **比較の規則（判定 C の offline 実行。A3 で固定）:**
-  - 有効な比較の条件: 同じ Play の中で oracle → `osm.scenes` → oracle の順に読み、(1) 前後の oracle が `sceneDirector: true` を返し、(2) 前後の oracle が完全に一致し、(3) oracle の全ての `state` が `Stable` で、(4) 段ごとの存在の条件（V1・V5 は `Title` があること、V3 は `HomeScene` があり `Title` が無いこと）を満たすこと。空の管理集合は (4) を満たさないので、空の oracle と空の出力の一致を採らない。
+  - 有効な比較の条件: 同じ Play の中で oracle → `osm.scenes` → oracle の順に読み、(1) 前後の oracle が `sceneDirector: true` を返し、(2) 前後の oracle が完全に一致し、(3) oracle の全ての `state` が `Stable` で、(4) 段ごとの存在の条件（V1・V5 は `Title` があること、V3 は `OutGameSession` があり `Title` が無いこと）を満たすこと。空の管理集合は (4) を満たさないので、空の oracle と空の出力の一致を採らない。
   - 保留: 有効な比較の条件を満たさない回は「保留」で、GO の証拠ではない。読み直しは 1 段につき 3 回まで。3 回とも保留なら、その段を未判定のまま止め、原因（自然な進行、oracle の不備、実装）を整理して記録し、判定の担当が再実行を判断する。結果を見て判定の条件を弱めない。
   - oracle が確立できない（reflection の経路が無い、eval が失敗する、`sceneDirector` が取れない）: 未判定とし、検証の基盤の不備として記録する。`osm.scenes` の出力だけで合否を決めない。
   - 一致の定義（全て満たす）:
@@ -353,16 +354,17 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
     - `capturedFrame`: 整数として存在することだけを見て、値は比べない。
     - 終わり方: exit 0、stdout に `success=true message=captured`。
   - 実行担当は結果を見て期待値を決めない。期待値は毎回 oracle から得るので、機械向けの期待値 file は作らない。
-  - 新しい経路の疎通（判定とは分けて記録する。外部計画レビュー 1 巡目の P1-2、2 巡目の P1）: (a) oracle の eval が規則どおりの JSON を返すこと。Phase C の冒頭、V1 の前に確かめる。(b) eval で `SwitchScene` を駆動し、その完了と例外を検証用の印で観測できること。(b) は Title → HomeScene の遷移を伴うので冒頭では行わず、V3 の開始時に兼ねる（V1 の初期状態を崩さないため）。どちらも不成立なら、その段から先を未判定で止め、検証の基盤の不備として記録する。E2 を狭めて進めない。
+  - 新しい経路の疎通（判定とは分けて記録する。外部計画レビュー 1 巡目の P1-2、2 巡目の P1）: (a) oracle の eval が規則どおりの JSON を返すこと。Phase C の冒頭、V1 の前に確かめる。(b) eval で `SwitchScene` を駆動し、その完了と例外を検証用の印で観測できること。(b) は Title → OutGameSession の遷移を伴うので冒頭では行わず、V3 の開始時に兼ねる（V1 の初期状態を崩さないため）。どちらも不成立なら、その段から先を未判定で止め、検証の基盤の不備として記録する。E2 を狭めて進めない。
 - 操作・実行時の条件の検証経路（AC11。実行担当は判定 C 用に開いた session。S3 の §5.4 と同じ環境の作り方）:
   - V0: clean な検証用 checkout を GO 候補 head に detach し、その `unity/` を自分で開いた Editor 6000.6.9f1。DebugStudio の App・CLI を Release で build し、App を `--listen` で起動して PID を記録する。
-  - V1（E1）: SampleGame の Title から Play を始め、`hierarchy` が `hasSnapshot: true` になるまで読み直す（上限 60 秒）。oracle が `sceneDirector: true`、`Title` あり、全ての `state` が `Stable` になるまで oracle を読み直し（上限 60 秒）、比較の規則で照合する。
+  - V1（E1）: V0 の Editor で `Assets/SampleGame/OutGame/Title/Title.unity` を開き（開き替えた後に dirty でないこと、保存確認の dialog が出ないことを記録）、Editor の Play を始める（公開 command の名前を `tools/unity-editor.cmd command` で確かめ、無ければ eval で `UnityEditor.EditorApplication.isPlaying = true;`）。Play の入口の dialog、空の Scene への差し替え、起動の失敗が出たら、そのまま記録して未判定とし、場面の不備として判定の担当へ返す（判定の担当が場面を決め直す場合は A3 の新しい revision）。疎通 (a) の後、`hierarchy` が `hasSnapshot: true` になるまで読み直す（上限 60 秒）。oracle が `sceneDirector: true`、`Title` あり、全ての `state` が `Stable` になるまで oracle を読み直し（上限 60 秒）、比較の規則で照合する。
   - V2（I1）: oracle → `osm.scenes` → oracle を 5 回続け、各回の前後の oracle の全ての項目（管理集合・状態・unload の待ち・履歴・進行中の操作の key・Unity の読み込み済みの Scene・AssetManagement の台帳の件数）が変わらないことを確かめる。V2 では前後の変化は保留ではなく副作用の候補として扱う（外部計画レビュー 2 巡目の P2）: 全ての試行の oracle と出力を保存し、変化のあった回を捨てて一致した回だけを集めない。変化があったら、同じ間隔で `osm.scenes` を送らずに oracle を 2 回読み、同じ変化が起きるか（自然な進行か）を確かめて記録する。`osm.scenes` に起因する変化（送らない間には起きない）は I1 の NO-GO、自然な進行と切り分けられない変化は未判定とする。`hierarchy` の revision は参考として記録するだけで判定に使わない。
-  - V3（E2）: oracle と同じ入口で取った SceneDirector に対し、eval で `SwitchScene("Title", "HomeScene", CancellationToken.None)` を呼ぶ（`TitleScene.cs:80` が Title の開始の操作で呼ぶのと同じ `SwitchScene` の呼び出し。`recordHistory: true` の経路を通る）。この段が疎通 (b) を兼ねる。
+  - V3（E2）: oracle と同じ入口で取った SceneDirector に対し、eval で `SwitchScene("Title", "OutGameSession", CancellationToken.None)` を呼ぶ（reflection で呼ぶと戻り値は box された `UniTask` なので、`Cysharp.Threading.Tasks.UniTaskExtensions.AsTask` で `Task` にする）。この段が疎通 (b) を兼ねる。
+    - 切り替え先を `OutGameSession` にした理由（A3 の自己点検で見つけた事実）: SampleGame の Title の開始の操作は `Title → HomeScene` だが（`TitleScene.cs:80`）、`HomeScene` は `Stable` に達すると `OnStabledImpl` で `SceneFlow.EnterInGame`（`OutGameScene → InGameSession` の `SwitchScene`）を呼ぶ（`HomeScene.cs:36〜42`）。そのため `HomeScene` を待って照合する状態が来ず、履歴の先頭も `{OutGameScene, InGameSession}` に変わり、InGame の重いロードに入る。`OutGameSession` は `HomeScene` の親で、自分の遷移を持たず（`OutGameSession.cs` に override が無い）、子の `HomeScene` は `OnDemand`（`SceneMap/HomeScene.asset` の `_loadType: 0`）なので一緒に読み込まれない。Title の通常の遷移でも祖先として読み込まれる node なので、`SwitchScene` の対象として通る経路にある。`recordHistory: true` の同じ `SwitchScene` で、履歴が 1 件積まれた安定した状態を作れる。
     - 完了の観測（検証用の一時的な印。製品の code には何も足さない）: 要求ごとに固有の key（例: `osm-s4-v3-` と UTC の ticks を連ねた文字列）を決め、呼ぶ前に `AppDomain.CurrentDomain.SetData(key, "pending")` を書く。同じ eval で戻り値を `Task` にし、継続で成功なら `"success"`、例外なら `"failure:"` と例外の型と文言を同じ key に書く。後の eval でその key だけを読み、`"pending"` の間は読み直す（上限 60 秒）。読み終えたら、または打ち切ったら `SetData(key, null)` で消す。Domain Reload が無効なので、前の実行の印を拾わないよう key を使い回さない。
     - 裁定: `"success"` を読めたら完了とする。`"failure:…"` なら E2 の NO-GO。60 秒たっても `"pending"`、または印を書けない・読めない（疎通 (b) の不成立）なら未判定で止め、基盤の不備として記録する。Console に例外が無いことを完了の代わりにしない。E2 を観測の境界まで狭めて進めることはしない（狭めるなら A3 の凍結の前に E2 と規則を揃えるか、凍結の後なら owner の裁定と revision の更新を先に行う。判定 C の担当は結果を見て E2 を弱めない）。
-    - 完了を確かめた後、oracle が `HomeScene` あり・`Title` 無し・全て `Stable` になるまで読み直し（上限 60 秒）、比較の規則で照合する。`history` の先頭が `{from: "Title", to: "HomeScene"}`、`canGoBack` が true であることも記録する。
-  - V4（E4・I4）: V3 の後の Play で `hierarchy` を読み直し、今の hierarchy で名前が一意の root を選んで、その現在の NodeId で S3 の固定版 §5.4 と同じ手順（`debug.set-active` を false → true、各回の `inspect` の rawValue と、独立した eval による同じ GameObject の `activeSelf` の照合）を行う。前の段で読んだ NodeId を使い回さない。あわせて `send --command debugsocket.ping` を 1 回送り、組込みのコマンドが今どおり応答することを記録する。
+    - 完了を確かめた後、oracle が `OutGameSession` あり・`Title` 無し・`HomeScene` 無し・全て `Stable` になるまで読み直し（上限 60 秒）、比較の規則で照合する。`history` の先頭が `{from: "Title", to: "OutGameSession"}`、`canGoBack` が true であることも記録する。60 秒以内に `HomeScene` や InGame 系の Scene が管理集合に現れた場合は、想定外の事実として未判定で止める。
+  - V4（E4・I4）: V3 の後の Play で `hierarchy` を読み直し、今の hierarchy で名前が一意の root を次の順で選んで（`Directional Light` があればそれ（S3 の前例）。無ければ、名前が `[` で始まらず（`[UICommon]`・`[UpdaterHost]` などの Framework の host を避ける）、`Camera`・`EventSystem` を含まない root。選んだ物と理由を記録する。Framework や Game の機能の host を非アクティブにして後の段を壊さないため）、その現在の NodeId で S3 の固定版 §5.4 と同じ手順（`debug.set-active` を false → true、各回の `inspect` の rawValue と、独立した eval による同じ GameObject の `activeSelf` の照合）を行う。前の段で読んだ NodeId を使い回さない。あわせて `send --command debugsocket.ping` を 1 回送り、組込みのコマンドが今どおり応答することを記録する。
   - V5（E3・I2）: V3 を済ませた Play を止め、同じ Editor で再び Play し、何も操作せずに V1 と同じ条件で照合する。`history` が `[]`、`canGoBack` が false であることを記録する。
   - V6（終了処理）: Play を止め、WPF に通常の終了を要求し（`CloseMainWindow`）、実際の終了と終了コードを記録する（S3 の固定版 §5.4 と同じ）。開いている Scene が clean か、tracked の変更が無いかを記録し、自分で開いた Editor を通常終了する。V1〜V5 のどこかで未判定や失敗で止めた場合も、実行担当が起動した Play・WPF・Editor について、この終了処理を行ってから記録を返す。
   - 遷移の途中の状態と unavailable の出力は実機で見ず、AC4・AC5・AC6 で閉じる。
@@ -447,6 +449,18 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 | P1 V3 の完了の観測が不成立の時の裁定を一本化する（E2 を維持し、観測できなければ未判定で止める。疎通 (b) は V1 の初期状態を崩さないよう V3 で兼ねる。印は要求ごとの固有の key、pending → success / failure、timeout、後の掃除） | 採用 | §5 の疎通の項、V3 |
 | P2 V6 を戻す（WPF の実終了、Scene の clean、tracked の差分。未判定・失敗の時も終了処理を行う） | 採用 | §5 V6 |
 | P2 V2 の変化は保留ではなく副作用の候補として扱う（全試行の保存、送らない間の観測で切り分け、コマンドに起因すれば NO-GO、切り分けられなければ未判定） | 採用 | §5 V2 |
+
+- A3 の主担当の自己点検（Phase C の観点で読み直した。2026-11-25、revision 8）:
+
+| 見つけた点 | 対応 | 反映先 |
+|---|---|---|
+| V3 の `Title → HomeScene` は、`HomeScene` が `Stable` で `SceneFlow.EnterInGame` を呼ぶので、`HomeScene` で止まらず InGame へ進む。E2 の「`HomeScene` の `Stable`」「履歴の先頭が `{Title, HomeScene}`」は成り立たない | 切り替え先を `OutGameSession` に変えた（自分の遷移を持たず、子の `HomeScene` は `OnDemand`）。InGame 系が現れたら未判定 | E2、§5 の比較の規則と V3 |
+| V1 の Play の入口と初期状態（開く Scene、Play の始め方、dialog・差し替え・起動の失敗の扱い）が書かれていない | 書いた。想定外は未判定で場面の不備として返す | §5 V1 |
+| E3 の `history: []` の根拠が書かれていない | 起動が `AddScene` だけであることを根拠に書き、V1 でも初期の `[]` を記録する。違えば未判定 | E3 |
+| V4 で選ぶ root によっては Framework の host を非アクティブにして後の段を壊す | 選び方の順を決めた（`Directional Light` を先、`[` で始まる host と Camera・EventSystem を避ける） | §5 V4 |
+| oracle の規則は「field の読み取り以外の method を呼ばない」だが、`ScenePair.SceneBase` は自動 property | 自動 property の getter か backing field で読んでよいと明記 | §5 の oracle |
+| V3 の eval の戻り値は box された `UniTask` | `AsTask` で `Task` にすることを明記 | §5 V3 |
+| AC9 が `ReleaseAll` を test から呼べるか | 既存の `InternalsVisibleTo` の範囲で呼び、公開 API が要るなら Phase A へ戻す | AC9 |
 
 - 外部計画レビューの反映による A2 の観点の再レビューの要否: 変更は検証計画と受け入れ条件の具体化、出力の `pendingUnload` の意味の明記（U1 の範囲）で、責務の配置・依存・公開面は変えていないので、A2 のやり直しはしない。目的・利用者の文言も変えていない。
 
