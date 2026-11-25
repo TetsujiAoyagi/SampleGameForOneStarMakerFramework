@@ -5,25 +5,25 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: `A`（A3 の統合案の改訂 3。A2 の 3 件と、外部計画レビューの 1 巡目 3 件・2 巡目 2 件、合成 fixture の作成時の主担当の自己点検 5 件（§5.1 の Z）を反映した。凍結はまだ）
+- status: `A3 凍結`（revision 0。A2 の 3 件、外部計画レビューの 1〜3 巡目、合成 fixture の作成時の主担当の自己点検 5 件を反映した改訂 4 を凍結した。次は Phase B）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `未固定`
-- A3 凍結記録: `未凍結`
+- A3 凍結記録: 承認者 owner（root）、2026-11-26、revision 0（改訂 4。この記録を含む commit）。次の担当は Phase B
 - risk: `normal`（A1 で見直した。製品の code・公開 API・asmdef・Addressables を変えない。checkout を書き換え process を止める道具なので、A2 に不変条件を破る順序を探す観点を 1 件足した。§5.1。A2 の後も normal のままにした）
 - owner: root（依頼者）
 - created: 2026-11-25
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [tools/Harness/README.md](../../tools/Harness/README.md)（基盤の契約と scenario の書き方。Phase B が書く）、program §9.1 の利用者表（各操作の状態）
-- Phase A snapshot の取得案内・状態: 未保存（判定 C の照合の合成 fixture 58 組と期待の一覧を、主担当がこの worktree の ignore される作業領域に作った。§5 の「判定 C の照合 script の方式」。owner の凍結の判断の後、主担当が `evidence stage` で固定して取得案内を作り、この欄を「ローカル固定済み（未昇格）」にしてから凍結版を commit する。取得案内の引渡し先は Phase B の後の判定 C の担当）
+- Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 C の照合の合成 fixture 59 組と期待の一覧（README、`expectations.json`、観測ごとの zip 3 つ）を task `s4-v-scenario-verification-base` に `evidence stage` で固定し、別の process の `fetch` で 5 file の一致を確かめた。取得案内は主担当がこの PC の手元の取得案内の置き場に置いた（reference と packageSha256 はそこにだけある）。引渡し先は判定 C の担当で、Phase B には渡さない
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の主担当（A3 の外部計画レビューの反映と凍結）。凍結の後は Phase B の実装担当。
-  - 次の作業: owner が §5.1 の採否を確かめて凍結を判断する（§2.9 の 2 件と改訂 3 の Z1〜Z5 は確かめ済み）。凍結を決めたら、主担当が `pwsh tools/workflow-task.ps1 start -Task scenario-verification-base` を行い、作ってある合成 fixture と期待の一覧を同じ task で `evidence stage` し、取得案内を作って上の snapshot の欄を更新し、凍結の記録（承認者・日付・対象 revision）を上の欄に書いてから凍結版を commit する。その後に Phase B を始める。
+  - 次の Phase・役割: Phase B の実装担当。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、上の凍結記録・対象 revision・次の担当）を行う。§4 の順に commit を分けて実装し、§5 の判定必須の offline test と機械検査を通し、§6 に実装結果を書く。B の出口で動作確認の V1 と V2 を行ってよい（§5。V3 は判定 C）。task は `s4-v-scenario-verification-base`（開始済み）。
   - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表）。Phase B は §0〜§5 に加えて、[tools/Harness/README.md](../../tools/Harness/README.md) の「Unity終了時の既知native stallと調査の停止規則」と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を読む。
   - 必要な権限: Phase B は `tools/` と文書の編集、Unity を起動しない offline test、実の検証用 checkout での `-DryRun`（git だけ）。動作確認と判定 C は Unity Editor の起動（窓あり、batch の test）。資格情報は要らない。
   - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない（足すなら先に表を直し、owner の確認を取る）。凍結の記録が無いまま Phase B を始めない。
-  - 引き渡さないもの: なし。
+  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）。判定 C の入力で、Phase B は読まず、fixture の仮定に合わせて実装しない。
   - C' の独立性の注記: Anthropic（主担当と A2）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー）が Phase A に関わった。未関与の系列は残っていない（§5）。
 
 ### 実測の方法
@@ -174,7 +174,7 @@ S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Playe
   - run の root は、基盤がこの run で作って印を置いた物だけを、書き込みと削除の対象にする。印は「無ければ作る」の 1 回の操作で作り、既にあれば新しい run にしない。印の名前・RunId・対象の commit・checkout の場所・dry-run か本番かが全て同じ時だけ、`-Only` を付けた続きの実行を通し、record に続きであることを残す。続きの実行も run の lease を取る。合格例: 本番で止まった run を同じ RunId と `-Only` で続ける。不合格例: `-DryRun` で作った root を同じ RunId の本番が続ける。`-Only` を付けずに同じ RunId でもう一度走らせる。対象の commit が変わった後に続ける。同じ RunId の 2 つの呼び出しが同時に始まる（片方だけが通る）。
   - 外部 root は `<checkout の drive>\ovr\<scenario の名前>\<RunId>` で、最初に使う case が作り（`-DryRun` では作らない）、基盤の印をその直下に置く。cache や fixture は、その子の用途の directory に作る（製品の cache の root の中に基盤の印を置かない）。
   - 削除の直前に、基盤は次を確かめ直す: 解決した path が決めた親（run の root か外部 root）の下にある、その root の印がこの run の物である、親から対象までのどの成分も reparse point でない。削除は reparse point を辿らない。印の無い directory（作る途中で失敗した物を含む）は消さない。片付けた外部 root を、同じ run で作り直さない。
-  - checkout の中の ignore される file への書き込みは、scenario が path を宣言した「管理する file」だけを通す。解決した path が checkout の中に留まり、途中に reparse point が無いことを確かめる。基盤は、書く前の bytes（有無と内容）を run の root に保存し、書いた後の SHA-256 を記録する。寿命は run で、driver の呼び出しをまたいで残り、戻すのは scenario が片付けの case で指した時だけである。続きの実行の時と戻す時に、今の bytes が基盤の書いた物と違えば、上書きせずに止まる。管理する file を書く時、基盤はその checkout に run の予約（scenario の名前、RunId、run の root の場所）を置き、全ての管理する file を戻した時に消す。予約のある checkout は、別の run の事前確認、HEAD の切替、片付けを通さない。同じ run の続きの実行は通す。放置された run の予約は、実行の担当が `scenario-checkout.ps1` の解除で外す。解除は、run の root に保存した元の bytes で管理する file を戻せた時だけ通る（今の bytes が基盤の書いた物と違う時と、保存した bytes が無い時は、何も変えずに理由を出す）。
+  - checkout の中の ignore される file への書き込みは、scenario が path を宣言した「管理する file」だけを通す。解決した path が checkout の中に留まり、途中に reparse point が無いことを確かめる。基盤は、書く前の bytes（有無と内容）を run の root に保存し、書いた後の SHA-256 を記録する。寿命は run で、driver の呼び出しをまたいで残り、戻すのは scenario が片付けの case で指した時だけである。続きの実行の時と戻す時に、今の bytes が基盤の書いた物と違えば、上書きせずに止まる。管理する file を書く時、基盤はその checkout に run の予約（scenario の名前、RunId、run の root の場所）を置き、全ての管理する file を戻した時に消す。予約のある checkout は、別の run の事前確認、HEAD の切替、片付けを通さない。同じ run の続きの実行は通す。放置された run の予約は、実行の担当が `scenario-checkout.ps1` の予約の解除で外す。予約の解除は、run の root にある書く前の記録（有無と内容）のとおりに全ての管理する file を戻せた時だけ予約を消す（元から無かった file は消し、あった file は保存した bytes に戻す）。今の bytes が基盤の書いた物と違う時と、書く前の記録そのものが run の root に無い時は、何も変えずに理由を出す。
   - 基盤は project lock の file を消さない。基盤が公開する関数は、PID や名前で process を止める入口を持たない。
 - **AC5（N4）成功にしない:**
   - 起動の失敗、ready の期限切れ、`UNITY_TEST_RESULT` の marker の欠け、step が今回の物でない、実行件数が期待と違う（期待を指定しない時は 0 件）、証拠の保存の失敗、復元の後の状態の不一致は、どれも case の record に原因と一緒に残り、driver は非 0 で終わる。
@@ -189,7 +189,7 @@ S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Playe
   - GO 候補 head の全 EditMode 回帰（V3）が、新しい runner で起動から step の保存まで終わる。step が保存されなければ AC7 は満たさない。合否の読み方は V3 と §2.7。
   - `tools/unity-editor.ps1`・`.cmd` は差分に現れない。
 - **AC8（S2、N6）S4-2 の driver の互換:**
-  - 引数（`-XRoot`・`-YRoot`・`-RunId`・`-Only`・`-DryRun`）、step の名前と順（base `07cc2c97` の `$steps` のまま）、`driver.jsonl` の今ある key（`step`・`root`・`filter`・`patches`・`status`・`total`・`stepPath`・`gitStatusSame`・`gitStatusBefore`・`gitStatusAfter`・`utc`、`cache`・`copy`・`cleanup` の行の key）の名前・型・意味と、record の置き場（`<Y>/TestResults/s42/<RunId>/driver.jsonl`）が同じ。key と引数の追加は許す（`-XRoot`・`-YRoot` を省けば基盤が用意する）。ただし S4-2 の行に `event` の key を足さない（V1 と判定 C が、基盤の行と S4-2 の行を `event` の有無で分けるため）。
+  - 引数（`-XRoot`・`-YRoot`・`-RunId`・`-Only`・`-DryRun`）、step の名前と順（base `07cc2c97` の `$steps` のまま）、`driver.jsonl` の今ある key（`step`・`root`・`filter`・`patches`・`status`・`total`・`stepPath`・`gitStatusSame`・`gitStatusBefore`・`gitStatusAfter`・`utc`、`cache`・`copy`・`cleanup` の行の key）の名前・型・意味と、record の置き場（`<Y>/TestResults/s42/<RunId>/driver.jsonl`）が同じ。key と引数の追加は許す（`-XRoot`・`-YRoot` を省けば基盤が用意する）。ただし S4-2 の行に `event` の key を足さない（V1 と判定 C が、基盤の行と S4-2 の行を `event` の有無で分けるため）。S4-2 の scenario の名前は `s42` とする（外部 root が `<drive>\ovr\s42\<RunId>` になり、V1 の cache の root の規則と合う）。
   - case の失敗の後の進み方が同じ: (1) runner の step が `failed` でも件数が 1 なら、次の case へ進み、最後まで走れば exit 0。(2) 件数が 1 でない時と marker が無い時は、record を書いてその時点で止まる。(3) 復元の後の状態が前と違う時も止まる。
   - `driver.jsonl` の `filter` は、今と同じく末尾に `$` を付けない値である。`run-tests.ps1` へ渡す `-Filter` は、今と同じく末尾に `$` を付けた値である（付けないと部分一致になり、1 case に絞れない）。offline test は、record の値と、偽の runner が受けた引数の両方を見る。
   - 子の `pwsh` には、driver が渡した環境変数（`S42_RUN_ID`・`S41_RUN_ID`）が届く。基盤は、scenario が起動ごとに渡した名前と値を子の process にだけ設定する。
@@ -199,17 +199,17 @@ S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Playe
 - **AC9（S1、S5）新しい scenario と checkout の用意:**
   - 疎通用の scenario（§3 の `scenario-editor-smoke.ps1`）の code が、case と保存する証拠の宣言だけで書かれている。offline test が構文木を走査し、`git`・`Start-Process`・`Remove-Item`・`unity-editor`・`Unity.exe` の command、`System.Diagnostics.Process` の型、基盤が公開しない関数の名前が無いことを見る。走査は補助で、書けることの証明は AC15 が持つ。
   - checkout を渡さずに起動すると、基盤が検証用の checkout を対象の commit で用意する。無ければ linked worktree を detached で作り、その worktree の専用の git dir に基盤の印を置く。あれば、AC1 を通した上で HEAD を対象の commit に合わせる。印の無い物、別の repo の物は使わずに止まる。
-  - `tools/Harness/scenario-checkout.ps1` が、実行の担当の 3 つの操作を持つ: 登録（手で作った linked worktree に印を置く。AC1 の印以外の条件を満たす時だけ）、片付け（印のある checkout を、AC1 を通した上で `git worktree remove` で外す）、隔離の解除（AC3）。3 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）。`--force` と `git worktree prune` は使わない。
-  - offline test は一時の git repo で、作成、再利用、commit の切替、登録、印の無い directory の拒否、別の repo の worktree の拒否、進行中の操作の拒否、path 予算の超過の拒否、片付け、隔離と解除を見る。
+  - `tools/Harness/scenario-checkout.ps1` が、実行の担当の 4 つの操作を持つ: 登録（手で作った linked worktree に印を置く。AC1 の印以外の条件を満たす時だけ）、片付け（印のある checkout を、AC1 を通した上で `git worktree remove` で外す）、隔離の解除（AC3）、予約の解除（AC4）。隔離の解除と予約の解除は成功の条件が違うので別の操作にし、両方が残る checkout では隔離の解除を先に通す。4 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）。`--force` と `git worktree prune` は使わない。
+  - offline test は一時の git repo で、作成、再利用、commit の切替、登録、印の無い directory の拒否、別の repo の worktree の拒否、進行中の操作の拒否、path 予算の超過の拒否、片付け、隔離と解除、予約の解除（元から無かった管理する file を消す時と、書く前の記録が無い時の拒否を含む）を見る。
 - **AC10（S3）窓のある Editor の疎通（実機）:** 疎通用の scenario の `editor` の case を、実行の担当が渡した token（`-Token`。実行のたびに新しく作る値）で 1 回走らせると、`driver.jsonl` に次の event が、この順で残る（欄は §3 の「record の契約」）。
   1. `editor-start`: 基盤が起動した process の PID と開始時刻。引数に `-batchmode` が無い。
   2. `editor-ready`: 読む `eval` が通った時刻と、応答の PID。PID が 1 と同じ。
   3. `eval`（読む）: 呼び出しごとの印と PID を含む原応答。Unity の版と project の path を返す。
   4. `eval`（送る）: `SessionState` に token を置く。この case の中で送る `eval` は 1 回。
   5. `eval`（読む）: `SessionState` から読んだ値。原応答の値が token と完全に一致する。
-  6. `eval`（終了の要求）と `process-exit`: 1 の PID の handle の signal、終了コード、`forced` が false。
+  6. `eval`（終了の要求）と `process-exit`: 1 の PID の handle の signal、終了コードが 0、`forced` が false。
   7. `restore`: 復元の後の確認（AC2 の 5）が全て真。
-  - 判定の担当は、token、PID の一致、event の順、Unity の版が `ProjectVersion.txt` と同じこと、project の path が用意した checkout の `unity/` と（区切りと大小文字を正規化した絶対 path で）同じことを、原記録で確かめる。
+  - 判定の担当は、token、PID の一致、event の順、終了コードが 0 であること（`forced` が false でも 0 でなければ AC10 を満たさない）、Unity の版が `ProjectVersion.txt` と同じこと、project の path が用意した checkout の `unity/` と（区切りと大小文字を正規化した絶対 path で）同じことを、原記録で確かめる。
 - **AC11（S4）分類:** §2.4 の全ての行について、(a) は示し方の欄の offline test（名前で辿れる）か実機の検証経路が、(b) は offline test があり、通る。
 - **AC12（S4、N3）Editor の adapter（offline）:** 偽の CLI と偽の process で次を見る。test は、基盤が返した成否だけでなく、偽の CLI が受けた呼び出しの回数と中身を直接見る。
   - 基盤が送る全ての `eval`（送る、読む、終了の要求）の code は、先頭で Editor 自身の PID を基盤が保持した PID と比べ、違えば何もせずに「相手が違う」を返す。ready と「読めた」は、PID が合った応答だけで決める。別の PID が応答した時は起動の失敗にし、送る `eval` を送らない。
@@ -219,7 +219,7 @@ S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Playe
   - lock を稼働中の Editor が持つ時は起動しない。持つ process のいない lock の残骸は、消さずにそのまま起動する。再起動は前の process の終了を確かめた後だけ通る。
   - 起動の引数は `-projectPath <checkout の project>` と `-logFile <その試行の置き場の editor.log>` で、`-batchmode` を付けず、窓を作る。
   - 送る `eval` の code・時刻・応答が record に残る。
-- **AC13（S6）入口の文書:** [Harness README](../../tools/Harness/README.md) に、基盤の契約（前提と N1〜N5 の形）、scenario の書き方（最小の例として疎通用の scenario を指す）、record の契約と証拠の置き場、checkout の登録・片付け・隔離の解除の手順（AC3、AC9）、S4-2 の driver で前と変わる点（AC8）、driver の exit 0 の意味（AC6）がある。[検証経路の成立](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#検証経路の成立) に、実機の検証は基盤の上に case を書くことを 1 文で足す。
+- **AC13（S6）入口の文書:** [Harness README](../../tools/Harness/README.md) に、基盤の契約（前提と N1〜N5 の形）、scenario の書き方（最小の例として疎通用の scenario を指す）、record の契約と証拠の置き場、checkout の登録・片付け・隔離の解除・予約の解除の手順（AC3、AC4、AC9）、S4-2 の driver で前と変わる点（AC8）、driver の exit 0 の意味（AC6）がある。[検証経路の成立](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#検証経路の成立) に、実機の検証は基盤の上に case を書くことを 1 文で足す。
 - **AC14 機械検査:** `tools/contract-audit.ps1` と `tools/docs-audit.ps1` が通る。新しい offline suite が CI の `harness-tests` job に入っている。
 - **AC15（S1）後続の形の複合 scenario（offline）:** S4-3a の E 系列を模した短い scenario を、offline test の fixture として書き、偽の process・偽の CLI・一時の git repo で最後まで通す。scenario は基盤の公開する関数だけを使い（AC9 の走査を通る）、次を 1 本の中で組み合わせる: 2 つの checkout（X と Y）の宣言、X での偽の batch の起動と結果の保存、X から run の fixture の directory への受け渡し、Y の管理する設定の file、Y への固定 patch、偽の Editor の起動・送る `eval`・状態の待ち・読む `eval`、Editor の再起動、証拠の退避、復元、同じ RunId の `-Only` での続きの実行。加えて、run の間の所有を 1 つの列で通す: run A が Y に管理する file を残して呼び出しを終える → 別の RunId の run B が同じ Y を使おうとして、何も変えずに拒まれる → A が `-Only` で続きを走らせる → A の片付けの case が管理する file を戻す → B が通る。使用中の記録も見る: 偽の process を残したまま driver の呼び出しを打ち切り（lease は離れる）、次の呼び出しが隔離で拒まれることと、解除の入口が条件を満たす時だけ通ることを確かめる。test は、各 case の後の X と Y の file の bytes、偽の process と偽の CLI の呼び出しの列、証拠の file、record を直接見る。製品の publish・Play・Player の build は行わない。新しい記法は作らない。
 
@@ -303,7 +303,7 @@ S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Playe
 | ＋ `tools/Harness/ScenarioUnity.psm1` | Unity と外部の process の起動: `run-tests.ps1` の子の起動（環境変数を子にだけ渡す）と marker・step・件数の検査、batch の `-executeMethod`、任意の外部 command（終わるまで待つ）、補助の process（起動して保持する） | process の I/O | なし。起動した process の object を返す | `UnityProcess.psm1`。record と証拠の書き手は引数で受け取る | test の起動、batch の起動、外部 command の実行、補助の process の起動 | 偽の runner と偽の process で offline | Editor の対話の session と変わる理由が違う | 0 → 約 190 |
 | ＋ `tools/Harness/ScenarioEditor.psm1` | 窓のある Editor の session: 起動、ready、送る `eval`、読む `eval`、状態の待ち、終了の要求、PID の照合と印の埋め込み | Editor の I/O | session の object（起動から終了の確認まで）。process の object を持ち、呼び出し側へ返す | `UnityProcess.psm1`、その checkout の `tools/unity-editor.cmd`。record と証拠の書き手は引数で受け取る | session の開始・終了、送る、読む、待つ | 偽の CLI と偽の process、偽の時計で offline。実機は AC10 | S4-3c・S4-4・S5 で伸びるのはここだけなので、他の起動と分ける | 0 → 約 250 |
 | ＋ `tools/Harness/Scenario.psm1` | driver が import する唯一の入口。case の列の登録と実行（`-Only`、`-DryRun`）、全ての checkout の事前確認と lease を先に済ませること、case ごとの順序（AC2）の保証、基盤が始めた process の台帳（handle）と、driver の呼び出しの終わりの終了の確認 | orchestration | run の object（1 回の driver の呼び出しの間）: case の列と、process の handle の台帳 | 上の 4 つ | run の開始、case の登録、実行と、case の body が使う関数だけ（証拠の保存、送る・読む・待つ、Editor の session の開始と終了、管理する file、外部の directory、test・batch・外部 command・補助の process の起動、record の追記）。checkout の復元、patch、process の停止、削除、隔離の解除の関数は公開しない | 偽の body と一時の git repo で offline | 順序の保証と handle の台帳は、どの I/O の module にも置けない。永続する状態（`ScenarioRun`）と寿命が違うので分ける | 0 → 約 240 |
-| ＋ `tools/Harness/scenario-checkout.ps1` | 実行の担当の入口: 検証用の checkout の登録、片付け、隔離の解除 | CLI（薄い） | — | `ScenarioCheckout.psm1` | `register`・`remove`・`release` と、対象の path | offline test は module の関数を直接見る。CLI は引数の受け渡しだけ | driver の引数に混ぜると、どの driver からも同じ操作を呼べる形にならない | 0 → 約 50 |
+| ＋ `tools/Harness/scenario-checkout.ps1` | 実行の担当の入口: 検証用の checkout の登録、片付け、隔離の解除、予約の解除 | CLI（薄い） | — | `ScenarioCheckout.psm1` | `register`・`remove`・`release`・`unreserve` と、対象の path | offline test は module の関数を直接見る。CLI は引数の受け渡しだけ | driver の引数に混ぜると、どの driver からも同じ操作を呼べる形にならない | 0 → 約 50 |
 | ＋ `tools/Harness/scenario-editor-smoke.ps1` | 疎通用の最小の scenario。`editor` の case（AC10）と `tests` の case（基盤を通した `run-tests.ps1` の起動。filter を省けば全 EditMode。V3）。scenario の書き方の例を兼ねる | scenario | — | `Scenario.psm1` | `-RunId`、`-Commit`、`-Only`、`-DryRun`、`-Token`、`-TestFilter` | AC9 の走査。`-DryRun` | 基盤の例なので Harness に置く | 0 → 約 80 |
 | △ `tools/s42-player-overlay.ps1` | S4-2 の case の列と、S4-2 に固有の step（複写、cache の設定、片付け） | scenario | — | `Scenario.psm1` | 引数の追加だけ（AC8） | AC8 | 場所を変えない（README と program が指している） | 186 → 約 130 |
 | ＋ `tools/Harness/tests/Scenario.Tests.ps1` | run・checkout・case の順序・S4-2 の driver の互換・複合 scenario・走査（AC1〜AC6、AC8、AC9、AC15、AC11 の一部） | offline test | 一時の directory | 基盤 | `-ResultPath`、`-Filter`（既存の suite と同じ） | — | 既存の suite と同じ場所と形 | 0 → 約 1000 |
@@ -461,7 +461,7 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 
 改訂 1 と改訂 2 の設計の変更（印の必須化、lease・使用中の記録・予約、終了の確認の定義、record の契約、AC15、V3 の期待集合）について、A2 の観点の再レビューは行わない。理由: 変更は外部計画レビューの指摘への対応で、同じ担当が 2 巡目で改訂 1 を見て、1 巡目の指摘が受け入れ条件と制約に入ったことを確かめている。2 巡目の 2 件はどちらも、大きな設計の変更を求めていない。
 
-**主担当の自己点検と改訂 3（2026-11-26、合成 fixture の作成時。担当は Anthropic の系列）:** V3 の fixture の step と XML を base の `run-tests.ps1` で作り、この PC に残る実の全 EditMode の step と XML（`TestResults` の下。写しの重複を除いた）と突き合わせて、次の誤りを見つけた。下の採否は主担当の案で、owner が 2026-11-26 に Z1〜Z5 の全てを承認した（凍結はまだ）。
+**主担当の自己点検と改訂 3（2026-11-26、合成 fixture の作成時。担当は Anthropic の系列）:** V3 の fixture の step と XML を base の `run-tests.ps1` で作り、この PC に残る実の全 EditMode の step と XML（`TestResults` の下。写しの重複を除いた）と突き合わせて、次の誤りを見つけた。下の採否は主担当の案で、owner が 2026-11-26 に Z1〜Z5 の全てを承認した（承認の時点では未凍結）。
 
 | # | 見つけた事実 | 採否 |
 |---|---|---|
@@ -472,6 +472,17 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 | Z5 | `base/` の下の file 名と `eval` の原応答の形は Phase B が決めるので、凍結する fixture はそれを仮定するしかない。判定 C の offline 実行で、仮定の形の fixture と実の原記録の両方に同じ script を当てる手順が無い | **採用。** 判定の担当が読み方を適応し、対応を記録してから fixture を通す（§5 の「判定 C の照合 script の方式」）。仮定は snapshot の README に書いた |
 
 改訂 3 について、A2 の観点の再レビューは行わない。理由: Z1〜Z3 は AC7 の読み方を実の runner と XML の形に合わせる訂正で、判定の主張（期待集合との一致と、受容した 1 種類だけの差）を変えない。Z4 と Z5 は判定の手順の欠けを埋める物で、責務の置き場・依存・状態を変えない。目的・利用者は変えていない。
+
+**外部計画レビュー 3 巡目（同 PR、2026-11-26、対象は改訂 3 の commit `3a65d9bd`）と改訂 4 の採否:** G（PR の bot、xAI の Grok）が 4 件を挙げ、O（owner の account から投稿された OpenAI の ChatGPT）は追加の指摘なしで凍結を支持した（Z1〜Z5 も支持。Phase B へは、使用中の記録と予約を変更より先に確定する順序、process の起動の前の印、まだ無い checkout の path の排他を offline test で確かめるよう求めた。どれも既存の AC の実装の確認である）。下の採否は主担当の案で、owner は 3 巡目のコメントの確認の後に凍結を指示した。
+
+| # | 出どころ | 指摘の要点 | 採否 |
+|---|---|---|---|
+| W1 | G の 1 | 予約の解除が「保存した bytes が無い」を拒否にしていて、元から無かった管理する file（S4-2 の `OSMContentDelivery.json`）を消して予約を外せない。隔離の解除と予約の解除は成功の条件が違う | **採用。** 書く前の記録のとおりに戻す（無かった file は消す）。拒否は書く前の記録そのものが無い時（AC4）。`scenario-checkout.ps1` に予約の解除を別の操作として足し、隔離の解除を先に通す（AC9、§3、AC13） |
+| W2 | G の 2 | V1 の新しい cache の規則は `ovr\s42\` だが、AC8 は S4-2 の scenario の名前を決めていない | **採用。** AC8 に名前を `s42` と書いた |
+| W3 | G の 3 | program §9.1 の S4-3b の行が、補助の process を「run の寿命」のままにしている | **採用。** 「driver の 1 回の呼び出しの間だけ。呼び出しをまたぐ分は S4-3b が足す」に直した（この branch の program） |
+| W4 | G の 4 | AC10 の 6 は終了コードを記録するが、0 を合否にしていない | **採用。** 終了コードが 0 であることを AC10 の 6 と判定の文に足した。fixture に、`forced` が false で終了コードが 1 の拒否の組を足した |
+
+改訂 4 について、A2 の観点の再レビューは行わない。理由: W1 は既存の予約の仕組みの解除の条件の訂正で、状態の置き場と所有を変えない（実行の担当の入口に操作が 1 つ増える）。W2〜W4 は名前・表・合否の値の確定で、責務と依存を変えない。目的・利用者は変えていない。
 
 ## 6. Phase B 実装結果
 
