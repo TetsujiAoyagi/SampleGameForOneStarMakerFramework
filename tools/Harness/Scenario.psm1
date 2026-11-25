@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'UnityProcess.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ScenarioRun.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ScenarioCheckout.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ScenarioUnity.psm1')
 
 # 実機の検証の driver（scenario）が import する唯一の入口。
 # driver は case の列（名前、使う checkout、当てる patch、body）と、body の中の操作だけを書く。
@@ -357,6 +358,13 @@ function Invoke-ScenarioCaseInternal {
             }
             if ($lock.Held) { Add-ScenarioEvent $State 'quarantine' $context ([ordered]@{ checkout=$Case.Checkout; pid=$null; startedUtc=$null; kind='project-lock'; restored=$false; reason='project-lock-held' }) }
             $result.Quarantined = $true
+            # 戻していない今の状態を、After と判定の担当に渡す（戻した後の状態ではない）。
+            try {
+                $current = Get-ScenarioCheckoutSnapshot $checkout.Root
+                Save-ScenarioSnapshot $State $context 'quarantine' $current
+                $result.GitStatusAfter = @($current.PorcelainLines)
+                $result.GitStatusSame = ($before.Porcelain -ceq $current.Porcelain)
+            } catch { Add-ScenarioFailure $context 'evidence' $_.Exception.Message }
             if (-not $baseFailure) { $baseFailure = 'termination' }
             Add-ScenarioFailure $context 'termination' '終了を確かめられないか project lock が保持されているので、checkout を戻さずに止めます（隔離）'
         } else {
@@ -392,7 +400,9 @@ function Invoke-ScenarioCaseInternal {
     if ($context.Failures.Count -gt 0 -and -not $baseFailure) { $baseFailure = ($context.Failures[0] -split ':', 2)[0] }
     $result.Failures = @($context.Failures.ToArray())
 
-    if (-not $result.Quarantined -and $null -ne $Case.After) {
+    # After は隔離の時も呼ぶ（scenario が自分の形の record を書いてから止まれるように）。Restored と
+    # Quarantined で、戻したかどうかを区別できる。
+    if ($null -ne $Case.After) {
         try { & $Case.After $context ([pscustomobject]$result) }
         catch { if (-not $baseFailure) { $baseFailure = 'after' }; $context.Failures.Add("after: $($_.Exception.Message)") }
     }
@@ -487,9 +497,9 @@ function Save-ScenarioArtifact {
 }
 
 function Get-ScenarioDirectory {
-    # run の外部 root の下の用途の directory（cache や fixture）。-DryRun では作らずに path だけを返す。
-    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Purpose)
-    return Get-ScenarioExternalDirectory -Run $Context.State.Run -Purpose $Purpose -Create (-not $Context.DryRun)
+    # run の外部 root の下の用途の directory（cache や fixture）。-DryRun と -PathOnly では作らずに path だけを返す。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Purpose, [switch]$PathOnly)
+    return Get-ScenarioExternalDirectory -Run $Context.State.Run -Purpose $Purpose -Create (-not ($Context.DryRun -or $PathOnly))
 }
 
 function Remove-ScenarioDirectories {
@@ -535,5 +545,120 @@ function Reset-ScenarioFiles {
     return $restored
 }
 
+# --- process の起動（台帳に載せる） ------------------------------------------
+
+# ScenarioUnity・ScenarioEditor に渡す起動の scriptblock。この module の中で作るので、別の module から
+# 呼ばれても、この module の private な関数と $script: の変数を使える（GetNewClosure は使わない。
+# 作った closure は別の動的な module に結び付き、private な関数が見えなくなる）。
+$script:StartRequest = $null
+$script:LedgerStarter = {
+    param([string]$Executable, [string[]]$Arguments, [string]$WorkingDirectory, [hashtable]$Options)
+    $request = $script:StartRequest
+    if ($null -eq $request) { throw '起動の要求がありません' }
+    $handle = & $request.Context.State.Seams.Starter $Executable $Arguments $WorkingDirectory $Options
+    $request.Entry = Register-ScenarioProcess -Context $request.Context -Handle $handle -Kind $request.Kind -TimeoutMs $request.TimeoutMs -KillOnTimeout $request.KillOnTimeout
+    return $handle
+}
+
+function Use-ScenarioStarter {
+    param([psobject]$Context, [string]$Kind, [int]$TimeoutMs, [bool]$KillOnTimeout)
+    $script:StartRequest = [pscustomobject]@{ Context=$Context; Kind=$Kind; TimeoutMs=$TimeoutMs; KillOnTimeout=$KillOnTimeout; Entry=$null }
+    return $script:StartRequest
+}
+
+function Get-ScenarioCaseCheckout {
+    param([psobject]$Context)
+    if (-not $Context.Checkout) { throw 'この操作は checkout を使う case の中だけで使えます' }
+    return $Context.State.Checkouts[$Context.Checkout]
+}
+
+function Get-ScenarioProcessIndex {
+    param([psobject]$Context, [string]$Kind)
+    return @($Context.Processes | Where-Object { $_.Kind -ceq $Kind }).Count + 1
+}
+
+function Invoke-ScenarioTests {
+    # その checkout の run-tests.ps1 を子の pwsh で走らせ、終わるまで待つ。出力の directory はその試行の
+    # base/<case>/<試行>/runner-<n> で、基盤が -OutputRoot で渡す。marker の指す step が今回の物の時だけ受け入れる。
+    # 件数が ExpectedTotal と違う時（省けば 0 件の時）、marker の欠け、step が今回の物でない時は、case を失敗にする。
+    # 製品の test の failed は基盤の失敗に数えない（Status に写すだけ）。
+    param([Parameter(Mandatory)] [psobject]$Context, [string]$Filter = '', [int]$ExpectedTotal = -1, [hashtable]$Environment = @{}, [switch]$KillOnTimeout)
+    if ($KillOnTimeout) { throw 'run-tests.ps1 の起動では、基盤は process を止めません（子の pwsh の下の Unity を保持していないため）' }
+    $checkout = Get-ScenarioCaseCheckout $Context
+    if ($Context.DryRun) { return [pscustomobject]@{ Status='dry-run'; Total=$null; StepPath=''; StepIsCurrent=$false; TerminationConfirmed=$true; Pid=$null } }
+    $index = Get-ScenarioProcessIndex $Context 'test-runner'
+    $outputRoot = Join-Path $Context.Attempt.BaseDirectory "runner-$index"
+    [void][IO.Directory]::CreateDirectory($outputRoot)
+    $request = Use-ScenarioStarter $Context 'test-runner' 0 $false
+    $r = Invoke-ScenarioTestRunner -Start $script:LedgerStarter -CheckoutRoot $checkout.Root -OutputRoot $outputRoot -Filter $Filter -Environment $Environment
+    $entry = $request.Entry
+    $entry.Signaled = $r.Signaled
+    $entry.ExitCode = $r.ChildExitCode
+    $entry.Confirmed = $r.TerminationConfirmed
+    [void](Save-ScenarioBaseFile -Run $Context.State.Run -Attempt $Context.Attempt -Name "runner-$index.out.txt" -Content $r.Output)
+    Add-ScenarioEvent $Context.State 'test-run' $Context ([ordered]@{
+        pid=$r.Pid; startedUtc=$r.StartedUtc; filter=$Filter; outputRoot=$outputRoot; stepPath=$r.StepPath; stepIsCurrent=$r.StepIsCurrent
+        total=$r.Total; status=$r.Status; childExitCode=$r.ChildExitCode; unityExitCode=$r.UnityExitCode; terminationConfirmed=$r.TerminationConfirmed })
+    foreach ($message in $r.Failure) { Add-ScenarioFailure $Context 'test-run' $message }
+    if ($r.StepIsCurrent) {
+        $totalMismatch = if ($ExpectedTotal -ge 0) { $r.Total -ne $ExpectedTotal } else { $null -eq $r.Total -or $r.Total -eq 0 }
+        if ($totalMismatch) { Add-ScenarioFailure $Context 'test-run' "実行件数 $($r.Total) が期待（$(if ($ExpectedTotal -ge 0) { $ExpectedTotal } else { '1 件以上' })）と違います" }
+    }
+    return [pscustomobject]@{ Status=$r.Status; Total=$r.Total; StepPath=$r.StepPath; StepIsCurrent=$r.StepIsCurrent; TerminationConfirmed=$r.TerminationConfirmed; Pid=$r.Pid }
+}
+
+function Invoke-ScenarioBatch {
+    # batch の Unity（-executeMethod）を起動し、TimeoutMs まで待つ。log はその試行の base/ に置く。
+    # 期限の後に止めるのは KillOnTimeout を渡した時だけ（止めた終了は forced）。終了を確かめられなければ
+    # case の終わりに隔離する。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Method, [AllowEmptyCollection()] [string[]]$Arguments = @(), [int]$TimeoutMs = 3600000, [switch]$KillOnTimeout)
+    $checkout = Get-ScenarioCaseCheckout $Context
+    if ($Context.DryRun) { return [pscustomobject]@{ Status='dry-run'; ExitCode=$null; Signaled=$false; Forced=$false; LogPath=''; Pid=$null } }
+    $seams = $Context.State.Seams
+    $requested = Get-UnityRequestedVersion -ProjectPath (Join-Path $checkout.Root 'unity')
+    $executable = Resolve-UnityExecutablePath -RequestedVersion $requested -UnityRoot $seams.UnityRoot -UnityExe $seams.UnityExe
+    $index = Get-ScenarioProcessIndex $Context 'batch'
+    $log = Join-Path $Context.Attempt.BaseDirectory "batch-$index.log"
+    $request = Use-ScenarioStarter $Context 'batch' $TimeoutMs ([bool]$KillOnTimeout)
+    $handle = Start-ScenarioBatchProcess -Start $script:LedgerStarter -UnityExecutable $executable -CheckoutRoot $checkout.Root -Method $Method -LogPath $log -Arguments $Arguments
+    Add-ScenarioEvent $Context.State 'batch-start' $Context ([ordered]@{ pid=$handle.Id; startedUtc=$handle.StartedAt; argv=@($handle.Argv); logPath=$log })
+    $entry = $request.Entry
+    [void](Wait-ScenarioLedgerEntry $entry $TimeoutMs)
+    $entry.TimeoutMs = 0
+    if ($entry.Confirmed) { Write-ScenarioProcessExit $Context.State $Context $entry }
+    return [pscustomobject]@{ Status=$(if ($entry.Confirmed) { 'exited' } else { 'unconfirmed' }); ExitCode=$entry.ExitCode; Signaled=$entry.Signaled; Forced=$entry.Forced; LogPath=$log; Pid=$handle.Id }
+}
+
+function Invoke-ScenarioCommand {
+    # 外部 command（hook や任意の観測）を走らせ、終わるまで待つ。引数・終了コード・出力・時刻を record に残す。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Executable, [AllowEmptyCollection()] [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = '', [int]$TimeoutMs = 600000, [switch]$KillOnTimeout, [hashtable]$Environment = @{})
+    if ($Context.DryRun) { return [pscustomobject]@{ Status='dry-run'; ExitCode=$null; Output=''; Signaled=$false; Forced=$false; Pid=$null } }
+    $index = Get-ScenarioProcessIndex $Context 'command'
+    $request = Use-ScenarioStarter $Context 'command' $TimeoutMs ([bool]$KillOnTimeout)
+    $handle = Start-ScenarioCommandProcess -Start $script:LedgerStarter -Executable $Executable -Arguments $Arguments -WorkingDirectory $WorkingDirectory -Environment $Environment
+    $entry = $request.Entry
+    [void](Wait-ScenarioLedgerEntry $entry $TimeoutMs)
+    $entry.TimeoutMs = 0
+    $output = if ($entry.Signaled) { [string]$handle.ReadOutput() } else { '' }
+    $outputPath = Save-ScenarioBaseFile -Run $Context.State.Run -Attempt $Context.Attempt -Name "command-$index.out.txt" -Content $output
+    Add-ScenarioEvent $Context.State 'command' $Context ([ordered]@{ pid=$handle.Id; executable=$Executable; argv=@($Arguments); startedUtc=$handle.StartedAt; endedUtc=[DateTime]::UtcNow.ToString('o'); signaled=$entry.Signaled; exitCode=$entry.ExitCode; forced=$entry.Forced; outputPath=$outputPath })
+    if ($entry.Confirmed) { Write-ScenarioProcessExit $Context.State $Context $entry }
+    return [pscustomobject]@{ Status=$(if ($entry.Confirmed) { 'exited' } else { 'unconfirmed' }); ExitCode=$entry.ExitCode; Output=$output; Signaled=$entry.Signaled; Forced=$entry.Forced; Pid=$handle.Id }
+}
+
+function Start-ScenarioHelper {
+    # 補助の process を起動して保持する。driver の呼び出しの終わりに、基盤が TimeoutMs まで終了を待って確かめる
+    # （KillOnTimeout を渡した時だけ、期限の後に止める）。-Only の続きの実行をまたいでは生かさない。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Executable, [AllowEmptyCollection()] [string[]]$Arguments = @(),
+        [string]$WorkingDirectory = '', [int]$TimeoutMs = 60000, [switch]$KillOnTimeout, [hashtable]$Environment = @{})
+    if ($Context.DryRun) { return $null }
+    [void](Use-ScenarioStarter $Context 'helper' $TimeoutMs ([bool]$KillOnTimeout))
+    $handle = Start-ScenarioHelperProcess -Start $script:LedgerStarter -Executable $Executable -Arguments $Arguments -WorkingDirectory $WorkingDirectory -Environment $Environment
+    Add-ScenarioEvent $Context.State 'helper-start' $Context ([ordered]@{ pid=$handle.Id; startedUtc=$handle.StartedAt; argv=@($Arguments) })
+    return [pscustomobject]@{ Pid=$handle.Id; StartedUtc=$handle.StartedAt }
+}
+
 Export-ModuleMember -Function New-Scenario, Add-ScenarioCase, Invoke-Scenario, Set-ScenarioSeam, Reset-ScenarioSeam,
-    Write-ScenarioRecord, Save-ScenarioArtifact, Get-ScenarioDirectory, Remove-ScenarioDirectories, Set-ScenarioFile, Reset-ScenarioFiles
+    Write-ScenarioRecord, Save-ScenarioArtifact, Get-ScenarioDirectory, Remove-ScenarioDirectories, Set-ScenarioFile, Reset-ScenarioFiles,
+    Invoke-ScenarioTests, Invoke-ScenarioBatch, Invoke-ScenarioCommand, Start-ScenarioHelper
