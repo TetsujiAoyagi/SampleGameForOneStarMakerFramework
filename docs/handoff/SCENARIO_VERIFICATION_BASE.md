@@ -5,54 +5,370 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: `A`（A0 の前。この版は行を開くための骨組みで、§1 以降は A0 の担当が書く）
+- status: `A`（A3 の統合案。A2 の 3 件を反映した。外部計画レビューと凍結はまだ）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
-- implementation base commit: 未定（A0 の担当がその時点の `develop` の head で書く）
+- implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `未固定`
 - A3 凍結記録: `未凍結`
-- risk: `normal`（program の行の値。A1 で見直す）
+- risk: `normal`（A1 で見直した。製品の code・公開 API・asmdef・Addressables を変えない。checkout を書き換え process を止める道具なので、A2 に不変条件を破る順序を探す観点を 1 件足した。§5.1。A2 の後も normal のままにした）
 - owner: root（依頼者）
 - created: 2026-11-25
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
-- harvest to: A1 で決める（候補: [tools/Harness/README.md](../../tools/Harness/README.md)、program §9.1 の表の状態）
-- Phase A snapshot の取得案内・状態: 未定（A1 で要否を決める）
+- harvest to: [tools/Harness/README.md](../../tools/Harness/README.md)（基盤の契約と scenario の書き方。Phase B が書く）、program §9.1 の利用者表（各操作の状態）
+- Phase A snapshot の取得案内・状態: 未生成（機械向けの期待値・script は無い。§5 の「判定 C の照合 script の方式」）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A（A0〜A3）の主担当。
-  - 次の作業: program §8 の S4-V の行と §9.1 を入力に、A0 の planning packet（§1・§2）を書き、A1〜A3 を進める。§9.1 の利用者表の「基盤に要る操作」を 1 つずつ (a)(b)(c) に分けることが A1 の中心である。凍結は owner の判断を待つ。
-  - 読む範囲: 本書の全節（骨組み）、program の §8 の S4-V の行と §9.1、次の入力。
-  - A0 の入力（2026-11-25 までに決まったこと）:
-    - owner の決定: 実機の検証の基盤を、S4-3a の中ではなく独立の行にする。S4-3b〜d が続くことは確定しているので、「今の使い手が 1 つ」を理由に共通化を見送らない。基盤の要求は行の都合ではなく program §9.1 の表から決める（部分最適を避ける）。S4-2 の driver はこの行で基盤に移し、Player の build は取り直さない。
-    - S4-3a の外部計画レビュー（[PR #214](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/214) のコメント 3 件、2026-11-25）。特に 3 件目「追加設計提案：S4-2 の検証資産をコードとして再利用する」の、S4-2 の driver の関数の分解、`run-tests.ps1` の process と lock の扱い（`Invoke-UnityTestProcess`、`Test-UnityProjectLock`）、`tools/unity-editor.ps1` をそのまま使うこと、写してはいけない弱点の一覧、offline test の項目。内容は担当が原文を読み、本書に転記して採否を付ける。
-    - S4-3a の HANDOFF（PR #214 の branch の `docs/handoff/LOCAL_CONTENT_ORIGIN.md`）の §1 の現況のうち、Play ボタンの入口が batch と Test Runner の Scene を素通りする行（Play を見る検証は `run-tests.ps1` の test では組めず、窓のある Editor を `eval` で操作する）と、§5 の E 系列の driver の約束。S4-3a は基盤の最初の利用者の 1 つで、その case の列は S4-3a が持つ。
-  - 必要な権限: Phase A は文書だけ。Unity を起動する確認（窓のある Editor の疎通 1 回）は Phase C。
-  - 停止規則: 製品の code を変えない。program §9.1 の表に無い汎用化を足さない（足すなら先に表を直し、owner の確認を取る）。凍結の記録が無いまま Phase B を始めない。
+  - 次の Phase・役割: Phase A の主担当（A3 の外部計画レビューの反映と凍結）。凍結の後は Phase B の実装担当。
+  - 次の作業: この統合案を Draft PR に出して外部計画レビューを受け、指摘を反映する（push は owner の承認の後）。owner が §2.9 の 2 件を確かめて凍結を判断する。凍結の記録（承認者・日付・対象 revision）を上の欄に書いてから Phase B を始める。`tools/workflow-task.ps1 start` は凍結の時に行う。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表）。Phase B は §0〜§5 に加えて、[tools/Harness/README.md](../../tools/Harness/README.md) の「Unity終了時の既知native stallと調査の停止規則」と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を読む。
+  - 必要な権限: Phase B は `tools/` と文書の編集、Unity を起動しない offline test、実の検証用 checkout での `-DryRun`（git だけ）。動作確認と判定 C は Unity Editor の起動（窓あり、batch の test）。資格情報は要らない。
+  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない（足すなら先に表を直し、owner の確認を取る）。凍結の記録が無いまま Phase B を始めない。
   - 引き渡さないもの: なし。
-  - C' の独立性の注記: 基盤の設計の材料は OpenAI の model（web の ChatGPT）の外部レビューが出したので、この行の C' の未関与の系列に OpenAI を数えない。
+  - C' の独立性の注記: 基盤の設計の材料は OpenAI の model（web の ChatGPT）の外部レビューが出し、A2 の目的レビューも OpenAI の系列が担当した。この行の C' の未関与の系列に OpenAI を数えない（§5 の予約）。
+
+### 実測の方法
+
+- base `07cc2c97` の code と文書を読み、`grep` と `wc -l` で確かめた。Unity も driver も起動していない。
+- 入力として読んだ物: program §8 の S4-V の行と §9.1、[PR #214](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/214) のコメント 3 件（2026-11-25）、S4-3a の HANDOFF（同 PR の branch の `docs/handoff/LOCAL_CONTENT_ORIGIN.md`、head `fd1e15dc`）の §1 の現況と §5 の E 系列。
 
 ## 1. 目的と対象外
 
-A0 で書く。
+- 目的: Agent が新しい実機の検証（複数の checkout、Unity の batch の実行、窓のある Editor の操作、Player の process、固定 patch、run ごとの cache と証拠を使う検証）を作るとき、検証環境の構築方法を毎回考えなくて済むようにする。検証を書く担当は、自分の case・fixture・照合する値だけを書けば済む。そのための共通の基盤を `tools/` に置き、今ある利用者（S4-2 の driver と、窓のある Editor の疎通）で成り立つことを示す。
+- 利用者: 実機の検証の driver を書く担当（program §9.1 の利用者表の各行の Phase A・B の担当。主に Agent）と、その driver を実行する担当（判定 C の実行担当）。
+- 目的・利用者の文言の出どころ: A0 で書いた（骨組みの版には無かった）。1 文目は owner が 2026-11-25 の起動の指示で示した理想の文で、2 文目以降は program §8 の S4-V の行の問いである。A1 では改めていない。
+- 対象外:
+  - 製品の code と、製品の検証の合否。基盤は製品の型も入口も参照せず、受け入れ条件の合否を判定しない（program §9.1 の境界の規則）。
+  - Player の build の取り直しと、S4-2 の判定の取り直し。S4-2 の driver の実の実行（Unity の起動を伴う case）は、S4-3d が次に走らせる時に初めて通る。
+  - S4-3a 以降の case の列・fixture・照合する値。各行が持つ。
+  - 端末（Android・iOS）の Player の起動（program §9.1 の S4-5 の行。分類 (c)）。
+  - `tools/unity-editor.ps1` の変更（そのまま使う）、`run-tests.ps1` の公開の引数・marker・step の形の変更、Harness の H1 / H2c の CURRENT と gate の変更。
+  - 判定 C の照合の規則の変更（[review-evidence の「判定 C の照合 script」](../../.agents/skills/osm-workflow/references/review-evidence.md#判定-c-の照合-script)）。
+- 現況（base `07cc2c97`）:
+
+| 事実 | 根拠 | この行への影響 |
+|---|---|---|
+| S4-2 の driver は、2 つの checkout の受け取り、case ごとの patch の適用と復元、`run-tests.ps1` の起動と件数の検査、run ごとの cache、記録を 1 つの file に持つ。case の列・test の class の名前・環境変数・`OSMContentDelivery.json`・`artifacts/playable` の複写は S4-2 に固有で、残りは固有でない | `tools/s42-player-overlay.ps1`（186 行）: S4-2 に固有なのは 41-43・47-74（test の class と case の列）、76-78（record の置き場 `TestResults/s42`）、104-132（cache の設定と複写）、145-147（環境変数と filter）。固有でないのは 80-101、134-144・148-165（patch・復元・marker・件数）、167-185（事前確認と step の選び方）。44-45 の URP の設定の path は S4-2 ではなく repo の事情 | 固有でない部分を基盤へ、repo の事情を repo の設定 file へ移し、固有の部分だけを driver に残す |
+| その driver の弱点: (1) RunId の検査 `^[A-Za-z0-9._-]+$` は `.` と `..` を通す。cache の root は `<drive>\s42c\<RunId>` で、最後の step が `Remove-Item -Recurse -Force` するので、RunId が `..` なら drive の root を消しに行く。(2) run の directory と cache を `New-Item -Force` で作り、既にある物をそのまま使う。(3) 最初に URP の設定を `git checkout` してから clean を確かめる（確かめる前に書く）。(4) patch の適用が `try` の外にあり、2 つ目の patch の失敗で 1 つ目が戻らない。(5) `finally` は `run-tests.ps1` の子の process がどう終わっても checkout を戻す（子が先に落ちて Unity が残っていても戻す）。(6) X と Y の違いは解決した path の文字列の比較（`-ieq`）だけで、junction を見ない。(7) `git status` の一致は、ignore される `UserSettings/`・`TestResults/`・`artifacts/` の状態を示さない | 同 file の 39・104・180、77・107、167-171、137-141、156-162、36-38。`.gitignore` の 30・33・68 | 基盤はこれらを写さない。§2 の不変条件 N1〜N4 と受け入れ条件 AC1〜AC5 |
+| `run-tests.ps1` は Unity の process の起動を自分で持つ。`ProcessStartInfo.ArgumentList` で渡し、起動の直後に PID を固定し、開始した process の終了を期限なしで待つ。project lock は、稼働中の Editor が持つ物と残骸を分けて見る（残骸は消す）。起動の前に path 予算を検査する。どちらの関数も script の中の private で、dot-source は offline test の専用と書いてある | `tools/run-tests.ps1` の 42-72（PID は 59、待機は 63）、74-87、170-192、199、308 | 窓のある Editor と batch の `-executeMethod` を別に起動すると、この安全策の写しが要る。起動と lock を module に切り出し、runner と基盤が同じ物を使う（§3） |
+| `run-tests.ps1` には、終了コードを得るまで asset を戻さない先例がある（`-ObserveUnity` の `EditorSettings` の復元。終了を確かめられなければ `termination-unconfirmed` で戻さない） | 同 125-152（133） | N2 の形の先例 |
+| `tools/unity-editor.ps1` は、開いている Editor への `status`・`command`・`eval <UTF-8 Base64>`・`pipeline list` だけを通し、接続先を「その script のある checkout の `unity/`」に固定する。`--project-path` の上書きは拒む。Editor を開く・閉じる入口は持たない | `tools/unity-editor.ps1` の 39-46、90-93、100-116、118-124 | 検証用の checkout の Editor は、その checkout の `tools/unity-editor.cmd` で操作する。別の接続の実装を作らない |
+| `tools/` に、窓のある Editor を起動して閉じる script は無い。Play ボタンの入口は batch と Test Runner の Scene を素通りするので、Play を見る検証は `run-tests.ps1` の test では組めず、窓のある Editor を `eval` で操作する | S4-3a の HANDOFF §1（`PlayEntryInterceptor.cs:184-196`、`PlayEntryDecision.cs:197-201`）。`tools/` と `docs/` に `unity open`・`EditorApplication.Exit` の記述が無い（grep） | 窓のある Editor の adapter（起動・ready・操作・終了）が要る |
+| 過去の判定で観測した Editor の挙動（この PC、6000.6.x）: 新しい checkout の初回の起動は package の解決と import に約 11 分かかる。`status` が ready でも import 中の `eval` は 503 を返す。同期の長い処理は `Main thread operation timed out after 5000ms` の error 応答の後も最後まで走る。Play の開始・停止の移行中に送った `eval` は捨てられ、Console に Error を残す。`EditorApplication.Exit(0)` の応答は error になるが終了は正常。Editor を開くと `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` に serialize の差が付き、`unity/Assets/MobileDependencyResolver/` の下の `.meta` が working tree に出る | [18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」の観測の注意、S4-2 の driver の 44-45、S4-3a の HANDOFF §5 の RX-9。残りは担当の運用の記録で、Phase C の疎通（AC10）で取り直す | 送る `eval` は応答で成否を決められない（送り直さず、状態を読んで確かめる）。読む `eval` は読み直せる。ready は `status` だけで決めない。終了は応答ではなく process の handle で確かめる |
+| Unity の終了の既知の native stall では、終了コード 0 でも process の handle が signal にならないことがある。正常な終了は保持した handle の signal と実の終了コードで確かめ、強制終了した取得を成功の証拠にしない。人の process を止めず、過去の PID 用の停止 script を使い回さない | [Harness README](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) | N2・N3 と AC3 |
+| path 予算は repo 相対 150 文字で、checkout の root は末尾の区切りを含めて 109 文字まで。判定は `PathBudget.psm1` が持ち、`Test-PathBudgetRoot` を公開している | `tools/path-budget.json`、`tools/Harness/PathBudget.psm1` の 85・171 | checkout を用意する時にこの判定を使う |
+| Harness の offline test は自前の `Run` / `Assert` で書かれ、一時の git repo を fixture に使い、runner の process は seam（`-ProcessInvoker`）で差し替える。CI の `harness-tests` job が 5 本を走らせる。`unity-editor.tests.ps1` は手元の Unity CLI が要るので CI に入っていない | `tools/Harness/tests/UnityTestRunner.Tests.ps1` の 1-34・150、`.github/workflows/offline-checks.yml` の 43-69 | 基盤の offline test も同じ形で書き、CI に足す |
+| 未確認: `Unity.exe -projectPath <path>` で直接起動した窓のある Editor を、Unity CLI（`status --project-path`）が見つけるか。過去の起動は `unity open <path>`（Editor が終わるまで戻らない）で行った | 記録が無い | §5 の「未知の操作経路」。初回確認は Phase C（動作確認で先に 1 回） |
+
+- 今の driver の case の失敗の後の挙動（互換の対象。AC8）: test が `failed` でも実行件数が 1 なら次の case へ進み、最後まで走れば exit 0（driver は合否を判定しない。160・164）。件数が 1 でない時と marker が無い時は、record を書いてから止まる（164）。復元の後の状態が前と違う時も止まる（162）。`-Only` に列に無い名前を渡すと、何も走らずに exit 0 で終わる（174）。
+- UC ごとの利用者の入力:
+
+| UC | 利用者が選ぶ・入れるもの（誰がいつ） | 機械が決めるもの | 入力の正当化 |
+|---|---|---|---|
+| UC1 新しい検証の driver を書く | scenario の名前（開発時の宣言）。使う checkout の名前（`X`、`Y` など。開発時の宣言）。case の列（名前、どの checkout、当てる patch、body）。fixture。保存する証拠（開発時の宣言） | checkout の場所と作り方、事前確認、run の directory と記録の file、Unity の実行 file、lock の確認、起動の前に戻す file、process の起動と終了の確認、patch の適用と復元の順、record の欄、`-Only`・`-DryRun` の意味 | 目的の「自分の case・fixture・照合する値だけ」に当たる物だけを入力に残した。checkout の名前は、case がどの checkout で走るかを指すために要る |
+| UC2 driver を実行する | RunId（実行時の操作）。対象の commit（実行時の操作。省けば driver のある checkout の `HEAD`）。`-Only`、`-DryRun`（実行時の操作。省ける） | 上と同じ。checkout が無ければ作り、基盤が作った物があれば対象の commit に合わせる | RunId は証拠を run ごとに分けるために要る。対象の commit は、判定の対象の head を実行の担当が指すために要る。S4-2 の driver だけは、互換のために `-XRoot`・`-YRoot` を受け続ける（program の行の「引数の互換」） |
+| UC3 止まった run の続きを走らせる | 同じ RunId と `-Only`（実行時の操作）。終了を確かめられずに止まった時だけ、その前に checkout を手で戻す（Harness README の手順。AC3） | run の directory の印（名前、RunId、対象の commit、checkout の場所、dry-run か本番か）の照合、checkout の事前確認のやり直し、試行の番号 | 止まった所から続けるには、どの run のどの step かを指す以外の入力は要らない。手で戻す操作は、基盤が終了を確かめられない process の後だけに残る（基盤は自分の始めていない確認で checkout を戻さない。N2） |
+| UC4 検証用の checkout を片付ける | 片付けの指定（実行時の操作） | 基盤が作った checkout だけを選び、手が入っておらず Editor が開いていない物を `git worktree remove` で外す | `Library` を run の間で使い回すので、片付けは実行の担当が要る時に指す |
 
 ## 2. 意思決定と受け入れ境界
 
-A0〜A1 で書く。
+### 2.1 用語
+
+- **scenario:** 1 つの検証の driver（例: `tools/s42-player-overlay.ps1`）。case の列を持つ。
+- **case:** driver の 1 step。checkout を 1 つ使う case（patch を当て、Unity を動かし、戻す）と、checkout を使わない case（複写、片付け）がある。
+- **run:** 1 つの RunId での scenario の実行。driver の呼び出しをまたいで続く（`-Only` の続きの実行）。**run の root** は記録と証拠を置く directory、**run の外部 directory** は repo の外の短い path に置く cache と fixture の directory。**印** は run の root に置く file で、scenario の名前、RunId、対象の commit、checkout の場所、dry-run か本番かを持つ。
+- **検証用の checkout:** linked worktree で、HEAD が detached の物。**基盤が作った checkout** は、その worktree の専用の git dir に基盤の印がある物。
+- **送る `eval`・読む `eval`:** Editor の状態を変える `eval` と、状態を読むだけの `eval`。
+- **試行:** 同じ run で同じ case を走らせた回。基盤が自分で保存する証拠は試行ごとに分ける。
+
+### 2.2 このスライスが答える問い
+
+program §9.1 の利用者表の全ての利用者が、検証環境の構築（checkout の用意と安全の確認、process の起動と終了の確認、Editor の操作、編集の適用と復元、証拠の保存）を自分で書かずに、case・fixture・照合する値だけを書けば済む基盤を、今ある利用者（S4-2 の driver と、窓のある Editor の疎通）で示せるか。
+
+### 2.3 進める最低条件
+
+#### 不変条件（起きてはいけないこと）
+
+| # | 守る主張 | 主張を崩しうる経路（探索した境界は `tools/s42-player-overlay.ps1`、`tools/run-tests.ps1`、`tools/unity-editor.ps1`、Harness README と、A2 が挙げた順序） | 未確認 |
+|---|---|---|---|
+| N1 | 検証用でない checkout と、手の入った checkout の中身（file、index、HEAD）を変えない | 確かめる前の `git checkout`（S4-2 の 167-171）。X と Y が同じ場所を指す（36-38 は文字列の比較だけ。`subst` の drive や 8.3 の名前は path の比較では分からない）。rebase・bisect・merge の途中の worktree は HEAD が detached になる。同じ親の directory にある別の clone の worktree。渡された checkout の HEAD を対象の commit へ動かす。起動の前に戻す file の例外で、人がその file に入れた編集（index に stage した物を含む）を捨てる。`git clean -fd` は run の間に他者が置いた未追跡の file も消す（94） | 別の session が同じ検証用の checkout を同時に使う時。事前確認と、case ごとの HEAD の記録と、復元の後の状態の照合で止まるが、止まるまでの間の相手の変更は守らない（排他は §2.6） |
+| N2 | 終了を確かめていない process が使っている checkout を戻さない。その先の case へ進まない | S4-2 の `finally`（156-162）は、子の `pwsh` が落ちて Unity が残っていても戻す。基盤が持つ handle が子の `pwsh` や CLI の物である時、その終了は Unity の終了を示さない。`EditorApplication.Exit(0)` の応答は error になるので、応答では終了を確かめられない。既知の native stall では終了コード 0 でも handle が signal にならない。case の body が Editor を開いたまま例外を投げる | Unity が起動の直後で、まだ project lock を取っていない瞬間に子の `pwsh` が落ちた時（lock の確認をすり抜ける窓） |
+| N3 | run が始めていない process を止めない・操作しない。run が作っていない path を消さない・上書きしない | RunId `..` と `Remove-Item -Recurse -Force`（39・104・180）。`New-Item -Force` の再利用（77・107）。PID や名前で process を探して止める手順。事前確認の後に別の Editor が同じ project を開くと、`tools/unity-editor.cmd` は project の path で接続するので、基盤の `eval` と終了の要求がその Editor に届く。lock の残骸を消す関数（`run-tests.ps1` の 86）を基盤の事前確認が使う | — |
+| N4 | 起動の失敗、期限切れ、実行 0 件、証拠の保存の失敗、復元の失敗、対象でない commit での実行を、成功の記録にしない | marker が無い時の `status='no-marker'` と、その後の件数の検査（148-154・164）。`-Only` の打ち間違いで何も走らずに exit 0（174）。`-DryRun` の record が本番の record と同じ file に並ぶ。続きの実行の間に対象の commit が変わる | — |
+| N5 | 基盤は製品を知らず、製品の合否を判定しない | S4-2 の driver が持つ製品の名前（41-43、104-131、145-146）が、移す時に基盤へ入る。製品の test の `failed` を基盤の失敗に数える | — |
+| N6 | 今ある入口の挙動を変えない: `run-tests.ps1` の引数・marker・step の形・終了の待ち方、`tools/unity-editor.ps1`、S4-2 の driver の引数・case の順・`-Only`・`-DryRun`・`driver.jsonl` の今ある key・case の失敗の後の進み方 | `run-tests.ps1` の process の起動と実行 file の解決（42-87、228-240）を module へ切り出す変更。`-ObserveUnity` は終了コードが `[int]` であることを終了の確認に使う（255）。既存の offline test は `Invoke-UnityTestRun` の `-ProcessInvoker` を差し替えている。Harness の Unity adapter は `run-tests.ps1` を固定の引数で呼ぶ（`Adapters/UnityChecks.psm1` の 182・271） | — |
+
+#### 成立条件（起きなければならないこと）
+
+| # | 条件 |
+|---|---|
+| S1 | 新しい scenario が、case・fixture・保存する証拠の宣言だけで書ける。git・process・削除・Editor の接続の code を driver に書かない（疎通用の最小の scenario がその例になる） |
+| S2 | S4-2 の driver が基盤の上に移り、引数・case の順・`-Only`・`-DryRun`・`driver.jsonl` の今ある key・case の失敗の後の進み方が変わらない |
+| S3 | 窓のある Editor を、起動 → ready → 読む `eval` → 送る `eval` → 読んで確かめる → 終了、の順で実機で 1 回通し、終了を process の handle で確かめる |
+| S4 | program §9.1 の利用者表の「基盤に要る操作」の全てが (a)(b)(c) のどれかに分かれ、(a) は offline test か実機で、(b) は offline test で示される（§2.4） |
+| S5 | 検証用の checkout の用意（無ければ作る、基盤が作った物があれば対象の commit に合わせる）と片付けが driver の実行の中で済み、実行の担当が worktree を手で作らない |
+| S6 | 次に検証を書く担当が、基盤の入口と契約に辿り着ける（Harness README と、workflow の検証経路の節の 1 文） |
+
+### 2.4 操作の分類（program §9.1 の「基盤の受け入れの決め方」）
+
+(a) 実装し、今ある利用者で示す。(b) 拡張点だけを置き、後続を塞がないことを offline test で示す。(c) 対象外。
+
+| # | 操作（利用者表の行） | 分類 | 示し方 |
+|---|---|---|---|
+| 1 | 検証用の checkout の用意と片付け（表に足す案。§2.9 の (1)） | (a) | offline test（一時の git repo）。AC9。AC10 の疎通が用意した checkout で走る |
+| 2 | worktree の事前確認（S4-2） | (a) | offline test。AC1。S4-2 の driver の `-DryRun`（AC8） |
+| 3 | 固定 patch の適用と復元（S4-2） | (a) | offline test。AC2。AC8 |
+| 4 | `run-tests.ps1` の起動と実行件数の検査（S4-2） | (a) | offline test（偽の runner）。AC5。実機は、疎通用の scenario の `tests` の case が基盤を通して全 EditMode を走らせる（AC7 と同じ 1 回） |
+| 5 | run ごとの cache と fixture の root（S4-2、S4-3a） | (a) | offline test。AC4 |
+| 6 | 証拠の退避（S4-2） | (a) | offline test。AC5。AC10 の record |
+| 7 | Harness の停止規則（S4-2） | (a) | offline test。AC3 |
+| 8 | 窓のある Editor の adapter: 起動、ready、送る `eval` と読む `eval` の区別、終了（S4-3a、S5） | (a) | offline test（偽の CLI と偽の process）AC12、実機 AC10 |
+| 9 | Editor を開く前の設定 file の書き込み（S4-3a。S4-2 の cache の設定も同じ操作） | (a) | offline test。AC4。AC8（S4-2 の driver が使う） |
+| 10 | batch の Unity の起動（`-executeMethod`）（S4-3a） | (b) | offline test（偽の process で引数・終了コード・log の置き場を見る）。実の起動は S4-3a の Phase C。process の起動そのものは 8 と同じ module で、AC10 が実機で通す |
+| 11 | 補助の process を run の寿命で起動・終了（S4-3b） | (b) | offline test（起動して保持し、driver の呼び出しの終わりに、基盤が自分の始めた process の終了を確かめる。確かめられなければ戻さない） |
+| 12 | Editor の操作の途中で fault を入れる時点の制御（S4-3b） | (b) | offline test（送る `eval` は完了を待たずに戻り、case の body が次の操作を挟んでから、読む `eval` で状態を待てる） |
+| 13 | Editor の再起動（S4-3c） | (b) | offline test（2 回目の起動は 1 回目の終了を確かめた後だけ通る） |
+| 14 | reload をまたいだ `eval` の再接続と状態の読み直し（S4-3c、S4-4 の「Play と reload をまたぐ観測」） | (b) | offline test（読む `eval` は接続の失敗の後に読み直し、期限で止まる）。実の reload は S4-3c |
+| 15 | 外部 command（hook）の実行と記録（S4-3c） | (a) | 4 と同じ関数（引数・終了コード・出力・時刻を record に残す）。offline test |
+| 16 | 1 つの run の中の複数の publish の名前付け（S4-3d） | (b) | offline test（scenario が保存する証拠は、同じ case の同じ試行の中で同じ名前を上書きしない。2 つ目は拒む） |
+| 17 | Play 中の操作（S4-4） | (b) | 12・14 と同じ拡張点（送る `eval` は基盤が送り直さない、読む `eval` は読み直す）。Play の移行中の応答の実測は S4-4 |
+| 18 | OS の handle の観測（S4-4） | (b) | 専用の関数は作らない。case の body が任意の観測（script block か 15 の外部 command）を走らせ、結果を証拠に保存できることを offline test で示す |
+| 19 | Editor の状態（Dirty、Undo の履歴）を作る操作の記録（S5） | (a) | 8 の一部（送る `eval` は code・時刻・応答を record に残す）。AC12 |
+| 20 | 端末の Player の起動（S4-5） | (c) | 利用者表が「未定。この表に行を足す時に決める」としている（着手の時期は owner が決める） |
+
+S4-3d の「S4-2 の行の操作の全て」は 2〜7 と 9 に当たる。Player の process の起動と観測は、利用者表のとおり利用者（S4-2 の test）が持つ。
+
+### 2.5 受け入れ条件（進める最低条件の詳細。括弧は検証する条件）
+
+- **AC1（N1）事前確認:** 次のどれでも、基盤は checkout の file・index・HEAD と run の directory を変えずに、理由を出して止まる。
+  - 主の worktree、branch を checkout した worktree。
+  - 進行中の git の操作がある（worktree の git dir に `rebase-merge`・`rebase-apply`・`BISECT_LOG`・`MERGE_HEAD`・`CHERRY_PICK_HEAD`・`sequencer` のどれかがある）。
+  - tracked の変更（index に stage した物を含む）か、ignore されない未追跡の file がある。
+  - 2 つの checkout が同じ物である（`git rev-parse --absolute-git-dir` が同じ。path の大小文字、末尾の区切り、junction、`subst` の drive の違いに依らない）。
+  - 稼働中の Editor が project lock を持つ（lock の file は消さずに調べる）。
+  - root が path 予算を超える。
+  - 渡された checkout の HEAD が、指定した対象の commit と違う（渡された checkout の HEAD は基盤が動かさない）。
+  - 例外は 1 つ。手の入った物が、その checkout の `tools/scenario-launch-drift.json` の一覧にある file の、stage していない working tree の変更だけの時は、それを HEAD の内容へ戻して進み、戻したことを record に残す。合格例: 手の入った file が URP の設定 1 つだけで、stage していない → 戻して進む。不合格例: URP の設定と別の file 1 つ → どちらも戻さずに止まる。URP の設定の変更を stage してある → 戻さずに止まる。
+- **AC2（N1、N2、N3）patch と復元:** case の patch は、当てる順に全てをまとめて `git apply --check` で確かめてから当てる。patch の途中の失敗、body の例外、起動の失敗のどれでも、基盤は次の順で動く: (1) その case で基盤が始めた process の終了を確かめる（Editor が開いたままなら、基盤が終了を頼み、既定の期限まで待つ）。(2) その checkout の project lock を、消さずに調べる。(3) その時点の `git status` と差分を、run の root のその試行の置き場に保存する。(4) checkout を case の前の状態（`git status --porcelain` が前と同じ）へ戻す。(5) 戻した後の状態が前と違えば、以後の case を走らせない。(1) か (2) を確かめられない時は AC3 が優先し、(4) を行わない。
+- **AC3（N2、N3）終了の未確認:** run が始めた process の終了（保持した handle の signal と終了コードの取得）を確かめられない時と、その checkout の project lock を稼働中の process が持っている時、基盤はその checkout を戻さず、patch を当てたままにし、次の case を走らせず、その process の PID・開始時刻と「戻していない」ことを record に書いて非 0 で終わる。
+  - 期限の後に基盤が process を止めるのは、scenario がその起動で明示した時だけで、相手は基盤が直接起動して handle を保持している process（窓のある Editor、batch の Unity、補助の process）とその子孫に限る。`run-tests.ps1` の起動では、この指定を基盤が拒む。止めた終了は `forced` と記録し、自然な終了と分ける。
+  - 戻していない checkout の回復は実行の担当の手順とする（Harness README に書く: record の PID と開始時刻の両方が一致する process が無いことを確かめ、checkout を戻す）。その後の `-Only` の続きの実行は、新しい試行として通り、前の「戻していない」record を指す行を残す。
+- **AC4（N3）所有:**
+  - run の root は、基盤がこの run で作って印を置いた物だけを、書き込みと削除の対象にする。既にある directory は新しい run の root にしない。印の名前・RunId・対象の commit・checkout の場所・dry-run か本番かが全て同じ時だけ、`-Only` を付けた続きの実行を通し、record に続きであることを残す。合格例: 本番で止まった run を同じ RunId と `-Only` で続ける。不合格例: `-DryRun` で作った root を同じ RunId の本番が続ける。`-Only` を付けずに同じ RunId でもう一度走らせる。対象の commit が変わった後に続ける。
+  - RunId は `^[A-Za-z0-9]+([._-][A-Za-z0-9]+)*$` で 32 文字までとし、`.`・`..`・区切り・末尾の `.`・Windows の予約された device の名前（`NUL`、`CON`、`COM1` など。拡張子の付いた物を含み、大小文字を区別しない）を拒む。
+  - 外部 directory は、最初に使う case が作る（`-DryRun` では作らない）。基盤の印は、その directory の中ではなく隣（`<directory>.osm-run`）に置く。削除は印のある directory に限り、reparse point を辿らない。片付けた外部 directory を、同じ run で作り直さない。
+  - checkout の中の ignore される file への書き込みは、scenario が path を宣言した「管理する file」だけを通す。基盤は、書く前の bytes の有無と SHA-256、path を run の root に残す。寿命は run で、driver の呼び出しをまたいで残り、戻すのは scenario が片付けの case で指した時だけである。続きの実行は、今の bytes が基盤の書いた物と同じことを確かめる。
+  - 基盤は project lock の file を消さない。基盤が公開する関数は、PID や名前で process を止める入口を持たない。
+- **AC5（N4）成功にしない:**
+  - 起動の失敗、ready の期限切れ、`UNITY_TEST_RESULT` の marker の欠け、実行件数が期待と違う（期待を指定しない時は 0 件）、証拠の保存の失敗、復元の後の状態の不一致は、どれも case の record に原因と一緒に残り、driver は非 0 で終わる。
+  - `-Only` に case の列に無い名前があれば、何も書かずに拒む。選ばれた case が 0 件なら非 0 で終わる。scenario が宣言していない checkout の名前を指す case は、登録の時に拒む。
+  - checkout を使う case の record は、起動の直前と終了の後の HEAD の SHA を持つ。対象の commit を指定した run でそれが違えば、その case を失敗として非 0 で終わる。run の最初の record は、各 checkout の root・HEAD・`ProjectVersion.txt` の版を持つ。
+  - record は、基盤の操作の成否（どの操作が失敗したか）と、case の body が返した値を別の欄に持つ。`-DryRun` の record は `status` が `dry-run` で、本番の record と同じ run に並ばない（AC4）。
+- **AC6（N5）製品を知らない:** 基盤の module（§3 の `UnityProcess`・`ScenarioRun`・`ScenarioCheckout`・`ScenarioUnity`・`ScenarioEditor`・`Scenario` の 6 つ）の code に、製品の識別子（`SampleGame`、`OneStarMaker`、`OSMContent`、`artifacts/`、test の class の名前）が無い。offline test が、構文木の command の名前・型の名前・文字列の literal を走査する（comment と help は見ない）。repo の設定の `tools/scenario-launch-drift.json` は基盤の module ではない。基盤の record は、基盤の操作の成否と原記録の所在だけを持ち、受け入れ条件の合否の欄を持たない。S4-2 の `driver.jsonl` の `status` は、driver の body が runner の step から写した値で、基盤はそれで止まらず、合否と読まない。driver の exit 0 は製品の合格を意味しない（Harness README に書く）。
+- **AC7（N6）runner と wrapper:** `run-tests.ps1` の引数、marker、step の形、終了の待ち方（期限なし）、seam の形（`-ProcessInvoker` の引数と、返す object の `Id`・`StartedAt`・`EndedAt`・`DurationMs`・`ExitCode`・`Failure`。`ExitCode` は `[int]`）が変わらない。既存の offline suite（`UnityTestRunner`・`UnityObservation`・`UnityGate`・`Harness`）が、test の側を変えずに通る。期限なしの待ちは、新しい offline test（名前で辿れる）が見る。GO 候補 head の全 EditMode 回帰が、新しい runner で起動から step の保存まで完走し、XML の total が 0 でなく、失敗が §2.7 の既知の事象だけである。`tools/unity-editor.ps1`・`.cmd` は差分に現れない。
+- **AC8（S2、N6）S4-2 の driver の互換:**
+  - 引数（`-XRoot`・`-YRoot`・`-RunId`・`-Only`・`-DryRun`）、step の名前と順（base `07cc2c97` の `$steps` のまま）、`driver.jsonl` の今ある key（`step`・`root`・`filter`・`patches`・`status`・`total`・`stepPath`・`gitStatusSame`・`gitStatusBefore`・`gitStatusAfter`・`utc`、`cache`・`copy`・`cleanup` の行の key）の名前・型・意味が同じ。key の追加は許す。cache の root の値（`<drive>\s42c\<RunId>`）と record の置き場（`<Y>/TestResults/s42/<RunId>/driver.jsonl`）も同じ。
+  - case の失敗の後の進み方が同じ: (1) runner の step が `failed` でも件数が 1 なら、次の case へ進み、最後まで走れば exit 0。(2) 件数が 1 でない時と marker が無い時は、record を書いてその時点で止まる。(3) 復元の後の状態が前と違う時も止まる。offline test は (1) と (2) の両方を見る。
+  - 示し方は 2 つ: 一時の git repo での offline test と、実の 2 つの検証用の checkout での `-DryRun` の新旧の比較（§5 の V1）。
+  - 移した後の driver の code に、git・process の起動・削除の command と、基盤が公開しない関数の名前が無い（AC9 と同じ走査）。
+  - 前より厳しくなる点を Harness README に列挙する: AC1 の拒否（主の worktree、branch、進行中の操作、lock、同じ checkout）、RunId の規則と 32 文字の上限、列に無い `-Only` の名前の拒否、同じ RunId で `-DryRun` の後に本番を走らせる手順の拒否、`-Only` を付けない同じ RunId の再実行の拒否、片付けの後の cache の作り直しの拒否。
+- **AC9（S1、S5）新しい scenario と checkout の用意:**
+  - 疎通用の scenario（§3 の `scenario-editor-smoke.ps1`）の code が、case と保存する証拠の宣言だけで書かれている。offline test が構文木を走査し、`git`・`Start-Process`・`Remove-Item`・`unity-editor`・`Unity.exe` の command、`System.Diagnostics.Process` の型、基盤が公開しない関数の名前が無いことを見る。
+  - checkout を渡さずに起動すると、基盤が検証用の checkout を対象の commit で用意する。無ければ linked worktree を detached で作り、その worktree の専用の git dir に基盤の印を置く。あれば、基盤の印があり、`git rev-parse --git-common-dir` が自分の repo と同じ時だけ、事前確認（AC1）を通した上で HEAD を対象の commit に合わせる。印の無い物、別の repo の物は使わずに止まる。
+  - 片付けは、基盤の印がある checkout だけを、事前確認（AC1 の clean と lock）を通した上で `git worktree remove` で外す。`--force` と `git worktree prune` は使わない。
+  - offline test は一時の git repo で、作成、再利用、commit の切替、印の無い directory の拒否、別の repo の worktree の拒否、進行中の操作の拒否、path 予算の超過の拒否、片付けを見る。
+- **AC10（S3）窓のある Editor の疎通（実機）:** 疎通用の scenario の `editor` の case の 1 回の実行で、次が record に順に残る: Editor の起動（PID と開始時刻）、ready（`status` が ready で、かつ読む `eval` が通った時刻。応答の PID が起動した PID と同じ）、読む `eval` の応答（呼び出しごとの印と PID を含み、Unity の版と project の path を返す）、送る `eval`（`SessionState` に値を置く。呼び出しは 1 回）、読む `eval` でその値を読んだ応答、終了（handle の signal と終了コード。`forced` でない）、復元の後の `git status` が前と同じ。判定の担当は、Unity の版が `ProjectVersion.txt` と、project の path が用意した checkout の `unity/` と（区切りと大小文字を正規化した絶対 path で）一致することを原記録で確かめる。
+- **AC11（S4）分類:** §2.4 の全ての行について、(a) は示し方の欄の offline test（名前で辿れる）か実機の AC が、(b) は offline test があり、通る。
+- **AC12（S4、N3）Editor の adapter（offline）:** 偽の CLI と偽の process で次を見る。
+  - 基盤が送る全ての `eval`（送る、読む、終了の要求）の code は、先頭で Editor 自身の PID を基盤が保持した PID と比べ、違えば何もせずに「相手が違う」を返す。ready と「読めた」は、PID が合った応答だけで決める。別の PID が応答した時は起動の失敗にし、送る `eval` を送らない。
+  - scenario の送る `eval` は、応答が error でも timeout でも基盤が送り直さない（呼び出しは 1 回）。終了の要求だけは、何度届いても結果が同じなので、handle が signal になるか期限が来るまで基盤が送り直してよい。
+  - 読む `eval` は一時的な失敗の後に読み直し、印の合わない応答を成功にしない。
+  - ready は `status` の ready だけで決めず、読む `eval` が通るまで待つ。起動の後に process が先に終われば、ready を待たずに起動の失敗にする。期限で止まる。
+  - lock を稼働中の Editor が持つ時は起動しない。再起動は前の process の終了を確かめた後だけ通る。
+  - 送る `eval` の code・時刻・応答が record に残る。
+- **AC13（S6）入口の文書:** [Harness README](../../tools/Harness/README.md) に、基盤の契約（N1〜N5 の形）、scenario の書き方（最小の例として疎通用の scenario を指す）、record と証拠の置き場、戻していない checkout の回復の手順（AC3）、S4-2 の driver で前より厳しくなる点（AC8）、driver の exit 0 の意味（AC6）がある。[検証経路の成立](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#検証経路の成立) に、実機の検証は基盤の上に case を書くことを 1 文で足す。
+- **AC14 機械検査:** `tools/contract-audit.ps1` と `tools/docs-audit.ps1` が通る。新しい offline suite が CI の `harness-tests` job に入っている。
+
+不変条件ごとの失敗経路を含む受け入れ条件: N1 は AC1・AC9、N2 は AC2・AC3、N3 は AC3・AC4・AC12、N4 は AC5、N5 は AC6、N6 は AC7・AC8。
+
+### 2.6 ここでは答えない問いと所有する後続
+
+| 問い | 所有 |
+|---|---|
+| S4-2 の driver の実の実行（Unity の起動を伴う case）が基盤の上で通るか | S4-3d（S4-2 の driver を走らせ直す行） |
+| batch の `-executeMethod` の実の起動、Play の入口を通る Editor の操作、E 系列の case | S4-3a（`LOCAL_CONTENT_ORIGIN`） |
+| 補助の process と fault の実の使い方 | S4-3b |
+| reload をまたぐ `eval` の実測、hook | S4-3c |
+| Play 中の操作と OS の handle の観測の実測 | S4-4 |
+| `run-tests.ps1` の終了の待ちに期限を入れるか、子の Unity を基盤が止められるようにするか | 所有なし（Phase D で program §10 の U11 へ足す。要る時に owner が行を置く） |
+| 別の session が同じ検証用の checkout を同時に使う時の排他 | 所有なし（同上） |
+| 戻していない checkout の回復を基盤が行うこと（今は実行の担当の手順） | 所有なし（同上） |
+| Player の process を基盤が直接起動・監視すること（今は利用者の test が持つ） | 所有なし（同上。使う行が §9.1 の表に足す） |
+| 端末の Player の起動 | S4-5 |
+
+### 2.7 スライス分割の判断、判定定義、停止規則
+
+- **分割の判断:** 分割しない。検討した契機は「独立した変更理由の混在」で、(i) runner からの process の起動の切り出し、(ii) 基盤の中核と S4-2 の driver の移し替え、(iii) 窓のある Editor の adapter、の 3 つがある。分けない理由: (ii) と (iii) は (i) の module を使い、(i) だけを先に出しても使い手が runner しか無く、切り出した形が合っているかを示せない。実機でしか確かめられない未知は (iii) の 1 つ（直接起動した Editor を CLI が見つけるか）で、「独立して失敗しうる未知が複数」に当たらない。S4-3a の凍結はこの行の A3、Phase B はこの行の merge を待つので、2 つの PR に分けると待ちが延びる。Phase B の commit は (i)(ii)(iii) の順に分け、(i) の commit だけで既存の offline suite が通る形にする。
+- **判定定義:** GO は、AC1〜AC14 を全て満たした時。NO-GO は、どれかを満たさず、B 適応で直せない時。CONDITIONAL ACCEPT は使わない。全 EditMode 回帰の既知の差分外の失敗（`-nographics` の VFX の Inconclusive、content の build の staging の `Directory.Move` の access denied、XML の後の Unity の終了の native stall と、その時の実行の担当による停止）は、owner が受容済みの事象で、AC7 の不成立に数えない。AC7 が見るのは、runner が起動から step の保存までを従来の形で終えることと、差分に起因する失敗が無いことである。
+- **停止規則:** 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。
+- **A3 後の例外承認:** なし。
+- **決定記録:** なし。
+
+### 2.8 本文へ転記した実装制約
+
+1. Unity 側の C# を変えない。変えるのは `tools/` の PowerShell と設定の file、`.github/workflows/offline-checks.yml`、文書だけである。
+2. 基盤の offline test は実の Unity も Unity CLI も起動しない。process と CLI は seam で差し替える。待ちは seam（偽の時計と偽の待機）で進め、test の中で実時間を待たない（`Start-Sleep` を test に書かない）。実の process を使う test は、標準入力を待つ子の `pwsh` のように、合図で終わる物に限る。
+3. .NET の file API（`[IO.File]` など）には絶対 path を渡す（PowerShell の `Set-Location` を .NET は見ない）。
+4. Unity の process は `ProcessStartInfo.ArgumentList` で起動し、起動の直後に PID と開始時刻を固定する。`Start-Process` と文字列の連結の引数を使わない。
+5. 基盤が process を止める時は、保持している `Process` の object に対して `Kill(entireProcessTree: true)` で行う。PID や名前で探さない。`Get-Process`・`Stop-Process` を使わない。
+6. `run-tests.ps1` は今と同じく子の `pwsh` として起動し、その checkout の `tools/run-tests.ps1` を使う。dot-source しない。基盤が持つのは子の `pwsh` の handle で、その下の Unity の handle は持たない。この起動では基盤は process を止めない（期限を指定した時は、期限で終了の未確認として止まるだけ）。子の終了は Unity の終了を示さないので、復元の前の lock の確認（AC2 の (2)）を必ず通す。
+7. project lock を調べる関数は 2 つに分ける: 消さずに調べる物（基盤はこれだけを使う）と、残骸を片付ける物（`run-tests.ps1` だけが、今と同じ所で使う）。
+8. 検証用の checkout の Editor は、その checkout の `tools/unity-editor.cmd` で操作する。`eval` の code は UTF-8 の Base64 の 1 引数で渡す。別の接続の実装を作らない。
+9. 窓のある Editor の終了は、PID の照合を先頭に持つ `UnityEditor.EditorApplication.Exit(0)` を送る `eval` で頼み、保持した handle で確かめる。応答の error を失敗と読まない。
+10. `git clean` に `-x` を付けない（ignore される `Library/`・`artifacts/`・`TestResults/` を消さない）。`git worktree remove` に `--force` を付けない。`git worktree prune` を使わない。
+11. 起動の前に戻す file は、`git restore --source=HEAD --worktree -- <file>` の形で HEAD から戻す。index は触らない。
+12. `tools/Harness/README.md` の native stall の停止規則を変えない。基盤は原因の調査をしない。実行の担当が process を止める時は、対象の command line がその checkout の project を指し、PID と開始時刻が record（`run-tests.ps1` の起動では case の開始より後）と合うことを CIM で確かめてから止め、時刻・PID を書いた note を添える。
+13. 判定 C の期待値と照合 script を git に入れない。基盤の offline test は実装から導ける fixture だけを使う。
+14. `record` 型の禁止と `#nullable enable` は Unity 側の C# の規則で、このスライスは C# を足さない。
+
+### 2.9 owner の確認を待つ項目と、担当が決めた項目
+
+**owner の確認を待つ（凍結の承認に含める。どちらも範囲を変える）:**
+
+1. **program §9.1 の利用者表に「検証用の worktree の用意」を足す。** 表の S4-2 の行は「worktree の事前確認」だけで、作ることは入っていない。今は実行の担当が毎回 worktree を手で作り、場所・path 予算・対象の commit・別の `Library` を考えている。目的の「検証環境の構築方法を毎回考えなくて済む」は、これを基盤が持たないと成り立たないので、(a) として足した（§2.4 の 1、AC9）。目的レビューも、複数の checkout の作成・切替・後始末を手作業にしないことを挙げた（§5.1 の P-4）。この branch の program の表も同じ commit で直した。足さない時は、§2.4 の 1 と AC9 の 2 つ目以降、UC2 の対象の commit の入力と UC4 を外し、driver は今の S4-2 と同じく checkout の root を受け取る。
+2. **program §8 の S4-V の行の「Unity を起動する確認は疎通 1 回」に、全 EditMode 回帰を足す。** `run-tests.ps1` の process の起動を module へ切り出す（§3）ので、実装変更のスライスの標準どおり、GO 候補 head の全 EditMode 回帰を判定必須にした（AC7）。この 1 回は基盤を通して走らせ、基盤からの `run-tests.ps1` の実の起動（§2.4 の 4）も同時に示す。切り出さない時は、runner と基盤に同じ起動の code が 2 つ残る。この branch の program の行も同じ commit で直した。
+
+**担当が決めた（覆す時だけ改める）:**
+
+- 検証用の checkout の見分けは「linked worktree で、HEAD が detached で、進行中の git の操作が無い」にした。基盤が作った物には、worktree の専用の git dir に印を置き、HEAD を動かすのと片付けるのは印のある物だけにした（初稿は印を置かない案だった。A2 の IB-4・AG-1 で改めた）。
+- 検証用の checkout の既定の置き場は `<主の worktree の親>\osm-v\<scenario の名前>-<checkout の名前>` にした（短い path。`Library` を run の間で使い回す）。引数で変えられる。
+- 期限の後に基盤が自分の始めた process を止める道は、scenario が起動ごとに明示した時だけ開く。既定は止めずに終了の未確認で止まる。
+- 戻していない checkout の回復は、基盤ではなく実行の担当の手順にした（基盤は、自分が終了を確かめていない process の後で checkout を戻さない）。
+- 直接起動した Editor を CLI が見つけない時は、起動の手段だけを `unity open <完全な path>` に替える（B 適応。§5 の「未知の操作経路」）。
+- Phase A では Unity を起動しない（§0 の骨組みの票のとおり）。上の未知は動作確認で最初に確かめる。
+
+### 2.10 未決事項
+
+なし（§2.9 の 2 件は owner の確認待ち）。
 
 ## 3. 責務マップ
 
-A1 で書く。
+新規は ＋、変更は △。行数は予想。
+
+| file | 責務（一文） | 種別 | 所有する状態・寿命 | 依存 | 公開面 | テスト境界 | 配置の理由 | 行数 |
+|---|---|---|---|---|---|---|---|---|
+| ＋ `tools/Harness/UnityProcess.psm1` | Unity の実行 file を `ProjectVersion.txt` から決め（要求の版と実の file の版を別に返す）、project lock を調べ、process を起動して identity（PID・開始時刻・handle）を固定し、終了を待つ | infrastructure（process の I/O） | なし。起動した process の object は呼び出し側が持つ | なし（.NET だけ） | 実行 file の解決、lock を消さずに調べる、lock の残骸を片付ける、起動、待機（期限なし・期限あり）、保持した object への停止 | 偽の starter で offline。実の子の `pwsh` で handle の挙動 | runner と基盤が同じ起動を使うため、どちらにも属さない Harness の module にする | 0 → 約 150 |
+| △ `tools/run-tests.ps1` | Unity の test を実行し、XML・log・step を保存する（今と同じ） | orchestration | 変わらない | `UnityProcess.psm1` を足す | 変わらない（引数、marker、step、`Invoke-UnityTestRun` の `-ProcessInvoker` と返す object の形） | 既存の offline suite を変えずに通す | `Invoke-UnityTestProcess` と `Test-UnityProjectLock` は名前を残し、中身を module の呼び出しにする。`Invoke-UnityTestRun` の中の実行 file の解決（228-240）も module の呼び出しにする。lock の残骸の片付けは今と同じ所で行う | 312 → 約 285 |
+| ＋ `tools/Harness/ScenarioRun.psm1` | run の永続する状態を所有する: RunId の検査、root と外部 directory の作成と印、続きの実行の照合、試行の番号、record（JSONL）、証拠の保存、管理する file の記録と戻し、印のある範囲の削除 | 永続化と所有 | file だけ（run の root、外部 directory、印）。driver の呼び出しをまたぐ | なし | run の開始（新規・続き）、record の追記、証拠の保存、管理する file、外部 directory の作成と削除 | 一時の directory で offline | 「何を書いてよいか・消してよいか」の判断を 1 か所に集める | 0 → 約 260 |
+| ＋ `tools/Harness/ScenarioCheckout.psm1` | 検証用の checkout を扱う: 用意（作成・再利用・commit の切替）と片付け、事前確認、起動の前に戻す file の扱い、patch の確認と適用、復元、前後の状態の照合 | git の I/O | なし（状態は git と working tree。基盤の印は worktree の git dir） | `PathBudget.psm1`、`UnityProcess.psm1`（lock を消さずに調べる関数だけ） | 用意、片付け、事前確認、patch の適用、復元、状態の取得 | 一時の git repo と linked worktree で offline | git の扱いが変わる理由は run の所有とも Unity の操作とも別 | 0 → 約 260 |
+| ＋ `tools/Harness/ScenarioUnity.psm1` | Unity と外部の process の起動: `run-tests.ps1` の子の起動と marker・件数の検査、batch の `-executeMethod`、任意の外部 command（終わるまで待つ）、補助の process（起動して保持する） | process の I/O | なし。起動した process の object を返す | `UnityProcess.psm1`。record と証拠の書き手は引数で受け取る | test の起動、batch の起動、外部 command の実行、補助の process の起動 | 偽の runner と偽の process で offline | Editor の対話の session と変わる理由が違う | 0 → 約 170 |
+| ＋ `tools/Harness/ScenarioEditor.psm1` | 窓のある Editor の session: 起動、ready、送る `eval`、読む `eval`、状態の待ち、終了の要求、PID の照合と印の埋め込み | Editor の I/O | session の object（起動から終了の確認まで）。process の object を持ち、呼び出し側へ返す | `UnityProcess.psm1`、その checkout の `tools/unity-editor.cmd`。record と証拠の書き手は引数で受け取る | session の開始・終了、送る、読む、待つ | 偽の CLI と偽の process、偽の時計で offline。実機は AC10 | S4-3c・S4-4・S5 で伸びるのはここだけなので、他の起動と分ける | 0 → 約 240 |
+| ＋ `tools/Harness/Scenario.psm1` | driver が import する唯一の入口。case の列の登録と実行（`-Only`、`-DryRun`）、case ごとの順序（AC2）の保証、基盤が始めた process の台帳（handle）と、driver の呼び出しの終わりの終了の確認 | orchestration | run の object（1 回の driver の呼び出しの間）: case の列と、process の handle の台帳 | 上の 4 つ | run の開始、case の登録、実行と、case の body が使う関数だけ（証拠の保存、送る・読む・待つ、Editor の session の開始と終了、管理する file、外部 directory、test・batch・外部 command・補助の process の起動、record の追記）。checkout の用意・片付けの指定は run の開始の引数。checkout の復元、patch、process の停止、削除の関数は公開しない | 偽の body と一時の git repo で offline | 順序の保証と handle の台帳は、どの I/O の module にも置けない。永続する状態（`ScenarioRun`）と寿命が違うので分ける | 0 → 約 220 |
+| ＋ `tools/scenario-launch-drift.json` | Unity の起動が書き換えると分かっている tracked の file の一覧（今は URP の設定 1 つ）と理由。基盤は、対象の checkout の root からこの file を読む（無ければ空） | repo の設定 | — | — | — | AC1 の offline test は一時の repo に置く | `path-budget.json` と同じ、repo の事情を持つ設定。基盤の module に製品の project の path を持たせない。対象の commit の一覧を使う | 0 → 約 10 |
+| ＋ `tools/Harness/scenario-editor-smoke.ps1` | 疎通用の最小の scenario。`editor` の case（AC10）と `tests` の case（基盤を通した `run-tests.ps1` の起動。filter を省けば全 EditMode。AC7）。scenario の書き方の例を兼ねる | scenario | — | `Scenario.psm1` | `-RunId`、`-Commit`、`-Only`、`-DryRun`、`-TestFilter`、片付けの指定 | AC9 の走査。`-DryRun` | 基盤の例なので Harness に置く | 0 → 約 80 |
+| △ `tools/s42-player-overlay.ps1` | S4-2 の case の列と、S4-2 に固有の step（複写、cache の設定、片付け） | scenario | — | `Scenario.psm1` | 変わらない | AC8 | 場所を変えない（README と program が指している） | 186 → 約 130 |
+| ＋ `tools/Harness/tests/Scenario.Tests.ps1` | run・checkout・case の順序・S4-2 の driver の互換・走査（AC1〜AC6、AC8、AC9、AC11 の一部） | offline test | 一時の directory | 基盤 | `-ResultPath`、`-Filter`（既存の suite と同じ） | — | 既存の suite と同じ場所と形 | 0 → 約 750 |
+| ＋ `tools/Harness/tests/ScenarioUnity.Tests.ps1` | `UnityProcess`・`ScenarioUnity`・`ScenarioEditor`（AC3 の process の側、AC5 の起動の側、AC7 の期限なしの待ち、AC11 の一部、AC12） | offline test | 一時の directory | 基盤 | 同上 | — | 同上 | 0 → 約 500 |
+| △ `.github/workflows/offline-checks.yml` | 上の 2 本を `harness-tests` job に足す | CI | — | — | — | — | — | +4 |
+| △ `tools/Harness/README.md` | 「実機の検証の scenario」の節（AC13 の内容） | 公開文書 | — | — | — | docs-audit | Harness の入口の文書 | 148 → 約 210 |
+| △ `.agents/skills/osm-workflow/references/phases-and-handoff.md` | 「検証経路の成立」に 1 文 | 規約 | — | — | — | docs-audit | 実機の検証を計画する担当が必ず読む節 | +1 |
+
+- **行数の警報:** 新規の module はどれも 500 行未満。`Scenario.Tests.ps1` は 500 行を超える見込みだが、既存の suite（`Harness.Tests.ps1` は約 700 行）と同じく、1 つの対象の case を並べた表で、分ける理由が無い。`ScenarioEditor.psm1` が 300 行を超える時は、応答の分類（文字列の表）を別の関数の表に出すだけにして、file は分けない。
+- **依存の向き:** `Scenario` → `ScenarioEditor`・`ScenarioUnity`・`ScenarioCheckout`・`ScenarioRun` → `UnityProcess`・`PathBudget`。`ScenarioEditor` と `ScenarioUnity` は `ScenarioRun` を import しない。逆向きは無い。基盤は Harness の H1 の store（`RecordStore.psm1`、`harness.ps1`）にも `tools/Artifacts` にも依存しない。
+- **状態の所有:** 永続する物（root、印、record、証拠、管理する file の記録）は `ScenarioRun`。driver の呼び出しの間だけの物（case の列、process の handle）は `Scenario` の run の object。Editor の session は `ScenarioEditor` の object で、その process は `Scenario` の台帳に載る。checkout の状態は git と working tree にあり、基盤は写しを持たない。
+- **基盤が決めて、driver に書かせない物:** run の root の既定（driver のある checkout の `TestResults/scenario/<名前>/<RunId>`。S4-2 は互換のため `<Y>/TestResults/s42/<RunId>` を渡す）、外部 directory の既定（checkout の drive の root の `osm-v-run\<名前>\<RunId>\<用途>`。S4-2 は `<drive>\s42c\<RunId>` を渡す）、record の file 名（`driver.jsonl`）、基盤が自分で保存する証拠の置き場（run の root の `base/<case>/<試行の番号>/`: 戻す前の状態と差分、`eval` の record、Editor と batch の log）、scenario が保存する証拠の置き場（`evidence/<case>/<試行の番号>/<名前>`）。
+- **窓のある Editor の `eval` の印と PID:** 基盤が送る全ての `eval` は、先頭で Editor 自身の PID を保持した PID と比べる。読む `eval` は、呼び出しごとの印（GUID）を code に埋め、応答にその印と合った PID がある時だけ読めたとする。CLI の終了コードと文言の分類に頼らない。
 
 ## 4. 実装計画
 
-A1 で書く。
+- 変更対象: §3 の表のとおり。
+- 順序（commit を分ける）:
+  1. `UnityProcess.psm1` を作り、`run-tests.ps1` の起動・lock・実行 file の解決を置き換える。既存の offline suite を変えずに通す。
+  2. `ScenarioRun.psm1` → `ScenarioCheckout.psm1` → `Scenario.psm1` と `Scenario.Tests.ps1`。
+  3. `ScenarioUnity.psm1` と、`tools/s42-player-overlay.ps1` の移し替え（互換の offline test を先に、今の driver に対して書いてから移す）。`tools/scenario-launch-drift.json`。
+  4. `ScenarioEditor.psm1`、`scenario-editor-smoke.ps1`、`ScenarioUnity.Tests.ps1`。
+  5. CI、Harness README、workflow の 1 文。
+- Phase B から Phase A へ差し戻す条件: N1〜N5 を守るのに §3 に無い状態・依存・公開の関数が要る。`run-tests.ps1` の引数・marker・step の形・seam の形を変えないと切り出せない。S4-2 の driver の今ある key、step の順、case の失敗の後の進み方を変えないと移せない。program §9.1 の表に無い操作が要る。
+- B 適応の範囲: 関数の名前と引数の細部、record に足す key、応答の文言の分類、偽の process の形、起動の手段の差し替え（§5 の「未知の操作経路」）。どれも実装結果に記録する。
+- 対象外を維持する方法: `unity/Assets/` と `tools/unity-editor.ps1`・`.cmd` が差分に現れないことを `git diff --stat` で確かめる。
 
 ## 5. テストとレビュー計画
 
-A1 で書く。
+- 単体テスト: `Scenario.Tests.ps1` と `ScenarioUnity.Tests.ps1`（§3）。各 AC と §2.4 の (a)(b) の行に、名前で辿れる case を 1 つ以上置く。
+- 差し戻し中の起点: 上の 2 本と、既存の `UnityTestRunner.Tests.ps1`・`UnityObservation.Tests.ps1`（どれも Unity を起動しない）。Unity の `-Filter` は使わない。
+- 判定必須テスト（GO 候補 head）:
+  1. offline: `Scenario.Tests.ps1`、`ScenarioUnity.Tests.ps1`、既存の `Harness.Tests.ps1`・`UnityGate.Tests.ps1`・`UnityObservation.Tests.ps1`・`UnityTestRunner.Tests.ps1`、`contract-audit.tests.ps1`。
+  2. `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`。
+  3. S4-2 の driver の `-DryRun` の新旧の比較（下の検証経路の V1）。
+  4. 窓のある Editor の疎通 1 回（V2）。
+  5. 全 EditMode 回帰 1 回（V3。基盤を通して走らせる）。
+- 全 EditMode 回帰の適用除外: なし（runner を変えるので行う）。
+- 統合・Unity テスト: 足さない（Unity 側の code を変えない）。
+- 操作・実行時・目視条件の検証経路:
+  - **V1（AC8）S4-2 の driver の `-DryRun` の新旧の比較。** 担当: 動作確認は Phase B の session、判定は判定 C の実行担当。環境: GO 候補 head の 2 つの検証用の checkout（S4-2 の driver は互換のため root を受け取るので、`git worktree add --detach` で作って渡す。Unity を起動しないので `Library` は要らない）。操作: (1) `git show 07cc2c97:tools/s42-player-overlay.ps1` を repo の外の作業用の directory に書き出し、`-XRoot <X> -YRoot <Y> -RunId <旧の id> -DryRun` で走らせる。(2) GO 候補 head の `tools/s42-player-overlay.ps1` を同じ `-XRoot`・`-YRoot` と別の RunId、`-DryRun` で走らせる。観測と合否: 2 つの `driver.jsonl` の、今ある key を持つ行（旧の driver が書く行）の数と順、各行の今ある key の名前・型・値が、`utc` と RunId を含む値を除いて同じ（新しい側の追加の key と、基盤が足す行は比べない）。実行の前後で X と Y の `git status --porcelain` が空。保存する証拠: 2 つの `driver.jsonl`、2 つの実行の出力、前後の `git status`。
+  - **V2（AC10）窓のある Editor の疎通。** 担当: 動作確認は Phase B の session（未知の操作経路の初回の確認を兼ねる）、判定は判定 C の実行担当。環境: Windows の開発の PC、`ProjectVersion.txt` の版の Unity。操作: `pwsh tools/Harness/scenario-editor-smoke.ps1 -RunId <id> -Only editor` を 1 回（checkout は基盤が GO 候補 head で用意する。初回は import に約 11 分かかるので、ready の期限の既定は 30 分にする）。観測と合否: AC10 の record の列。保存する証拠: run の root の全体（`driver.jsonl`、`base/` の `eval` の record と `editor.log`、戻す前後の `git status`）。終了が期限までに確かめられない時は、record の「終了の未確認」をそのまま証拠にし、Harness README の停止規則と §2.8 の制約 12 に従う（原因を調べない）。その時 AC10 は満たさない。
+  - **V3（AC7、§2.4 の 4）全 EditMode 回帰。** 担当: 判定 C の実行担当（動作確認では行わない。Unity の test は Phase C）。操作: V2 と同じ RunId で `pwsh tools/Harness/scenario-editor-smoke.ps1 -RunId <id> -Only tests`（filter を渡さない。V2 と同じ checkout を使う）。観測と合否: `driver.jsonl` の `tests` の case の record（基盤の操作の成否、`UNITY_TEST_RESULT` の marker の先の step の path、件数）、step の形（`recordKind`・`process`・`counts`・`cases`）、XML の total が 0 でなく、失敗が §2.7 の既知の事象だけ。既知の事象で runner の step が `failed` になった時、case の record はその値を写すだけで、基盤の操作は成功のままである。XML の完成の後に process が残る時は、既知の stall として、実行の担当が §2.8 の制約 12 の確かめ方で止め、note を添える。
+- 未知の操作経路の疎通結果と確認地点: 未知は 1 つ。`Unity.exe -projectPath <path> -logFile <path>` で直接起動した窓のある Editor を、その checkout の `tools/unity-editor.cmd status` と `eval` が見つけて操作できるか。**未確認。初回確認は動作確認の V2（Phase B の出口）、判定は Phase C。** Phase A で確かめない理由: この行の Phase A は文書だけで進める約束で、起動の手段は `UnityProcess.psm1` の starter の差し替えで足りる形にしてある。不成立の時: 起動の手段を `unity open <完全な path>` に替える（B 適応）。その時は基盤が持つ handle が CLI の物になるので、CLI の終了を Editor の終了と読まず、終了は project lock が離されたこと（AC2 の (2)）で確かめ、期限の後に基盤が止める道（AC3）はこの起動では閉じる。どちらの手段でも ready と `eval` が通らない時は、基盤の不備として B へ戻す（人の操作で埋めない）。
+- 人間の判断が必要な条件: なし。
+- 高コスト証拠: なし（Player の build、実の R2、人の観察は無い）。
+- 判定 C の照合 script の方式: 判定 C の offline 実行。照合するのは V1 の 2 つの `driver.jsonl` と V2・V3 の record で、資格情報にも通信にも触れない。期待値の導出の規則: V1 は、base の driver の `-DryRun` の出力が期待値で、上の V1 の比べ方で一致すること。V2 は、AC10 の列の順と、Unity の版が `ProjectVersion.txt` の値、project の path が用意した checkout の `unity/` であること。合成 fixture は要らない（期待値は base の driver の出力そのもの）。
+- 機械検査: 判定必須の 2。基盤と driver の走査（AC6、AC8、AC9）は offline test の中にある。
+- A0/A1 主担当・モデル・ベンダー: Claude Fable 5.2（Anthropic）。
+- C' 用に予約した担当・モデル・ベンダー: xAI の Grok（Phase A に関わっていない系列）。使えない時は、Phase B・C と違う model で行い、独立性の制約を記録する。
+- 独立性の強化条件を満たせない場合の理由: risk は normal で、強化条件は要らない。OpenAI の系列は設計の材料と A2 の目的レビューに関わったので、C' の未関与の系列に数えない。
 
 ### 5.1 A2 の独立レビューと A3 の採否
 
-未着手
+**A2 の入力版と担当（2026-11-25）:**
+
+| 観点 | 担当・モデル・ベンダー | 入力版 |
+|---|---|---|
+| 目的レビュー | Codex CLI、`gpt-5.6-luna`（effort medium）、OpenAI。新しい session | 目的・利用者の原文だけ。sha256 `5e7c6c0927e85832a43fa1292347eb393caeab50f2beaf89aa97f6d9381dd747` |
+| アーキテクチャゲート | Claude Opus 5.5、Anthropic。新しい session | 固定 base `d6e839405abb376ce2de99cfdaf3ac7bca7bff14`（code は implementation base と同じ。program §9.1 を含む）の clean な detached checkout と、HANDOFF の copy。sha256 `924290942b90b56a885264bdb4f9ae23bf4585cd69ee0222f47dca70ec556a25` |
+| 不変条件を破る順序（計画の対象は実装済みと仮定） | Claude Opus 5.5、Anthropic。上とは別の新しい session | 同上 |
+
+成立しなかった試行（採否に使っていない）: 目的レビューは Codex の sandbox が日本語の file を文字化けさせて読み、1 回目は問いを読み違え、2 回目は担当が自分で止めた。3 回目に本文を引数で渡して成立した（上の sha256 はその本文）。アーキテクチャゲートは、Codex が sandbox の git の所有者の検査と同じ文字化けで 2 回止まったので、担当を Claude Opus 5.5 に替えた。3 件とも互いの指摘を見ていない。
+
+**A3 の統合担当:** Claude Fable 5.2（Anthropic）。採否は下の表。目的・利用者の文言は A2 の後も変えていない（目的レビューのやり直しは要らない）。
+
+**目的レビューの回答と初稿の突き合わせ:**
+
+| # | 回答の要点 | 採否 |
+|---|---|---|
+| P-1 | case の失敗と、検証環境の構築・実行の基盤の失敗を分けられること | **採用。** AC5 の record の 2 つの欄と、AC6・AC8 の `status` の読み方 |
+| P-2 | どの run がどの patch と環境で走ったかを追える。別の checkout や別の実行の結果を取り違えない | **採用。** AC4 の印（対象の commit と checkout の場所）、AC5 の HEAD の記録 |
+| P-3 | 入力の不足や環境の構築の失敗を、あいまいな成功にしない | **採用。** AC5（列に無い `-Only`、0 件、宣言の無い checkout） |
+| P-4 | 複数の checkout の作成・切替・後始末を手作業にしない | **採用。** 用意に加えて片付けを足した（§2.4 の 1、AC9、UC4）。§2.9 の (1) の根拠にもした |
+| P-5 | Player の process の起動・監視・終了と、残った process の回収を手作業にしない | **不採用（このスライスでは）。** program §9.1 の利用者表が、Player の起動と観測を利用者（S4-2 の test）の持ち物にしている。基盤が直接起動する使い手が今は無い。補助の process の起動（§2.4 の 11）がその時の拡張点になる。§2.6 に送った |
+| P-6 | run の間で cache や証拠を共有しない | **初稿のとおり。** 検証用の checkout の `Library` は run の間で使い回すが、run の cache でも証拠でもない |
+| P-7 | S4-2 や疎通だけに依存した専用の API、case・fixture・期待値の自動生成、合否の判断を基盤が肩代わりする機構を作らない | **初稿のとおり。** N5、AC6、§2.4 の (b) の offline test |
+| P-8 | 実行 file の引数、PID、作業用の directory、cache の path、証拠の file 名を毎回入力させない | **初稿のとおり。** UC1・UC2 の「機械が決めるもの」、§3 の「基盤が決めて、driver に書かせない物」 |
+
+**アーキテクチャゲート（AG）と不変条件の探索（IB）の指摘:**
+
+| # | 重さ | 指摘の要点 | 採否 |
+|---|---|---|---|
+| IB-1 | blocker | 応答した Editor が run の起動した物とは限らない（事前確認の後に別の Editor が同じ project を開くと、`eval` と終了の要求がそちらへ届く） | **採用。** 全ての `eval` の先頭の PID の照合。AC10、AC12、§3、N3 の経路 |
+| IB-2 | blocker | 保持した handle（子の `pwsh`、CLI）の終了を、checkout を使う Unity の終了と同じに扱っている | **採用。** 復元の前に project lock を消さずに調べる（AC2 の (2)、AC3、制約 6）。`unity open` の時の読み方を §5 に書いた。marker の欠けを別の条件にはしなかった（lock の確認で足りる。起動の直後の窓は N2 の未確認に書いた） |
+| IB-3 / AG-7 | major / minor | lock の関数は残骸を消すので、基盤の事前確認が run の作っていない file を消す。実行 file の解決も 2 つの関数の外にある。`ExitCode` の型 | **採用。** lock の関数を 2 つに分ける（制約 7、AC4、§3）。実行 file の解決も module へ（§3、§4）。seam の形と `[int]` を AC7 に書いた |
+| IB-4 / AG-1 | major | 「linked worktree で detached」だけでは、rebase・bisect の途中、別の clone の worktree、path の別名、stage した drift を分けられない。渡された checkout の HEAD を動かせてしまう | **採用。** 進行中の操作の拒否、`--absolute-git-dir` での同一の判定、基盤の印（git dir）と印のある物だけの commit の切替、渡された checkout の HEAD は動かさない、drift の例外は stage していない変更だけ（AC1、AC9、制約 10・11、§2.9） |
+| IB-5 | major | run の途中で対象の commit が変わっても、同じ run に混ざる | **採用。** 印に対象の commit と checkout の場所（AC4）、case ごとの HEAD の記録（AC5）。排他は §2.6 のまま |
+| IB-6 | major | AC3 で止まった run を再開する道が無い（patch が残って事前確認が拒み、証拠の名前が衝突する） | **採用。** 試行の番号、回復の手順（Harness README）、続きの実行の record（AC3、§3、UC3）。基盤が回復まで行う案は採らず §2.6 に送った（基盤は自分が終了を確かめていない process の後で戻さない） |
+| IB-7 / AG-12 | major / minor | 列に無い `-Only` で 0 件のまま exit 0。`-DryRun` の root を本番が続ける。RunId の予約名。同じ RunId の `-DryRun` の後の本番の拒否が互換の一覧に無い | **採用。** AC4、AC5、AC8 の「前より厳しくなる点」 |
+| IB-8 / AG-10 | major / minor | step は 25 個で「26 個」は誤り。§1 の行の範囲が実際と合わない | **採用。** 数を書かない形にした（AC8）。§1 の 1 行目を直した |
+| IB-9 | major | 「base と同じ桁」は比べる相手も意味も決まらない | **採用。** 数の比較を外し、total が 0 でないことと既知の事象だけの失敗にした（AC7、V3） |
+| IB-10 | major | AC2 と AC3 の優先、body の例外の後の Editor の後始末、`--check` の単位 | **採用（形を変えて）。** AC2 の順と AC3 の優先、`--check` はまとめて。送り直しは、応答の文言で「受理されなかった」を見分ける案を採らず、何度届いても同じ結果の終了の要求だけを基盤が送り直す形にした（AC12。文言の分類は実機で未確認のため） |
+| IB-11 | minor | 文字列の走査は comment や help で当たる。`status` は製品の test の結果で、exit 0 が合格に読める | **採用。** 構文木の走査と対象の file の列挙（AC6、AC8、AC9）、`status` と exit 0 の読み方（AC6、AC13） |
+| IB-12 | minor | 実行の担当が PID だけで止めると別の process を止めうる。止める範囲。AC10 の path の一致 | **採用。** 制約 12（command line・PID・開始時刻の照合）、制約 5 と AC3（子孫まで。`run-tests.ps1` の起動では拒む）、AC10 の正規化 |
+| AG-2 | major | 管理する file の寿命が run の object（1 回の呼び出し）と合わない。今の driver は設定を戻さず、後の `-Only` がそれに依存する | **採用。** 寿命を run（呼び出しをまたぐ）にし、戻すのは片付けの指定の時だけ。書いた事実を run の root に残す（AC4、§3） |
+| AG-3 | major | 外部 directory を作る時点と印の置き場が今の driver と違う（`-DryRun` で残る、印が製品の cache の root に入る、片付けの後の再開） | **採用。** 最初に使う case で作る、印は隣、片付けた物は作り直さない（AC4） |
+| AG-4 | major | case の失敗の後に止まるか続けるか、終了コードが決まっていない | **採用。** §1 に今の挙動、AC8 に互換の 3 点 |
+| AG-5 | major | 関数の再公開で、driver が順序の保証を迂回できる | **採用。** 公開は case の body が使う物だけ。走査に公開しない関数の名前（§3、AC8、AC9） |
+| AG-6 | major | 補助の process の置き場が §3 に無い | **採用。** `ScenarioUnity` に「起動して保持する」入口、呼び出しの終わりの確認は `Scenario`（§3、§2.4 の 11） |
+| AG-8 | minor | 起動の前に戻す file の一覧は製品の project の path で、読む checkout も違う | **採用。** `tools/scenario-launch-drift.json`（repo の設定）にし、対象の checkout の root から読む（§3、AC1、AC6） |
+| AG-9 | minor | 基盤を通した `run-tests.ps1` の実の起動を一度も通さない | **採用。** 全 EditMode 回帰を疎通用の scenario の `tests` の case で走らせる（V3、§2.4 の 4）。Unity の起動は増えない |
+| AG-11 | minor | process の台帳（handle、呼び出しの間）と永続化（呼び出しをまたぐ）が同じ module にある | **採用。** 台帳は `Scenario` の run の object へ。`ScenarioEditor` と `ScenarioUnity` は `ScenarioRun` に依存しない（§3） |
+
+A2 の後の設計の変更（印、PID の照合、lock の確認、試行、公開面の絞り込み）について、A2 の観点の再レビューは行わない。理由: どれも A2 の指摘が示した最小の修正の範囲で、責務の置き場と依存の向きを変えていない（`Scenario` に台帳を移した点は AG-11 の提案そのもの）。この統合案は Draft PR の外部計画レビューが全体を見る。
 
 ## 6. Phase B 実装結果
 
