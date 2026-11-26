@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B`（A3 凍結済み、revision 8。次は Phase B）
+- status: `B 完了`（A3 凍結済み、revision 8。Phase B の実装を固定した。次はローカルの動作確認）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
-- implementation head commit: `未固定`
+- implementation head commit: `2eea7f182296e5001c7c4fa80d3d090d068b6169`
 - A3 凍結記録: 承認者は owner（root、依頼者）。2026-11-25（UTC）。対象は revision 8（commit `d151fdc8` の本文に、この凍結の記録と引継ぎ票を足した版）。根拠: owner が本 session で「それ終わったら凍結しよ」と指示した（主担当の自己点検の反映の後）。PR #216 の外部計画再レビューは「文書の修正と既定の docs-audit が済めば A3 凍結に進んでよい」とし、docs-audit と contract-audit は head `d151fdc8` の CI の `audit` ジョブ（`offline-checks.yml`）で実行されている。次の担当は Phase B で、owner の指示により Cloud の session が担う（「ローカルが長めの試験やる予定なので実装自体はクラウドでやりたい」。下の引継ぎ票の例外）。
 - risk: `normal`（理由は §2.6）
 - owner: root（依頼者）
@@ -17,19 +17,17 @@
 - harvest to: `unity/Assets/Docs/Architecture/05-scene.md` §5.12（外から読める Scene の状態、出力の意味、観測が状態と寿命を変えないこと。あわせて §5.12 の `SceneEvent` の欄の記述が code に遅れている点を直す）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（Framework が Editor でだけ持つ内部の catalog と振り分けの dispatcher）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（`osm.scenes` の送り方と出力の読み方）
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（Phase B result snapshot は Cloud では作れないので、ローカルの動作確認の担当が implementation head から作り、取得案内を残す）
 - task: 未開始（`tools/workflow-task.ps1 start` は凍結の時に行う）
-- 引継ぎ票:
-  - 次の Phase・役割: Phase B（実装担当）。owner の指示で Cloud の session が担う（[Cloud の担当](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#cloud-の担当) の「B の修正ループに入るのは例外」に当たる、owner が明示した例外）。
-  - 次の作業: §2.1 と §3 のとおりに実装し、§2.4 の AC1〜AC10 の EditMode テストと harvest の文書（`12-telemetry.md` §10.5、`05-scene.md` §5.12、CLI の README）を書く。実装の commit を切ってから、§6 と §0 の implementation head 欄と引継ぎ票を書いた記録の commit を切る（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。
-  - 読む範囲: 既定（§0〜§5）。
-  - 必要な権限: `unity/Assets/` の C# と test の編集、文書の編集、PR #216 の branch への commit と push（Cloud の Phase B の出口として owner が認めた push）。Unity と .NET は Cloud の container に無いので使わない。
-  - Cloud の B の制約（この凍結で決めた扱い）: Unity の Editor でのコンパイル確認はできないので、§6 に「未確認」と明記する。`pwsh tools/contract-audit.ps1` は Cloud で実行できないので、push の後の CI の `audit` ジョブ（contract-audit と docs-audit）の結果を記録する。CI が赤なら原因を直してから引き継ぐ。Phase B result snapshot（Artifact Storage）は Cloud では作れないので、ローカルの次の担当が B の head から作る。
-  - B の後の担当: ローカルの動作確認の担当。最初に Editor のコンパイル確認を行い（失敗なら B へ戻す。この往復は差し戻しの巡に数えない最初の動作確認に含める）、続けて §5 の検証経路の動作確認を行う。その後に発見 C。
-  - task: `debugstudio-s4`。`tools/workflow-task.ps1 start` は pwsh が要るので、owner がローカルで行う（Cloud の B は行わない）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」に当たれば実装を止めて返す。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（§1.4）。凍結した条件を変える必要が出たら実装で吸収せず止める。判定 C の照合 script と oracle の eval は書かない（判定 C の担当が書く）。
+- 引継ぎ票（Phase B の出口、2026-11-26）:
+  - 次の Phase・役割: ローカルの動作確認（Phase B の後）。その後に発見 C。
+  - 次の作業: (1) 最初に implementation head を自分で開いた Editor 6000.6.9f1 でコンパイルする（B は Unity の無い Cloud で実装したので未確認。手で作った `.meta` を Unity が書き換えないかも見る）。失敗なら B へ戻す（この往復は差し戻しの巡に数えない最初の動作確認に含める）。(2) 続けて §5 の検証経路の操作・実行時の条件を各 1 回軽く実行し、§7 の前の動作確認の欄に生の観測と期待との差を残す。差があれば B へ戻す。(3) その後に発見 C。
+  - 読む範囲: 既定（動作確認は §0・§5・§6）。§6 の「HANDOFF との差」は発見 C の照合の対象に含める。
+  - 必要な権限: Unity Editor の起動と Play、DebugStudio の App・CLI の Release の build と起動、Artifact Storage（Phase B result snapshot の作成）、`pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1` のローカル実行。
+  - 取得案内の所在: Phase B result snapshot は未生成。作った担当が [レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従って取得案内を残す。
+  - task: `debugstudio-s4`。`tools/workflow-task.ps1 start` は owner がローカルで行う（Cloud の B は行っていない）。
+  - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
   - 引き渡さないもの: なし。
-
 ### 実測の方法
 
 - base `07cc2c97` の code と文書を `grep`・`wc -l`・行範囲の読み取りで確かめた。Unity も .NET も起動していない。
@@ -469,7 +467,59 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 
 ## 6. Phase B 実装結果
 
-未到達。
+- 担当: Phase B（実装）。owner の指示による Cloud の session（§0 の引継ぎ票の例外）。開始時の照合: 渡された commit `5590a97f` = HEAD、作業ツリーは clean、§0 に A3 凍結記録（owner、revision 8）・票の次担当 B・implementation head 欄 `未固定` を確認した。
+- implementation head: `2eea7f182296e5001c7c4fa80d3d090d068b6169`（実装・test・harvest の文書。HANDOFF は含まない）。
+
+### 実装（§3 の責務マップのとおり）
+
+| file | 内容 |
+|---|---|
+| `Scripts/Runtime/SceneSystem/SceneDirector.DebugSnapshot.cs`（新規 partial） | `internal CaptureDebugSnapshot()`。`_currentScenes` の key と `SceneBase.Lifecycle.State`、`_pendingUnloads`（`CopyTo`）、`_sceneHistory`（列挙だけ、新しい順）、`CanGoBack` を await なしで読んで写す |
+| `Scripts/Runtime/SceneSystem/Diagnostics/SceneDirectorDebugSnapshot.cs`（新規） | 写しのモデル（internal sealed）。`Scenes`（id と `SceneState`）、`PendingUnloads`（全集合）、`History`（`{From, To}` 新しい順）、`CanGoBack`。constructor で複写して不変にする |
+| `Scripts/Runtime/SceneSystem/Diagnostics/ScenesDebugCommand.cs`（新規） | `CommandName = "osm.scenes"`、`CreateHandler(Func<SceneDirector?>)`（実行の時に解決、`Time.frameCount`）、純関数 `Format`（null → `unavailable: scene-director-not-created`、それ以外は `Ok("captured", JsonUtility.ToJson(DTO))`。DTO は private の `[Serializable]` class で public field だけ、宣言順 `capturedFrame`・`scenes`・`history`・`canGoBack`、`state` は名前の文字列、行は id の Ordinal 順、`pendingUnload` は管理集合との交差） |
+| `Scripts/Runtime/DebugSocketServices/FrameworkFirstDebugCommandDispatcher.cs`（新規） | internal sealed。内部に `DebugCommandCatalog` と `CatalogDebugCommandDispatcher` と `HashSet<string>(Ordinal)`。`Register` は catalog に登録してから名前を足す。`DispatchAsync` は null の command・null の名前・未登録の名前を同じ command と token で Game へ、登録名を内部の catalog の dispatcher へ |
+| `Scripts/Runtime/Bootstrap/FrameworkDebugCommands.cs`（新規） | internal static `Compose(isEditor, game, getSceneDirector)`。Player は `game` をそのまま、Editor は振り分けを作って `osm.scenes` を 1 回登録 |
+| `Scripts/Runtime/Bootstrap/AbstractApplicationInitializer.cs` | `CreateDebugSocketService` の 1 行を `FrameworkDebugCommands.Compose(Application.isEditor, CreateDebugCommandDispatcher(), () => SceneDirector)` に置き換え |
+| `Scripts/Runtime/SceneSystem/SceneDirector.cs` | 冒頭の partial の一覧に `SceneDirector.DebugSnapshot.cs` の 1 行 |
+| `.meta` | 新規の 5 file と folder `Diagnostics` の `.meta`、test の 4 file の `.meta` を手で作った（GUID は乱数。Unity が無いため） |
+
+test（EditMode、`unity/Assets/OneStarMaker/Tests/`）:
+
+| AC | class・test |
+|---|---|
+| AC1 | `Scene/SceneDirectorDebugSnapshotTests`: `Capture_ParentAndChild_CopiesManagedSetStatesAndPendingUnloads`、`Capture_EmptyDirector_IsEmpty` |
+| AC2 | 同: `Capture_AfterTwoSwitches_HistoryIsNewestFirst`、`Capture_AfterSwitchFailsPastPointOfNoReturn_HistoryEntryRemains` |
+| AC3 | 同: `Capture_Repeated_DoesNotChangeStateOrEmitEvents`（前後を reflection の独立した読み方で比べ、`OnSceneEvent` の受信数 0、写し 100 回） |
+| AC4 | 同: `Capture_WhileAddSceneIsWaitingForUnityLoad_ShowsTheInProgressState`、`Capture_DuringCancelCleanup_ShowsLoadCanceled`（`UnitySceneUnloadAction` の中で写す） |
+| AC4b | `Scene/ScenesDebugCommandTests.cs` の `ScenesDebugCommandHandlerTests.Handler_PendingUnloadAfterPointOfNoReturn_IsMarkedOnlyOnThatRow` |
+| AC5 | 同 file の `ScenesDebugCommandFormatTests`（4 test。出力の完全一致、空、escape、null） |
+| AC6 | `ScenesDebugCommandHandlerTests.Handler_ResolvesTheDirectorAtExecutionTime` |
+| AC7 | `DebugCommands/FrameworkFirstDebugCommandDispatcherTests`（(1)〜(5)。(4) は実の `CatalogDebugCommandDispatcher` で 4 つの場合の envelope の全欄の同一） |
+| AC8 | `Bootstrap/FrameworkDebugCommandsTests`: `Compose_*` 2 件、`CreateDebugSocketService_Enabled_*`（呼出し 1 回、service の中の鎖が main thread の decorator → 振り分け → Game であることを reflection で確認、Dispose を明示）、`CreateDebugSocketService_Disabled_*` |
+| AC9 | 同: `ReleaseAll_ClearsTheSceneDirector`（既存の Bootstrap の test に無かったので足した。`_sceneDirector` を reflection で入れ、protected static の `BootstrapSubsystemRegistration` から `ReleaseAll` を通す。公開 API は足していない） |
+| AC10 | 既存の `SampleGame/Tests/DebugCommands/SetActiveDebugCommandTests` は変更していない |
+
+harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わせて `StateChanged` と `ElapsedMs`・`TimestampUtcTicks` を足し、発火ポイントに `StateChanged` の行を足した。新しい節「今の状態の写し」）、`12-telemetry.md` §10.5（新しい節「Framework 自身のコマンド（Editor の Play だけ）」）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（新しい節 `osm.scenes`）。
+
+### HANDOFF との差（新しい事実の分類: いずれも B 適応）
+
+- **Bootstrap の namespace:** §2.1 の冒頭と §3 は `OneStarMaker.Runtime.Bootstrap` と書くが、`Runtime/Bootstrap/` の既存の file は全て `namespace OneStarMaker.Runtime`（`AbstractApplicationInitializer` も同じ）。§2.1 の原則「既存と同じにする」に従い、`FrameworkDebugCommands` は `OneStarMaker.Runtime` に置いた。契約・依存・公開面は変わらない。**判定 C の oracle への注意:** §5 の oracle の導出の規則の「基底型 `OneStarMaker.Runtime.Bootstrap.AbstractApplicationInitializer`」は、実際の完全名 `OneStarMaker.Runtime.AbstractApplicationInitializer` で読む（規則の意味は変わらない）。
+- **path の表記:** HANDOFF の `Runtime/…` は `unity/Assets/OneStarMaker/Scripts/Runtime/…`。最長の新規 path は repo 相対 106 文字（`…/FrameworkFirstDebugCommandDispatcher.cs.meta`）で予算 150 の内。
+- **`Compose` の game が null の場合:** 派生の override が null を返した時は包まずにそのまま返す。今と同じく `DebugSocketService` の constructor が `ArgumentNullException` を投げ、Editor と Player で失敗の場所と文言が変わらない（I4。包むと Editor でだけ別の場所で投げるため）。
+- **振り分けの test の置き場:** §5 は「DebugSocket の test の置き場」とするが、既存の `CatalogDebugCommandDispatcher` の test がある `Tests/DebugCommands/` に置いた（同じ `OneStarMaker.Tests` asmdef。起点 filter の `FrameworkFirstDebugCommandDispatcher` で選ばれる）。
+
+### 未実行・未確認
+
+- **Editor のコンパイル確認: 未確認。** この container に Unity・pwsh・dotnet が無い。最初の確認はローカルの動作確認の担当。
+- Unity の EditMode テスト（AC1〜AC10）と全 EditMode 回帰: 未実行（Phase C）。
+- `pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1`: ローカル未実行。push 後の PR #216 の CI の結果を下に記録する。手で照合した範囲: 変更・新規の Unity 側 .cs の先頭の `#nullable enable`、`record`・`Task.Delay`・`Thread.Sleep`・`GetInstanceID` の不使用、Runtime の `UnityEditor` 非依存、新規 path の長さ、公開面から個別 HANDOFF へのリンクが無いこと、リンク先の存在。
+- `.meta` の GUID は手で作った。Unity が開いた時に書き直さないことを最初のコンパイル確認で見る。
+- Phase B result snapshot（Artifact Storage）: 未生成（Cloud では作れない。ローカルの次の担当が B の head から作る）。
+
+### CI と commit の経路
+
+- この session の自動の許可判定が `claude/magical-gauss-7rycuj` への commit を拒んだので、owner の了承（2026-11-26）を得て、実装と本記録の commit はこの session に割り当てられた branch `claude/debugstudio-s4-phase-b-scvrar`（`5590a97f` から直線）で切って push した。owner がローカルから `claude/magical-gauss-7rycuj` をこの branch の head へ fast-forward する。SHA は変わらない。
+- CI（`offline-checks.yml` の `audit`＝contract-audit・docs-audit と `dotnet-offline-tests`）は PR の branch への push でだけ走るので、本記録の commit より後に走る。結果は PR #216 の状態ブロックに記録する。赤なら B が直して記録し直してから引き継ぐ。
 
 ## 7. Phase C
 
