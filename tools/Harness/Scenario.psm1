@@ -4,6 +4,7 @@ Import-Module (Join-Path $PSScriptRoot 'UnityProcess.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ScenarioRun.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ScenarioCheckout.psm1')
 Import-Module (Join-Path $PSScriptRoot 'ScenarioUnity.psm1')
+Import-Module (Join-Path $PSScriptRoot 'ScenarioEditor.psm1')
 
 # 実機の検証の driver（scenario）が import する唯一の入口。
 # driver は case の列（名前、使う checkout、当てる patch、body）と、body の中の操作だけを書く。
@@ -316,6 +317,7 @@ function Invoke-ScenarioCaseInternal {
     param([psobject]$State, [psobject]$Case)
     $attempt = New-ScenarioAttempt -Run $State.Run -Case $Case.Name
     $context = New-ScenarioContext $State $Case $attempt
+    $script:CurrentContext = $context
     $baseFailure = $null
     $bodyValue = $null
     $result = [ordered]@{ Case=$Case.Name; Attempt=$attempt.Number; Checkout=$Case.Checkout; BodyValue=$null; GitStatusBefore=@(); GitStatusAfter=@(); GitStatusSame=$null; HeadSame=$null; IndexClean=$null; Restored=$false; Quarantined=$false; Failures=@() }
@@ -659,6 +661,103 @@ function Start-ScenarioHelper {
     return [pscustomobject]@{ Pid=$handle.Id; StartedUtc=$handle.StartedAt }
 }
 
+# --- 窓のある Editor ----------------------------------------------------------
+
+# ScenarioEditor に渡す記録と原記録の保存。どちらも今走っている case（$script:CurrentContext）に書く。
+$script:CurrentContext = $null
+$script:EditorRecord = {
+    param([string]$Event, [Collections.IDictionary]$Fields)
+    $context = $script:CurrentContext
+    Add-ScenarioEvent $context.State $Event $context $Fields
+}
+$script:EditorSaveRaw = {
+    param([string]$Name, [AllowNull()] [object]$Content)
+    $context = $script:CurrentContext
+    return Save-ScenarioBaseFile -Run $context.State.Run -Attempt $context.Attempt -Name $Name -Content $Content
+}
+# case の終わりに、開いたままの Editor の終了を頼む（body の例外の後も、戻す前に必ず通る）。
+$script:EditorFinalize = {
+    param($Context, $Entry)
+    if ($null -eq $Entry.Session) { return [bool](Wait-ScenarioLedgerEntry $Entry 0) }
+    $stop = Stop-ScenarioEditorSession -Session $Entry.Session -TimeoutMs 120000
+    Set-ScenarioEditorExit $Entry $stop
+    return $Entry.Confirmed
+}
+
+function Set-ScenarioEditorExit {
+    param([psobject]$Entry, [psobject]$Stop)
+    if (-not $Stop.Signaled -and $Entry.KillOnTimeout) {
+        Stop-UnityProcessTree -Handle $Entry.Handle
+        $Entry.Forced = $true
+        $wait = Wait-UnityProcess -Handle $Entry.Handle -TimeoutMs 120000
+        $Stop = [pscustomobject]@{ Signaled=$wait.Signaled; ExitCode=$wait.ExitCode }
+    }
+    $Entry.Signaled = $Stop.Signaled
+    $Entry.ExitCode = $Stop.ExitCode
+    $Entry.Confirmed = $Stop.Signaled -and ($Stop.ExitCode -is [int])
+}
+
+function Start-ScenarioEditor {
+    # その case の checkout の窓のある Editor を起動し、PID の合った読む eval が通るまで待つ。
+    # 同じ checkout の前の Editor の終了を確かめるまで、次の起動（再起動）は通さない。
+    param([Parameter(Mandatory)] [psobject]$Context, [int]$ReadyTimeoutMs = 1800000, [int]$PollMs = 10000, [switch]$KillOnTimeout)
+    $checkout = Get-ScenarioCaseCheckout $Context
+    if ($Context.DryRun) { return [pscustomobject]@{ DryRun=$true; Pid=$null } }
+    $open = @($Context.State.Ledger | Where-Object { $_.Kind -ceq 'editor' -and $_.Checkout -ceq $Context.Checkout -and -not $_.Confirmed })
+    if ($open.Count -gt 0) { throw "この checkout の前の Editor（PID $($open[0].Handle.Id)）の終了を確かめていません" }
+    $seams = $Context.State.Seams
+    $requested = Get-UnityRequestedVersion -ProjectPath (Join-Path $checkout.Root 'unity')
+    $executable = Resolve-UnityExecutablePath -RequestedVersion $requested -UnityRoot $seams.UnityRoot -UnityExe $seams.UnityExe
+    $index = Get-ScenarioProcessIndex $Context 'editor'
+    $request = Use-ScenarioStarter $Context 'editor' 0 ([bool]$KillOnTimeout)
+    $session = New-ScenarioEditorSession -Start $script:LedgerStarter -Cli $seams.Cli -Clock $seams.Clock -Record $script:EditorRecord -SaveRaw $script:EditorSaveRaw `
+        -CheckoutRoot $checkout.Root -UnityExecutable $executable -LogPath (Join-Path $Context.Attempt.BaseDirectory "editor-$index.log") -Name "editor-$index"
+    $entry = $request.Entry
+    $entry.Session = $session
+    $entry.Finalize = $script:EditorFinalize
+    Wait-ScenarioEditorReady -Session $session -TimeoutMs $ReadyTimeoutMs -PollMs $PollMs
+    return $session
+}
+
+function Send-ScenarioEditor {
+    # 送る eval。1 回だけ送る（基盤は送り直さない）。成否は Read-ScenarioEditor か Wait-ScenarioEditor で確かめる。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Code)
+    if ($Session.DryRun) { return [pscustomobject]@{ Answered=$false; Value=$null; CallId=$null; TimedOut=$false } }
+    return Send-ScenarioEditorEval -Session $Session -Body $Code
+}
+
+function Read-ScenarioEditor {
+    # 読む eval。一時的な失敗の後は読み直し、期限で止まる。値（string）を返す。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Code, [int]$TimeoutMs = 60000)
+    if ($Session.DryRun) { return $null }
+    return Read-ScenarioEditorEval -Session $Session -Body $Code -TimeoutMs $TimeoutMs
+}
+
+function Wait-ScenarioEditor {
+    # 読む eval を Until（値を受けて真偽を返す）が真になるまで繰り返す。送る eval の後に fault を挟む時の待ちにも使う。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Code, [Parameter(Mandatory)] [scriptblock]$Until, [int]$TimeoutMs = 60000)
+    if ($Session.DryRun) { return $null }
+    return Wait-ScenarioEditorEval -Session $Session -Body $Code -Until $Until -TimeoutMs $TimeoutMs
+}
+
+function Stop-ScenarioEditor {
+    # 終了を頼み、保持した handle で確かめる。確かめられなければ case の終わりに隔離する
+    # （KillOnTimeout を起動で渡した時だけ、期限の後に止めて forced と記録する）。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [int]$TimeoutMs = 120000)
+    if ($Session.DryRun) { return [pscustomobject]@{ Signaled=$false; ExitCode=$null; Forced=$false } }
+    $entry = @($Context.State.Ledger | Where-Object { $_.Kind -ceq 'editor' -and $_.Handle.Id -eq $Session.Pid })[0]
+    $stop = Stop-ScenarioEditorSession -Session $Session -TimeoutMs $TimeoutMs
+    Set-ScenarioEditorExit $entry $stop
+    if ($entry.Confirmed) { Write-ScenarioProcessExit $Context.State $Context $entry }
+    else {
+        # 期限まで頼んで終わらなかった。case の終わりにもう一度長く待たず、signal の有無だけを見て隔離する。
+        $entry.Finalize = $null
+        $entry.TimeoutMs = 0
+    }
+    return [pscustomobject]@{ Signaled=$entry.Signaled; ExitCode=$entry.ExitCode; Forced=$entry.Forced }
+}
+
 Export-ModuleMember -Function New-Scenario, Add-ScenarioCase, Invoke-Scenario, Set-ScenarioSeam, Reset-ScenarioSeam,
+    Start-ScenarioEditor, Send-ScenarioEditor, Read-ScenarioEditor, Wait-ScenarioEditor, Stop-ScenarioEditor,
     Write-ScenarioRecord, Save-ScenarioArtifact, Get-ScenarioDirectory, Remove-ScenarioDirectories, Set-ScenarioFile, Reset-ScenarioFiles,
     Invoke-ScenarioTests, Invoke-ScenarioBatch, Invoke-ScenarioCommand, Start-ScenarioHelper

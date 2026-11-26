@@ -7,6 +7,8 @@ $repoUnderTest = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).Path
 Import-Module (Join-Path $repoUnderTest 'tools/Harness/UnityProcess.psm1') -Force
 Import-Module (Join-Path $repoUnderTest 'tools/Harness/ScenarioRun.psm1') -Force
 Import-Module (Join-Path $repoUnderTest 'tools/Harness/ScenarioCheckout.psm1') -Force
+Import-Module (Join-Path $repoUnderTest 'tools/Harness/ScenarioUnity.psm1') -Force
+Import-Module (Join-Path $repoUnderTest 'tools/Harness/ScenarioEditor.psm1') -Force
 Import-Module (Join-Path $repoUnderTest 'tools/Harness/Scenario.psm1') -Force
 . (Join-Path $repoUnderTest 'tools/Harness/scenario-checkout.ps1')
 
@@ -127,4 +129,61 @@ function Complete-ScenarioTestRun([string]$Suite) {
     }
     [Console]::WriteLine("$Suite offline: $script:executed executed, $($script:failed.Count) failed")
     if ($ResultPath) { [IO.File]::WriteAllText([IO.Path]::GetFullPath($ResultPath), (ConvertTo-Json -InputObject ([ordered]@{registered=@($script:registered);selected=@($script:selected);executed=@($script:executedNames);failed=@($script:failed)}) -Depth 6)) }
+}
+
+# --- driver と基盤の code の走査 ---------------------------------------------
+# 構文木の command の名前・型の名前・文字列の literal・静的なメソッドの呼び出しを見る（comment と help は見ない）。
+# 走査は補助で、書けることの証明は複合 scenario の test が持つ。
+$script:FoundationFiles = @('UnityProcess.psm1', 'ScenarioRun.psm1', 'ScenarioCheckout.psm1', 'ScenarioUnity.psm1', 'ScenarioEditor.psm1', 'Scenario.psm1', 'scenario-checkout.ps1') |
+    ForEach-Object { Join-Path $repoUnderTest "tools/Harness/$_" }
+$script:BodyFunctions = @('New-Scenario', 'Add-ScenarioCase', 'Invoke-Scenario', 'Write-ScenarioRecord', 'Save-ScenarioArtifact', 'Get-ScenarioDirectory',
+    'Remove-ScenarioDirectories', 'Set-ScenarioFile', 'Reset-ScenarioFiles', 'Invoke-ScenarioTests', 'Invoke-ScenarioBatch', 'Invoke-ScenarioCommand',
+    'Start-ScenarioHelper', 'Start-ScenarioEditor', 'Send-ScenarioEditor', 'Read-ScenarioEditor', 'Wait-ScenarioEditor', 'Stop-ScenarioEditor')
+
+function Get-ScriptAst([string]$Path) {
+    $tokens = $null; $errors = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile($Path, [ref]$tokens, [ref]$errors)
+    if ($errors.Count -gt 0) { throw "構文の誤り: $Path $($errors[0].Message)" }
+    return $ast
+}
+
+function Get-FoundationPrivateFunctions {
+    # 基盤の module に定義された関数のうち、case の body に公開していない物（offline test 専用の seam を含む）。
+    $names = foreach ($file in $script:FoundationFiles) {
+        (Get-ScriptAst $file).FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | ForEach-Object { $_.Name }
+    }
+    return @($names | Sort-Object -Unique | Where-Object { $script:BodyFunctions -cnotcontains $_ })
+}
+
+function Get-ScanFindings {
+    param([string]$Path, [string[]]$Commands = @(), [string[]]$Types = @(), [string[]]$Strings = @(), [string[]]$StaticMembers = @())
+    $ast = Get-ScriptAst $Path
+    $found = [Collections.Generic.List[string]]::new()
+    foreach ($node in $ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] }, $true)) {
+        $name = $node.GetCommandName()
+        if (-not $name) { continue }
+        $leaf = [IO.Path]::GetFileName($name)
+        foreach ($c in $Commands) { if ($leaf -ieq $c -or $leaf -ieq "$c.exe" -or $leaf -ieq "$c.cmd" -or $leaf -ieq "$c.ps1") { $found.Add("command ${name}: line $($node.Extent.StartLineNumber)") } }
+    }
+    foreach ($node in $ast.FindAll({ param($n) $n -is [Management.Automation.Language.TypeExpressionAst] -or $n -is [Management.Automation.Language.TypeConstraintAst] }, $true)) {
+        $typeName = $node.TypeName.FullName
+        foreach ($t in $Types) { if ($typeName -ieq $t -or $typeName -ieq "System.$t") { $found.Add("type ${typeName}: line $($node.Extent.StartLineNumber)") } }
+    }
+    foreach ($node in $ast.FindAll({ param($n) $n -is [Management.Automation.Language.StringConstantExpressionAst] -or $n -is [Management.Automation.Language.ExpandableStringExpressionAst] }, $true)) {
+        foreach ($s in $Strings) { if ($node.Value.IndexOf($s, [StringComparison]::OrdinalIgnoreCase) -ge 0) { $found.Add("string '$s': line $($node.Extent.StartLineNumber)") } }
+    }
+    foreach ($node in $ast.FindAll({ param($n) $n -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $n.Static }, $true)) {
+        $member = "$($node.Expression.TypeName.FullName)::$($node.Member.Value)"
+        foreach ($m in $StaticMembers) { if ($member -ieq $m -or $member -ieq "System.$m") { $found.Add("static $member : line $($node.Extent.StartLineNumber)") } }
+    }
+    return @($found.ToArray())
+}
+
+function Get-DriverScanFindings([string]$Path) {
+    # driver（scenario）に git・process の起動・削除・Editor の接続の code と、基盤が公開しない関数の名前が無いこと。
+    return Get-ScanFindings -Path $Path `
+        -Commands (@('git', 'Start-Process', 'Stop-Process', 'Get-Process', 'Remove-Item', 'rm', 'del', 'ri', 'rd', 'rmdir', 'erase', 'unity-editor', 'Unity', 'pwsh', 'kill') + (Get-FoundationPrivateFunctions)) `
+        -Types @('Diagnostics.Process', 'Diagnostics.ProcessStartInfo') `
+        -Strings @('unity-editor', 'Unity.exe') `
+        -StaticMembers @('IO.File::Delete', 'IO.Directory::Delete', 'IO.File::Move', 'IO.Directory::Move', 'Diagnostics.Process::Start')
 }

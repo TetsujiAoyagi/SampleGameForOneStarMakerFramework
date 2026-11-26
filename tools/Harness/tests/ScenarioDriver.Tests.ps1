@@ -263,6 +263,49 @@ try {
             Assert (-not $drift.Ok -and (Read-Bytes (Join-Path $fx.Y 'unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset')) -ceq "urp: 2`n" -and @(Read-RunnerLog $fx).Count -eq 0) 'a drifted file was reverted or accepted'
         }
     }
+    if (-not $script:legacy) {
+        Run 'AC6 foundation code names no product identifier' {
+            $findings = foreach ($file in $script:FoundationFiles) {
+                Get-ScanFindings -Path $file -Commands @('SampleGame', 'OneStarMaker') -Types @('SampleGame', 'OneStarMaker') `
+                    -Strings @('SampleGame', 'OneStarMaker', 'OSMContent', 'artifacts/', 'artifacts\', 'unity/Assets/', 'unity\Assets\', 'PlayerOverlayEndToEndTests', 'PlayerKindEndToEndTests') |
+                    ForEach-Object { "$([IO.Path]::GetFileName($file)) $_" }
+            }
+            Assert (@($findings).Count -eq 0) "product identifiers: $(@($findings) -join '; ')"
+        }
+
+        Run 'AC6 the scan sees literals and commands but not comments' {
+            $probe = Join-Path $script:tempRoot 'probe.ps1'
+            Write-Text $probe "# SampleGame in a comment`n<# git help #>`n`$a = 'x'`ngit status`n`$b = `"artifacts/x`"`n[Diagnostics.Process]::Start('a')`n"
+            $f = Get-ScanFindings -Path $probe -Commands @('git') -Strings @('SampleGame', 'artifacts/') -StaticMembers @('Diagnostics.Process::Start')
+            Assert (@($f).Count -eq 3 -and -not @($f | Where-Object { $_ -like '*SampleGame*' })) "scan findings $(@($f) -join '; ')"
+        }
+
+        Run 'AC8 AC9 drivers hold only cases and declared evidence' {
+            foreach ($driver in @((Join-Path $repoUnderTest 'tools/s42-player-overlay.ps1'), (Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'))) {
+                $findings = Get-DriverScanFindings $driver
+                Assert (@($findings).Count -eq 0) "$([IO.Path]::GetFileName($driver)): $(@($findings) -join '; ')"
+            }
+            $private = Get-FoundationPrivateFunctions
+            Assert ($private -ccontains 'Set-ScenarioSeam' -and $private -ccontains 'Restore-ScenarioCheckout' -and $private -cnotcontains 'Invoke-ScenarioTests') 'private function list'
+        }
+
+        Run 'AC9 the smoke scenario dry-run uses only a prepared checkout and starts no Unity' {
+            $fx = New-FixtureRepo
+            $place = Join-Path $fx.Fixture 'osm-v'
+            $smoke = Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'
+            $global:LASTEXITCODE = 0
+            # 用意されていない checkout では -DryRun は止まる（-DryRun は checkout を作らない）。
+            & $smoke -RunId 'd1' -DryRun -Token 'token-0001' *>&1 | Out-Null
+            Assert ($LASTEXITCODE -ne 0 -and -not [IO.Directory]::Exists((Join-Path $place 'editor-smoke-E'))) 'dry-run created a checkout'
+            Invoke-Git $fx.Repo @('worktree', 'add', '-q', '--detach', (Join-Path $place 'editor-smoke-E')) | Out-Null
+            $r = Invoke-ScenarioCheckoutOperation -Operation register -Path (Join-Path $place 'editor-smoke-E') -RepoRoot $fx.Repo
+            Assert $r.Ok 'register'
+            $global:LASTEXITCODE = 0
+            & $smoke -RunId 'd2' -DryRun -Token 'token-0001' *>&1 | Out-Null
+            $records = Read-Records (Get-RunRoot $fx 'editor-smoke' 'd2')
+            Assert ($LASTEXITCODE -eq 0 -and @($records | Where-Object { $_.Contains('event') -and $_.event -ceq 'case-end' -and $_.base -ceq 'ok' }).Count -eq 2) "smoke dry-run exit $LASTEXITCODE"
+        }
+    }
 } finally {
     foreach ($name in 'FAKE_X_ROOT', 'FAKE_Y_ROOT', 'FAKE_RUNNER_LOG', 'FAKE_RUNNER_PLAN') { [Environment]::SetEnvironmentVariable($name, $null) }
     Complete-ScenarioTestRun 'Scenario driver'

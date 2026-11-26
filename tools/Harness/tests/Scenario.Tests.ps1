@@ -415,7 +415,7 @@ try {
         Assert ($r.ExitCode -eq 0 -and -not $line.Contains('event') -and $line.gitStatusSame -and $line.value -ceq "one`n" -and $line.status -ceq 'dry-run' -and $line.utc) 'scenario line'
     }
 
-    Run 'AC8 evidence names are not overwritten within an attempt' {
+    Run 'Op16 AC5 evidence names are not overwritten within an attempt' {
         $fx = New-FixtureRepo
         $x = New-ManualWorktree $fx 'x' -Register
         $s = New-Scenario -Name 'ev' -Checkout 'X'
