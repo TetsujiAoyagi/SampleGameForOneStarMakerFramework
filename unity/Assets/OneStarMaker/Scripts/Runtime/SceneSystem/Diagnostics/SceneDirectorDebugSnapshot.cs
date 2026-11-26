@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 // namespace は folder（Diagnostics）で分けない。SceneDirector がこの型を返し、診断のコマンドが SceneDirector を読むので、
 // 別の namespace にすると namespace の間に循環ができる（前例: DebugSocketServices/Hierarchy/ も親と同じ namespace）。
@@ -24,9 +25,9 @@ namespace OneStarMaker.Runtime.SceneSystem
     /// </remarks>
     internal sealed class SceneDirectorDebugSnapshot
     {
-        private readonly SceneEntry[] _scenes;
-        private readonly string[] _pendingUnloads;
-        private readonly HistoryEntry[] _history;
+        private readonly ReadOnlyCollection<SceneEntry> _scenes;
+        private readonly ReadOnlyCollection<string> _pendingUnloads;
+        private readonly ReadOnlyCollection<HistoryEntry> _history;
 
         /// <param name="scenes">管理集合の Scene。順は問わない（出力側が並べる）。</param>
         /// <param name="pendingUnloads">unload の待ちの id の全集合。管理集合に無い id も含めてそのまま渡す。</param>
@@ -43,25 +44,30 @@ namespace OneStarMaker.Runtime.SceneSystem
             if (history == null) throw new ArgumentNullException(nameof(history));
 
             // 呼出し側が後で配列を書き換えても写しが変わらないよう、ここで複写する。
-            _scenes = new SceneEntry[scenes.Count];
+            // 複写した配列はそのまま公開しない。IReadOnlyList として返しても配列へ cast すれば要素を書き換えられるので、
+            // 読み取り専用の view に包んで持ち、配列への参照は view の外に残さない。
+            var sceneCopy = new SceneEntry[scenes.Count];
             for (var i = 0; i < scenes.Count; i++)
             {
-                _scenes[i] = scenes[i];
+                sceneCopy[i] = scenes[i];
             }
 
-            _pendingUnloads = new string[pendingUnloads.Count];
+            var pendingCopy = new string[pendingUnloads.Count];
             var p = 0;
             foreach (var id in pendingUnloads)
             {
-                _pendingUnloads[p++] = id;
+                pendingCopy[p++] = id;
             }
 
-            _history = new HistoryEntry[history.Count];
+            var historyCopy = new HistoryEntry[history.Count];
             for (var i = 0; i < history.Count; i++)
             {
-                _history[i] = history[i];
+                historyCopy[i] = history[i];
             }
 
+            _scenes = Array.AsReadOnly(sceneCopy);
+            _pendingUnloads = Array.AsReadOnly(pendingCopy);
+            _history = Array.AsReadOnly(historyCopy);
             CanGoBack = canGoBack;
         }
 

@@ -63,6 +63,29 @@ namespace OneStarMaker.Tests.SceneSystem
             Assert.That(snapshot.CanGoBack, Is.False);
         }
 
+        [Test]
+        public void Snapshot_ExposedLists_CannotBeRewrittenFromOutside()
+        {
+            var scenes = new[] { new SceneDirectorDebugSnapshot.SceneEntry("A", SceneState.Stable) };
+            var pendingUnloads = new[] { "A" };
+            var history = new[] { new SceneDirectorDebugSnapshot.HistoryEntry("from", "A") };
+            var snapshot = new SceneDirectorDebugSnapshot(scenes, pendingUnloads, history, true);
+
+            // 渡した側の配列を後で書き換えても、写しは変わらない。
+            scenes[0] = new SceneDirectorDebugSnapshot.SceneEntry("B", SceneState.None);
+            pendingUnloads[0] = "B";
+            history[0] = new SceneDirectorDebugSnapshot.HistoryEntry("B", "B");
+
+            // 公開した列を書き換え可能な型へ cast しても、写しは書き換えられない。
+            AssertCannotRewrite(snapshot.Scenes, scenes[0]);
+            AssertCannotRewrite(snapshot.PendingUnloads, "B");
+            AssertCannotRewrite(snapshot.History, history[0]);
+
+            Assert.That(snapshot.Scenes.Select(s => (s.Id, s.State)), Is.EqualTo(new[] { ("A", SceneState.Stable) }));
+            Assert.That(snapshot.PendingUnloads, Is.EqualTo(new[] { "A" }));
+            Assert.That(ToPairs(snapshot.History), Is.EqualTo(new[] { ("from", "A") }));
+        }
+
         // ═══════════════════════════════════════════
         //  AC2: 履歴の順と内容、CanGoBack
         // ═══════════════════════════════════════════
@@ -244,6 +267,15 @@ namespace OneStarMaker.Tests.SceneSystem
 
             Director = new TestableSceneDirector(Factory, UICommon, Map, AssetManagement, new FakeLoadingDisplay());
             return Director;
+        }
+
+        private static void AssertCannotRewrite<T>(IReadOnlyList<T> exposed, T replacement)
+        {
+            Assert.That(exposed, Is.Not.InstanceOf<T[]>(), "内部の配列をそのまま公開しない");
+            if (exposed is IList<T> list)
+            {
+                Assert.Throws<NotSupportedException>(() => list[0] = replacement);
+            }
         }
 
         private static (string From, string To)[] ToPairs(IReadOnlyList<SceneDirectorDebugSnapshot.HistoryEntry> history)
