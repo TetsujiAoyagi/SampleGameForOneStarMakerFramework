@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**発見 C の 3 回目は阻害する指摘なし（§7）。次は判定 C（2 回目の実行）。** 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `C`（**判定 C の 2 回目の実行は揃った（§7「判定 C の実行担当の記録（2 回目）」）。次は判定 C の判断担当。** 発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `cd4a16b18dfa53cc5b607eb978f88ca46be05316`
@@ -746,6 +746,19 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - 重い検証を発見段階で限定実行した場合の理由と範囲: `unity/` の implementation 差分がなく、ticket が `4f0af2c4` からの driver 差分だけを対象に指定しているため、実行担当は機械検査と offline test 3 本に限定した。判断担当はその無改変の結果と 2 file の静的差分を照合した。
 - 未確認事項: 実機 E 系列で長い revision identity を含む receipt 写しが実際に保存され、`before-receipts.json` から判定担当が各 receipt の bytes と revision の対応を読めること、E1 の Play 以降の経路、全 EditMode 回帰、AC10 の 4 観測、複数 origin の実際の取得順は未確認である。これらは判定 C の入力として別担当が取得する。
 - 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票にない）。判断担当は本 session の OpenAI。Phase B は Anthropic で系列は異なるが、Phase A の外部計画レビューと発見 C の判断担当は同系列であり完全な独立性ではない。C' 用の xAI/Grok は未使用・予約のままとする。
+
+### 判定 C の実行担当の記録（2 回目、2026-11-27）
+
+実行担当（進行役の session。判断はしない）が、GO 候補 head（implementation head `cd4a16b1`）で §5 の凍結したコマンドを走らせた生の結果。HEAD は `59a2bf98`（implementation head との差は `docs/handoff/` だけ）。原記録はこの worktree の `TestResults/` の下（git 管理外、未保存）。どれも sandbox の外で走らせた。
+
+- (1) 全 EditMode 回帰: `pwsh tools/run-tests.ps1 -OutputRoot <worktree>\TestResults\c-judge2`（空 filter）。XML（`c-judge2/fa971eca-1a72-4cb4-a1f2-ca291b7c2a96/results.xml`）: total 2688、passed 2628、failed 0、inconclusive 25、skipped 35、root result `Passed`、15:35:24Z〜15:49:20Z。`step.json`: status `failed`、exitCode 1。§5 の test class の件数（XML の `TestFixture` の名前で合計、failed は全て 0）: `ContentOriginHeadTests` 16、`ContentAcquisitionRulesTests` 121、`ContentOriginGuardTests` 23、`ContentAcquisitionTests` 41、`IndexedContentOriginTests` 5、`ContentOriginHeadWriterTests` 11、`SampleGameContentBatchTests` 18、`VerifyPlaySequenceTests` 13（同名の fixture の合計）、`ContentBaseSelectionTests` 8、`PlayEntryCandidatesTests` 18、`ContentAcquireLauncherTests` 7、`PublishedOriginAcquireIntegrationTests` 1。XML ができた後も Unity（PID 21356）が終わらなかった。既知の終了の stall として調べずに CIM の Terminate で止めた。時刻と CPU の値は `c-judge2/fa971eca-…/executor-note.txt` にある（10 秒で user の CPU 時間が約 10 秒増え、thread は 1）。強制終了は成功の証拠に数えない。
+- (2) E 系列: `pwsh tools/s43a-local-origin.ps1 -RunId j2 -Commit cd4a16b18dfa53cc5b607eb978f88ca46be05316` は exit 0（00:54〜02:51 JST）。driver の出力は `TestResults/e-j2-driver.log`、原記録は `TestResults/scenario/s43a/j2/`（`driver.jsonl`、`base/<case>/1/`、`evidence/<case>/1/`）。S0・P1・E1・P2・E2・E3・E4・E5・E6・Cleanup は全て attempt 1 で `case-end` に達し、各 `case-end` の `base` は `ok`、`failure` は空、head は `cd4a16b1`。終わった後、X と Y の作業ツリーは clean で、外部 root `D:\ovr\s43a\j2` は無い。主な生の値（照合はしていない）:
+  - P1: `publish.json` は `exitCode` -1、`forced` true。`last-result.json` は `exitCode` 0、`originHeadFailure` は空。batch の log の末尾は Unity の終了処理の行（`Found no leaked weakptrs.` など）。
+  - P2: `publish.json` は `exitCode` 0、`forced` false。
+  - E1・E2・E4・E5・E6 の Play: `play-observations.json` はどれも `loadObserved` false、`title` と `load` は空、`loadReason` は「HomeScene load record was not observed within 2 minutes: 状態が期限までに条件を満たしませんでした」。E1 では `AddScene("HomeScene")` を送る `eval`（`base/E1/1/editor-1-eval-024-send`）が `requested` を返したが、その後の `GetContentLoadRecord("HomeScene")` を読む `eval`（025〜061）は 2 分間ずっと空を返した。`play-record.txt` の `record.state` は `EnteredPlay`、`errorCount` は 0。Editor の log（`base/E1/1/editor-1.log`）には `Editor content directory first scene: scene=Title` の行があり、`HomeScene` の load の行と例外の行は無い。
+  - E6: `play-record.txt` の `route` は `BuiltWithLocalEdits`、`overlay.state` は `NotRequired`、`snapshot` は `Title`（dirty false）。`warnings` は「Several verified revisions exist for 'spring-full'; using the latest: 20261126T155606240Z-…」で、R1 の identity を指していた。
+- (3) 機械検査（implementation head、`pwsh -NoProfile -File <script>`、log は `TestResults/c-judge2-machine/`）: `tools/contract-audit.ps1` exit 0（違反の行は無い）。`tools/docs-audit.ps1` exit 0（既存の警告 1 件）。`Scenario.Tests.ps1` 24 executed / 0 failed。`ScenarioDriver.Tests.ps1` 14 executed / 0 failed。`ScenarioUnity.Tests.ps1` 28 executed / 0 failed。
+- 実行担当の扱い: 合否と GO / NO-GO は書かない。(1)〜(3) は揃ったので、判断担当を起動する。
 
 ## 8. Phase C'
 
