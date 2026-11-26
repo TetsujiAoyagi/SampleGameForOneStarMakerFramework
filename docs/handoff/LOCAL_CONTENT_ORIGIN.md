@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**発見 C の 2 回目は阻害する指摘なし（§7）。次は判定 C。** 発見 C の 1 回目は F-C2 を B へ返し、B が直した（§6「発見 C 1 巡目の修正」）。動作確認は §6 の後（E 系列は未実施で判定 C が取る）。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `C`（**判定 C は未完了。E 系列の driver が E1 で証拠名の長さの上限で止まったので、driver の修正を B へ返した（§7「判定 C の実行担当の記録（1 回目）」）。次は Phase B の修正。** 発見 C の 2 回目は阻害する指摘なし。発見 C の 1 回目は F-C2 を B へ返し、B が直した（§6「発見 C 1 巡目の修正」）。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `4f0af2c412c1eb6f845aafce585dda0956de62da`
@@ -18,14 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の判定 C。実行担当（§5 の凍結したコマンドを無改変で走らせ、生の結果を §7 に記録する担当）と判断担当（保存された原記録を §5 の表のとおりに照合して判定する担当）を分ける。GO 候補 head は上の implementation head。
-  - 次の作業（実行担当）: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行い、Unity が閉じていることを確かめてから、次を順に走らせる（どれも sandbox の外）。(1) 全 EditMode 回帰 `pwsh tools/run-tests.ps1 -OutputRoot <worktree>\TestResults\c-judge1`（空 filter。§5 の単体・統合の test を全て含む。XML の total・failed・root result と、§5 の test class が XML に在ることを記録する）。(2) E 系列 `pwsh tools/s43a-local-origin.ps1 -RunId <id> -Commit <implementation head の SHA>`（§5 の検証経路のとおり。止まった時は §5 の約束の 8 の続け方に従う）。(3) 機械検査（`tools/contract-audit.ps1`、`tools/docs-audit.ps1`、基盤の offline test 3 本）。Unity の終了の stall は [Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) のとおり CIM で止め、時刻・PID・CPU の値を note に残す。結果の要約（コマンド、run id、原記録の置き場、XML の数、driver の各 case の終わり方）を §7 の「判定 C の実行担当の記録」に書く。照合 script は書かない（§5）。
-  - 次の作業（判断担当）: 実行担当の記録と原記録（`TestResults/c-judge1/`、`TestResults/scenario/s43a/<RunId>/`、機械検査の log）だけを読み、§5 の「判定必須テスト」「判定の担当が照合する値（AC9）」「E6 の記録（AC10）」の表のとおりに照合して、§2.7 の判定定義で GO / NO-GO を決める。照合 script は書かない（§5）。既知の差分外の失敗（VFX の 25 件の Inconclusive、Unity の終了時の stall、`Directory.Move`）は差分外として扱う。追加の実行が要る時は、自分で走らせず、コマンドと理由を記録に書いて止まる。結果を §7 の「判定 C（1 回目）」として [テンプレート](../../.agents/skills/osm-workflow/references/handoff-template.md) の §7 の項目で書き、記録の全文を最終メッセージにも出す。commit、evidence bundle と C' 用 blind bundle の stage、次の票の更新は進行役が行う。task は `s4-3a-local-content-origin`（開始済み）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase C の行。§0〜§8）。
+  - 次の Phase・役割: Phase B（判定 C の実行で見つかった driver の不備の修正。B と発見 C の差し戻しの 2 巡目）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。§7 の「判定 C の実行担当の記録（1 回目）」の (2) の不備を直す: driver が保存する証拠の名前が、revision の名前の長さに依らず基盤の上限（64 文字）に収まるようにする（`tools/s43a-local-origin.ps1:165` の receipt の名前。同じ形の名前が他にあれば同じく）。証拠の中身と、どの receipt の写しかが原記録から分かることは保つ（名前を縮めるなら、revision の名前を証拠の中身か別の証拠に残す）。§6 の「driver が保存する証拠」の名前の欄を直す。driver の offline test（`ScenarioDriver.Tests.ps1`）に、長い revision の名前でも名前が上限に収まることを見る test を足す。基盤（`Scenario.psm1` 等）の上限は変えない。変える file が数 file を超える、または §4 の「Phase B から Phase A へ差し戻す条件」に当たる時は、直さずに止まって報告する。直したら基盤の offline test 3 本と `tools/contract-audit.ps1`・`tools/docs-audit.ps1` を走らせ、§6 の後に「判定 C の実行で見つかった driver の修正」の小節で記録する（B の実行は判定の入力にしない）。実装の commit を先に切り、その SHA を implementation head 欄に書いた記録 commit で、票を発見 C（3 回目。修正の差分だけを見る）へ更新する（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。push と PR の状態ブロックの更新は進行役が行う。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の行。差し戻しなので §6〜§8 も）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 実行担当は Unity Editor の起動（窓あり、batch）、2 つの検証用の worktree、sandbox の外の実行。判断担当は repo と原記録の読み、`docs/handoff/LOCAL_CONTENT_ORIGIN.md` の §7 の編集だけ。資格情報は要らない。
-  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。製品の code・test・tools を変えない。阻害する指摘は B へ返す。E 系列の証拠が GO 候補 head で揃うまで判定 C を完了と記録しない。判定 C の結論・指摘を C' に渡さない。
-  - 引き渡さないもの: 判定 C の結論・指摘は C' 完了まで C' と PR の本文に出さない。
+  - 必要な権限: `tools/` と `docs/handoff/` の編集、pwsh の offline test。Unity の起動と資格情報は要らない。
+  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。driver の証拠の名前の外の変更を足さない。§7 の記録を §6 へ転載しない。
+  - 引き渡さないもの: なし。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -703,6 +702,15 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - 重い検証を発見段階で限定実行した場合の理由と範囲: 実行担当は §5 の差し戻し中の起点 filter と機械検査だけを実行した。判断担当は静的な base..head review と、その無改変の実行記録の照合に限定した。E 系列と全回帰は発見 C で追加実行しない。
 - 未確認事項: 上記の判定必須テスト・E 系列・AC10、および `PinnedOnly` を含む複数 origin の実際の取得順は未確認のまま。F-C2 修正後の起点 filter は通過したが、これは実装全体の GO を意味しない。C' は起動しない。
 - 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票に無い）。判断担当は本 session の OpenAI。Phase B は Anthropic で、系列は異なる。Phase A の外部計画レビューと判断担当の系列が同じであるため完全な独立性ではない。C' 用の xAI/Grok は未使用・予約のままとする。
+
+### 判定 C の実行担当の記録（1 回目、2026-11-26〜27。判定 C は未完了）
+
+実行担当（進行役の session。判断はしない）が、GO 候補 head（implementation head `4f0af2c4`）で §5 の凍結したコマンドを走らせた生の結果。HEAD は `54644bf4`（implementation head との差は `docs/handoff/` だけ）。原記録はこの worktree の `TestResults/` の下（git 管理外、未保存）。
+
+- (1) 全 EditMode 回帰: `pwsh tools/run-tests.ps1 -OutputRoot <worktree>\TestResults\c-judge1`（空 filter、sandbox の外）。XML（`c-judge1/7f27c297-…/results.xml`）: total 2688、passed 2628、failed 0、inconclusive 25、skipped 35、root result `Passed`、14:29:51Z〜14:44:14Z。Inconclusive の 25 件は全て `SampleGame.Tests.Rendering.Vfx.*`。`step.json`: status `failed`、exitCode 1、failure の行は「Inconclusive のテストがあります」だけ。§5 の test class の件数: `ContentOriginHeadTests` 16、`ContentAcquisitionRulesTests` 121、`ContentOriginGuardTests` 23、`ContentAcquisitionTests` 41、`IndexedContentOriginTests` 5、`ContentOriginHeadWriterTests` 11、`SampleGameContentBatchTests` 18、`VerifyPlaySequenceTests` 7、`ContentBaseSelectionTests` 8、`PlayEntryCandidatesTests` 18、`ContentAcquireLauncherTests` 7、`PublishedOriginAcquireIntegrationTests` 1。XML の完成の後に Unity（PID 40496）が終わらなかった。既知の終了の stall として調べ直さず、CIM の Terminate で止めた（時刻・CPU の値は `c-judge1/executor-note.txt`。10 秒で user の CPU 時間が約 10 秒増え、thread 1）。強制終了は成功の証拠に数えない。
+- (2) E 系列: `pwsh tools/s43a-local-origin.ps1 -RunId j1 -Commit 4f0af2c412c1eb6f845aafce585dda0956de62da`（sandbox の外。checkout は基盤が `D:\repositories\unity\osm-v\s43a-X`・`s43a-Y` に新しく作った）。driver は exit 1（23:50〜00:04 JST）。S0 と P1 は `case-end` まで進み、E1 は Editor の起動・ready・`eval` の後、body が `[scenario] E1: body: 証拠の名前 は 64 文字までです: after-acquire-receipt-20261126T150018464Z-690b81d7359d46c2828215ed2fb10f46.json` で止まった。基盤は Editor の終了（`process-exit`）、復元（`restore`）、使用中の記録の解除を行い、`case-end` を書いた。E1 以降の case は走っていない。原因の位置は driver の証拠の名前 `"$Point-receipt-$($revision.Name).json"`（`tools/s43a-local-origin.ps1:165`）で、revision の名前（identity）が長いと基盤の証拠の名前の上限（64 文字）を超える。§5 の約束の 8 のとおり、続けて `-RunId j1 -Only Cleanup` を走らせ exit 0（Y の管理する file を戻し、外部 root を消した。X・Y とも clean）。原記録は `TestResults/scenario/s43a/j1/`、driver の出力は `TestResults/e-j1-driver.log`・`e-j1-cleanup.log`。
+- (3) 機械検査: 未実行（E 系列が揃わないので、判定の入力を揃え直す時に GO 候補 head で走らせる）。
+- 実行担当の扱い: E 系列の証拠が揃わないので判定 C を完了と記録せず、判断担当を起動していない。driver の不備は B への差し戻しで、発見 C と B の巡に数える（§5 の未知の操作経路の「不成立の時の対応」、[1 巡の定義](../../.agents/skills/osm-workflow/references/phase-c.md)）。implementation head が変わるので、この run の結果（(1) を含む）は新しい head の判定に使わない（[判定後の head 変更](../../.agents/skills/osm-workflow/references/review-evidence.md#判定後の-head-変更)）。
 
 ## 8. Phase C'
 
