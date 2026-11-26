@@ -24,7 +24,8 @@
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
   - 必要な権限: `tools/`・`unity/`（§3 の責務マップの file だけ）・`docs/handoff/` の編集、pwsh の offline test、Unity Editor の起動（窓あり、batch）と sandbox の外の実行、検証用の worktree（基盤が用意する）。資格情報は要らない。Unity の終了の stall は [Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) のとおり CIM で止める。
   - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。F-C3 の外の変更を足さない。§7 の記録を §6 へ転載しない。
-  - 引き渡さないもの: なし。  - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
+  - 引き渡さないもの: なし。
+  - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
 
