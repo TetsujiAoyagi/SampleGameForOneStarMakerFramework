@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: 判定 C（2 回目）完了（head `c38e0762`）。次は C'（2 巡目）（`c3f02632` の判定 C と C' の 1 巡目の結果は新しい head の証拠にしない。§6・§7・§8。凍結した Phase A は revision 0）
+- status: Phase D 待ち（head `c38e0762` で判定 C（2 回目）は GO、C'（2 巡目）は GO で blocker なし。§7・§8。凍結した Phase A は revision 0）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `c38e076263d138c7ad9445a161dc0ff2c617d1bf`
@@ -20,13 +20,13 @@
 - evidence bundle の取得案内・状態: **head `c38e0762` の物:** ローカル固定済み（未昇格）。判定 C（2 回目）の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と fixture・原記録の結果。30 file）を implementation head で固定し、別の process の取得で 30 file が元の file と同じ SHA-256 であることを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement-c38e0762.md`。**旧 head `c3f02632` の物（新しい head の合格証拠にしない）:** ローカル固定済み（未昇格）。判定 C の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と結果。29 file と manifest）を implementation head で固定し、別の process の取得で manifest の全 file の SHA-256 が一致することを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement.md`
 - C' blind bundle の取得案内・状態: **head `c38e0762` の物（C' の 2 巡目の入力）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた base から head までの diff と、前巡の head `c3f02632` から `c38e0762` への修正差分（本書を除く）、C' 自身の 1 巡目の結果（§8 の転記）、判定 C と同じ原記録・期待集合・offline と監査の log（26 file。所見と判定 C の照合 script・結果は含まない。C' 用決定記録は無い）。別の process の取得で 26 file が元の file と同じ SHA-256 であることを確かめた（2026-11-26）。引渡し先・担当は C'（2 巡目）の担当。取得案内は同じ置き場の `cprime-c38e0762.md`。**旧 head `c3f02632` の物（使わない）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた diff、判定 C と同じ生証拠（23 file と manifest。所見と判定 C の照合 script・結果は含まない）。別の process の取得で全 file の SHA-256 の一致を確かめた。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime.md`
 - 引継ぎ票:
-  - 次の Phase・役割: C'（2 巡目。head `c38e0762` の独立監査）。
-  - 次の作業: 進行役が C' blind bundle（取得案内 `cprime-c38e0762.md`）を `fetch` して全 file の一致を確かめ、所見を含まない入力だけを C' の担当へ渡す。C' は [巡ごとの範囲](../../.agents/skills/osm-workflow/references/review-evidence.md#巡ごとの範囲) のとおり、1 巡目の自分の指摘の解消と、`c3f02632` から `c38e0762` への修正差分とその影響経路を中心に監査し、新しい原記録（run `j2`）を見る。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記する。GO なら次は Phase D、阻害する指摘があれば B へ返す（C' の差し戻しは別に数えて上限 3 巡）。PR 本文の状態ブロックより下の古い説明は Phase D で直す。task は `s4-v-scenario-verification-base`（開始済み）。
-  - 読む範囲: 進行役は §0 と §8。C' の担当は blind bundle だけ。
-  - 必要な権限: Artifact Storage の `fetch`（sandbox 外の非仮想化 pwsh。資格情報は要らない）。C' は読み取り専用でよい。
-  - 停止規則: C' に発見 C・判定 C の所見、照合 script と結果、本書、PR の会話を渡さない。bundle の file を加工しない。
-  - 引き渡すもの: C' blind bundle（§0 の取得案内）。evidence bundle は Phase D の突き合わせ用で、C' には渡さない。
-  - 担当のモデルと独立性: 発見 C と判定 C は Phase B と同じ系列・モデルでよく、それぞれ新しい session で行う。owner はこの独立性の制約を受け入れている。各担当は §7 に使ったモデルと「独立性制約あり（owner 受容）」を記録する。C' は Phase B・C と違う系列で行い、§8 に使ったモデルと「独立性制約あり」を記録する。
+  - 次の Phase・役割: Phase D（owner による C と C' の突き合わせとマージの判断、harvest）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行う。§7 の判定 C（2 回目）と §8 の C'（2 巡目）を突き合わせ、C'2-F1（後続の入力）と、PR #215 の外部実装レビュー・cursor の指摘への B の判断（§6 の「差し戻しの修正（2 巡目）」）を確かめてマージを判断する。PR 本文の状態ブロックより下の古い説明（「文書だけ」「未凍結」等）を今の状態に合わせる。マージするなら、harvest to の 2 か所（`tools/Harness/README.md`、program §9.1 の利用者表）へ harvest し、本書を削除する。task `s4-v-scenario-verification-base` の終了と、§6 の「残した物」の検証用の checkout（`v1-X`・`v1-Y`・`editor-smoke-E`）の片付けもここで行う。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase D）。§6〜§8 を含む。
+  - 必要な権限: マージと branch の削除は owner。検証用の checkout の削除。Artifact Storage の通常操作（task の終了）。
+  - 停止規則: 実装を直さない。§8 の C'F1・C'2-F1 を理由に新しい実装を足さない（後続の入力として扱う）。
+  - 引き渡すもの: 判定 C（2 回目）の evidence bundle と C'（2 巡目）の blind bundle の取得案内（`judgement-c38e0762.md`・`cprime-c38e0762.md`）は §0 と §7 のとおり。
+  - 担当のモデルと独立性: §7 と §8 に記録済み。発見 C・判定 C は Phase B と同じ系列で独立性制約あり（owner 受容）、C' は外部計画レビューに関わった系列で独立性制約あり。
   - C' の独立性の注記: Anthropic（主担当、A2、Phase B、発見 C、判定 C）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー、C'）が関わった。
 
 ### 実測の方法
@@ -703,6 +703,19 @@ C' の担当は本書を読まないので、進行役が C' の最終回答（�
 - 確認範囲（C' の申告）: 凍結した §2（N1〜N6、AC1〜AC15、§2.8）と §5（V1〜V3）、`AGENTS.md` の常時契約。head の code のうち、復元・lease・使用中の記録・隔離・process の起動と終了・case の順序に関わる `Scenario.psm1`・`ScenarioCheckout.psm1`・`ScenarioRun.psm1`・`ScenarioUnity.psm1`・`ScenarioEditor.psm1`・`UnityProcess.psm1`・`run-tests.ps1`・`s42-player-overlay.ps1`。diff の範囲（`unity/` と `tools/unity-editor.ps1` は無い）。offline の log（各 suite の件数と失敗 0、contract-audit・docs-audit の error 0）。V1 の 24 行の順と、`utc`・`cacheRoot` を除く key の一致、X・Y の status と HEAD。V2 の event の順、PID、callId、eval の値（版と project の path、token）、終了コード 0 で `forced` が偽、前後の status と HEAD。V3 の step の引数・platform・project・版・時刻、XML と期待集合の件数（2443、Passed 2383、Failed 0、Inconclusive 25、Skipped 35）、Inconclusive 25 件の fullname と id、step の `failure` の 2 行、終了 0 で stall の note が無いこと、前後の status と HEAD。
 - 未確認範囲と残存リスク（C' の申告）: §3 の配置と AC11〜AC15 は、上の経路と offline の log に触れる範囲だけを見て、test を走らせ直していない。Passed 2383 件の fullname は 1 件ずつの突き合わせをしていない（件数、失敗 0、標本の id、Inconclusive の全件で同一と読んだ）。`ProjectVersion.txt` は workspace に無く、`6000.6.9f1` は runner の欄と Editor の eval の値で見た。Phase B の動作確認の run は判定の bundle ではない（C' は run `j1` を見た）。
 - 担当・モデル: xAI の Grok（cursor-agent、grok-4.7-high、`--mode=ask` の読み取り専用）。新しい session。独立性制約あり（外部計画レビューに関わった系列。未関与の系列は残っていない）。
+
+### C'（2 巡目、2026-11-26）
+
+C' の担当は本書を読まないので、進行役が C' の最終回答（英語）を転記した。判断は C' の担当のもので、進行役は足していない。
+
+- 判定: **GO**。head `c38e0762` の 2 巡目の変更は、凍結した不変条件・受け入れ条件・実装制約と `AGENTS.md` の常時契約の内に収まり、run `j2` の原記録は §2.7 の読み方で V1・V2・V3 と AC7・AC8・AC10 を満たす。
+- 入力: C' blind bundle（取得案内 `cprime-c38e0762.md`、26 file）。進行役が `fetch` し（fetch が package の SHA-256 を照合した。この bundle には manifest.json が無く、file ごとの照合は進行役では行っていない）、発見 C・判定 C の所見と照合 script が入っていないことを grep で確かめた。C' 自身の 1 巡目の結果（§8 の転記）は入っている。bundle の file は加工していない。workspace には bundle の写しと、zip を展開した写しと、head `c38e0762` の `tools/`・`.agents/skills/osm-workflow/`・`AGENTS.md` を置いた。C' 用決定記録は無い。
+- blocker: なし。
+- 後続の入力:
+  - C'2-F1: 1 巡目の C'F1 はそのまま当たる。checkout の lease は共通の git dir の下の排他 file（`ScenarioCheckout.psm1` の `Get-ScenarioLeasePath`）にあり、2 巡目でも動いていない。新しい `unreserve` の事前確認で、この置き場が許していた別の repo からの書き込みは塞がった。同じ repo の呼び出しは checkout と run の root に書く前に lease を取るので、N1 と AC1 は保たれる。
+- 確認範囲（C' の申告）: 2 巡目の差分（`README.md`・`ScenarioRun.psm1`・`scenario-checkout.ps1`・2 つの test。`unity/`・`tools/unity-editor.ps1`・`AGENTS.md` は無い）。大小文字だけが違う管理 file の path を 1 つの記録にすること、復元の後に新しい番号の `<n>.before` を使い古い物を上書きしないこと、`unreserve` が lease を先に取り `Get-ScenarioCheckoutProblems` を予約の行だけ除いて通すこと（汚れ・別の repo・project lock・進行中の git 操作で `Restore-ScenarioManagedFiles` の前に止まる）、空の `ok` の eval 値の assert が test だけであること。V1: 新旧 24 行の順・key の名前と型・値（`utc` と規則どおりの cache root を除く）、両 driver の終了 0、X・Y の前後の HEAD と status。V2: event の順、PID 9112、callId、token と版・project の path の decode、最初の exit の応答の CLI exit 6（制約 11 で失敗としない）、`process-exit` の終了コード 0 で `forced` が偽、前後の git の記録。V3: step の置き場・引数・platform・project・版・時刻、XML と期待集合の件数（2443、Passed 2383、Failed 0、Inconclusive 25、Skipped 35）、Inconclusive 25 件と Skipped 35 件の id と fullname の全件一致、step の `failure` の 2 行、終了 0 で stall の note が無いこと、前後の status と HEAD、`step.json` の cases の件数と標本の一致。offline の log の件数と失敗 0、contract-audit・docs-audit の error 0。
+- 未確認範囲と残存リスク（C' の申告）: Passed 2383 件の fullname は 1 件ずつ比べていない（件数、Inconclusive と Skipped の全件、`step.json` の標本で一致と読んだ）。`ProjectVersion.txt` は workspace に無く、`6000.6.9f1` は run の欄と step と eval の値で見た。AC11〜AC15 は差分・README・offline の log の範囲だけを見た。suite は走らせ直していない。tools の tree が `fab27c76` と `c38e0762` で HANDOFF を除いて同じという commands の記述は確かめ直していない。
+- 担当・モデル: xAI の Grok（cursor-agent、grok-4.7-high、`--mode=ask` の読み取り専用）。新しい session。独立性制約あり（外部計画レビューと C' の 1 巡目に関わった系列。未関与の系列は残っていない）。
 
 ## 9. Phase D
 
