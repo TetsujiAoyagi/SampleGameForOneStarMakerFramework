@@ -127,6 +127,73 @@ Unity adapterは `tools/run-tests.ps1 -ObserveUnity -OutputRoot <task>/payload/<
 
 初回adapter実機疎通はC担当が実行・記録する。B限定許可は旧taskとr2 taskの各承認済み `unity-pilot-gates-v1` `discovery` にだけ適用する。B限定の実行が同一head、clean、承認profileを満たした場合はB exit証拠として使い、同じ11件を形式だけで二重起動しない。最終GOには判定Cの別profileで全EditModeと故意欠測負例、blind同入力の再検査が必要。WindowsのUnity実行は最初からsandbox外の承認済み経路を使い、Editor所有者とproject lockを確認する。
 
+## 実機の検証の scenario
+
+複数の checkout、batch の Unity、窓のある Editor、固定 patch、run ごとの cache と証拠を使う検証は、この基盤の上に case を書く。検証を書く担当が書くのは、case の列（名前、使う checkout、当てる patch、body）と、fixture、照合する値、保存する証拠だけで、checkout の用意と安全の確認、process の起動と終了の確認、Editor の操作、編集の適用と復元、証拠の置き場は基盤が持つ。driver が import するのは [`Scenario.psm1`](Scenario.psm1) だけである。最小の例は [`scenario-editor-smoke.ps1`](scenario-editor-smoke.ps1)（窓のある Editor の疎通と、基盤を通した `run-tests.ps1` の起動）、移した実例は [`tools/s42-player-overlay.ps1`](../s42-player-overlay.ps1)。
+
+### 基盤が守ること
+
+前提: 検証用の checkout は検証の専用で、人が同時に編集しない。基盤が守るのは、検証用でない checkout、基盤を使う run 同士、基盤が確かめた時点の状態で、人や任意の git の process との排他は保証しない。
+
+- **検証用でない checkout を変えない。** 検証用の checkout は、linked worktree で、HEAD が detached で、その worktree の専用の git dir に基盤の印がある物だけである。印は基盤が作った時か、実行の担当が登録した時にだけ置かれる。基盤は scenario が使う全ての checkout の事前確認と lease の取得を終えてから最初の書き込みを行い、印が無い・別の repo・branch を checkout している・進行中の git の操作がある・tracked の変更か ignore されない未追跡の file がある・隔離中・別の run の予約がある・稼働中の Editor が project lock を持つ・path 予算を超える・渡された checkout の HEAD が対象の commit と違う、のどれでも何も書かずに止まる。Unity の起動が書き換えた file だけが残っている時も戻さずに止まる。
+- **終了を確かめていない process が使っている checkout を戻さない。** 終了の確認は、直接起動した process（窓のある Editor、batch、補助の process）は保持した handle の signal と終了コードで、`run-tests.ps1` は子の `pwsh` の signal に加えて、今回の step（`-OutputRoot` に渡した directory の下にあり、`projectPath` と `filter` が今回の物）があり、その `process.exitCode` が整数か、Unity を起動しなかった `preflight` の step であることで決める。確かめられない時と project lock が保持されている時は、checkout を patch を当てたまま残し、使用中の記録を残して非 0 で終わる（隔離）。期限の後に基盤が止めるのは、scenario が起動で `-KillOnTimeout` を渡した時だけで、相手は保持した process とその子孫に限り、`forced` と記録する。`run-tests.ps1` の起動では止めない。補助の process は、checkout を使う case で起動した物をその case の終わり（戻す前）に、checkout を使わない case で起動した物を driver の呼び出しの終わり（例外で抜ける時も）に確かめる。後者を確かめられない時は、どの checkout に触れたかを基盤は知らないので、その呼び出しの全ての checkout に使用中の記録を置いて隔離する。checkout に触れる補助の process は、その checkout を使う case で起動する。
+- **run が始めていない process を止めない・操作しない。run が作っていない path を消さない。** 名前と RunId は `^[A-Za-z0-9]+([._-][A-Za-z0-9]+)*$` の 32 文字までで、Windows の予約名を拒む。run の root と外部 root（`<drive>\ovr\<scenario>\<RunId>`）は印で所有を示し、削除は印のある外部 root の下だけで reparse point を辿らない。窓のある Editor に送る全ての `eval` は、先頭で Editor 自身の PID を基盤が保持した PID と比べ、違えば何もしない。project lock の file は消さない。
+- **失敗を成功の記録にしない。** 起動の失敗、ready の期限切れ、marker の欠け、今回の物でない step、実行件数の不一致（期待を指定しない時は 0 件）、証拠の保存の失敗、復元の後の不一致、対象でない commit での実行は、case の record に原因と一緒に残り、driver は非 0 で終わる。`-Only` に列に無い名前があれば何も書かずに拒む。
+- **製品を知らない。** 基盤の module は製品の型も入口も参照せず、受け入れ条件の合否を判定しない。driver の exit 0 は「基盤の操作が全て通り、選んだ case が最後まで走った」ことだけを示し、製品の合格を意味しない。製品の test の `failed` は基盤の失敗に数えない。
+
+### scenario の書き方
+
+```powershell
+Import-Module (Join-Path $PSScriptRoot 'Harness/Scenario.psm1')
+$scenario = New-Scenario -Name 'demo' -Checkout 'X', 'Y'
+Add-ScenarioCase $scenario -Name 'build' -Checkout 'X' -Patches 'path/in/checkout.patch' -Body {
+    param($context)
+    $result = Invoke-ScenarioTests $context -Filter 'Namespace.Class.Case$' -ExpectedTotal 1 -Environment @{ RUN_ID=$context.RunId }
+    return @{ status=$result.Status; total=$result.Total }
+}
+$result = Invoke-Scenario $scenario -RunId $RunId -Only $Only -DryRun:$DryRun
+exit $result.ExitCode
+```
+
+body が使える関数: `Invoke-ScenarioTests`（`run-tests.ps1` の子の起動）、`Invoke-ScenarioBatch`（`-executeMethod`）、`Invoke-ScenarioCommand`（外部 command）、`Start-ScenarioHelper`（呼び出しの間だけの補助の process）、`Start-ScenarioEditor`・`Read-ScenarioEditor`・`Send-ScenarioEditor`・`Wait-ScenarioEditor`・`Stop-ScenarioEditor`（窓のある Editor）、`Set-ScenarioFile`・`Reset-ScenarioFiles`（checkout の中の ignore される管理する file）、`Get-ScenarioDirectory`・`Remove-ScenarioDirectories`（外部 root の下の cache や fixture）、`Save-ScenarioArtifact`（証拠）、`Write-ScenarioRecord`（scenario の形の行）。`Add-ScenarioCase -After` は復元の後に呼ばれ、scenario が自分の形の record を書く所である。driver に git・process の起動・削除・Editor の接続の code を書かない（offline test が構文木で走査する）。
+
+- 送る `eval` は 1 回だけ送られ、基盤は送り直さない（実行してから応答が timeout したのか、実行しなかったのかを区別できない）。成否は `Read-ScenarioEditor` か `Wait-ScenarioEditor` で状態を読んで確かめる。読む `eval` は一時的な失敗の後に読み直し、期限で止まる。
+- 管理する file の寿命は run で、driver の呼び出しをまたいで残り、`Reset-ScenarioFiles` を呼んだ時だけ戻る。書いている間、その checkout はその run に予約され、別の run も HEAD の切替も片付けも拒む。戻した後に同じ run がもう一度書けば、また書く前から始まる（大小文字だけが違う path は同じ file として扱う）。
+- `-Only` は止まった run の続きで、run の印（名前、RunId、本番か dry-run か、対象の commit、checkout の場所）が全て同じ時だけ通る。`-Only` を付けない同じ RunId の再実行と、`-DryRun` の run を本番で続けることは拒む。
+- 実機で通したのは、checkout の用意・事前確認・patch と復元・`run-tests.ps1` の起動・run ごとの cache と証拠・停止規則・窓のある Editor の起動から終了まで（S4-2 の driver の `-DryRun` と `scenario-editor-smoke.ps1`）である。`Invoke-ScenarioBatch`・`Invoke-ScenarioCommand`・`Start-ScenarioHelper`、Editor の再起動、読む `eval` の reload をまたぐ読み直し、送る `eval` の後の fault の挿入は offline test だけで示した拡張点で、実の使い方は使う行（S4-3a〜S4-4）が確かめる。
+- checkout を使わない case で `Invoke-ScenarioCommand` の終了を期限までに確かめられない時は、`quarantine`（`checkout` が null）の行を書いて止まるが、どの checkout にも使用中の記録を置かない（補助の process と違い、次の run は checkout を使える）。checkout に触れる外部 command は、その checkout を使う case で走らせる。
+- 検証用の checkout の既定の置き場は `<主の worktree の親>\osm-v\<scenario>-<checkout>` で、`Library` を run の間で使い回す。無ければ作り、あれば対象の commit に合わせる。`-DryRun` は checkout を作らない。
+
+### record と証拠の置き場
+
+run の root の既定は driver のある checkout の `TestResults/scenario/<scenario>/<RunId>`（S4-2 は互換のため `<Y>/TestResults/s42/<RunId>`）。
+
+- `driver.jsonl`: 基盤の行は `event`・`case`・`attempt`・`utc` を持つ（`run-start`、`case-start`、`in-use`、`editor-start`、`editor-ready`、`eval`、`process-exit`、`test-run`、`batch-start`、`command`、`helper-start`、`managed-file`、`managed-restore`、`restore`、`quarantine`、`case-end`）。続きの実行の `run-start` の `priorQuarantines` は、同じ run の前の呼び出しが残した `quarantine` の行を、`driver.jsonl` の行の番号（`line`、1 から）・`case`・`attempt`・`checkout`・`kind`・`pid`・`restored` と原出力の置き場（`baseDirectory`、`base/<case>/<試行>`）で指す（無ければ空の配列）。`case-end` の `base` は失敗した基盤の操作の名前か `ok`、`body` は case の body が返した値で、2 つを分けて持つ。真偽の欄は基盤の申告なので、判定の担当は `base/` の原出力で確かめ直す。scenario の行（`Write-ScenarioRecord`）は `event` を持たない。
+- `base/<case>/<試行>/`: case の前（`before.*`）・戻す前（`restore-before.*`）・戻した後（`after.*`）・隔離の時（`quarantine.*`）の `git status --porcelain`・HEAD・index と working tree の差分の原出力、`eval` の code と原応答（`editor-<n>-eval-<k>-<種類>.cs` と `.response.json`）、Editor と batch の log、`run-tests.ps1` の出力の directory（`runner-<n>/`）とその標準出力。
+- `evidence/<case>/<試行>/<名前>`: scenario が保存する証拠。同じ試行で同じ名前は拒む。
+- `managed/<checkout>/`: 管理する file の書く前の記録（有無、bytes、SHA-256）。書く前の bytes の file（`<n>.before`）は戻した後も消さず、上書きしない。
+
+### 検証用の checkout の操作（実行の担当）
+
+`pwsh tools/Harness/scenario-checkout.ps1 -Operation <操作> -Path <checkout>`。4 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）。
+
+lease は checkout の path（小文字にした絶対 path）の SHA-256 の先頭 32 桁を名前にした排他の file で、worktree の git dir ではなく共通の git dir の `osm-scenario/leases/` に置く（worktree の git dir に開いたまま置くと `git worktree remove` が消せず、まだ無い checkout の作成の排他にも同じ file を使うため）。排他が効くのは同じ repo の呼び出しの間なので、別の repo の checkout は事前確認（共通の git dir の比較）が拒む。印・使用中の記録・予約は worktree の git dir の `osm-scenario/` にある。
+
+- `register`: 手で作った linked worktree（`git worktree add --detach`）に印を置く。detached、clean、同じ repo、lock なし、path 予算内の時だけ。
+- `remove`: 印のある checkout を、clean で隔離も予約も無い時だけ `git worktree remove`（`--force` なし）で外す。外し終わるまで lease を持つ。
+- `release`（隔離の解除）: 手順は次のとおり。(1) 使用中の記録（`<worktree の git dir>/osm-scenario/in-use.json`）にある process と、command line がその checkout の project を指す process が残っていないことを CIM（`Win32_Process`）で確かめる。残っていれば、次を全て確かめた時だけ止めてよい: command line がその checkout の project を指す、作成の時刻が record の開始時刻より後、PID が record の Editor・batch の PID か、親の PID が record の子の `pwsh`（`run-tests.ps1` の起動）か、record の子の `pwsh` が既に残っていない。確かめられなければ止めずに owner へ返す。止めた時は時刻・PID・確かめた値を書いた note を証拠に添える。(2) checkout を手で HEAD へ戻す（tracked の file と未追跡の file。`git clean` に `-x` を付けない）。(3) `release` を呼ぶ。基盤は lock が保持されておらず、clean で、その project を指す process が 1 つも無い時だけ記録を消す。解除の後の `-Only` の続きは新しい試行として走る。
+- `unreserve`（予約の解除）: 印・同じ repo・clean・lock なし等の事前確認（解除する予約そのものは除く）を通った時だけ、run の root の書く前の記録のとおりに管理する file を戻せた時だけ予約を消す（元から無かった file は消し、あった file は保存した bytes に戻す）。今の bytes が基盤の書いた物と違う時と、書く前の記録が無い時は何も変えない。隔離が残っていれば先に `release` を通す。
+
+### S4-2 の driver で前と変わる点
+
+- `-XRoot`・`-YRoot` を渡す時は、先に `register` で登録する。省けば基盤が用意する。
+- Unity の起動が書き換えた file（URP の global settings など）を driver が先に戻さなくなった。残っていれば止まるので、実行の担当が戻してから走らせる。
+- 上の「基盤が守ること」の事前確認のどれかに当たる checkout では止まる。
+- RunId は名前の規則と 32 文字の上限に従う。列に無い `-Only` の名前は拒む（前は何もせずに exit 0）。`-Only` を付けない同じ RunId の再実行と、同じ RunId の `-DryRun` の後の本番は拒む。
+- marker の欠けや Unity の終了コードの無い step では、Y（または X）を戻さずに隔離して止まる（前は戻していた）。
+- cache の root は `<Y の drive>\ovr\s42\<RunId>\cache`（前は `<drive>\s42c\<RunId>`）。片付けの case は cache の root を消し、`OSMContentDelivery.json` を書く前の状態へ戻す（前は書いたまま残した）。片付けの後に同じ run で cache を作り直すことは拒む。
+- `stepPath` の指す先は run の root の `base/<case>/<試行>/runner-1/` の下（前は checkout の `TestResults/`）。X の `x1-record.json` の写しは `evidence/CopyToY/<試行>/x1-record.json`（前は run の root の直下）。
+
 ## 観測ファイルの保存とテスト資源の寿命
 
 `TestObservationWriter.AtomicWrite` は invocation が所有する同じflush済みtempを使う。保存先がなければMoveを一度だけ行う。既存保存先へのReplaceは、WindowsのIOExceptionでHRESULTが `0x80070020`、`0x80070021`、`0x80070497` の場合だけ再試行する。最大5 attempt、各retry前に20ms、最初のReplace開始から100ms未満で追加attemptを開始する。これは追加retryの開始期限であり、native I/O自体の終了時間の保証ではない。

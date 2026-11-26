@@ -5,9 +5,9 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `A`（A3 の統合案の改訂 2。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）を入れた。**未凍結。** owner の裁定待ちは §2.9）
+- status: `A`（**Phase A のやり直しの前。** A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）。**未凍結。**）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
-- implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`develop` の head、2026-11-25、S4-2 の Phase D の merge。branch に merge した。§1 の現況と §3 の行数はこれで取り直した。A2 の固定 base は前の `1fd200b5ba835c833035d153579216e14cb823af` のまま。§5.1）
+- implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。**§1 の現況と §3 の行数はまだこの base で取り直していない**（改訂 1・2 は `07cc2c97` で取った。初版と A2 の固定 base は `1fd200b5`）。取り直しはやり直しの Phase A の最初の作業）
 - implementation head commit: `未固定`
 - A3 凍結記録: `未凍結`
 - risk: `high`（Framework の公開 API に取得元の差込口を足し、cache への書き込みを呼ぶ調停と、Play の入口の候補の並びに触れる。program の行は `normal` だったが、高リスクの例の「公開 API」に当たるので上げた）
@@ -18,13 +18,14 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase A の A3（owner の裁定と、Draft PR での外部計画レビュー）。
-  - 次の作業: S4-V（program §8、検証の基盤）の A3 を待ち、§5 の driver の約束を S4-V の凍結した契約と突き合わせる。owner が §2.9 の裁定待ち（D-1、D-3〜D-6）を決める。外部計画レビューに続きがあれば、その採否を §5.1 に足す。裁定が設計・受け入れ条件を変えたら、影響する A2 の観点の再レビューの要否を §5.1 に記録する。凍結の記録（owner の凍結判断、対象 revision、次の担当 B）を書いて凍結版を commit する。
-  - 読む範囲: 既定のとおり（全節）。
+  - 次の Phase・役割: Phase A のやり直しの主担当（A1 の改訂から A3 まで。owner の指示、2026-11-26）。
+  - 次の作業: (1) base `9e7d4148` で §1 の現況と §3 の行数を取り直す。(2) S4-V の基盤の実の契約（[Harness README](../../tools/Harness/README.md)「実機の検証の scenario」、`tools/Harness/Scenario*.psm1`、program §9.1 の利用者表の S4-3a の行と各操作の状態、program の「S4-V から移送した入力」）を読み、§3 の driver の行と §5 の E 系列（driver の約束、case の列、照合する値）を、基盤の契約を写さずに参照する形で書き直す。基盤に足りない操作があれば、§9.1 の境界の規則のとおり、S4-3a の中で基盤を直す計画にして利用者表を直す（driver に迂回を書かない）。(3) 改訂 1・2 で設計と受け入れ条件が変わり、変更後の版は A2 の独立レビューを受けていないので、作り直した版で A2 を行う。目的・利用者の 2 欄を変えない限り目的レビューはやり直さない（§1 の改訂の記録と phases-and-handoff の規則）。(4) A3 で、§5.1 の今までの採否（A2 の初回、外部計画レビュー 1〜3 件目の EX・RX・SX）を引き継いだうえで新しい指摘の採否を足し、Draft PR（この PR）で外部計画レビューを受ける。owner の裁定待ち（§2.9 の D-1、D-3〜D-6）と、決定済みの項目（§2.9）は引き継ぐ。凍結の記録（owner の凍結判断、対象 revision、次の担当 B）を書いて凍結版を commit する。
+  - 読む範囲: 既定のとおり（全節）。加えて program §8 の S4-3a〜S4-3d と S4-V の行、§9.1、「S4-2 から移送した入力」「S4-V から移送した入力」、PR #214 のコメント 3 件。
   - 引き継ぐ commit: この票を含む commit（SHA は PR の状態ブロックで渡す）。
   - 必要な権限: なし（文書のみ）。凍結の後の Phase C は Unity（Windows）と Editor の操作、2 つの worktree が要る（§5 の E 系列）。
-  - 停止規則: 凍結の記録が無いまま Phase B を始めない。S4-V の A3 より前に凍結しない。S4-V の merge より前に Phase B を始めない（program §8 の S4-V の行）。S4-2 の Phase D の後に凍結するという条件（旧 program §8 の S4-3 の行）は、2026-11-25 の S4-2 の merge と、この改訂の base の取り直しで満たした。
+  - 停止規則: 凍結の記録が無いまま Phase B を始めない。S4-2 の Phase D の後、S4-V の A3 の後に凍結するという条件と、S4-V の merge の後に Phase B を始めるという条件（program §8 の行）は、2026-11-26 の S4-V の merge で満たした。
   - 引き渡さないもの: なし。
+  - 独立性の注記: Phase A に関与した系列は Anthropic（主担当と A2）と OpenAI（外部計画レビュー）。C' 用に Grok を残す（§5 の C' の予約）。やり直しの A2 の担当の選び方はこの制約の中で主担当が決める。
 
 ### 実測の方法
 

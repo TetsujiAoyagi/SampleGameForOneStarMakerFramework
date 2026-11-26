@@ -67,6 +67,12 @@ jobs:
         run: pwsh -NoProfile -File ./tools/Harness/tests/UnityObservation.Tests.ps1
       - name: Unity runner offline tests
         run: pwsh -NoProfile -File ./tools/Harness/tests/UnityTestRunner.Tests.ps1
+      - name: Scenario base offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/Scenario.Tests.ps1
+      - name: Scenario driver offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/ScenarioDriver.Tests.ps1
+      - name: Scenario Unity and Editor offline tests
+        run: pwsh -NoProfile -File ./tools/Harness/tests/ScenarioUnity.Tests.ps1
 
   dotnet-offline-tests:
     runs-on: windows-latest

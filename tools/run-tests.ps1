@@ -37,53 +37,40 @@ Import-Module (Join-Path $PSScriptRoot 'Harness/UnityTestResult.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/Adapters/UnityTestOutput.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/UnityObservationResult.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Harness/PathBudget.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Harness/UnityProcess.psm1') -Force
 
 # process の開始・終了待機は runner が所有する。offline テストはこの内部境界だけを差し替える。
+# 起動と待機の実体は UnityProcess.psm1 にあり、実機の検証の基盤（Scenario*.psm1）と同じ物を使う。
 function Invoke-UnityTestProcess {
     param([string]$Executable, [string[]]$Arguments, [string]$WorkingDirectory)
-    $info = [Diagnostics.ProcessStartInfo]::new()
-    $info.FileName = $Executable
-    $info.WorkingDirectory = $WorkingDirectory
-    $info.UseShellExecute = $false
-    $info.CreateNoWindow = $true
-    foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
-    $process = [Diagnostics.Process]::new()
-    $process.StartInfo = $info
     $startedAt = $null
     $endedAt = $null
     $processId = $null
+    $handle = $null
     $elapsed = [Diagnostics.Stopwatch]::new()
     try {
-        if (-not $process.Start()) { throw "Unity process を起動できません: $Executable" }
-        # 後から PID を読むと終了・破棄との競合で identity が失われるため、起動直後に固定する。
-        $processId = $process.Id
-        $startedAt = [DateTimeOffset]::UtcNow.ToString('o')
+        # 窓は作らない（Start-UnityProcess の既定）。PID は起動の直後に固定される。
+        $handle = Start-UnityProcess -Executable $Executable -Arguments $Arguments -WorkingDirectory $WorkingDirectory
+        $processId = $handle.Id
+        $startedAt = $handle.StartedAt
         $elapsed.Start()
         # 起動呼び出しの完了はテスト完了ではない。開始した process の終了まで期限なしで待つ。
-        $process.WaitForExit()
+        $wait = Wait-UnityProcess -Handle $handle
         $elapsed.Stop()
         $endedAt = [DateTimeOffset]::UtcNow.ToString('o')
-        return [pscustomobject]@{ Id=$processId; StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$elapsed.ElapsedMilliseconds; ExitCode=$process.ExitCode; Failure='' }
+        return [pscustomobject]@{ Id=$processId; StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$elapsed.ElapsedMilliseconds; ExitCode=$wait.ExitCode; Failure='' }
     } catch {
         $elapsed.Stop()
         if ($null -ne $startedAt) { $endedAt = [DateTimeOffset]::UtcNow.ToString('o') }
+        # ExitCode は終了を確かめた時だけ整数。起動できなかった時と待ちに失敗した時は $null のまま。
         return [pscustomobject]@{ Id=$processId; StartedAt=$startedAt; EndedAt=$endedAt; DurationMs=$(if ($null -ne $startedAt) { $elapsed.ElapsedMilliseconds } else { $null }); ExitCode=$null; Failure=$_.Exception.Message }
-    } finally { $process.Dispose() }
+    } finally { if ($null -ne $handle) { Close-UnityProcess -Handle $handle } }
 }
 
 function Test-UnityProjectLock {
+    # 稼働中の Editor が持つ lock なら止め、前回の異常終了で残った非保持 lock だけを片付ける。
     param([string]$ProjectPath)
-    $lockFile = Join-Path $ProjectPath 'Temp/UnityLockfile'
-    if (-not [IO.File]::Exists($lockFile)) { return }
-    # ファイルの存在だけでは残骸と稼働中の Editor を区別できない。
-    try {
-        $stream = [IO.File]::Open($lockFile, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-        $stream.Dispose()
-    } catch [IO.IOException] {
-        throw "Unity Editor が project lock を保持しています: $lockFile"
-    }
-    # 前回の異常終了で残った非保持 lock だけを片付ける。
-    [IO.File]::Delete($lockFile)
+    Clear-UnityStaleProjectLock -ProjectPath $ProjectPath
 }
 
 function Get-EditorSettingsBytesHash([byte[]]$Bytes) {
@@ -225,19 +212,9 @@ function Invoke-UnityTestRun {
     try {
         if ($ObserveUnity -and $Platform -cne 'EditMode') { throw '-ObserveUnity は EditMode 専用です' }
         # 要求版と実ファイル版は別の観測値。明示 UnityExe でも要求版を ProjectVersion から残す。
-        $versionFile = Join-Path $project 'ProjectSettings/ProjectVersion.txt'
-        $versionText = [IO.File]::ReadAllText($versionFile)
-        $match = [regex]::Match($versionText, '(?m)^m_EditorVersion:\s*(\S+)')
-        if (-not $match.Success) { throw "ProjectVersion.txt から要求版を読めません: $versionFile" }
-        $requestedVersion = $match.Groups[1].Value
-        if ($UnityExe) {
-            $executable = [IO.Path]::GetFullPath($UnityExe)
-        } else {
-            $executable = [IO.Path]::GetFullPath((Join-Path $UnityRoot "$requestedVersion/Editor/Unity.exe"))
-        }
-        if (-not [IO.File]::Exists($executable)) { throw "Unity.exe が見つかりません: $executable" }
-        $fileVersion = [Diagnostics.FileVersionInfo]::GetVersionInfo($executable).FileVersion
-        if ($fileVersion) { $executableVersion = $fileVersion }
+        $requestedVersion = Get-UnityRequestedVersion -ProjectPath $project
+        $executable = Resolve-UnityExecutablePath -RequestedVersion $requestedVersion -UnityRoot $UnityRoot -UnityExe $UnityExe
+        $executableVersion = Get-UnityExecutableVersion -Executable $executable
         Test-UnityProjectLock $project
         if ($ObserveUnity) { $editorSettingsBefore = [IO.File]::ReadAllBytes($editorSettingsPath) }
         $arguments = @('-batchmode', '-projectPath', $project, '-runTests', '-testPlatform', $Platform,
