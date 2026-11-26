@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**判定 C（判断担当、1 回目）は NO-GO（§7、F-C3）。次は B（F-C3 の修正、B と発見 C の差し戻しの 3 巡目）。** 判定 C の 2 回目の実行は §7。発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `A`（**Phase B は F-C3 の原因を切り分け、直さずに Phase A へ戻した（§6「判定 C で見つかった F-C3 の修正」）。次は Phase A の改訂（§5 の観測の対象）。** 以下は前の記録: 判定 C（判断担当、1 回目）は NO-GO（§7、F-C3）。判定 C の 2 回目の実行は §7。発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `cd4a16b18dfa53cc5b607eb978f88ca46be05316`
@@ -18,12 +18,12 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（判定 C で見つかった F-C3 の修正。B と発見 C の差し戻しの 3 巡目、上限は 4 巡）。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。§7 の「判定 C（判断担当、1 回目）」の F-C3 を直す: E1・E2・E4・E5・E6 の Play で、driver が `AddScene("HomeScene")` を送った後に `GetContentLoadRecord("HomeScene")` が 2 分間 null のままだった（原記録は §7 の「判定 C の実行担当の記録（2 回目）」の (2)、E1 は `TestResults/scenario/s43a/j2/base/E1/1/` の eval 024〜061 と `editor-1.log`）。まず原因を driver の観測の側（例: `eval` が `AddScene` の返す UniTask を待たず、その失敗が見えない。引数や呼ぶ時点の誤り）か製品の側かに切り分け、根拠を記録する。切り分けに実 Editor が要る時は、新しい RunId で `pwsh tools/s43a-local-origin.ps1 -RunId <id> -Only S0,P1,E1`（sandbox の外）で E1 まで再現し、終わったら `-Only Cleanup` を走らせる（§5 の約束の 8）。原因が driver なら driver を直し、AddScene の完了か失敗（例外の文）を証拠に残す形にする。原因が製品で、§3 の責務マップの file の数 file の修正で直り設計を変えない時だけ直す。変える file が数 file を超える、設計（§2・§3 の決定）を変える、または §4 の「Phase B から Phase A へ差し戻す条件」に当たる時は、直さずに原因と根拠を §6 に書いて止まり、報告する。直したら、E1 を上の `-Only S0,P1,E1` で 1 回走らせて `HomeScene` の load の record の `Identity` が取れることを確かめ（B の実行は判定の入力にしない）、基盤の offline test 3 本と `tools/contract-audit.ps1`・`tools/docs-audit.ps1` を走らせる。製品の code を変えた時は、変えた file の test を `-Filter` で走らせる。記録は §6 の後に「判定 C で見つかった F-C3 の修正」の小節で書く。実装の commit を先に切り、その SHA を implementation head 欄に書いた記録 commit で、票を発見 C（4 回目。修正の差分だけを見る）へ更新する（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。push と PR の状態ブロックの更新は進行役が行う。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の行。差し戻しなので §6〜§8 も）。
+  - 次の Phase・役割: Phase A（改訂。主担当と owner の裁定）。Phase B が F-C3 の修正を直さずに戻した。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。§6「判定 C で見つかった F-C3 の修正」の原因と案を読み、新しい revision で §5 の観測の対象（約束の 5、case の表、判定の担当が照合する値、E6 の記録、未知の操作経路の疎通結果）を改訂する。同じ小節の E6 の 2 件（title の読みが値を返さないこと、固定 patch で上書きの root が 0 件だったこと）の扱いも同じ改訂で決める。凍結の前に、改めた観測の経路を実 Editor で小さく確かめる。影響する A2 の観点の再レビューの要否と理由を §5.1 の採否に残し、owner の凍結の記録を §0 に書く。凍結の後の次の担当は Phase B（driver の観測の修正と E1 の確認）、続けて発見 C、判定 C の全回帰と E 系列の取り直し。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase A の行。全節）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: `tools/`・`unity/`（§3 の責務マップの file だけ）・`docs/handoff/` の編集、pwsh の offline test、Unity Editor の起動（窓あり、batch）と sandbox の外の実行、検証用の worktree（基盤が用意する）。資格情報は要らない。Unity の終了の stall は [Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) のとおり CIM で止める。
-  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。F-C3 の外の変更を足さない。§7 の記録を §6 へ転載しない。
+  - 必要な権限: `docs/handoff/` の編集、pwsh の offline test。観測の経路の確認には Unity Editor の起動（窓あり、batch）と sandbox の外の実行。資格情報は要らない。Unity の終了の stall は [Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) のとおり CIM で止める。
+  - 停止規則: §2.7 の停止規則。改訂の範囲は F-C3 の観測の対象と上の E6 の 2 件に限る。§1 の目的・利用者の欄を変える必要が出たら、目的レビューのやり直しの規則に従う。製品の code で解く案は AC4 と今の公開の契約に当たる（§6）。
   - 引き渡さないもの: なし。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
@@ -665,6 +665,30 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
   - 足した test は、`f57587b3` の版の driver に対しては証拠の名前の 64 文字の上限の例外で失敗し、修正後の driver では通った。
   - `Scenario.Tests.ps1` 24 件 0 失敗、`ScenarioDriver.Tests.ps1` 14 件 0 失敗、`ScenarioUnity.Tests.ps1` 28 件 0 失敗、`tools/contract-audit.ps1` exit 0。いずれも code と test が implementation head と同じ内容の作業ツリーで走らせた。`tools/docs-audit.ps1` は本書の記録の後に errors 0。
 - 未実行（Phase C の責任）: E 系列の全 case、全 EditMode 回帰、GO 候補 head の機械検査。Unity は起動していない。driver の E1 の取得の後の保存より先の経路（E1 の Play の組と、P2 以降の case）は、`-DryRun` でない形では実機でも offline でも通っていない。
+
+### 判定 C で見つかった F-C3 の修正（直していない。Phase A へ戻す）
+
+- 担当: Claude Code の desktop の session（Anthropic、Claude Sonnet 5.5）、2026-11-27。起動指示の SHA `4bd25394` の本書の票から始めた。開始時の照合（HEAD と SHA、clean、implementation head `cd4a16b1` が祖先で差分が本書だけ、PR #214 の状態ブロックの引き継ぐ commit と implementation base / head、PR の timeline に実装の後の新しい comment と review が無いこと、`workflow-task.ps1 status -Task s4-3a-local-content-origin` の active）は一致した。
+- 結果: code と test は変えていない。implementation head は `cd4a16b1` のまま。
+- **原因: 凍結した §5 の観測の対象 `HomeScene` は、load の記録を持てない Scene である。** driver が呼ぶ時点や待ちの長さの誤りでも、製品の不備でもない。
+  - `unity/Assets/OneStarMakerCommon/SceneMap/HomeScene.asset` は `_payloads: []`（base から変えていない）。
+  - `SceneDirector.PerformUnitySceneLoad`（`SceneDirector.Loading.cs`）は、payload の無い node を loader を呼ばずに返す。組の `ContentRecord` を入れるのは `LoadThroughContentLoaderAsync` だけである。
+  - 公開の契約（`SceneDirector.GetContentLoadRecord` の doc comment）は、payload の無い論理 node に null を返すと定める。`SceneDirectorContentLoaderTests.LogicalNodeWithoutPayload_DoesNotCallTheLoader` がこれを固定している。
+  - したがって `AddScene("HomeScene")` が成功しても、記録は常に null になる。
+- 判定担当が挙げた候補（content directory の `SceneResourceMap` の読み込みの失敗、登録の経路の不成立）の側の観測: E1 の `editor-1.log` に directory の供給元の配線（`Content resolution: wired=true`）があり、E1・E2・E4・E5 の log に初回 Scene の `Editor content directory first scene: scene=Title … stable=True` がある。
+- log に `HomeScene` の行が無いことは根拠にならない。load できた `Title` の `Create TitleScene`（ZLogger の行）も E1 の log に無い。
+- 未確認: E1 の `AddScene("HomeScene")` が返した task の成否（driver は返る UniTask を受けないので、証拠が無い）。上の原因は成否のどちらでも成り立つ。
+- **直さない理由:** `HomeScene` は §5 の約束の 5、case の表、「判定の担当が照合する値」、E6 の記録に凍結した観測の対象で、AC9 はその表を参照し、AC10 の観測もこれで読む。対象を変えると受け入れ条件の合否の読みが変わるので、B 適応でも決定記録でもなく Phase A の再開である（[新しい事実の分類](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#新しい事実の分類)、[決定記録](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#決定記録)）。製品の側で論理 node に記録を持たせる案は、AC4（`Runtime/SceneSystem/` に差分が無い）と今の公開の契約に反するので採らない。実 Editor は起動していない（原因はコードと保存済みの原記録で決まり、直した物が無いので E1 で確かめる対象が無い）。
+- 同じ調べで見つけた E6 の観測の 2 件（どちらも直していない。実機の確かめはしていない）:
+  - (a) driver の `$readTitleToken` は `UIDocument` を探すが、`UICommon` は `PanelRenderer` で UI を載せる。`UIScene.unity` は `PanelRenderer` を持ち、Framework と SampleGame の runtime の code と、Scene・prefab に `UIDocument` は無い。E6 の `title` が空だったことと合い、この読みは今の形では値を返さない。driver の中で直せるが、直すのは上の改訂と同じ回にする。
+  - (b) E6 の record は `overlay.state=NotRequired`、`overlayRoots=0` だった。固定 patch は `Title.uxml`・`Title.unity`・新しい uxml を変えるが、開いた `Title` は snapshot に載り、上書きの root は無かった。S8（別の `Library` の base に上書きを重ねた答え）をこの patch で踏めるかは調べていない。
+- **Phase A への案（決定は Phase A と owner）:**
+  - E1・E2・E4・E5: `AddScene` を送らず、起動の経路が directory から load する初回 Scene `Title`（payload を持つ）の `GetContentLoadRecord("Title")` の `Identity` を読む。送る `eval` が 1 つ減る。`HomeScene` の `AddScene` は、成功すると `OnStabledImpl` が InGame へ切り替えて `OutGameScene` の下を unload する（コードからの読み）ので残さない。
+  - E6: 上書きに入らない root は、`OutGameScene`（payload を持ち、`Title` の親として load される）の記録で読む。コードからの読みで、実機では未確認。(a) の読み先の候補は `UICommon` が持つ panel の root（private の `_panelRoot`）への reflection で、未確認。(b) は S8 の測り方の問いとして改訂で扱いを決める。
+  - AC9・AC10 の本文（§2.7）は観測する Scene の名前を持たないので変えず、§5 の観測の対象と driver を変える改訂にする。
+  - 凍結の前に、`Title` と `OutGameScene` の記録と title の値が取れることを実 Editor で小さく確かめる（[検証経路の成立](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#検証経路の成立)）。今回の不成立は、観測の対象が記録を持てるかを凍結の前に確かめていなかったことから出た。
+- 実行した確認: 本書の記録の後に `pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1`。基盤の offline test 3 本と Unity の test は、`tools/` と `unity/` を変えていないので走らせていない。
+- 巡: B と発見 C の差し戻しの 3 巡目は、修正も再レビューもせずに止めた。発見 C の 4 回目は起動しない。
 
 ## 7. Phase C
 
