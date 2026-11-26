@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: 外部実装レビューの指摘の修正（B と発見 C の差し戻しの 2 巡目）の Phase B 完了。次は発見 C（3 回目）（判定 C と C' の 1 巡目は GO だった。§6・§7・§8。凍結した Phase A は revision 0）
+- status: 発見 C（3 回目）完了、阻害する指摘なし。次は判定 C（2 回目。implementation head が変わったので、`c3f02632` の判定 C と C' の 1 巡目の GO は新しい head の証拠にしない。§6・§7・§8。凍結した Phase A は revision 0）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `c38e076263d138c7ad9445a161dc0ff2c617d1bf`
@@ -17,15 +17,15 @@
 - harvest to: [tools/Harness/README.md](../../tools/Harness/README.md)（基盤の契約と scenario の書き方。Phase B が書く）、program §9.1 の利用者表（各操作の状態）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 C の照合の合成 fixture 59 組と期待の一覧（README、`expectations.json`、観測ごとの zip 3 つ）を task `s4-v-scenario-verification-base` に `evidence stage` で固定し、別の process の `fetch` で 5 file の一致を確かめた。取得案内は、判定 C の時点で手元の取得案内の置き場に無く、主担当の session の stage の出力（reference と packageSha256）から判定 C が取得し、同じ内容の案内を S4-V の取得案内の置き場（この PC の git 管理外の運用 directory の `s4-v-scenario-verification-base/handoff-guides/` の `phase-a.md`）に再掲した。別の process の取得で 5 file を確かめた（判定 C、2026-11-26）。Phase B には渡さない
 - Phase B result snapshot の取得案内・状態: 該当なし（B は Unity の test を実行していない。結果は §6 と implementation head の差分。C' 用には Phase C の前の §6 を C' blind bundle に収録した）
-- evidence bundle の取得案内・状態: ローカル固定済み（未昇格）。判定 C の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と結果。29 file と manifest）を implementation head で固定し、別の process の取得で manifest の全 file の SHA-256 が一致することを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement.md`
-- C' blind bundle の取得案内・状態: ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた diff、判定 C と同じ生証拠（23 file と manifest。所見と判定 C の照合 script・結果は含まない）。別の process の取得で全 file の SHA-256 の一致を確かめた。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime.md`
+- evidence bundle の取得案内・状態: 旧 head `c3f02632` の物だけがある（新しい head `c38e0762` の物は未生成。判定 C（2 回目）が作る。旧 head の物は新しい head の合格証拠にしない）。旧 head の物: ローカル固定済み（未昇格）。判定 C の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と結果。29 file と manifest）を implementation head で固定し、別の process の取得で manifest の全 file の SHA-256 が一致することを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement.md`
+- C' blind bundle の取得案内・状態: 旧 head `c3f02632` の物だけがある（新しい head の物は未生成。判定 C（2 回目）が新しい head で作る）。旧 head の物: ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた diff、判定 C と同じ生証拠（23 file と manifest。所見と判定 C の照合 script・結果は含まない）。別の process の取得で全 file の SHA-256 の一致を確かめた。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime.md`
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（3 回目。B と発見 C の差し戻しの 2 巡目の修正を読む）。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行う。implementation base から implementation head までの差分を commit で固定して読み、重点は 2 巡目の修正 `c3f02632..c38e0762`（§6 の「差し戻しの修正（2 巡目）」。PR #215 の 2026-11-26 03:18〜03:22（UTC）の外部実装レビューの P1・P2 と cursor の指摘への判断）。修正が凍結した条件（N1、AC4、AC9）と常時契約を満たすか、足した offline test が修正の経路を落とせるかを確かめ、§5 の判定必須の 1・2 を走らせて §7 に記録する。阻害する指摘が無ければ次は判定 C、あれば B へ返す。PR 本文の状態ブロックより下の古い説明は Phase D で直すので、ここでは触れない。task は `s4-v-scenario-verification-base`（開始済み）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase C。§0〜§8）と、PR #215 の上の 3 件。
-  - 必要な権限: offline test と機械検査。Unity の起動は要らない。資格情報は要らない。§6 の「残した物」の検証用の checkout は判定 C が使うので、消さない。
-  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。凍結した条件の違反を指摘として返し、設計を変える提案は §4 の A 再開の条件に当たる時だけ owner へ返す。
-  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）は判定 C の入力で、発見 C には渡さない。
+  - 次の Phase・役割: 判定 C（2 回目。B と発見 C の差し戻しの 2 巡目の修正の後の GO 候補 head を判定する）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行う。GO 候補 head は implementation head 欄の commit。[判定後の head 変更](../../.agents/skills/osm-workflow/references/review-evidence.md#判定後の-head-変更) のとおり、旧 head `c3f02632` の判定 C・C' の結果と bundle は流用せず、§5 の判定必須の 1〜5（offline、機械検査、V1、V2、V3）を新しい head で取り直し、§5 の照合 script の方式（判定 C の offline 実行。Phase A snapshot の合成 fixture を先に通す）で原記録を照合して §7 に記録する。新しい head で evidence bundle と C' blind bundle を固定し、§0 の取得案内・状態を更新する。GO なら次は C'（2 巡目）、阻害する指摘があれば B へ返す。PR 本文の状態ブロックより下の古い説明は Phase D で直すので、ここでは触れない。task は `s4-v-scenario-verification-base`（開始済み）。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase C。§0〜§8）。
+  - 必要な権限: Unity の起動（V2 の窓のある Editor、V3 の全 EditMode。V3 は sandbox 外の承認済み経路で起動する）。offline test と機械検査。資格情報は要らない。§6 の「残した物」の検証用の checkout（`v1-X`・`v1-Y`・`editor-smoke-E`）は判定 C が使ってよい。
+  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。凍結した条件の違反を指摘として返し、設計を変える提案は §4 の A 再開の条件に当たる時だけ owner へ返す。V3 の stall と取り直しは §2.7 に従う。
+  - 引き渡すもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧。§0 の取得案内）。V3 の期待集合は §5 のとおり S4-2 の evidence bundle から取得する。
   - 担当のモデルと独立性: 発見 C と判定 C は Phase B と同じ系列・モデルでよく、それぞれ新しい session で行う。owner はこの独立性の制約を受け入れている。各担当は §7 に使ったモデルと「独立性制約あり（owner 受容）」を記録する。C' は Phase B・C と違う系列で行い、§8 に使ったモデルと「独立性制約あり」を記録する。
   - C' の独立性の注記: Anthropic（主担当、A2、Phase B、発見 C、判定 C）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー、C'）が関わった。
 
@@ -640,6 +640,31 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 - 判定必須のうち未実行: なし。
 - 未確認事項: Phase A snapshot の取得案内は、票が指す手元の置き場に無かった（主担当の session の stage の出力から取得し、§0 のとおり再掲した）。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。判断と実行を同じ session が行った。独立性制約あり（owner 受容。Phase B・発見 C と同じ系列・モデル）。
+
+### 発見 C（3 回目、2026-11-26）
+
+- 種別: 発見（B と発見 C の差し戻しの 2 巡目の修正を読む）
+- 対象: implementation base `07cc2c97` から implementation head `c38e0762` までの差分（commit で固定）。重点は 2 巡目の修正 `c3f02632..c38e0762`（`scenario-checkout.ps1`・`ScenarioRun.psm1`・Harness README・2 本の test。`unity/` と `tools/unity-editor.ps1`・`.cmd` は base からの差分に無い）。
+- 使用したevidence bundle の取得案内・状態: 未生成（commit で固定した差分を読んだ）。判定 C の head `c3f02632` の evidence bundle と C' blind bundle は、[判定後の head 変更](../../.agents/skills/osm-workflow/references/review-evidence.md#判定後の-head-変更) のとおり新しい head の証拠にしない。
+- 開始時の照合: 渡された SHA `5e920703` と HEAD が一致し、作業ツリーは clean、HEAD の本書に票がある。implementation head 欄 `c38e0762` は HEAD の祖先で、HEAD との差分は本書だけだった。PR #215 の状態ブロックの `引き継ぐ commit` と implementation base / head は、渡された SHA と §0 の欄に一致した（同じ PC なのでローカルの SHA で照合した）。PR timeline の新着は、票が指す 2026-11-26 03:18〜03:22（UTC）の 3 件が最後で、現 head 宛ての新しい指摘は無い。
+- 2 巡目の修正の確認:
+  - **P1 直った。** `unreserve` は、印・隔離・予約の有無を見た後、他の 3 つの操作と同じ `Get-ScenarioCheckoutProblems`（最上位、linked、同じ共通の git dir、印の repo、detached、進行中の git の操作、clean、project lock、path 予算）を通し、`別の run の予約があります` だけを拒否の理由から除く（`scenario-checkout.ps1` の 82〜86 行）。別の repo の checkout は共通の git dir の比較で拒まれるので、呼び出し元の repo の lease が対象の run の lease と重ならない経路は塞がれた。同じ repo では lease が同じ file なので、走っている run の checkout には触れない。AC9 の「4 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）」と N1 を満たす。管理する file は ignore される file に限られる（`AC4 ... tracked file accepted as managed`）ので、clean の条件は解除を妨げない。`release` が見る「project を指す process」の確認を足さない B の判断は、AC4 の予約の解除の条件に無いので受け入れる。
+    - 発見 C が追加で確かめた経路: lease の key は path の文字列（小文字にした絶対 path の SHA-256）なので、同じ checkout を別の綴りで指すと lease が分かれないかを、一時の写しの probe で offline に見た。junction 経由の path は、git の `--show-toplevel` が実の path を返すので最上位でないとして拒まれた。8.3 の短い名前は最上位として通るが、`[IO.Path]::GetFullPath` が長い名前に直すので lease は同じ file になり、正規の path の lease を持ったまま短い名前で `unreserve` を呼ぶと `別の呼び出しがこの checkout の lease を持っています` で拒まれ、管理する file と予約は変わらなかった。指摘にしない。
+  - **P2 直った。** `Write-ScenarioManagedFile` は書く前の bytes の file を消さず上書きせず、記録の件数から始めて file の無い番号を選ぶ。初めての run では今までと同じ名前になる。記録の照合を `OrdinalIgnoreCase` にしたので、大小文字だけが違う path は 1 つの管理する file になり、記録の `path` は最初の綴りのまま戻される。AC4 の「寿命は run」と `Restore-ScenarioManagedFiles` の comment に合う。CI の `harness-tests` は `windows-latest` で、大小文字を同一視する前提は実行環境と合う。
+  - **cursor の指摘（空の Base64）を直さない判断を支持する。** pwsh 7.7.0 と Windows PowerShell 5.1 の両方で `[Convert]::FromBase64String("")` が長さ 0 の配列を返すことを発見 C も確かめた。正規表現の値の group は `*` なので空に一致し、`ConvertFrom-ScenarioEvalResponse` は空文字を返す。足した assert（`ScenarioUnity.Tests.ps1` の `AC12 eval code checks the PID first ...`）がこの経路を見る。
+  - PR 本文の古い説明は票のとおり Phase D で直す。ここでは触れていない。
+- 足した offline test が修正の経路を落とせるか: `c3f02632` の一時の detached worktree に `c38e0762` の `Scenario.Tests.ps1` を写して走らせた（一時の worktree は消した）。`AC9 AC4 unreserve refuses a checkout of another repo ...` は `unreserve from another repo` の assert で落ちた。`AC4 a managed file can be written again ...` は大小文字の assert（`a case-only variant of the path became a second managed file`）で先に落ちたので、写しの `rewrite` の path を同じ綴りに替えて走らせ直し、`second write` の assert（`CreateNew` が既にある `0.before` で落ちる）で落ちることを確かめた。どちらも修正の後の code では通る。§6 の 2 回目・1 回目の記録の未確認（修正の前の code で落ちること）は、この 2 件について解消した。
+- 構造適合: 前回までの判断を変えない。修正で公開の関数・module・依存・状態の置き場は増えていない（`ScenarioRun.psm1` 391 行、`scenario-checkout.ps1` 105 行）。依存の向きは import の行で前回と同じことを確かめた。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: §5 の判定必須の 1・2 を、implementation head と `tools/` の tree が同じ HEAD `5e920703` で、filter なしで実行した（どれも Unity を起動しない）。修正前の code での落ち方の確認は、上の一時の worktree で `-Filter` に 2 件の test 名を渡した。lease の別名の probe は scratch の script（repo には足していない）。
+- テスト結果（件数は各 suite の出力の行。全て exit 0、失敗 0）: `Scenario.Tests.ps1` 24 件、`ScenarioDriver.Tests.ps1` 12 件、`ScenarioUnity.Tests.ps1` 27 件、`Harness.Tests.ps1` 38 件、`UnityGate.Tests.ps1` 21 件、`UnityObservation.Tests.ps1` 16 件、`UnityTestRunner.Tests.ps1` 31 件、`contract-audit.tests.ps1` 29 件。`contract-audit.ps1` は違反なし。`docs-audit.ps1` は error 0、警告 2 件（harvest の頃合い。base からある `PLAY_CONTENT_RESOLUTION_PROGRAM.md` と、§7・§8 が埋まった本書）。
+- 動作確認を取り直すかの判断: 発見 C では取り直さない（§6 の 2 巡目の B の判断のとおり、V1・V2 は管理する file も `scenario-checkout.ps1` も使わない）。implementation head が `c3f02632` から変わったので、判定 C は新しい head で判定必須の 1〜5（V1〜V3 を含む）を取り直し、evidence bundle と C' blind bundle を作り直す。
+- 判定必須のうち未実行: §5 の 3〜5（V1・V2・V3）。判定 C の担当。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: なし。
+- 巡: B と発見 C の差し戻しの 2 巡目の後のレビュー。阻害する指摘が無いので、差し戻しは 2 巡で終わる（上限 4）。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。独立性制約あり（owner 受容。Phase B と同じ系列・モデル）。
 
 ## 8. Phase C'
 
