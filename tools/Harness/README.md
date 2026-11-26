@@ -158,7 +158,7 @@ exit $result.ExitCode
 body が使える関数: `Invoke-ScenarioTests`（`run-tests.ps1` の子の起動）、`Invoke-ScenarioBatch`（`-executeMethod`）、`Invoke-ScenarioCommand`（外部 command）、`Start-ScenarioHelper`（呼び出しの間だけの補助の process）、`Start-ScenarioEditor`・`Read-ScenarioEditor`・`Send-ScenarioEditor`・`Wait-ScenarioEditor`・`Stop-ScenarioEditor`（窓のある Editor）、`Set-ScenarioFile`・`Reset-ScenarioFiles`（checkout の中の ignore される管理する file）、`Get-ScenarioDirectory`・`Remove-ScenarioDirectories`（外部 root の下の cache や fixture）、`Save-ScenarioArtifact`（証拠）、`Write-ScenarioRecord`（scenario の形の行）。`Add-ScenarioCase -After` は復元の後に呼ばれ、scenario が自分の形の record を書く所である。driver に git・process の起動・削除・Editor の接続の code を書かない（offline test が構文木で走査する）。
 
 - 送る `eval` は 1 回だけ送られ、基盤は送り直さない（実行してから応答が timeout したのか、実行しなかったのかを区別できない）。成否は `Read-ScenarioEditor` か `Wait-ScenarioEditor` で状態を読んで確かめる。読む `eval` は一時的な失敗の後に読み直し、期限で止まる。
-- 管理する file の寿命は run で、driver の呼び出しをまたいで残り、`Reset-ScenarioFiles` を呼んだ時だけ戻る。書いている間、その checkout はその run に予約され、別の run も HEAD の切替も片付けも拒む。
+- 管理する file の寿命は run で、driver の呼び出しをまたいで残り、`Reset-ScenarioFiles` を呼んだ時だけ戻る。書いている間、その checkout はその run に予約され、別の run も HEAD の切替も片付けも拒む。戻した後に同じ run がもう一度書けば、また書く前から始まる（大小文字だけが違う path は同じ file として扱う）。
 - `-Only` は止まった run の続きで、run の印（名前、RunId、本番か dry-run か、対象の commit、checkout の場所）が全て同じ時だけ通る。`-Only` を付けない同じ RunId の再実行と、`-DryRun` の run を本番で続けることは拒む。
 - 検証用の checkout の既定の置き場は `<主の worktree の親>\osm-v\<scenario>-<checkout>` で、`Library` を run の間で使い回す。無ければ作り、あれば対象の commit に合わせる。`-DryRun` は checkout を作らない。
 
@@ -169,7 +169,7 @@ run の root の既定は driver のある checkout の `TestResults/scenario/<s
 - `driver.jsonl`: 基盤の行は `event`・`case`・`attempt`・`utc` を持つ（`run-start`、`case-start`、`in-use`、`editor-start`、`editor-ready`、`eval`、`process-exit`、`test-run`、`batch-start`、`command`、`helper-start`、`managed-file`、`managed-restore`、`restore`、`quarantine`、`case-end`）。続きの実行の `run-start` の `priorQuarantines` は、同じ run の前の呼び出しが残した `quarantine` の行を、`driver.jsonl` の行の番号（`line`、1 から）・`case`・`attempt`・`checkout`・`kind`・`pid`・`restored` と原出力の置き場（`baseDirectory`、`base/<case>/<試行>`）で指す（無ければ空の配列）。`case-end` の `base` は失敗した基盤の操作の名前か `ok`、`body` は case の body が返した値で、2 つを分けて持つ。真偽の欄は基盤の申告なので、判定の担当は `base/` の原出力で確かめ直す。scenario の行（`Write-ScenarioRecord`）は `event` を持たない。
 - `base/<case>/<試行>/`: case の前（`before.*`）・戻す前（`restore-before.*`）・戻した後（`after.*`）・隔離の時（`quarantine.*`）の `git status --porcelain`・HEAD・index と working tree の差分の原出力、`eval` の code と原応答（`editor-<n>-eval-<k>-<種類>.cs` と `.response.json`）、Editor と batch の log、`run-tests.ps1` の出力の directory（`runner-<n>/`）とその標準出力。
 - `evidence/<case>/<試行>/<名前>`: scenario が保存する証拠。同じ試行で同じ名前は拒む。
-- `managed/<checkout>/`: 管理する file の書く前の記録（有無、bytes、SHA-256）。
+- `managed/<checkout>/`: 管理する file の書く前の記録（有無、bytes、SHA-256）。書く前の bytes の file（`<n>.before`）は戻した後も消さず、上書きしない。
 
 ### 検証用の checkout の操作（実行の担当）
 
@@ -178,7 +178,7 @@ run の root の既定は driver のある checkout の `TestResults/scenario/<s
 - `register`: 手で作った linked worktree（`git worktree add --detach`）に印を置く。detached、clean、同じ repo、lock なし、path 予算内の時だけ。
 - `remove`: 印のある checkout を、clean で隔離も予約も無い時だけ `git worktree remove`（`--force` なし）で外す。外し終わるまで lease を持つ。
 - `release`（隔離の解除）: 手順は次のとおり。(1) 使用中の記録（`<worktree の git dir>/osm-scenario/in-use.json`）にある process と、command line がその checkout の project を指す process が残っていないことを CIM（`Win32_Process`）で確かめる。残っていれば、次を全て確かめた時だけ止めてよい: command line がその checkout の project を指す、作成の時刻が record の開始時刻より後、PID が record の Editor・batch の PID か、親の PID が record の子の `pwsh`（`run-tests.ps1` の起動）か、record の子の `pwsh` が既に残っていない。確かめられなければ止めずに owner へ返す。止めた時は時刻・PID・確かめた値を書いた note を証拠に添える。(2) checkout を手で HEAD へ戻す（tracked の file と未追跡の file。`git clean` に `-x` を付けない）。(3) `release` を呼ぶ。基盤は lock が保持されておらず、clean で、その project を指す process が 1 つも無い時だけ記録を消す。解除の後の `-Only` の続きは新しい試行として走る。
-- `unreserve`（予約の解除）: run の root の書く前の記録のとおりに管理する file を戻せた時だけ予約を消す（元から無かった file は消し、あった file は保存した bytes に戻す）。今の bytes が基盤の書いた物と違う時と、書く前の記録が無い時は何も変えない。隔離が残っていれば先に `release` を通す。
+- `unreserve`（予約の解除）: 印・同じ repo・clean・lock なし等の事前確認（解除する予約そのものは除く）を通った時だけ、run の root の書く前の記録のとおりに管理する file を戻せた時だけ予約を消す（元から無かった file は消し、あった file は保存した bytes に戻す）。今の bytes が基盤の書いた物と違う時と、書く前の記録が無い時は何も変えない。隔離が残っていれば先に `release` を通す。
 
 ### S4-2 の driver で前と変わる点
 

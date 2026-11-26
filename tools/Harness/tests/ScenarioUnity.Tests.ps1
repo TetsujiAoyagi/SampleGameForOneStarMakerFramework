@@ -701,6 +701,9 @@ exit $result.ExitCode
         $ok = ConvertFrom-ScenarioEvalResponse -Output "x OSMEVAL|$('a' * 32)|4321|ok|$([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('値')))" -CallId ('a' * 32)
         $other = ConvertFrom-ScenarioEvalResponse -Output "OSMEVAL|$('b' * 32)|4321|ok|dg==" -CallId ('a' * 32)
         Assert ($ok.Matched -and $ok.Value -ceq '値' -and $ok.Pid -eq 4321 -and -not $other.Matched) 'response parsing'
+        # 値が空の ok（未設定の SessionState を読んだ時）は、空の Base64 から空文字になる。
+        $empty = ConvertFrom-ScenarioEvalResponse -Output "OSMEVAL|$('a' * 32)|4321|ok|" -CallId ('a' * 32)
+        Assert ($empty.Matched -and $empty.Status -ceq 'ok' -and $empty.Value -ceq '') 'an empty value is not read as an empty string'
     }
 } finally {
     $env:OSM_TEST_X = $null

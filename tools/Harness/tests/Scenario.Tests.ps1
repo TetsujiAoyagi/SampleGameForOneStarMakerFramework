@@ -331,6 +331,32 @@ try {
         Assert ($t.Result.ExitCode -eq 1) 'tracked file accepted as managed'
     }
 
+    Run 'AC4 a managed file can be written again after it was restored in the same run, without overwriting the before-bytes' {
+        $fx = New-FixtureRepo
+        $y = New-ManualWorktree $fx 'y' -Register
+        $settings = Join-Path $y 'unity/UserSettings/settings.json'
+        $reservation = Join-Path (Get-WorktreeGitDir $y) 'osm-scenario/reservation.json'
+        Write-Text $settings '{"keep":1}'
+        $s = New-Scenario -Name 'again' -Checkout 'Y'
+        Add-ScenarioCase $s -Name 'write' -Body { param($c) Set-ScenarioFile $c -Checkout 'Y' -Path 'unity/UserSettings/settings.json' -Content '{"cache":1}' }
+        # Windows では大小文字だけが違う path は同じ file なので、1 つの管理する file として扱う。
+        Add-ScenarioCase $s -Name 'rewrite' -Body { param($c) Set-ScenarioFile $c -Checkout 'Y' -Path 'Unity\usersettings\SETTINGS.json' -Content '{"cache":2}' }
+        Add-ScenarioCase $s -Name 'cleanup' -Body { param($c) Reset-ScenarioFiles $c -Checkout 'Y' }
+        $r1 = Invoke-Scenario $s -RunId 'r' -Only 'write','rewrite' -CheckoutRoots @{ Y=$y }
+        Assert ($r1.ExitCode -eq 0 -and (Read-Bytes $settings) -ceq '{"cache":2}' -and [IO.File]::Exists($reservation)) 'first write'
+        Assert (@(Get-ScenarioManagedFiles -RunRoot $r1.RunRoot -Checkout 'Y').Count -eq 1) 'a case-only variant of the path became a second managed file'
+        $r2 = Invoke-Scenario $s -RunId 'r' -Only 'cleanup' -CheckoutRoots @{ Y=$y }
+        Assert ($r2.ExitCode -eq 0 -and (Read-Bytes $settings) -ceq '{"keep":1}' -and -not [IO.File]::Exists($reservation)) 'first restore'
+        Write-Text $settings '{"keep":2}'
+        $r3 = Invoke-Captured { Invoke-Scenario $s -RunId 'r' -Only 'write' -CheckoutRoots @{ Y=$y } }
+        Assert ($r3.Result.ExitCode -eq 0 -and (Read-Bytes $settings) -ceq '{"cache":1}' -and [IO.File]::Exists($reservation)) "second write: $($r3.Err)"
+        $managed = Join-Path $r1.RunRoot 'managed/Y'
+        Assert ((Read-Bytes (Join-Path $managed '0.before')) -ceq '{"keep":1}') 'the first before-bytes were overwritten'
+        Assert ((Read-Bytes (Join-Path $managed '1.before')) -ceq '{"keep":2}') 'the second before-bytes were not saved apart'
+        $r4 = Invoke-Scenario $s -RunId 'r' -Only 'cleanup' -CheckoutRoots @{ Y=$y }
+        Assert ($r4.ExitCode -eq 0 -and (Read-Bytes $settings) -ceq '{"keep":2}' -and -not [IO.File]::Exists($reservation)) 'second restore'
+    }
+
     Run 'AC4 managed file paths cannot leave the checkout' {
         $fx = New-FixtureRepo
         $run = [pscustomobject]@{ Root=(Join-Path $fx.Fixture 'runroot') }
@@ -392,6 +418,38 @@ try {
         Set-ScenarioCheckoutInUse -Info (Get-ScenarioCheckoutInfo $y) -Record ([ordered]@{ runId='x' })
         $u3 = Invoke-ScenarioCheckoutOperation -Operation unreserve -Path $y -RepoRoot $fx.Repo
         Assert (-not $u3.Ok -and ($u3.Problems -join ' ') -like '*release*') 'unreserve before release'
+    }
+
+    Run 'AC9 AC4 unreserve refuses a checkout of another repo and an unsafe checkout, and touches nothing' {
+        # B の run が予約を持ち、B の lease を開いたまま、独立した repo A から unreserve を試す。A の lease は
+        # A の共通の git dir にあるので B の lease と重ならず、B の checkout の事前確認で止まる必要がある。
+        $fxB = New-FixtureRepo
+        $yB = New-ManualWorktree $fxB 'yB' -Register
+        $file = Join-Path $yB 'unity/UserSettings/OSMDemo.json'
+        Write-Text $file 'original'
+        $s = New-Scenario -Name 'cross' -Checkout 'Y'
+        Add-ScenarioCase $s -Name 'write' -Body { param($c) Set-ScenarioFile $c -Checkout 'Y' -Path 'unity/UserSettings/OSMDemo.json' -Content 'B' }
+        $r = Invoke-Scenario $s -RunId 'r' -CheckoutRoots @{ Y=$yB }
+        Assert ($r.ExitCode -eq 0) 'run B'
+        $reservation = Join-Path (Get-WorktreeGitDir $yB) 'osm-scenario/reservation.json'
+        $index = Join-Path $r.RunRoot 'managed/Y/index.json'
+        $before = @{ File=(Read-Bytes $file); Reservation=(Read-Bytes $reservation); Index=(Read-Bytes $index) }
+        $unchanged = { (Read-Bytes $file) -ceq $before.File -and (Read-Bytes $reservation) -ceq $before.Reservation -and (Read-Bytes $index) -ceq $before.Index }
+        $fxA = New-FixtureRepo
+        $leaseB = Enter-ScenarioCheckoutLease -CommonDir $fxB.CommonDir -Path $yB
+        try {
+            $u1 = Invoke-ScenarioCheckoutOperation -Operation unreserve -Path $yB -RepoRoot $fxA.Repo
+            Assert (-not $u1.Ok -and ($u1.Problems -join ' ') -like '*別の repo*' -and (& $unchanged)) "unreserve from another repo: $($u1.Problems -join '; ')"
+        } finally { $leaseB.Dispose() }
+        $u2 = Invoke-ScenarioCheckoutOperation -Operation unreserve -Path $yB -RepoRoot $fxA.Repo
+        Assert (-not $u2.Ok -and (& $unchanged)) 'unreserve from another repo without the lease'
+        # 同じ repo でも、事前確認（clean、detached、project lock 等）を通らなければ戻さない。
+        Write-Text (Join-Path $yB 'data/value.txt') "edited`n"
+        $u3 = Invoke-ScenarioCheckoutOperation -Operation unreserve -Path $yB -RepoRoot $fxB.Repo
+        Assert (-not $u3.Ok -and ($u3.Problems -join ' ') -like '*tracked の変更*' -and (& $unchanged)) 'unreserve on a dirty checkout'
+        Invoke-Git $yB @('checkout', '--', '.') | Out-Null
+        $u4 = Invoke-ScenarioCheckoutOperation -Operation unreserve -Path $yB -RepoRoot $fxB.Repo
+        Assert ($u4.Ok -and (Read-Bytes $file) -ceq 'original' -and -not [IO.File]::Exists($reservation)) "unreserve in the same repo: $($u4.Problems -join '; ')"
     }
 
     Run 'AC9 register and remove follow the same checks and never force' {

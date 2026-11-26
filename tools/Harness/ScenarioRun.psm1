@@ -300,16 +300,25 @@ function Write-ScenarioManagedFile {
     $normalized = $RelativePath.Replace('\', '/')
     $index = Read-ScenarioManagedIndex $Run.Root $Checkout
     $entry = $null
-    foreach ($item in $index.Entries) { if ([string]$item.path -ceq $normalized) { $entry = $item } }
+    # Windows では大小文字だけが違う path は同じ file なので、同じ記録として扱う（別の記録にすると、2 つ目の
+    # 書く前の bytes が 1 つ目の書いた物になり、戻した後が元と違う）。
+    foreach ($item in $index.Entries) { if ([string]::Equals([string]$item.path, $normalized, [StringComparison]::OrdinalIgnoreCase)) { $entry = $item } }
     if ($null -eq $entry) {
         $existed = [IO.File]::Exists($full)
-        $beforeName = '{0}.before' -f $index.Entries.Count
+        $beforeName = $null
         if ($existed) {
-            $beforePath = [IO.Path]::Combine($Run.Root, 'managed', $Checkout, $beforeName)
+            # 書く前の bytes の file は消さず、上書きもしない。戻した後に同じ run がもう一度書く時（記録は空に
+            # 戻っている）や、前の書き込みが記録の確定の前に落ちた時も、まだ使っていない番号を選ぶ。
+            $number = $index.Entries.Count
+            do {
+                $beforeName = '{0}.before' -f $number
+                $beforePath = [IO.Path]::Combine($Run.Root, 'managed', $Checkout, $beforeName)
+                $number++
+            } while ([IO.File]::Exists($beforePath) -or [IO.Directory]::Exists($beforePath))
             Assert-ScenarioNoReparsePoint $Run.Root $beforePath
             Write-ScenarioNewFile $beforePath ([IO.File]::ReadAllBytes($full))
         }
-        $entry = [ordered]@{ path=$normalized; existed=$existed; before=$(if ($existed) { $beforeName } else { $null }); beforeSha256=(Get-ScenarioFileSha256OrMissing $full); writtenSha256=$null }
+        $entry = [ordered]@{ path=$normalized; existed=$existed; before=$beforeName; beforeSha256=(Get-ScenarioFileSha256OrMissing $full); writtenSha256=$null }
         $index.Entries.Add($entry)
         # 書く前の記録を先に確定する。書いた後に落ちても、予約の解除が元へ戻せる。
         Save-ScenarioManagedIndex $index
@@ -371,6 +380,7 @@ function Restore-ScenarioManagedFiles {
         $restored.Add($item.Path)
     }
     # 戻した後は記録を「書いていない」状態にする。同じ run がもう一度書けば、また書く前から始まる。
+    # 書く前の bytes の file は証拠として残す（次に書く時は別の番号の file に保存する）。
     $index.Entries.Clear()
     Save-ScenarioManagedIndex $index
     return @($restored.ToArray())

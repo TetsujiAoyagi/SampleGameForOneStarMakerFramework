@@ -75,6 +75,15 @@ function Invoke-ScenarioCheckoutOperation {
                 if ($null -eq $info.Marker) { $problems.Add("基盤の印がありません: $root"); break }
                 if ($null -ne $info.InUse) { $problems.Add("隔離が残っています。先に release を通します: $root"); break }
                 if ($null -eq $info.Reservation) { $problems.Add("予約がありません: $root"); break }
+                # 他の 3 つの操作と同じ事前確認を通す。lease は呼び出し元の repo の共通の git dir にあるので、
+                # 別の repo の checkout では、その checkout の run の lease と重ならない。repo の同一性・印・
+                # clean・project lock を確かめてからでないと、走っている run の checkout に触れうる。
+                # 解除する予約そのものだけは拒否の理由にしない（隔離は上で拒んだ）。
+                foreach ($p in (Get-ScenarioCheckoutProblems -Info $info -CommonDir $repo.CommonDir -BudgetRoot $RepoRoot)) {
+                    if ($p -like '別の run の予約があります*') { continue }
+                    $problems.Add($p)
+                }
+                if ($problems.Count -ne 0) { break }
                 try {
                     [void](Restore-ScenarioManagedFiles -RunRoot ([string]$info.Reservation.runRoot) -Checkout ([string]$info.Reservation.checkout) -CheckoutRoot $root)
                     Clear-ScenarioCheckoutReservation -Info $info
