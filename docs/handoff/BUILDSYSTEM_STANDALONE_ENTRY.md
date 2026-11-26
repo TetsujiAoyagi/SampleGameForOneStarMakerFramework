@@ -21,7 +21,7 @@
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割と作業: A2（独立レビュー）。アーキテクチャゲート 1 件、目的レビュー 1 件、高リスクなので A0（§1 の目的・利用者・対象外・現況と §2 の未決事項）だけを読んで代替構成を出す担当 1 件。その後 A3 で owner が未決事項 U1〜U4 を裁定して凍結する。
+  - 次の Phase・役割と作業: A2（独立レビュー）。アーキテクチャゲート 1 件、目的レビュー 1 件、高リスクなので A0（§1 の目的・利用者・対象外・現況と §2 の未決事項）だけを読んで代替構成を出す担当 1 件。その後 A3 で owner が未決事項 U2〜U4 を裁定して凍結する（U1 は 2026-11-26 に裁定済み）。
   - 次の担当が読む範囲: 既定どおり全節。
   - A2 の入力版: この票を含む commit を Git 配布の例外 commit として使う（本書は Cloud で書いた。[Phase A の commit と snapshot](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。固定 base は `9e7d4148`。本書の sha256 は A2 を起動する担当がその commit の file から取る。
   - 必要な権限: A2 は無し（文書と code の読み取りだけ）。P 検査の再実施と Unity のテストは Phase C で、Unity Editor のある環境が要る。
@@ -99,7 +99,7 @@
       - 未確認: 現在の U-B の集合が base `9e7d4148` で閉じているか（上の現況）。
     - **I4 不完全な入力が build に渡る。** issue が 1 件でもあれば snapshot を返さない。閉包を作れなかった root（GUID が解決しない、file が無い、依存の file が無い）を、閉包無しの候補として通さない。
       - 崩しうる経路: 欠けを許す版（`BuildAllowingAbsence`）を一般の入口が使う、issue を集めた後に部分的な snapshot を返す。
-    - **I5 依存が増える。** production の asmdef の参照と `InternalsVisibleTo` を増やさない。test 用の asmdef の追加は U1 の裁定に従う。
+    - **I5 依存が増える。** production の asmdef の参照と `InternalsVisibleTo` を増やさない。足す asmdef は、U1 の裁定で認められた test 用の 1 つ（§3）だけである。
   - 成立条件（起きなければならないこと）:
     - **S1** public な入口 1 つで、SceneResourceMap を渡さずに、候補・tag・requirement・graph から `BuildMaterializationResult`（成功なら snapshot）を得られる。閉包は機械が導く。
     - **S2** S1 の snapshot と、public な選択で得た plan から、public な `BuildContentCoordinator` の `Build` が成功し、Content Directory ができる。
@@ -114,10 +114,10 @@
   - **AC5（I1）** 既存の `SceneResourceContentMaterializerTests`、`MaterializeAllowingAbsentSourcesTests`、`BuildContentProjectionTests`、`BuildContentReportTests` を assertion を変えずに通す。加えて、SceneResourceMap の経路の snapshot の `StableProviderKey` が `osm.scene-resource-map.representation.v1` であることを固定するテストを 1 件足す（今は値を固定するテストが無い）。
     - 不合格例: 既存のテストの期待値を新しい値に書き換えて通す。
   - **AC6（I1、I2、失敗経路）** 既存の `new BuildMaterializationSnapshot(` の呼び出し 35 箇所（production 3 file、test 20 file）を書き換えずにコンパイルが通る。書き換えが要るなら I1 (b) に当たるので B は Phase A へ戻す。
-  - **AC7（S2、S3、I5）経路テスト** EditMode のテスト 1 件が、次を public な型とメンバーだけで行う: test が所有する一時 folder に prefab を 1 つ作る → `BuildContentCandidate` と tag を組む → `BuildCandidateMaterializer.Materialize` → `BuildTagSelector.Select` で plan を得る → `new BuildContentCoordinator().Build`（root は `TestResults/bs3-fixture` の配下の一意な folder、`Full`）→ 結果の `ContentPath` を `ContentLoadManager.RegisterContentDirectory` で登録 → `GetRootAssets<BuildContentRoot>` が 1 件で、`BuildIdentity` が結果の `Identity` と一致 → logical key の entry を `Entries` から引き、`Object` を load して型を確かめる → 解放して登録を外す → 一時 folder と出力を消す。SceneResourceMap、SampleGame の asset、SampleGame の型を使わない。「public だけ」の担保の方法は U1 の裁定に従う（下の未決事項）。
+  - **AC7（S2、S3、I5）経路テスト** EditMode のテスト 1 件が、次を public な型とメンバーだけで行う: test が所有する一時 folder に prefab を 1 つ作る → `BuildContentCandidate` と tag を組む → `BuildCandidateMaterializer.Materialize` → `BuildTagSelector.Select` で plan を得る → `new BuildContentCoordinator().Build`（root は `TestResults/bs3-fixture` の配下の一意な folder、`Full`）→ 結果の `ContentPath` を `ContentLoadManager.RegisterContentDirectory` で登録 → `GetRootAssets<BuildContentRoot>` が 1 件で、`BuildIdentity` が結果の `Identity` と一致 → logical key の entry を `Entries` から引き、`Object` を load して型を確かめる → 解放して登録を外す → 一時 folder と出力を消す。SceneResourceMap、SampleGame の asset、SampleGame の型を使わない。このテストは、`InternalsVisibleTo` の相手でない test 用の asmdef `OneStarMaker.Tests.BuildStandalone.Editor`（§3。U1 の裁定）に置く。internal を使うとコンパイルが通らないので、「public だけ」はコンパイラが強制する。
   - **AC8（S4）** GO 候補 head で、全 EditMode 回帰（`pwsh tools/run-tests.ps1`、filter 無し）と `pwsh tools/contract-audit.ps1` が合格する。
   - **AC9（S4、I3）** GO 候補 head で、U-A・U-B（Runtime）・U-B（Editor）の P 検査（program §5.1 の集合。U-B（Editor）は新しい file を含む）がコンパイルに成功する。P 検査の script と実行環境が判定 C で用意できない場合の扱いは §5。
-  - **AC10（I5）** `git diff` で、production の `.asmdef` と `AssemblyInfo.cs` に差分が無い。
+  - **AC10（I5）** `git diff` で、production の `.asmdef` と `AssemblyInfo.cs` に差分が無い。増えた `.asmdef` は `OneStarMaker.Tests.BuildStandalone.Editor` の 1 つだけで、その参照は §3 のとおりである。
 - ここでは答えない問いと所有する後続スライス:
   - 利用者が選んだ安全な出力先で build できるか、「安全な出力先の検証」と「OSM が許す置き場所の規約」を分けられるか、target の名前を public にするか（X7）→ 新規の小スライス `BUILDSYSTEM_OUTPUT_ROOT`（仮称、未作成。program §4.3 の X7 の行、D5 の「別の小スライス」）。
   - 実行時の検証済みの索引と解決の規則を public にするか → U2 の裁定で所有を決める。既定の案は asmdef 分割スライス（program §2.2 X4 の「BuildSystem 本体の internal 7 件」の裁定と同じ場所）。
@@ -137,17 +137,15 @@
 - 本文へ転記した実装制約:
   - Unity側の `.cs` は先頭に `#nullable enable` を置く。`record` を使わない。Editor の code を Runtime の assembly に置かない。
   - 公開 API に `ZLogger*` の型を出さない。
-  - asmdef の参照の追加は設計判断で、勝手に行わない。test 用の asmdef は U1 の裁定の後にだけ作る。
+  - asmdef の参照の追加は設計判断で、勝手に行わない。足してよい asmdef は U1 で裁定済みの test 用の 1 つ（§3 の名前・置き場所・参照）だけで、それ以外の asmdef の追加と参照の追加は Phase A へ戻す。
   - 参照 0 を削除の理由にしない。internal なコンストラクタと `InternalsVisibleTo` は残す。
   - テストで `Task.Delay` / `Thread.Sleep` を使わない。
   - 新しい file の path は `tools/path-budget.json` の予算に従う。
   - **PR #214 との順序。** 本スライスは #214 が変える既存 file に触れないので、どちらが先に merge されてもよい。ただし #214 は U-B の集合に入る folder（`Runtime/BuildContent/Distribution/`、`Editor/Build/Content/`）へ新しい file を足すので、AC9 の P 検査は GO 候補 head の時点の `develop` を含む tree で行う。#214 が先に入った後に P 検査が失敗し、原因が #214 の file なら、本スライスの欠陥ではなく program への入力として扱う。Phase B は `SampleGameContentBatch.cs`・`VerifyPlayLauncher.cs`・`PlayEntry*.cs` を変えない。
   - `docs/handoff/PLAY_CONTENT_RESOLUTION_PROGRAM.md` と DebugStudio の HANDOFF は他のラインが編集するので、本スライスは変えない。
+- 裁定済みの事項:
+  - **U1 経路テスト用の asmdef を足す（owner、2026-11-26、A1 初稿の Draft PR の後の回答）。** `InternalsVisibleTo` の相手でない test 用の asmdef を 1 つ足し、AC7 の経路テストをそこに置く。名前・置き場所・参照は §3 のとおり。採らなかった案は、asmdef を足さずに `OneStarMaker.Tests.Editor` に置き、判定 C が file を読んで「public だけ」を確かめる案（既存の test の assembly は `InternalsVisibleTo` の相手なので、internal を使ってもコンパイルが通り、強制力が弱い）。この asmdef は `OneStarMaker.Runtime` 全体を参照するので、型の閉包は示さない（閉包は P 検査、経路はテスト。program §5.2 段階 2）。
 - 未決事項（A3 の前に owner が裁定する）:
-  - **U1 経路テスト用の asmdef を足すか。** AC7 の「public だけ」を担保する方法。既存の Editor の test の assembly（`OneStarMaker.Tests.Editor`、`SampleGame.Tests.Editor`）は `InternalsVisibleTo` の相手なので、そこに置いたテストは internal を使ってもコンパイルが通る。
-    - 案 A（推奨）: `InternalsVisibleTo` の相手でない test 用の asmdef を 1 つ足し（仮称 `OneStarMaker.Tests.BuildStandalone.Editor`。参照は `OneStarMaker.Build.Selection`、`OneStarMaker.Build.Materialization`、`OneStarMaker.Build.Content`、`OneStarMaker.Runtime`、nunit）、経路テストをそこに置く。「public だけ」をコンパイラが強制する。asmdef の追加なので owner の判断が要る。`unity/Assets/README.md` の依存図にも 1 行足す。
-    - 案 B: asmdef を足さず、`OneStarMaker.Tests.Editor` に置く。「public だけ」は判定 C が test の file を読んで確かめる（internal なメンバーの一覧と突き合わせる）。強制力は弱い。
-    - どちらでも、test の assembly は `OneStarMaker.Runtime` 全体を参照するので、型の閉包は示さない（閉包は P 検査、経路はテスト。program §5.2 段階 2）。
   - **U2 実行時の読み口を本スライスから外してよいか。** program §4.3 の X6 は「実行時に成果物を読む・検証する public 入口（`ContentDirectoryIndex` 等）」を含む。測り直しでは、検証（`ContentCacheStore.ValidateInstalled`、`ContentInstaller.InstallAsync`）と読み（Unity の API と `BuildContentRoot`）は既に public で、internal に残るのは root の検査と Full への fallback の規則である。本書は「外して、AC7 の証拠の後に asmdef 分割スライスで決める」案で書いた。入れる場合は、`ContentDirectoryIndex`（`TryCreate`、`TryResolveObject`、`TryResolveScene`）と `ContentDirectoryIssue` の 2 型を public にする 2 つ目の入口になり、A1 を改訂してから A2 へ進む。外す場合、U-B の利用者は fallback の規則を自分で書くことになり、program の D5 の「単独利用の完成条件」にこの欠けを含めるかも合わせて決める。
   - **U3 分けた X7 のスライスの順序。** 案: D4 の列を (2) 本スライス → (2') `BUILDSYSTEM_OUTPUT_ROOT` → (3) `CONTENT_DIRECTORY_STARTUP` → (4) asmdef とし、(3) の A1 の開始条件は今のまま「(2) の Phase D の後」にする（X7 は起動の facade が触る file と重ならないので、(2') と (3) は並行できる）。(2') は PR #214 の merge の後に A1 を始める。
   - **U4 期限。** program の期限は 2026-11-30 で、あと 4 日である。本スライスの A2・A3・B・C はそれまでに終わらない。program の期限を更新するか、置換 revision にするかは owner の判断で、本書と `docs/README.md` は期限を書き換えていない。本書の期限（2026-12-31）も仮の値で、owner が確認する。
@@ -163,8 +161,14 @@ path は `unity/Assets/OneStarMaker/` からの相対。
 | `Scripts/Editor/Build/Materialization/BuildMaterializationIssue.cs` | issue の code と対象 | 候補を対象にする issue のため、`BuildMaterializationSubject` の末尾に `Candidate` を足す | 変更なし | 変更なし | public な enum の値 1 つ（末尾への追加） | AC3 | 53 → 約 54 |
 | `Tests/Editor/Build/BuildCandidateMaterializerTests.cs`（新規） | 入口の単体テスト（AC2〜AC4） | — | — | `OneStarMaker.Tests.Editor`（internal なコンストラクタを使う） | — | — | 0 → 約 220 |
 | `Tests/Editor/Build/SceneResourceContentMaterializerTests.cs` | 既存 | AC5 の 1 件を足す | — | — | — | — | 追加 約 15 |
-| 経路テスト（新規。置き場所は U1。案 A なら `Tests/Editor/BuildStandalone/BuildStandalonePathTests.cs` と asmdef） | AC7 | — | 一時 folder と出力は test が所有し、終わりに消す | U1 のとおり | — | 実 Unity の Content Directory build を 1 回行う | 0 → 約 180 |
+| `Tests/Editor/BuildStandalone/BuildStandalonePathTests.cs`（新規） | AC7 の経路テスト | — | 一時 folder と出力は test が所有し、終わりに消す | 下の asmdef の参照だけ。public な型とメンバーだけを使う | — | 実 Unity の Content Directory build を 1 回行う | 0 → 約 180 |
 
+- test 用の asmdef（U1 の裁定。B が設計を足さないために固定する）:
+  - 置き場所と名前: `Tests/Editor/BuildStandalone/OneStarMaker.Tests.BuildStandalone.Editor.asmdef`。既存の `Tests/Editor/TestObservation/OneStarMaker.Tests.TestObservation.Editor.asmdef` と同じ形（`Tests/Editor/` の下の folder に専用の test の asmdef を置く）。repo 相対 path は `.meta` を含めて最長 108 字で、`tools/path-budget.json` の上限 150 に収まる。
+  - 参照: `OneStarMaker.Build.Selection`、`OneStarMaker.Build.Materialization`、`OneStarMaker.Build.Content`、`OneStarMaker.Runtime`、`nunit.framework.dll`。Unity のテストの実行に要る TestRunner の参照は、既存の test の asmdef に合わせて B が足してよい。SampleGame、`OneStarMaker.Editor`、`OneStarMaker.Tests.Editor`、`OneStarMaker.TestSupport` は参照しない。
+  - 設定: Editor 専用、`UNITY_INCLUDE_TESTS`、`autoReferenced` は false。
+  - この asmdef を参照する asmdef は無い。どの `AssemblyInfo.cs` の `InternalsVisibleTo` にもこの名前を足さない（足すと目的が無くなる）。
+  - `unity/Assets/README.md` の folder の図と依存図に、TestObservation の行と同じ書き方で各 1 行を足す。
 - 新しい入口の署名（B が設計を足さないために固定する）:
 
   ```csharp
@@ -201,9 +205,9 @@ path は `unity/Assets/OneStarMaker/` からの相対。
 - 順序:
   1. `BuildMaterializationSnapshot` の provider の識別子を internal な引数にし、既存の 3 コンストラクタが今の固定値を渡す形にする。AC5 のテストを足し、既存のテストが変更無しで通ることを確かめる（I1）。
   2. `BuildCandidateMaterializer` と単体テスト（AC1〜AC4）。
-  3. 経路テスト（AC7）。U1 が案 A なら asmdef と `unity/Assets/README.md` の依存図の 1 行。
+  3. test 用の asmdef（§3）と経路テスト（AC7）。`unity/Assets/README.md` の folder の図と依存図に各 1 行を足す。
   4. `git diff` で AC6・AC10 を確かめる。
-- Phase B から Phase A へ差し戻す条件: §3 に無い public な型・メンバー・enum の値が要る。既存の呼び出しの書き換えが要る（AC6）。production の asmdef の参照か `InternalsVisibleTo` の追加が要る。経路テストが public だけでは書けない（S3 の反証で、U2 の前提が崩れる）。`AssetDependencySnapshotBuilder` の規則の変更が要る。
+- Phase B から Phase A へ差し戻す条件: §3 に無い public な型・メンバー・enum の値が要る。既存の呼び出しの書き換えが要る（AC6）。production の asmdef の参照か `InternalsVisibleTo` の追加が要る。test 用の asmdef に §3 に無い参照が要る。経路テストが public だけでは書けない（S3 の反証で、U2 の前提が崩れる）。`AssetDependencySnapshotBuilder` の規則の変更が要る。
 - 対象外を維持する方法: `Editor/Build/Content/`、`Runtime/BuildContent/`、`Runtime/AssetBuildContracts/`、SampleGame の production に差分を出さない（`git diff --stat` で確かめる）。出力先は今の許可 root の配下だけを使う。
 
 ## 5. テストとレビュー計画
