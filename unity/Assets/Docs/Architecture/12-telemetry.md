@@ -423,6 +423,17 @@ handler 例外は catalog / adapter の直接呼出しから呼出し側へ伝�
 実際に socket router を通る経路では、既存 router が例外を失敗 envelope に変換する。
 catalog は System のみ、adapter は wire DTO と UniTask に依存し、VM の採否に依存しない。
 同一 instance の共有 fixture は実アプリ配線や実 socket 往復の実証ではない。
+
+### Framework 自身のコマンド（Editor の Play だけ）
+
+Framework も Editor の Play でだけ自分のデバッグコマンドを持つ。今は Scene の状態を読む `osm.scenes` だけで（出力の意味は [05-scene.md §5.12](05-scene.md#512-scenedirector-observableイベント監視)）、書き込みのコマンドは無い。
+
+- **構成:** `AbstractApplicationInitializer.CreateDebugSocketService` は、`CreateDebugCommandDispatcher()` の戻り値（Game の dispatcher）を `FrameworkDebugCommands.Compose(Application.isEditor, game, () => SceneDirector)`（internal、`Bootstrap/`）に通してから `DebugSocketService` に渡す。Player では Game の dispatcher を同じ参照のまま返すので、Player の全てのコマンドの結果と文言は変わらない。Editor では振り分けの dispatcher を作り、Framework のコマンドを登録して返す。`CreateDebugCommandDispatcher` の signature・既定値・呼ばれる回数（1 回）と時点は変わらない。`CreateDebugSocketService` を override した Game では Framework のコマンドは無い。「Editor でだけ Framework のコマンドを持つ」は composition root の方針で、catalog や dispatcher の意味ではない。新しい Framework のコマンドは `Compose` に足す。`Compose` は固定の名前の登録だけを行い、Editor でだけ例外を投げて BeforeSceneLoad を止める経路を作らない。
+- **振り分け:** `FrameworkFirstDebugCommandDispatcher`（internal、`DebugSocketServices/`）は内部に Framework 用の `DebugCommandCatalog` と、それを包む `CatalogDebugCommandDispatcher` を持つ。登録した名前の Ordinal の完全一致だけで振り分け、接頭辞では振り分けない。Framework の名前は内部の catalog で処理し、Game の dispatcher を呼ばない（Game が同じ名前を登録していても Editor では Framework が先に引く）。事前に cancel 済みなら `Debug command was canceled.` の固定の失敗で、handler も Game も呼ばない。それ以外（null の command、未登録の `osm.*`、大小文字の違う名前、cancel 済みの Game のコマンドを含む）は同じ command と token で Game へ 1 回だけ渡し、結果と例外をそのまま返す。handler の例外は伝播させ、router が今どおり失敗の envelope にする。この dispatcher はコマンドの中身を知らない。
+- **名前:** 組込みの `ping` / `debugsocket.ping` / `runtime-diagnostics` / `debugsocket.runtime-diagnostics` は router が大小文字を区別せずに dispatcher より先に処理する。Framework が登録した名前は今は `osm.scenes` だけ。`osm.` を Framework の名前に使うのは規約で、強制はしない。
+- **寿命:** 振り分けの dispatcher と Framework の catalog は `DebugSocketService` を通してだけ参照され（Play 1 回）、initializer の field に持たない。handler は対象を登録の時ではなく実行の時に `() => SceneDirector` で解決する。`DebugSocketService.Dispose` は dispatcher を手放さないので、旧 Play の service の handler が動くと initializer を通して今の Play の SceneDirector（または null）を読む。読み取り専用のコマンドなので許容した制約で、Play の世代を区別する仕組みは無い。
+- **置き方:** 機能が自分の診断を持ち（`SceneSystem/Diagnostics/`）、コマンドは写しを出力に変える薄い adapter、登録は composition root、transport は機能を知らない。`Runtime/DebugCommands/` は System だけに依存する folder なので、`JsonUtility` と SceneSystem を使うコマンドは置かない。
+
 ### 期待効果
 
 - Unity 側 producer は transport 実装を直接持たずに済む。
