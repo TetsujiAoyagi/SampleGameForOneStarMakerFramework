@@ -725,6 +725,13 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - (3) 機械検査: 未実行（E 系列が揃わないので、判定の入力を揃え直す時に GO 候補 head で走らせる）。
 - 実行担当の扱い: E 系列の証拠が揃わないので判定 C を完了と記録せず、判断担当を起動していない。driver の不備は B への差し戻しで、発見 C と B の巡に数える（§5 の未知の操作経路の「不成立の時の対応」、[1 巡の定義](../../.agents/skills/osm-workflow/references/phase-c.md)）。implementation head が変わるので、この run の結果（(1) を含む）は新しい head の判定に使わない（[判定後の head 変更](../../.agents/skills/osm-workflow/references/review-evidence.md#判定後の-head-変更)）。
 
+### 発見 C の実行担当の記録（3 回目、2026-11-27）
+
+実行担当（進行役の session。判断はしない）の生の結果。HEAD は `69aee6ec`（implementation head `cd4a16b1` との差は `docs/handoff/` だけ）。log はこの worktree の `TestResults/c-disc3-machine/`（git 管理外、未保存）。Unity テストは票のとおり走らせていない。
+
+- `tools/contract-audit.ps1` exit 0（最後の行「設計判断（…）は対象外。」、違反の行なし）。`tools/docs-audit.ps1` exit 0（既存の警告 1 件）。`Scenario.Tests.ps1` exit 0（24 executed, 0 failed）、`ScenarioDriver.Tests.ps1` exit 0（14 executed, 0 failed）、`ScenarioUnity.Tests.ps1` exit 0（28 executed, 0 failed）。どれも `pwsh -NoProfile -File <script>`、sandbox の外。
+- 実行の前後で作業ツリーは clean のまま。
+
 ## 8. Phase C'
 
 未着手
