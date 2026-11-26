@@ -49,7 +49,9 @@ $headRelative = ".origin/$purpose/$target.json"
 $launcher = 'SampleGame.DependOnAll.Editor.Build.ContentAcquireLauncher'
 $recordKey = 'OSM.PlayEntry.Record.v1'
 $saveAssetsResponseKey = 'OSM.PlayEntry.SaveAssetsResponse.v1'
-$titleScene = 'Assets/SampleGame/OutGame/Title/Title.unity'
+# E6 で開く Scene。固定 patch が触らない保存済みの Scene にする（patch が変える Title.unity を開くと、編集が複製（snapshot）で
+# 運ばれて上書きの root が 0 件になり、別の Library の base に上書きを重ねる形を踏まない。HANDOFF §5 の約束の 5）。
+$e6OpenScene = 'Assets/SampleGame/OutGame/OutGameScene.unity'
 
 # ─── eval の code（製品の public static の入口、EditorApplication、SessionState、入口の設定の setter の reflection だけ） ───
 
@@ -70,36 +72,45 @@ return t.GetProperty("RunPurpose", f).GetValue(null) + "|" + t.GetProperty("Rout
 '@
 $readLastOperation = "return $launcher.IsRunning + `"|`" + $launcher.LastOperation;"
 $readRecord = "return UnityEditor.SessionState.GetString(`"$recordKey`", `"`") + `"\n@@`" + UnityEditor.EditorApplication.timeSinceStartup.ToString(System.Globalization.CultureInfo.InvariantCulture);"
-# Play の中の SceneDirector へ reflection で届き（18 章「宣言からの Play 経路」の観測の注意）、HomeScene を 1 回だけ要求する。
-$addHomeScene = @'
-var init = System.Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll").GetField("s_instance", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
-System.Reflection.FieldInfo field = null;
-for (var type = init.GetType(); type != null && field == null; type = type.BaseType) field = type.GetField("_sceneDirector", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-var director = field.GetValue(init);
-var add = director.GetType().GetMethod("AddScene");
-var parameters = add.GetParameters();
-var args = new object[parameters.Length];
-for (var i = 0; i < parameters.Length; i++) args[i] = i == 0 ? "HomeScene" : parameters[i].ParameterType == typeof(System.Threading.CancellationToken) ? (object)System.Threading.CancellationToken.None : parameters[i].HasDefaultValue ? parameters[i].DefaultValue : null;
-add.Invoke(director, args);
-return "requested";
-'@
-$readHomeSceneLoad = @'
+# Play の中の SceneDirector へ reflection で届く（18 章「宣言からの Play 経路」の観測の注意）。__SCENE__ を Scene の名前に置き換えて使う。
+# load の記録を持てるのは payload を持つ Scene だけで、payload の無い論理 node（HomeScene など）は公開の契約で常に null を返す
+# （GetContentLoadRecord の doc comment）。観測の対象は HANDOFF §5 の約束の 5 が決め、ここで足さない。
+$directorPrelude = @'
 var init = System.Type.GetType("SampleGame.DependOnAll.AppInitializer, SampleGame.DependOnAll").GetField("s_instance", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic).GetValue(null);
 if (init == null) return "";
 System.Reflection.FieldInfo field = null;
 for (var type = init.GetType(); type != null && field == null; type = type.BaseType) field = type.GetField("_sceneDirector", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 var director = field.GetValue(init);
 if (director == null) return "";
-var record = director.GetType().GetMethod("GetContentLoadRecord").Invoke(director, new object[] { "HomeScene" });
+'@
+# Scene を 1 回だけ要求する（E6 だけが使う。送る eval なので送り直さない）。
+$addSceneTemplate = $directorPrelude + @'
+var add = director.GetType().GetMethod("AddScene");
+var parameters = add.GetParameters();
+var args = new object[parameters.Length];
+for (var i = 0; i < parameters.Length; i++) args[i] = i == 0 ? "__SCENE__" : parameters[i].ParameterType == typeof(System.Threading.CancellationToken) ? (object)System.Threading.CancellationToken.None : parameters[i].HasDefaultValue ? parameters[i].DefaultValue : null;
+add.Invoke(director, args);
+return "requested";
+'@
+# load の記録の候補を「Revision|Digest|SourceKind|ProviderId|AcceptanceBasis」で返す。未 load・失敗の間は空（13 章）。
+$readLoadTemplate = $directorPrelude + @'
+var record = director.GetType().GetMethod("GetContentLoadRecord").Invoke(director, new object[] { "__SCENE__" });
 if (record == null) return "";
 var candidate = record.GetType().GetProperty("Candidate").GetValue(record);
 var identity = candidate.GetType().GetProperty("Identity").GetValue(candidate);
-return identity.GetType().GetProperty("Revision").GetValue(identity) + "|" + identity.GetType().GetProperty("Digest").GetValue(identity);
+var ct = candidate.GetType();
+return identity.GetType().GetProperty("Revision").GetValue(identity) + "|" + identity.GetType().GetProperty("Digest").GetValue(identity)
+    + "|" + ct.GetProperty("SourceKind").GetValue(candidate) + "|" + ct.GetProperty("ProviderId").GetValue(candidate) + "|" + ct.GetProperty("AcceptanceBasis").GetValue(candidate);
 '@
+# title の値。UICommon は PanelRenderer で UI を載せ、UIDocument を持たないので、private の _panelRoot から pulse-button を探す。
 $readTitleToken = @'
-foreach (var document in UnityEngine.Object.FindObjectsByType<UnityEngine.UIElements.UIDocument>(UnityEngine.FindObjectsSortMode.None))
+var t = System.Type.GetType("OneStarMaker.Runtime.UISystem.UICommon, OneStarMaker.Runtime");
+if (t == null) return "";
+var f = t.GetField("_panelRoot", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+foreach (var o in UnityEngine.Object.FindObjectsByType(t, UnityEngine.FindObjectsSortMode.None))
 {
-    var button = document.rootVisualElement == null ? null : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(document.rootVisualElement, "pulse-button");
+    var root = f.GetValue(o) as UnityEngine.UIElements.VisualElement;
+    var button = root == null ? null : UnityEngine.UIElements.UQueryExtensions.Q<UnityEngine.UIElements.Button>(root, "pulse-button");
     if (button != null) return button.text;
 }
 return "";
@@ -229,25 +240,71 @@ function Wait-PlayRecord([psobject]$Context, [psobject]$Session, [int]$TimeoutMs
     catch { return @{ value=(Read-ScenarioEditor $Context $Session -Code $readRecord); expired=$true; reason="$_" } }
 }
 
-function Invoke-Play([psobject]$Context, [psobject]$Session, [int]$TimeoutMs, [switch]$ReadTitle) {
+function Read-LoadRecord([psobject]$Context, [psobject]$Session, [string]$Scene, [int]$TimeoutMs) {
+    # TimeoutMs が正なら記録が null でなくなるまで読み、0 なら 1 回だけ読む。読めなかったことは否定の答えにせず、理由を残す。
+    $code = $readLoadTemplate.Replace('__SCENE__', $Scene)
+    $observation = [ordered]@{ scene=$Scene; observed=$false; value='' }
+    try {
+        $value = if ($TimeoutMs -gt 0) {
+            Wait-ScenarioEditor $Context $Session -Code $code -Until { param($value) "$value".Length -gt 0 } -TimeoutMs $TimeoutMs
+        } else { Read-ScenarioEditor $Context $Session -Code $code }
+        $observation.value = "$value"
+    }
+    catch { $observation.reason = "$Scene load record was not observed within $($TimeoutMs / 1000) seconds: $_"; return $observation }
+    if ($observation.value.Length -eq 0) { $observation.reason = "$Scene load record was null"; return $observation }
+    # 欄に分けるだけで、値の照合は判定の担当が行う。
+    $parts = $observation.value.Split('|')
+    $observation.observed = $true
+    foreach ($index in 0..4) { $observation[@('revision', 'digest', 'sourceKind', 'providerId', 'acceptanceBasis')[$index]] = if ($index -lt $parts.Count) { $parts[$index] } else { '' } }
+    return $observation
+}
+
+function Send-AddScene([psobject]$Context, [psobject]$Session, [string]$Scene) {
+    $sent = Send-ScenarioEditor $Context $Session -Code $addSceneTemplate.Replace('__SCENE__', $Scene)
+    return [ordered]@{ scene=$Scene; answered=[bool]$sent.Answered; value="$($sent.Value)" }
+}
+
+function Invoke-Play([psobject]$Context, [psobject]$Session, [int]$TimeoutMs, [switch]$Overlay) {
     [void](Send-ScenarioEditor $Context $Session -Code "UnityEditor.SessionState.EraseString(`"$recordKey`"); return `"erased`";")
     Send-Marker $Context $Session 'play-start'
     [void](Send-ScenarioEditor $Context $Session -Code 'UnityEditor.EditorApplication.EnterPlaymode(); return "entering";')
     if ($Context.DryRun) { return @{ dryRun=$true } }
     $play = Wait-PlayRecord $Context $Session $TimeoutMs
     [void](Save-Evidence $Context -Name 'play-record.txt' -Content "$($play.value)")
-    $summary = [ordered]@{ playExpired=$play.expired; title=''; load=''; loadObserved=$false }
     $playing = Read-ScenarioEditor $Context $Session -Code 'return UnityEditor.EditorApplication.isPlaying.ToString();'
-    if ($playing -ceq 'True') {
-        if ($ReadTitle) { $summary.title = Read-ScenarioEditor $Context $Session -Code $readTitleToken }
-        [void](Send-ScenarioEditor $Context $Session -Code $addHomeScene)
-        try {
-            $summary.load = Wait-ScenarioEditor $Context $Session -Code $readHomeSceneLoad -Until { param($value) "$value".Length -gt 0 } -TimeoutMs 120000
-            $summary.loadObserved = $true
-        }
-        catch { $summary.loadReason = "HomeScene load record was not observed within 2 minutes: $_" }
+    $summary = [ordered]@{ playExpired=$play.expired; playing="$playing"; loads=[ordered]@{} }
+    # 観測の対象と順は HANDOFF §5 の約束の 5。Play に届かない時も、届かなかった項目を理由つきで残す。
+    $scenes = if ($Overlay) { @('Title', 'HpGauge', 'OutGameScene') } else { @('Title') }
+    if ($playing -cne 'True') {
+        foreach ($scene in $scenes) { $summary.loads[$scene] = [ordered]@{ scene=$scene; observed=$false; value=''; reason="not playing (isPlaying=$playing)" } }
+        if ($Overlay) { $summary.title = [ordered]@{ observed=$false; value=''; reason="not playing (isPlaying=$playing)" } }
     }
-    [void](Save-Evidence $Context -Name 'play-observations.json' -Content (ConvertTo-Json -InputObject $summary))
+    elseif (-not $Overlay) {
+        # 起動の経路が directory から load する初回 Scene Title の記録を読む。AddScene は送らない。
+        $summary.loads.Title = Read-LoadRecord $Context $Session 'Title' 120000
+    }
+    else {
+        # (1) 開いた OutGameScene は snapshot で載り、Title は自動では load されないので 1 回だけ要求する。
+        $summary.addTitle = Send-AddScene $Context $Session 'Title'
+        $summary.loads.Title = Read-LoadRecord $Context $Session 'Title' 120000
+        # (2) title の値。
+        $summary.title = [ordered]@{ observed=$false; value='' }
+        try {
+            $summary.title.value = "$(Wait-ScenarioEditor $Context $Session -Code $readTitleToken -Until { param($value) "$value".Length -gt 0 } -TimeoutMs 60000)"
+            $summary.title.observed = $true
+        }
+        catch { $summary.title.reason = "pulse-button text was not observed within 60 seconds: $_" }
+        # (3) patch が触らず開いてもいない、payload を持つ HpGauge（OutGameScene の子）を 1 回だけ要求する。
+        $summary.addHpGauge = Send-AddScene $Context $Session 'HpGauge'
+        $summary.loads.HpGauge = Read-LoadRecord $Context $Session 'HpGauge' 120000
+        # (4) 開いた Scene の snapshot の記録。
+        $summary.loads.OutGameScene = Read-LoadRecord $Context $Session 'OutGameScene' 0
+    }
+    if ($Overlay) {
+        # (5) 観測の後の errorCount・exceptionCount を見るため、record を読み直す。
+        [void](Save-Evidence $Context -Name 'play-record-after.txt' -Content "$(Read-ScenarioEditor $Context $Session -Code $readRecord)")
+    }
+    [void](Save-Evidence $Context -Name 'play-observations.json' -Content (ConvertTo-Json -InputObject $summary -Depth 5))
     Send-Marker $Context $Session 'play-stop'
     [void](Send-ScenarioEditor $Context $Session -Code 'UnityEditor.EditorApplication.ExitPlaymode(); return "exiting";')
     try { [void](Wait-ScenarioEditor $Context $Session -Code 'return UnityEditor.EditorApplication.isPlaying.ToString();' -Until { param($value) $value -ceq 'False' } -QuietMs 45000 -TimeoutMs 600000) }
@@ -418,14 +475,16 @@ Add-ScenarioCase $scenario -Name 'E5' -Checkout 'Y' -Body {
 
 Add-ScenarioCase $scenario -Name 'E6' -Checkout 'Y' -Patches 'unity/Assets/SampleGame/Tests/Editor/Build/PlayerOverlayEdits/ac01-title.patch' -Body {
     param($context)
-    # 経路 Built + local edits。patch を当てた Title.unity を開き（入口が複製して載せる）、未保存の asset の確認に cancel を先置きする。
+    # 経路 Built + local edits。patch が触らない OutGameScene.unity を開き（入口が複製して載せる。空の Scene は運ぶ物が無いので
+    # 入口が拒む）、未保存の asset の確認に cancel を先置きする。
     # body は Editor を止めてから戻る（基盤が patch を戻す時に、開いた Scene の modal を出さない）。
     return Invoke-EditorCase $context -Route 'BuiltWithLocalEdits' -Steps {
         param($session, $summary)
         $summary.patch = 'ac01-title.patch'
-        [void](Send-ScenarioEditor $context $session -Code "UnityEditor.SceneManagement.EditorSceneManager.OpenScene(`"$titleScene`", UnityEditor.SceneManagement.OpenSceneMode.Single); return `"opened`";")
+        $summary.openedScene = $e6OpenScene
+        [void](Send-ScenarioEditor $context $session -Code "UnityEditor.SceneManagement.EditorSceneManager.OpenScene(`"$e6OpenScene`", UnityEditor.SceneManagement.OpenSceneMode.Single); return `"opened`";")
         [void](Send-ScenarioEditor $context $session -Code "UnityEditor.SessionState.SetString(`"$saveAssetsResponseKey`", `"cancel`"); return `"set`";")
-        $summary.play = Invoke-Play $context $session 1800000 -ReadTitle
+        $summary.play = Invoke-Play $context $session 1800000 -Overlay
     }
 }
 

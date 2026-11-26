@@ -370,6 +370,87 @@ try {
                 }
             }
         }
+
+        Run 'AC9 AC10 the S4-3a driver observes the Play targets of HANDOFF section 5 in order' {
+            # -DryRun は Play の後の観測を飛ばすので、観測の関数と eval の code だけを取り出し、偽の Editor の応答で走らせる。
+            $ast = Get-ScriptAst (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1')
+            foreach ($name in 'Read-LoadRecord', 'Send-AddScene', 'Invoke-Play') {
+                $definition = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object { $_.Name -ceq $name })
+                Assert ($definition.Count -eq 1) "driver function $name"
+                . ([scriptblock]::Create($definition[0].Extent.Text))
+            }
+            $variables = 'recordKey', 'readRecord', 'directorPrelude', 'addSceneTemplate', 'readLoadTemplate', 'readTitleToken'
+            foreach ($statement in $ast.EndBlock.Statements) {
+                if ($statement -is [Management.Automation.Language.AssignmentStatementAst] -and $variables -ccontains $statement.Left.VariablePath.UserPath) { . ([scriptblock]::Create($statement.Extent.Text)) }
+            }
+
+            # 偽の Editor: 送った・読んだ code を順に残し、Scene の名前ごとに load の記録を返す（null のままの Scene は Wait が期限切れを投げる）。
+            $script:fakeCalls = [Collections.Generic.List[string]]::new()
+            $script:fakeSaved = @{}
+            $script:fakeLoads = @{}
+            $script:fakePlaying = 'True'
+            function Send-Marker { }
+            function Write-ScenarioRecord { }
+            function Wait-PlayRecord { return @{ value="{`"record`":{`"state`":`"EnteredPlay`"}}`n@@20"; expired=$false } }
+            function Save-Evidence([psobject]$Context, [string]$Name, [object]$Content) { $script:fakeSaved[$Name] = "$Content" }
+            function Get-FakeScene([string]$Code) { if ($Code -match 'new object\[\] \{ "([^"]+)" \}|\? "([^"]+)" :') { return "$($Matches[1])$($Matches[2])" }; return '' }
+            function Get-FakeAnswer([string]$Code) {
+                if ($Code -like '*isPlaying.ToString*') { return $script:fakePlaying }
+                if ($Code -like '*GetContentLoadRecord*') { $scene = Get-FakeScene $Code; return $(if ($script:fakeLoads.ContainsKey($scene)) { $script:fakeLoads[$scene] } else { '' }) }
+                if ($Code -like '*_panelRoot*') { return 'S42-AC1-UXML-TOKEN' }
+                if ($Code -like '*SessionState.GetString*') { return "{`"record`":{`"errorCount`":0}}`n@@30" }
+                return ''
+            }
+            function Send-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code) {
+                $kind = if ($Code -like '*GetMethod("AddScene")*') { "add:$(Get-FakeScene $Code)" } else { 'send' }
+                $script:fakeCalls.Add($kind)
+                return [pscustomobject]@{ Answered=$true; Value=$(if ($kind -like 'add:*') { 'requested' } else { 'ok' }) }
+            }
+            function Read-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code) {
+                $answer = Get-FakeAnswer $Code
+                if ($Code -like '*GetContentLoadRecord*') { $script:fakeCalls.Add("read:$(Get-FakeScene $Code)") }
+                return $answer
+            }
+            function Wait-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code, [scriptblock]$Until, [int]$TimeoutMs, [int]$QuietMs) {
+                $answer = Get-FakeAnswer $Code
+                if ($Code -like '*GetContentLoadRecord*') { $script:fakeCalls.Add("wait:$(Get-FakeScene $Code)") }
+                elseif ($Code -like '*_panelRoot*') { $script:fakeCalls.Add('wait:title') }
+                if (-not (& $Until $answer)) { throw 'expired' }
+                return $answer
+            }
+            $context = [pscustomobject]@{ DryRun=$false; Case='E1' }
+            $r1 = '20261126T150018464Z-690b81d7359d46c2828215ed2fb10f46|' + ('a' * 64)
+
+            # 経路 Built（E1・E2・E4・E5）: AddScene を送らず、初回 Scene Title の記録を読む。
+            $script:fakeLoads = @{ Title="$r1|ContentDirectory|registered-content-directory|VerifiedDigest" }
+            [void](Invoke-Play $context $null 600000)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert (@($script:fakeCalls | Where-Object { $_ -like 'add:*' }).Count -eq 0) "built route sent AddScene: $($script:fakeCalls -join ',')"
+            Assert ((@($script:fakeCalls | Where-Object { $_ -like 'wait:*' -or $_ -like 'read:*' }) -join ',') -ceq 'wait:Title') "built route reads $($script:fakeCalls -join ',')"
+            $title = $observations.loads.Title
+            Assert ($title.observed -and $title.revision -ceq $r1.Split('|')[0] -and $title.digest -ceq ('a' * 64) -and $title.sourceKind -ceq 'ContentDirectory' -and $title.providerId -ceq 'registered-content-directory' -and $title.acceptanceBasis -ceq 'VerifiedDigest') "built route Title $($script:fakeSaved['play-observations.json'])"
+            Assert (-not $script:fakeSaved.ContainsKey('play-record-after.txt')) 'built route re-read the record'
+
+            # 経路 Built + local edits（E6）: Title を要求して読み → title → HpGauge を要求して読み → OutGameScene を 1 回読む → record の読み直し。
+            # Title の記録が期限まで null でも、後の項目を続けて読み、理由を残す。
+            $script:fakeCalls.Clear(); $script:fakeSaved = @{}
+            $script:fakeLoads = @{ HpGauge="$r1|ContentDirectory|registered-content-directory|VerifiedDigest"; OutGameScene="$r1|EditorSnapshot|editor-snapshot|EditorSnapshot" }
+            [void](Invoke-Play $context $null 1800000 -Overlay)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert ((@($script:fakeCalls | Where-Object { $_ -cne 'send' }) -join ',') -ceq 'add:Title,wait:Title,wait:title,add:HpGauge,wait:HpGauge,read:OutGameScene') "overlay order $($script:fakeCalls -join ',')"
+            Assert (-not $observations.loads.Title.observed -and "$($observations.loads.Title.reason)".Length -gt 0) 'overlay Title without a reason'
+            Assert ($observations.title.observed -and $observations.title.value -ceq 'S42-AC1-UXML-TOKEN') 'overlay title value'
+            Assert ($observations.loads.HpGauge.observed -and $observations.loads.OutGameScene.observed -and $observations.loads.OutGameScene.sourceKind -ceq 'EditorSnapshot') 'overlay HpGauge / OutGameScene'
+            Assert ($observations.addTitle.value -ceq 'requested' -and $observations.addHpGauge.value -ceq 'requested') 'overlay AddScene answers'
+            Assert ($script:fakeSaved['play-record-after.txt'] -like '*errorCount*') 'overlay record re-read'
+
+            # Play に届かない時: 観測の項目を理由つきで残し、Scene を要求しない。
+            $script:fakeCalls.Clear(); $script:fakeSaved = @{}; $script:fakePlaying = 'False'
+            [void](Invoke-Play $context $null 1800000 -Overlay)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert (@($script:fakeCalls | Where-Object { $_ -cne 'send' }).Count -eq 0) "not playing sent or read $($script:fakeCalls -join ',')"
+            Assert (@(@('Title', 'HpGauge', 'OutGameScene') | Where-Object { $observations.loads.$_.observed -or "$($observations.loads.$_.reason)" -notlike 'not playing*' }).Count -eq 0 -and "$($observations.title.reason)" -like 'not playing*') 'not playing reasons'
+        }
     }
 } finally {
     foreach ($name in 'FAKE_X_ROOT', 'FAKE_Y_ROOT', 'FAKE_RUNNER_LOG', 'FAKE_RUNNER_PLAN') { [Environment]::SetEnvironmentVariable($name, $null) }
