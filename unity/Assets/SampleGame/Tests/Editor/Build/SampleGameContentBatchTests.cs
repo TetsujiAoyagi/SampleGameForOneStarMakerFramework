@@ -6,6 +6,7 @@ using System.IO;
 using NUnit.Framework;
 using OneStarMaker.Build.Selection;
 using OneStarMaker.Editor.Build.Content;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using SampleGame.DependOnAll.Editor.Build;
 using UnityEngine;
 
@@ -150,6 +151,68 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(fake.Errors, Has.Some.Contains("fixture commit failure"));
         }
 
+        // ─── 取得元の head（AC7） ───
+
+        private string HeadPath => Path.Combine(_root, "transport", ".origin", "spring-full", VerifyPlayLauncher.Target + ".json");
+
+        [Test]
+        public void Success_PointsTheOriginHeadAtThisPublish()
+        {
+            var fake = new FakeStages(_root) { RealCommit = true };
+            Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root), Is.EqualTo(SampleGameContentBatch.ExitSuccess));
+            var result = JsonUtility.FromJson<SampleGameContentBatch.SuccessFile>(File.ReadAllText(_resultPath));
+            var head = ContentOriginHead.Read(File.ReadAllBytes(HeadPath), "spring-full", VerifyPlayLauncher.Target);
+            Assert.That(head.State, Is.EqualTo(ContentOriginHeadState.Present), head.Reason);
+            Assert.That(head.Head!.revision, Is.EqualTo(fake.Identity));
+            Assert.That(head.Head.manifestSha256, Is.EqualTo(result.manifestSha256));
+            Assert.That(head.Head.path, Is.EqualTo(fake.Identity));
+            Assert.That(result.originHeadFailure, Is.Empty);
+            Assert.That(fake.Errors, Is.Empty);
+        }
+
+        [Test]
+        public void HeadFailure_KeepsThePublishAndReplacesTheResultWithTheFailureField()
+        {
+            var fake = new FakeStages(_root) { FailHead = true, RealCommit = true };
+            var code = SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root);
+            Assert.That(code, Is.EqualTo(SampleGameContentBatch.ExitOriginHeadFailed));
+            Assert.That(Directory.Exists(Path.Combine(_root, "transport", fake.Identity)), Is.True, "正しく作れた公開物を消さない");
+            var result = JsonUtility.FromJson<SampleGameContentBatch.SuccessFile>(File.ReadAllText(_resultPath));
+            Assert.That(result.exitCode, Is.EqualTo(SampleGameContentBatch.ExitOriginHeadFailed));
+            Assert.That(result.originHeadFailure, Does.Contain("fixture head failure"));
+            Assert.That(result.identity, Is.EqualTo(fake.Identity));
+            Assert.That(result.manifestSha256, Is.Not.Empty);
+            Assert.That(File.Exists(HeadPath), Is.False);
+            Assert.That(fake.Errors, Has.Some.Contains("exitCode=" + SampleGameContentBatch.ExitOriginHeadFailed + " "));
+            Assert.That(Directory.GetFiles(Path.GetDirectoryName(_resultPath)!), Has.Length.EqualTo(1), "一時 file が残っている");
+        }
+
+        [Test]
+        public void CommitFailure_DoesNotWriteTheHead()
+        {
+            var fake = new FakeStages(_root) { FailFirstCommit = true };
+            Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root), Is.EqualTo(SampleGameContentBatch.ExitUnexpected));
+            Assert.That(fake.HeadCalls, Is.Zero);
+            Assert.That(File.Exists(HeadPath), Is.False);
+        }
+
+        [Test]
+        public void CleanupFailureAfterTheHeadWasReplaced_IsOnlyADiagnostic()
+        {
+            var fake = new FakeStages(_root) { HeadDiagnostic = true };
+            Assert.That(SampleGameContentBatch.Run(Args("spring-full"), fake.Create(), _root), Is.EqualTo(SampleGameContentBatch.ExitSuccess));
+            Assert.That(Directory.Exists(Path.Combine(_root, "transport", fake.Identity)), Is.True);
+            Assert.That(File.Exists(HeadPath), Is.True);
+        }
+
+        [Test]
+        public void HeadLogLine_CarriesThePathRevisionAndDigest()
+        {
+            var head = new ContentOriginHeadFile { revision = "r1", manifestSha256 = new string('a', 64) };
+            Assert.That(SampleGameContentBatch.HeadLogLine(new ContentOriginHeadWriteResult("C:\\o\\h.json", head, Array.Empty<string>())),
+                Is.EqualTo("origin head written path=C:\\o\\h.json revision=r1 manifestSha256=" + new string('a', 64)));
+        }
+
         private void AssertFailureFile(int expected, FakeStages fake)
         {
             Assert.That(fake.Errors, Has.Some.Contains("exitCode=" + expected + " "));
@@ -184,12 +247,28 @@ namespace SampleGame.Tests.Editor.Build
             public bool FailFirstCommit { get; set; }
             public bool FailAllCommits { get; set; }
             public bool FailWithoutIssue { get; set; }
+            public bool FailHead { get; set; }
+            public bool HeadDiagnostic { get; set; }
+            /// <summary>結果 file の確定に本物の段（置き換えられる確定）を使う。</summary>
+            public bool RealCommit { get; set; }
             public int BuildCalls { get; private set; }
             public int PublishCalls { get; private set; }
+            public int HeadCalls { get; private set; }
             public string? BuiltDeclaration { get; private set; }
             public List<string> Errors { get; } = new List<string>();
 
-            public SampleGameContentBatch.Stages Create() => new SampleGameContentBatch.Stages(Build, Publish, Commit, Errors.Add);
+            public SampleGameContentBatch.Stages Create() => new SampleGameContentBatch.Stages(Build, Publish, Commit, Errors.Add, WriteHead);
+
+            // head は本物の書き手で書く（取得元の root は公開先の親）。失敗と、置き換えの後の掃除の失敗の診断は注入する。
+            private ContentOriginHeadWriteResult WriteHead(string published)
+            {
+                HeadCalls++;
+                if (FailHead) throw new IOException("fixture head failure");
+                var written = ContentOriginHeadWriter.Write(published);
+                return HeadDiagnostic
+                    ? new ContentOriginHeadWriteResult(written.HeadPath, written.Head, new[] { "fixture cleanup failure" })
+                    : written;
+            }
 
             private BuildContentResult Build(BuildPurposeDeclaration declaration)
             {
@@ -216,7 +295,13 @@ namespace SampleGame.Tests.Editor.Build
                 // 実 publisher と同じく、失敗では publish 先を作らない。
                 if (ThrowPublish) throw new IOException("fixture publish failure");
                 Directory.CreateDirectory(Path.Combine(publishRoot, "content"));
-                File.WriteAllText(Path.Combine(publishRoot, "transport.json"), "{\"revision\":\"" + result.Identity + "\"}");
+                // head の書き手が manifest の identity を読むので、形の正しい manifest を書く。
+                File.WriteAllText(Path.Combine(publishRoot, "transport.json"), JsonUtility.ToJson(new ContentTransportManifest
+                {
+                    version = 1, product = "OneStarMaker", contentSet = "spring-full", revision = result.Identity, target = VerifyPlayLauncher.Target,
+                    unityVersion = Application.unityVersion, rootSchemaVersion = 2, playerConfigSchemaVersion = 1,
+                    files = new[] { new ContentTransportFile { path = "payload.bin", size = 0, sha256 = new string('0', 64) } },
+                }));
                 return publishRoot;
             }
 
@@ -224,7 +309,8 @@ namespace SampleGame.Tests.Editor.Build
             {
                 _commits++;
                 if (FailAllCommits || (FailFirstCommit && _commits == 1)) throw new IOException("fixture commit failure");
-                File.WriteAllText(path, json);
+                if (RealCommit) SampleGameContentBatch.CommitResult(path, json);
+                else File.WriteAllText(path, json);
             }
         }
     }

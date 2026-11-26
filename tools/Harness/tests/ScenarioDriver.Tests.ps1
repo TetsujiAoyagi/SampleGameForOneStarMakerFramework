@@ -281,7 +281,8 @@ try {
         }
 
         Run 'AC8 AC9 drivers hold only cases and declared evidence' {
-            foreach ($driver in @((Join-Path $repoUnderTest 'tools/s42-player-overlay.ps1'), (Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'))) {
+            foreach ($driver in @((Join-Path $repoUnderTest 'tools/s42-player-overlay.ps1'), (Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'),
+                    (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1'))) {
                 $findings = Get-DriverScanFindings $driver
                 Assert (@($findings).Count -eq 0) "$([IO.Path]::GetFileName($driver)): $(@($findings) -join '; ')"
             }
@@ -304,6 +305,32 @@ try {
             & $smoke -RunId 'd2' -DryRun -Token 'token-0001' *>&1 | Out-Null
             $records = Read-Records (Get-RunRoot $fx 'editor-smoke' 'd2')
             Assert ($LASTEXITCODE -eq 0 -and @($records | Where-Object { $_.Contains('event') -and $_.event -ceq 'case-end' -and $_.base -ceq 'ok' }).Count -eq 2) "smoke dry-run exit $LASTEXITCODE"
+        }
+
+        Run 'AC9 the S4-3a scenario dry-run passes every case on prepared checkouts and starts no Unity' {
+            # E6 の固定 patch と同じ path に、fixture の tracked の file を変える patch を置く（dry-run でも patch は当てて戻す）。
+            $patchPath = 'unity/Assets/SampleGame/Tests/Editor/Build/PlayerOverlayEdits/ac01-title.patch'
+            $fx = New-FixtureRepo { param($repo) Write-Text (Join-Path $repo $patchPath) "diff --git a/data/value.txt b/data/value.txt`n--- a/data/value.txt`n+++ b/data/value.txt`n@@ -1 +1 @@`n-one`n+two`n" }
+            $place = Join-Path $fx.Fixture 'osm-v'
+            foreach ($name in 's43a-X', 's43a-Y') {
+                Invoke-Git $fx.Repo @('worktree', 'add', '-q', '--detach', (Join-Path $place $name)) | Out-Null
+                $r = Invoke-ScenarioCheckoutOperation -Operation register -Path (Join-Path $place $name) -RepoRoot $fx.Repo
+                Assert $r.Ok "register $name"
+            }
+            $driver = Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1'
+            $global:LASTEXITCODE = 0
+            & $driver -RunId 'd1' -DryRun *>&1 | Out-Null
+            $code = $LASTEXITCODE
+            $records = Read-Records (Get-RunRoot $fx 's43a' 'd1')
+            $ends = @($records | Where-Object { $_.Contains('event') -and $_.event -ceq 'case-end' })
+            $order = ($ends | ForEach-Object { $_.case }) -join ','
+            Assert ($code -eq 0 -and $order -ceq 'S0,P1,E1,P2,E2,E3,E4,E5,E6,Cleanup' -and @($ends | Where-Object { $_.base -cne 'ok' }).Count -eq 0) "s43a dry-run exit $code order $order"
+            foreach ($name in 's43a-X', 's43a-Y') {
+                $root = Join-Path $place $name
+                Assert ((Invoke-Git $root @('status', '--porcelain')) -eq $null -and (Read-Bytes (Join-Path $root 'data/value.txt')) -ceq "one`n") "$name not restored"
+                Assert (-not [IO.File]::Exists((Join-Path $root 'unity/UserSettings/OSMContentOrigin.json'))) "$name dry-run wrote the origin settings"
+            }
+            Assert (-not [IO.Directory]::Exists((Join-Path (Get-RunRoot $fx 's43a' 'd1') 'evidence'))) 'dry-run saved evidence'
         }
     }
 } finally {

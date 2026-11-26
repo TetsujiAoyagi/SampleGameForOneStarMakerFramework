@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using OneStarMaker.Runtime.BuildContent.Distribution;
 using UnityEditor;
 using UnityEditor.Toolbars;
 using UnityEngine;
@@ -21,6 +22,7 @@ namespace SampleGame.DependOnAll.Editor.Build
         private const string ToolbarPath = "OSM/Play Entry";
         private const string OpenedThisSessionKey = "OSM.PlayEntry.WindowOpened";
         private Vector2 _scroll;
+        private int _shownOperation;
 
         [MenuItem("Tools/OSM/Play Entry")]
         private static void OpenFromMenu() => Open(focus: true);
@@ -63,9 +65,17 @@ namespace SampleGame.DependOnAll.Editor.Build
 
         private void OnDisable() => PlayEntryRecord.Changed -= Repaint;
 
+        // 取得は非同期で、終わりを知らせる event を持たない。走っている間と、結果が変わった時だけ描き直す。
+        private void OnInspectorUpdate()
+        {
+            if (ContentAcquireLauncher.IsRunning || _shownOperation != ContentAcquireLauncher.LastOperation) Repaint();
+        }
+
         private void OnGUI()
         {
             DrawSelection();
+            _shownOperation = ContentAcquireLauncher.LastOperation;
+            DrawAcquisition();
             EditorGUILayout.Space();
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             var document = PlayEntryRecord.Load();
@@ -94,6 +104,26 @@ namespace SampleGame.DependOnAll.Editor.Build
                     RefreshToolbar();
                 }
             }
+        }
+
+        // 経路が Built の系統の時だけ、取得元から Play の base を取得する操作を出す（入力はボタンの押下だけ）。
+        private static void DrawAcquisition()
+        {
+            if (PlayEntrySettings.Route == PlayEntryRoute.Source) return;
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Content Origin", EditorStyles.boldLabel);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                using (new EditorGUI.DisabledScope(ContentAcquireLauncher.IsRunning || EditorApplication.isPlayingOrWillChangePlaymode))
+                    if (GUILayout.Button("Acquire content: " + PlayEntrySettings.RunPurpose)) ContentAcquireLauncher.Start();
+                using (new EditorGUI.DisabledScope(!ContentAcquireLauncher.IsRunning))
+                    if (GUILayout.Button("Cancel", GUILayout.Width(80))) ContentAcquireLauncher.Cancel();
+            }
+            if (ContentAcquireLauncher.IsRunning) EditorGUILayout.HelpBox("Acquiring content from the origin...", MessageType.Info);
+            var last = ContentAcquireLauncher.LastResult;
+            if (last == null) return;
+            var succeeded = last.state is nameof(ContentAcquisitionState.Acquired) or nameof(ContentAcquisitionState.AlreadyInstalled);
+            EditorGUILayout.HelpBox(ContentAcquireLauncher.Describe(last), succeeded && last.warnings.Length == 0 ? MessageType.Info : MessageType.Warning);
         }
 
         private static void DrawDocument(PlayEntryRecord.Document document)

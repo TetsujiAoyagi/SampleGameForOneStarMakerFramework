@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `A3 凍結`（**Phase A のやり直しの改訂 3 を凍結した。次は Phase B。** A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `B 完了`（**Phase B の実装を終えた（§6）。次は動作確認。** 以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
-- implementation head commit: `未固定`
+- implementation head commit: この票を含む commit
 - A3 凍結記録: 承認者 owner（root）、2026-11-26、revision 0（改訂 3。この記録を含む commit）。根拠は owner の会話での指示（D の裁定を「両方 ok、凍結しよ」で承認）。次の担当は Phase B
 - risk: `high`（Framework の公開 API に取得元の差込口を足し、cache への書き込みを呼ぶ調停と、Play の入口の候補の並びに触れる。program の行は `normal` だったが、高リスクの例の「公開 API」に当たるので上げた）
 - owner: root（依頼者）
@@ -18,14 +18,14 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B の実装担当。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の凍結記録・対象 revision・次の担当 B）を行う。`pwsh tools/workflow-task.ps1 status -Task s4-3a-local-content-origin` で task が active であることを確かめる。§4 の順で実装し、§5 の単体・統合の test を書き、Editor のコンパイル確認、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、基盤の offline test（§5 の機械検査の 3 つ）、E 系列の driver の `-DryRun` を通す。§5 の「Phase B が §6 に書く値」を §6 に書く。Unity のバッチテストは実行しない（Phase C の責任）。B の出口で commit し、§0 の implementation head 欄と引継ぎ票を書き、PR の状態ブロックを更新する。次の担当は動作確認（E 系列は Unity の起動と build を伴うので `未実施` とし、判定 C の実行担当が取る。§5）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の行。§0〜§5）。加えて [Harness README](../../tools/Harness/README.md) の「実機の検証の scenario」（driver と `-QuietMs` を書くため）と「Unity終了時の既知native stallと調査の停止規則」、[osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md)。§2.4 の段と止まる規則の表と §2.7 の AC は、test の期待の正本として全文読む。
+  - 次の Phase・役割: 動作確認（Phase B の後）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、implementation head 欄が「この票を含む commit」で HEAD と親の差分に `docs/handoff/` 以外の file があること、PR の状態ブロック）を行う。[動作確認](../../.agents/skills/osm-workflow/references/operation-check.md) に従い、§5 の検証経路の条件を確かめる。E 系列（P1〜E6）は Unity の起動と build を伴うので `未実施` とし、判定 C の実行担当が取る（§5）。動作確認の結果を §6 の後の記録に書き、次の担当を発見 C にする。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の動作確認の行。§0、§5、§6）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: `unity/Assets/` と `tools/` の編集、Editor のコンパイル確認、Unity を起動しない offline test、検証用の checkout での driver の `-DryRun`。資格情報は要らない。動作確認と判定 C は、Unity Editor の起動（窓あり、batch）、2 つの検証用の worktree、sandbox の外の実行が要る（§5 の E 系列）。
-  - 停止規則: §4 の「Phase B から Phase A へ差し戻す条件」のどれかに当たったら実装を止めて返す。AC4・AC5・AC6 が変えないとした file を変えない。S4-V の基盤の module に足すのは `Wait-ScenarioEditor -QuietMs` だけで（§3）、既定の動きを変えない。Runtime を触る Phase B を `RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（§2.8）。S4-2 の Phase D の後・S4-V の A3 の後に凍結し、S4-V の merge の後に Phase B を始める条件（program §8 の行）は満たしている。
+  - 必要な権限: 動作確認は `docs/handoff/` の編集。判定 C は、Unity Editor の起動（窓あり、batch）、2 つの検証用の worktree、sandbox の外の実行が要る（§5 の E 系列）。資格情報は要らない。
+  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。AC4・AC5・AC6 が変えないとした file は Phase B の差分に無い（§6）。Runtime を触る Phase C の修正を `RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない（§2.8）。
   - 引き渡さないもの: なし。
-  - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。C' 用に xAI の Grok を残す（§5 の C' の予約）。Phase C は Phase B と違う model にする。
+  - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。C' 用に xAI の Grok を残す（§5 の C' の予約）。Phase C は Phase B と違う model にする。
 
 ### 実測の方法
 
@@ -566,7 +566,73 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 
 ## 6. Phase B 実装結果
 
-未着手
+- 担当: Claude Code の desktop の session（Anthropic）。Phase A の主担当・A2 の担当とは別の session で、会話は引き継がず、起動指示の SHA `5a906078` の本書から始めた。開始時の照合（HEAD と SHA、clean、凍結記録 revision 0、票の次の担当 B、PR の状態ブロック、`workflow-task.ps1 status` の active）は全て一致した。
+- 実装は §3 の責務マップのとおり（path は repo の実の置き場 `unity/Assets/OneStarMaker/Scripts/Runtime/BuildContent/Distribution/` 等。本書の `Runtime/...` はその略）。新しい asmdef と参照は足していない。
+
+**作った・変えた file（§3 の行と同じ順）:**
+
+| file | 行数 | 中身 |
+|---|---|---|
+| ＋ `…/Distribution/ContentOrigin.cs` | 118 | `IContentOrigin`、`ContentOriginQuery`、`ContentOriginEntry`、`ContentOriginAnswer`、`ContentDigestAuthority`、`ContentOriginTrust` |
+| ＋ `…/Distribution/ContentOriginHead.cs` | 219 | head の DTO、`Create`、`Read`、`RelativePath`。型の規則は raw の JSON の字面で見る（JsonUtility は型の違う値を黙って読むため） |
+| ＋ `…/Distribution/IndexedContentOrigin.cs` | 147 | internal の `IndexedContentOrigin` と public の `ContentOrigins.Directory` |
+| ＋ `…/Distribution/ContentAcquisition.cs` | 323 | 調停（段 1〜3、消えた install の観測、staging の片付けの診断） |
+| ＋ `…/Distribution/ContentAcquisitionRules.cs` | 125 | 止まる規則の純粋な関数 |
+| ＋ `…/Distribution/ContentOriginGuard.cs` | 330 | 照会と取得口・stream の受け止め、証拠 (i)(ii)、test 用の EOF の通知 |
+| ＋ `…/Distribution/ContentAcquisitionTypes.cs` | 143 | 要求・pin・結果・試行の記録 |
+| ＋ `Editor/Build/Content/ContentOriginHeadWriter.cs` | 177 | head の置き換え（再試行、部分失敗の戻し、並んだ最初の書き込み） |
+| `SampleGame/…/SampleGameContentBatch.cs` | 202 → 251 | 最後の段の head、`ExitOriginHeadFailed`（6）、置き換えられる `CommitResult`、結果 file の `originHeadFailure` |
+| `SampleGame/…/VerifyPlayLauncher.cs` | 499 → 510 | `Produce` の後の `RecordOriginHead`（書けなければ Warning） |
+| ＋ `SampleGame/…/ContentOriginSettings.cs` | 57 | 既定の root と `UserSettings/OSMContentOrigin.json` の上書き |
+| ＋ `SampleGame/…/ContentBaseSelection.cs` | 135 | 選んだ base の記録 |
+| ＋ `SampleGame/…/ContentAcquireLauncher.cs` | 286 | 取得の操作（5 つの port） |
+| `SampleGame/…/PlayEntryCandidates.cs` | 175 → 209 | `Select` の任意の引数（選んだ base の記録） |
+| `SampleGame/…/PlayEntryInterceptor.cs` | 287 → 289 | `CollectFacts` が記録を読んで渡す |
+| `SampleGame/…/PlayEntryWindow.cs` | 210 → 240 | 経路が Built の系統の時の「Acquire content」、Cancel、直近の結果の文 |
+| ＋ `tools/s43a-local-origin.ps1` | 441 | E 系列の driver |
+| `tools/Harness/Scenario.psm1`・`ScenarioEditor.psm1` | 837 → 839、168 → 178 | `Wait-ScenarioEditor -QuietMs`（省けば今と同じ） |
+
+行数が §3 の予想を超えた file（`ContentAcquisition.cs`・`ContentOriginGuard.cs`・`ContentAcquireLauncher.cs`・driver）は、どれも 500 行未満で、責務は §3 の行のまま（増えたのは comment と、失敗の理由の文と、driver の eval の code）。分割はしていない。
+
+**B 適応（凍結した契約と責務配置を変えない実装の詳細。Phase A は再開していない）:**
+
+1. `ContentOriginHead.Create` は head の bytes だけでなく、その中身（`ContentOriginHeadDraft`。bytes、head の DTO、head の相対 path）を返す。writer が head の置き場（contentSet と target）を知るために manifest を読み直さずに済むため（AG3-7 の「writer は file の操作だけ」を保つ）。
+2. head の失敗の後に置き換える結果 file は、成功の欄をそのまま持ち、`exitCode` を 6（process の終了コードと同じ値）、`originHeadFailure` に理由を書く。From published directory（`ValidateResultFile`）は `exitCode` が 0 でない結果 file を受け付けないので、この publish を受け取るには公開先を直接選ぶか、batch をやり直す（成否の正は終了コードという今の設計と同じ読み）。欄の名前と意味は変えていない。
+3. head の置き換えの部分失敗の後に、別の書き手が head を置いていた時は、戻さずに失敗を返し、前の head は backup の名前のまま残して診断に path を書く（AC3 の「戻せなかった backup だけは診断のために残す」と同じ扱い）。
+4. 取得の操作の直近の結果の状態には、調停の 8 つの状態の他に、操作が始まらなかった `Rejected`（Play の間・移行の間・compile の間、または二重の開始）と、予期しない例外の `Failed` がある。
+5. `-QuietMs` の offline test は、偽の Editor と偽の時計がある `ScenarioUnity.Tests.ps1` に置いた（§3 は `Scenario.Tests.ps1` と書いていたが、同じ基盤の offline test の 3 本の 1 つで、機械検査の範囲は変わらない）。
+6. 取得の結果の「消えた install」は `<contentSet>/<revision>` の文字列の列にした。
+7. `ContentAcquireLauncher` に、単体 test が取得の終わりを待つための internal の `Running`（直近に始めた操作の task）を置いた。窓は `OnInspectorUpdate` で、取得の間と結果が変わった時だけ描き直す。
+8. 全体の統合の test（`PublishedOriginAcquireIntegrationTests`）は `SampleGame.Tests.Editor` に置いた（host の取得元の列と入口の選択を使うため）。
+
+**判定の担当が照合に使う値（§5 の「Phase B が §6 に書く値」）:**
+
+- SampleGame の既定の directory の取得元の id: `samplegame-local-publish`。
+- `ContentAcquireLauncher.Start()` は操作の番号（`int`、Editor の process の中で 1 ずつ増える）を返す。直近の結果の JSON の番号の欄は `operation`。`LastOperation`（直近の結果の番号、無ければ 0）と `IsRunning` も public static。読む `eval`: `return SampleGame.DependOnAll.Editor.Build.ContentAcquireLauncher.LastResultJson;`。
+- batch の最後の log の行: `[SampleGameContentBatch] origin head written path=<head の絶対 path> revision=<revision> manifestSha256=<digest>`。head の失敗は Error の行 `[SampleGameContentBatch] exitCode=6 The origin head was not updated: …` で、終了コード 6。
+- 直近の結果の JSON の欄: `operation`、`state`、`reason`、`cacheRoot`、`contentSet`、`target`、`revision`、`manifestSha256`、`targetOrigin`、`bytesOrigin`、`digestAuthority`、`attempts`（各要素は `stage`・`origin`・`outcome`・`reason`・`readManifest`）、`removedInstalls`、`diagnostics`、`selectionSaved`、`playRevision`、`playReason`、`warnings`、`startedUtc`、`finishedUtc`。
+- `state` の綴り: 取得した `Acquired`、install 済み `AlreadyInstalled`、見つからない `NotFound`、整合性の失敗 `IntegrityFailure`、対象が使えない `TargetUnusable`、到着点の同じ revision が違う digest `ArrivalDigestConflict`、到着点の失敗 `ArrivalFailure`、取消 `Canceled`。操作が始まらなかった `Rejected`、予期しない例外 `Failed`。`digestAuthority` の綴り: pin `Pinned`、申告 `Declared`（対象が決まらなければ空）。`attempts[].stage` は `Target`・`Arrival`・`Fetch`、`outcome` は `Target`・`PinRequired`・`NotFound`・`Unavailable`・`Threw`・`MismatchedEntry`・`MissingDigest`・`Unreachable`・`DigestMismatch`・`TooLarge`・`ManifestInvalid`・`IdentityMismatch`・`TargetMismatch`・`Incompatible`・`OverBudget`・`Integrity`・`ArrivalFailure`・`ArrivedMeanwhile`・`Installed`・`AlreadyInstalled`・`Canceled`。
+- launcher の Console の行: 始まり `[ContentAcquire] #<operation> start <contentSet> cache=<cache root>`、終わり `[ContentAcquire] #<operation> end state=<state> revision=<revision> play=<playRevision>`（拒否は `[ContentAcquire] #<operation> end state=Rejected <理由>`）。Warning は `[ContentAcquire] #<operation> <文>`。
+- driver の印の行: `[s43a] <case> acquire-start`・`play-start`・`play-stop`（Editor の log）。
+- driver が保存する証拠（`evidence/<case>/<試行>/` の下の名前）:
+  - S0: `S0-selection-before.json`（あれば）、`entry-settings.txt`、`Y-ProjectVersion.txt`、`Y-OSMContentDelivery.json`、`Y-OSMContentOrigin.json`。Unity の版と project の path は case の record（`summary.identity`）。
+  - P1・P2: `last-result.json`、`head.json`、`publish.json`（`status`・`exitCode`・`forced`・`logPath`・`last-result.json-utc`・`head.json-utc`・公開先の `transportSha256`）。P1 は加えて `fixtures.json`（P1 の head、`origin-e3`・`origin-e5b` の head の SHA-256 と、`origin-e5b` の申告の digest）。
+  - E1・E2: `before-cache.json`、`before-selection.json`（あれば）、`before-receipt-<revision>.json`、`acquire-result.json`（直近の結果の JSON）、`acquire-operation.json`（前の番号・`Start` の応答の有無・今回の番号・終わったか）、`after-acquire-*`（同じ組）、`entry-settings.txt`、`play-record.txt`（Play の record の JSON と `\n@@` の後の Editor の時刻）、`play-observations.json`（`playExpired`・`load`（`<Revision>|<Digest>`）・`loadObserved`）、`Y-*` の 3 つ。
+  - E3: E1 の取得の組（Play の組は無い）。E4: `before-play-*` と Play の組。E5: `before-*`、`acquire-a-*`、`after-a-*`、`acquire-b-*`、`after-b-*`、Play の組。E6: Play の組（`play-observations.json` に `title`（`pulse-button` の文字列））と `entry-settings.txt`。case の record（`step='case'`）に `summary`（入口の設定の読み直し、取得と Play の要約、Editor の終了コードと `forced`）、取得元の場所の変更ごとに `step='origin'`、各 case に `step='checkout'`（`Library` の path）。
+  - `-DryRun` では証拠を保存しない（基盤の関数が値を返さないため）。
+- Play の record の `SessionState` の key: `OSM.PlayEntry.Record.v1`。未保存の asset の確認の先置きの応答の key: `OSM.PlayEntry.SaveAssetsResponse.v1`。
+
+**機械検査（Phase B で走らせた物。結果は下の「実行した確認」）:** AC4・AC5・AC6 の変えない file の差分、`pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`、基盤の offline test 3 本（`Scenario.Tests.ps1`・`ScenarioDriver.Tests.ps1`・`ScenarioUnity.Tests.ps1`。driver の走査と `-DryRun` は `ScenarioDriver.Tests.ps1`）。
+
+**実行した確認:**
+
+- Editor のコンパイル確認: Unity 6000.6.9f1 の `-batchmode -nographics -quit` でこの worktree の project を開き、compile error 0、変えた file と新しい file の warning 0（既存の MessagePack の生成 code の CS0436 だけ）。窓のある Editor は、最初の import の間に test の途中の版を compile して error（`Stages` の constructor の引数の数）になり止まったので、自分で起動したその Editor だけを CIM で止め、batchmode でやり直した。1 回目の batchmode は test の public method に internal の enum を引数にした CS0051 で落ち、名前で受ける形に直した 2 回目で通った。
+- AC4・AC5・AC6 の変えない file: Phase B の差分に `Runtime/ContentResolution/`・`AssetManagement/`・`SceneSystem/`・`Bootstrap/`、`Distribution/` の今ある file、`PlayEntryDecision.cs`・`PlayEntryTransaction.cs`・`PlayEntryRecord.cs`・`ContentDeliveryPlayBridge.cs`・`ContentDeliveryWindow.cs` は無い。`PlayEntryDecisionTests` と既存の `PlayEntryCandidatesTests` の method は変えていない（test の追加だけ）。
+- `pwsh tools/contract-audit.ps1`: 違反なし（errors 0、warnings 0、検査 1〜9）。
+- `pwsh tools/docs-audit.ps1`: errors 0（警告 1 件は program の harvest の時期の既存の物）。
+- 基盤の offline test: `Scenario.Tests.ps1` 24 件 0 失敗、`ScenarioDriver.Tests.ps1` 13 件 0 失敗（S4-3a の driver の走査と、用意した 2 つの checkout での `-DryRun` が全ての case を Unity を起動せずに通り、checkout が戻ること）、`ScenarioUnity.Tests.ps1` 28 件 0 失敗（`-QuietMs` の test を含む）。
+
+**未実行（Phase C の責任）:** §5 の単体・統合の test と全 EditMode 回帰（Unity のバッチテスト）。E 系列（P1〜E6）は Unity の起動と build を伴うので、動作確認では `未実施` とし、判定 C の実行担当が取る（§5）。
 
 ## 7. Phase C
 

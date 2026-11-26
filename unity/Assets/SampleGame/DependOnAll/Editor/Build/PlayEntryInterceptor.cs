@@ -238,8 +238,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                 : PlayAsLauncher.CheckLaunchConflicts(PurposeLaunchSettings.DirectoryPlayConfigKeys(declaration.RuntimeDefaults), commandLine);
             if (validateCandidate)
             {
-                var selection = PlayEntryCandidates.Select(VerifyPlayLauncher.ResolveCacheRoot(ContentDeliveryWindow.LoadSettings().cacheRoot),
-                    declaration, VerifyPlayLauncher.Target, SampleGameBuildPurposes.FirstSceneOf);
+                var cacheRoot = VerifyPlayLauncher.ResolveCacheRoot(ContentDeliveryWindow.LoadSettings().cacheRoot);
+                // 取得で選んだ base の記録（無ければ今の並び。読めなくても例外を漏らさず Warning になる）。
+                var selection = PlayEntryCandidates.Select(cacheRoot, declaration, VerifyPlayLauncher.Target, SampleGameBuildPurposes.FirstSceneOf,
+                    ContentBaseSelection.Read(ContentBaseSelection.DefaultPath, cacheRoot, declaration.Name, VerifyPlayLauncher.Target));
                 facts.Candidate = selection.Candidate;
                 facts.CandidateFailure = selection.Failure;
                 facts.CandidateWarnings = selection.Warnings;
