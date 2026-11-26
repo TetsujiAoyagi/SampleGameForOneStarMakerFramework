@@ -690,6 +690,17 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - 実行した確認: 本書の記録の後に `pwsh tools/docs-audit.ps1` と `pwsh tools/contract-audit.ps1`。基盤の offline test 3 本と Unity の test は、`tools/` と `unity/` を変えていないので走らせていない。
 - 巡: B と発見 C の差し戻しの 3 巡目は、修正も再レビューもせずに止めた。発見 C の 4 回目は起動しない。
 
+### 凍結の前の観測の経路の確かめ（進行役、2026-11-27）
+
+owner の指示で、Phase A の改訂より先に、上の案の観測の経路を実 Editor で確かめた（[検証経路の成立](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#検証経路の成立)）。checkout は E 系列と同じ Y（`osm-v\s43a-Y`、head `cd4a16b1`）で、取得元は X に残っていた P2 の publish（revision `20261126T173119184Z-6e8a…`）。使い捨ての scenario（`s43a` の基盤の公開関数だけを使う。git 管理外の `TestResults/probe-s43a/probe.ps1`）で走らせ、原記録は `TestResults/scenario/s43a/probe1`〜`probe4`。採用の判断は Phase A と owner が行う。
+
+- 経路 Built（空の Scene で Play。probe1〜4 の case A で同じ結果）: `GetContentLoadRecord("Title")` と `GetContentLoadRecord("OutGameScene")` が、取得した revision と manifest の digest、`SourceKind=ContentDirectory`・`ProviderId=registered-content-directory`・`AcceptanceBasis=VerifiedDigest` を返した。`AddScene` を送らずに読めた。`UICommon` の private の `_panelRoot` から `pulse-button` の文字列（`タイトルを揺らす`）が読めた。
+- 経路 Built + local edits、固定 patch、**空の Scene**（probe1）: 入口が `Reject`（`SnapshotNothingToCarry`。保存済みの Scene が開いていないと運ぶ物が無い）。Play に入らない。
+- 同、**patch が触らない `OutGameScene.unity` を開く**（probe2〜4）: `overlay.state=Built`（2 回目以降は `Reused`）、`overlayRoots=1`、`unbuildable` は空、record の `overlayRegistered` が上書きの identity、`overlayCheck=matched`、Error と例外は 0。開いた `OutGameScene` は snapshot（`SourceKind=EditorSnapshot`、`LoadPath=AlreadyLoadedScene`）で、`Title` は自動では load されなかった（2 分読んで null）。Play の後に `AddScene("Title")` を送ると（probe4）、`Title` の記録は上書きの identity、`SourceKind=ContentOverlay`・`ProviderId=registered-content-overlay`・`AcceptanceBasis=RecordedBaseMatch` で、title の値は patch の `S42-AC1-UXML-TOKEN` だった。
+- 前の E6（`Title.unity` を開く）の `overlayRoots=0` の理由: patch が変える `Title.unity` と `Title.uxml` は、開いた `Title` の snapshot で運ばれ、上書きに入る root が残らない。S8 を踏むには、patch が触らない保存済みの Scene を開く。
+- 確かめていないこと: 上の S8 の形で「上書きに入らない root が base の record で載ったか」（AC10 の 4 つ目）に当たる Scene。`OutGameScene` は開いたので snapshot になり、base の記録ではない。開いていない payload 付きの別の Scene を `AddScene` で読む等の形は試していない。
+- probe の不具合 2 件（製品ではない）: 片付けの `Remove-ScenarioDirectories` が「外部 root に基盤の印が無い」で止まった（cache の root を `-PathOnly` で取り、作ったのは製品）。外部 root は手で消した。probe3 は PowerShell の変数の大小の衝突（switch の `$AddTitle` と code の `$addTitle`）で `AddScene` が compile に失敗し、probe4 で直した。
+
 ## 7. Phase C
 
 ### 発見 C の実行担当の記録（1 回目、2026-11-26）
