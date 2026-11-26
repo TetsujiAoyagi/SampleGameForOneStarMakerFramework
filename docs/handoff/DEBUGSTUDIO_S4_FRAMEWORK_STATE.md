@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B 完了`（A3 凍結済み、revision 8。Phase B の実装を固定した。次はローカルの動作確認）
+- status: `動作確認 完了`（A3 凍結済み、revision 8。implementation head でコンパイルと §5 の V0〜V6 を各 1 回軽く実行し、期待との差は無かった。§6 の「動作確認」。次は発見 C）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `2eea7f182296e5001c7c4fa80d3d090d068b6169`
@@ -17,17 +17,17 @@
 - harvest to: `unity/Assets/Docs/Architecture/05-scene.md` §5.12（外から読める Scene の状態、出力の意味、観測が状態と寿命を変えないこと。あわせて §5.12 の `SceneEvent` の欄の記述が code に遅れている点を直す）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（Framework が Editor でだけ持つ内部の catalog と振り分けの dispatcher）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（`osm.scenes` の送り方と出力の読み方）
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（Phase B result snapshot は Cloud では作れないので、ローカルの動作確認の担当が implementation head から作り、取得案内を残す）
-- task: 未開始（`tools/workflow-task.ps1 start` は凍結の時に行う）
-- 引継ぎ票（Phase B の出口、2026-11-26）:
-  - 次の Phase・役割: ローカルの動作確認（Phase B の後）。その後に発見 C。
-  - 次の作業: (1) 最初に implementation head を自分で開いた Editor 6000.6.9f1 でコンパイルする（B は Unity の無い Cloud で実装したので未確認。手で作った `.meta` を Unity が書き換えないかも見る）。失敗なら B へ戻す（この往復は差し戻しの巡に数えない最初の動作確認に含める）。(2) 続けて §5 の検証経路の操作・実行時の条件を各 1 回軽く実行し、§7 の前の動作確認の欄に生の観測と期待との差を残す。差があれば B へ戻す。(3) その後に発見 C。
-  - 読む範囲: 既定（動作確認は §0・§5・§6）。§6 の「HANDOFF との差」は発見 C の照合の対象に含める。
-  - 必要な権限: Unity Editor の起動と Play、DebugStudio の App・CLI の Release の build と起動、Artifact Storage（Phase B result snapshot の作成）、`pwsh tools/contract-audit.ps1`・`pwsh tools/docs-audit.ps1` のローカル実行。
-  - 取得案内の所在: Phase B result snapshot は未生成。作った担当が [レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md#保存先とリモートへの配布) に従って取得案内を残す。
-  - task: `debugstudio-s4`。`tools/workflow-task.ps1 start` は owner がローカルで行う（Cloud の B は行っていない）。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は未生成（中身は進行役がローカルに用意済み。task の開始の後に implementation head から stage し、取得案内を残す）。evidence bundle・C' blind bundle は未生成
+- task: 未開始（`tools/workflow-task.ps1 start -Task debugstudio-s4` は owner がローカルで行う）
+- 引継ぎ票（動作確認の出口、2026-11-27）:
+  - 次の Phase・役割: 発見 C（Phase C の一次レビュー。B と別の新しい session）。GO の判定はしない。C' も起動しない。
+  - 次の作業: 固定した差分（implementation base 〜 head）を、§3 の責務マップとの構造の適合、凍結した失敗経路、AC1〜AC10、§6 の「HANDOFF との差」（Bootstrap の namespace、`Compose` の null の素通し、振り分けの test の置き場）と照合する。指摘は「違反の根拠つきの、現在の問いを阻害する欠陥」と「後続スライスへ送る物」に分け、新しい事実は「新しい事実の分類」で分けてから扱う。差し戻すなら入力を固定して B へ返す。
+  - 読む範囲: 既定（発見 C は §0〜§8。§5.1 は含まない）。§6 の「動作確認」は観測の記録で、判定の入力ではない。
+  - 必要な権限: 読み取りだけ（git の固定 SHA の読み取り）。Unity・Artifact Storage・資格情報は要らない。
+  - 取得案内の所在: Phase B result snapshot は上の欄のとおり未生成。発見 C は implementation base / head の commit で差分を固定でき、snapshot を待たずに始めてよい。
+  - task: `debugstudio-s4`（未開始。owner が start する）。
   - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
-  - 引き渡さないもの: なし。
+  - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない）。
 ### 実測の方法
 
 - base `07cc2c97` の code と文書を `grep`・`wc -l`・行範囲の読み取りで確かめた。Unity も .NET も起動していない。
@@ -520,6 +520,26 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 
 - この session の自動の許可判定が `claude/magical-gauss-7rycuj` への commit を拒んだので、owner の了承（2026-11-26）を得て、実装と本記録の commit はこの session に割り当てられた branch `claude/debugstudio-s4-phase-b-scvrar`（`5590a97f` から直線）で切って push した。owner がローカルから `claude/magical-gauss-7rycuj` をこの branch の head へ fast-forward する。SHA は変わらない。
 - CI（`offline-checks.yml` の `audit`＝contract-audit・docs-audit と `dotnet-offline-tests`）は PR の branch への push でだけ走るので、本記録の commit より後に走る。結果は PR #216 の状態ブロックに記録する。赤なら B が直して記録し直してから引き継ぐ。
+- 結果（2026-11-27、進行役が記録）: owner の了承を得て `claude/magical-gauss-7rycuj` を `44d97ac1` へ fast-forward した。head `44d97ac1` の CI は `audit`、`dotnet-offline-tests`（5 件）、`harness-tests`、`test`、CodeQL、`pr-base` が全て pass。あわせて implementation head `2eea7f18` で `pwsh tools/contract-audit.ps1`（errors 0、warnings 0）と `pwsh tools/docs-audit.ps1`（errors 0、warnings 3。どれも検査 3 の「§7 / §8 が両方埋まっている」で、本書の §7・§8 は「未到達」）をローカルで実行した。
+
+### 動作確認
+
+- 対象 head: implementation head `2eea7f18`。作業 tree は `44d97ac1` に detach した専用 worktree（`git diff --stat 2eea7f18 HEAD` は本書 1 file だけで、code の差は無い）。Editor 6000.6.9f1 は進行役がこの worktree で起動し（新しい Library、初回 import 後）、実行担当はそれを使った。
+- 実行担当・環境: B と別の session（Anthropic、Claude Haiku 5.5）。2026-11-26 23:05Z〜23:08Z（UTC）。他の Unity Editor は動いていなかった。開始時の作業 tree の差は、Editor を開くと付く既知の `UniversalRenderPipelineGlobalSettings.asset` だけ。
+- 方法: §5 の V0〜V6 の操作を各 1 回。oracle（§5 の導出の規則）は判定 C の担当が書く物なので使わず、`osm.scenes` の出力を §5 の期待の項目（存在の条件、形、一意性と Ordinal 順、`history`、`canGoBack`、終わり方）と直接比べた。生の観測（コマンドごとの stdout / stderr / exit、時刻、eval の戻り値）は Git 外にローカル保全した。
+- 生の観測:
+  - コンパイル: `EditorUtility.scriptCompilationFailed` = False、`isCompiling` = False。Editor.log の `error CS` は 0 行。手で作った `.meta` 10 件（新規 5 file、`SceneSystem/Diagnostics.meta`、test の 4 file）は `2eea7f18` の内容と全て一致（Unity は書き換えなかった）。
+  - V0: DebugStudio の App・CLI の Release build は exit 0、警告 0。App を `--listen` で起動（`127.0.0.1:5011` が Listen）。
+  - V1: `open_scene` で `Title.unity`（開く前後とも dirty=false、dialog なし）、`editor_play` で Play。`hierarchy` は 1 回目で `hasSnapshot: true`（root は `TitleView`、`[UICommon]`、`Background`）。`osm.scenes` は 1 回目で exit 0、`success=true message=captured`、`{"capturedFrame":490,"scenes":[{"id":"OutGameScene","state":"Stable","pendingUnload":false},{"id":"Title","state":"Stable","pendingUnload":false}],"history":[],"canGoBack":false}`。
+  - V2: `osm.scenes` を 5 回続けて送り、5 回とも exit 0・`success=true message=captured`、`scenes`・`history`・`canGoBack` は 5 回で同じ（`capturedFrame` は 818・831・845・855・869）。
+  - V3: eval で `AppInitializer.s_instance` → `OneStarMaker.Runtime.AbstractApplicationInitializer._sceneDirector` を取り、`SwitchScene("Title", "OutGameSession", CancellationToken.None)` を reflection で呼び、`UniTaskExtensions.AsTask` の継続で §5 の印を書いた。印の 1 回目の読み取りで `"success"`（疎通 (b) の観測）。その後の `osm.scenes` は `{"capturedFrame":3093,"scenes":[{"id":"OutGameScene",…"Stable"…},{"id":"OutGameSession",…"Stable"…}],"history":[{"from":"Title","to":"OutGameSession"}],"canGoBack":true}`。`HomeScene` と InGame 系は現れなかった。
+  - V4: root は `[UICommon]` と `Background` だけで `Directional Light` が無いので、§5 の順で `Background`（NodeId 7）を選んだ。`debug.set-active` の false → true は各回 exit 0・`success=true message=applied`、`inspect 7` の rawValue（`true`→`false`→`true`）と独立した eval の `activeSelf` が一致。`debugsocket.ping` は `success=true message=DebugSocket ping succeeded.`。
+  - V5: Play を止めて再び Play し、何も操作しなかった。`hierarchy` は 1・2 回目が exit 1（`no-snapshot`、`Connecting`）で 3 回目に `hasSnapshot: true`（約 5 秒、60 秒の待ちの内側）。`osm.scenes` は V1 と同じ形（`OutGameScene`・`Title` が `Stable`、`history` が `[]`、`canGoBack` が false）。
+  - V6: Play を停止（Title は dirty=false）。App は `CloseMainWindow()` が True、`WaitForExit` が True、process の消失を CIM で確認したが、終了コードは取れなかった（観測の不備）。Editor は eval の `EditorApplication.Exit(0)` で約 7 秒で終了した（応答は既知の `Invalid response format`、native stall なし、Lockfile なし）。終了後の差は既知の `UniversalRenderPipelineGlobalSettings.asset` だけで、それを `git checkout` で戻して clean。
+  - 期待との差ではないが残す観測（実行担当は原因を調べていない）: V1 の Play の入口で Editor.log に `[PlayEntry] … state=StartupFailed … exceptions=1` が出て、直前の例外は `ArgumentOutOfRangeException`（stack は `UnityEditor.Search.SearchDatabase.GetDefaultSearchDatabase` ← `SearchInit.IndexationOnStartup`。OSM の code を含まない）。Play の後の操作は全て成功し、V5 の Play の入口は `state=EnteredPlay … exceptions=0`。Editor の終了時に `Leak Detected` の report。
+- 検証経路の期待と違う観測と B への差し戻し: なし（実行担当の判断）。
+- `未実施`: V6 の App の終了コード（取得できなかった。判定 C の V6 で取る）。oracle を使う照合と疎通 (a) は判定 C の担当の作業で、動作確認の対象外として行っていない。
+- 判定 C への注意（進行役）: この観測は B 以外の担当が implementation head で取ったが、oracle を使っていないので、判定 C の V1〜V5 の比較の代わりにはならない。V1 の `StartupFailed` は、§5 の V1 の「起動の失敗が出たら、そのまま記録して未判定」に当たるかを判定 C の担当が判断する。
 
 ## 7. Phase C
 
