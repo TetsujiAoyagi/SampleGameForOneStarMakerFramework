@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: Phase D 待ち（head `c38e0762` で判定 C（2 回目）は GO、作り直した bundle での C'（2 巡目のやり直し）は GO で blocker・後続の入力なし。§7・§8。凍結した Phase A は revision 0）
+- status: Phase D 完了（head `c38e0762` で判定 C（2 回目）と C'（2 巡目のやり直し）が GO。§9 のとおり harvest し、次の commit で本書を削除する。マージ・検証用の checkout と branch・worktree の片付けは進行役）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `c38e076263d138c7ad9445a161dc0ff2c617d1bf`
@@ -744,4 +744,39 @@ C' の担当は本書を読まないので、進行役が C' の最終回答（�
 
 ## 9. Phase D
 
-未着手
+### 開始時の照合（2026-11-26）
+
+- 渡された SHA `636a6ff3` と HEAD が一致し、作業ツリーは clean、HEAD の本書に票がある。implementation head `c38e0762` は HEAD の祖先で、HEAD との差分は本書だけだった。PR #215 の状態ブロックの `引き継ぐ commit` と implementation base / head は、渡された SHA と §0 の欄に一致した（origin の branch も `636a6ff3`）。PR timeline の新着は 2026-11-26 05:19〜05:21（UTC）の外部再レビューと cursor[bot] の 2 件が最後で、`636a6ff3`（05:44 UTC）の後の新着は無い。
+
+### C と C' の突き合わせ
+
+- 結論は一致した。判定 C（2 回目）は head `c38e0762` で GO（阻害する指摘なし、移送なし）。C'（2 巡目のやり直し）は作り直した bundle で GO（blocker なし、後続の入力なし）。C' の確認範囲（V1 の 24 行と key、V2 の event・PID・callId・token、V3 の件数・Inconclusive と Skipped の全件・step の `failure`、2 巡目の差分と N1・N3・AC4・AC9）に、判定 C の観測と食い違う値は無い。
+- C' の申告した未確認範囲は、判定 C の観測で埋まるものと、埋まらないまま残すものに分けた。V3 の Passed 2383 件の fullname は、判定 C が期待集合と全件で照合しており、C' は標本で読んだ。C' がこの全件照合を独立にやり直したとは扱わない（外部再レビューの注記のとおり）。`ProjectVersion.txt` は C' の bundle に無く、C' は Editor の応答の値で版を見た。判定 C は `ProjectVersion.txt` と一致することを確かめた。AC11〜AC15 を C' は差分・README・offline の log の範囲だけで見た。offline の suite を走らせ直したのは判定 C だけである。どれも判定の結論を変えない。
+- 置き換えた C' の結果: 1 巡目（head `c3f02632`）と 2 巡目（manifest の無い bundle）の GO は、判定後の head 変更と入力の不備のため、2 巡目のやり直しの GO に置き換えた（§8）。
+- C'F1（1 巡目の後続の入力。2 巡目の C'2-F1 も同じ）: lease の置き場が §3 の「worktree の git dir」ではなく共通の git dir にある。§6 の「HANDOFF との差」が B 適応として説明し、発見 C が受け入れた差で、N1・AC1 は破らない（C' もそう読んだ）。この置き場で別の repo から予約を外せた経路は、2 巡目の修正（P1）で事前確認が拒む。後続の行が持つ作業は無いので、置き場と理由を Harness README に書いて閉じた（program の「S4-V から移送した入力」に閉じた入力として書いた）。
+- 発見 C（2 回目）の移送（checkout を使わない case の外部 command の終了を確かめられない時に checkout を隔離しない）: program の「S4-V から移送した入力」の **S4-3c** に移した。今の挙動は Harness README にも書いた。
+- §2.6 の所有なしの 4 件（`run-tests.ps1` の終了の待ちの期限、人や任意の git の process との排他、隔離の回復を基盤が行うこと、Player の process を基盤が起動・監視すること）: §2.6 の指示のとおり program §10 の U11 の (p)〜(s) に足した。
+
+### PR のレビューへの対応
+
+- 外部実装レビュー（owner の account、2026-11-26 03:18 UTC、head `44789424` / implementation `c3f02632`）の P1（`unreserve` が事前確認を通さない）・P2（戻した管理する file を同じ run でもう一度書けない）: B が 2 巡目の修正（`c38e0762`）で直し（§6）、発見 C（3 回目）・判定 C（2 回目）・C'（2 巡目のやり直し）が確かめた。
+- cursor[bot] の code review（同 03:18〜03:22 UTC）の空の Base64 の指摘: B が実測で違反でないと判断して実装を変えず、回帰の assert だけを足した（§6）。cursor[bot] も 05:19・05:21 UTC の再レビューで取り下げた。
+- 外部再レビュー（owner の account、2026-11-26 05:20 UTC、PR head `629add0c` / implementation `c38e0762`）: 実装の blocker なし、前回の P1・P2 は解消、Phase D へ進むことを支持。マージ前に解消を求めた運用上の 2 点（C' の 2 巡目の bundle に固定 manifest が無い、前巡の C' の結果を収録していた）は、判定 C の担当が同じ head の固定済みの生証拠から manifest 付きの bundle に作り直し（§7「判定 C の bundle の作り直し」）、その bundle で C' をやり直して GO だった（§8）。Unity は起動し直していない（payload は同じ bytes）。PR 本文の古い説明はこの Phase D で直した。
+- cursor[bot] の再レビュー（05:19・05:21 UTC、head `629add0c`）: 新しい阻害する指摘なし。
+
+### Evidence の保存・引渡し確認
+
+- 判定用の evidence bundle（head `c38e0762`、manifest 付き、30 file）と C' blind bundle（作り直し版、manifest 付き、25 file）: 判定 C の担当が別の process の取得で manifest の全 file の SHA-256・bytes と過不足を確かめ（§7）、C' の進行役も C' の bundle を同じく確かめた（§8）。同じ bundle なので Phase D では取り直していない。取得案内（`judgement-c38e0762-manifest.md`・`cprime-c38e0762-manifest.md`、Phase A snapshot の `phase-a.md`）は S4-V の取得案内の置き場（この PC の git 管理外の運用 directory。削除予定の worktree の外）にあることを確かめた。状態: **確認済み**（ローカル固定、未昇格）。manifest の無い旧版と旧 head の bundle は、取得案内の冒頭に「使わない」とあるまま残す。
+- 昇格しない理由: 読み手は全て同じ PC・同じ Windows ユーザーの session（と外部の CLI）で、Cloud・別 host の読み手は無く、owner の昇格の指示も無い。保持は Storage の条件（task の終了から 30 日）に従う。
+- 未保存分: 無い。判定 C・C' の所見、AC の根拠、後続への移送は本書（git 履歴）にあり、harvest 先と program へ移した。発見 C の probe と、判定 C の作業 directory（`judge2-work`・`judge3-work`）は git 管理外に残してある（判定の入力は上の bundle に収録済み）。
+- Evidence の日次清掃 job: 非仮想化の pwsh で、Release build のある checkout から `pwsh tools/artifacts.ps1 evidence schedule status` を実行し `passed`（登録あり、次回 2026-11-27 03:00 JST）。job 自身の前回の結果は `partial`（blocked 5）で、この確認の基準（`passed`）の外なので直していない。
+
+### harvest と後始末
+
+- harvest:
+  - [Harness README](../../tools/Harness/README.md)「実機の検証の scenario」: lease の置き場と理由（C'F1）、実機で通した操作と offline test だけの拡張点の区別、checkout を使わない case の外部 command の今の挙動。基盤の契約と scenario の書き方の本体は Phase B が書いた。
+  - [program](PLAY_CONTENT_RESOLUTION_PROGRAM.md): §8 の S4-V の行の完了、§9.1 の各操作の状態、「S4-V から移送した入力」（閉じた入力、S4-3c、S4-3a〜S4-4）、§10 の U11 の (p)〜(s)。
+- 削除: 本書を次の commit で消す。git 履歴のこの commit に全文が残る。
+- task `s4-v-scenario-verification-base` の終了: owner の「Phase D をやって、終わったらマージして後始末」の指示（進行役が伝えた）を完了の決定として、`workflow-task.ps1 end -Reason completed` を記録した（Decision `chat:20261126T0551Z:s4-v-scenario-verification-base:completed`、version 1 → 2、終了 2026-11-26 05:52 UTC、配送待ちなし）。bundle の保持はここから 30 日。
+- 検証用の checkout（`v1-X`・`v1-Y`・`editor-smoke-E`）、進行役の log、マージ、branch と worktree の削除: 票のとおり進行役が行うので触れていない。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。

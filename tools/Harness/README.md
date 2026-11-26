@@ -160,6 +160,8 @@ body が使える関数: `Invoke-ScenarioTests`（`run-tests.ps1` の子の起�
 - 送る `eval` は 1 回だけ送られ、基盤は送り直さない（実行してから応答が timeout したのか、実行しなかったのかを区別できない）。成否は `Read-ScenarioEditor` か `Wait-ScenarioEditor` で状態を読んで確かめる。読む `eval` は一時的な失敗の後に読み直し、期限で止まる。
 - 管理する file の寿命は run で、driver の呼び出しをまたいで残り、`Reset-ScenarioFiles` を呼んだ時だけ戻る。書いている間、その checkout はその run に予約され、別の run も HEAD の切替も片付けも拒む。戻した後に同じ run がもう一度書けば、また書く前から始まる（大小文字だけが違う path は同じ file として扱う）。
 - `-Only` は止まった run の続きで、run の印（名前、RunId、本番か dry-run か、対象の commit、checkout の場所）が全て同じ時だけ通る。`-Only` を付けない同じ RunId の再実行と、`-DryRun` の run を本番で続けることは拒む。
+- 実機で通したのは、checkout の用意・事前確認・patch と復元・`run-tests.ps1` の起動・run ごとの cache と証拠・停止規則・窓のある Editor の起動から終了まで（S4-2 の driver の `-DryRun` と `scenario-editor-smoke.ps1`）である。`Invoke-ScenarioBatch`・`Invoke-ScenarioCommand`・`Start-ScenarioHelper`、Editor の再起動、読む `eval` の reload をまたぐ読み直し、送る `eval` の後の fault の挿入は offline test だけで示した拡張点で、実の使い方は使う行（S4-3a〜S4-4）が確かめる。
+- checkout を使わない case で `Invoke-ScenarioCommand` の終了を期限までに確かめられない時は、`quarantine`（`checkout` が null）の行を書いて止まるが、どの checkout にも使用中の記録を置かない（補助の process と違い、次の run は checkout を使える）。checkout に触れる外部 command は、その checkout を使う case で走らせる。
 - 検証用の checkout の既定の置き場は `<主の worktree の親>\osm-v\<scenario>-<checkout>` で、`Library` を run の間で使い回す。無ければ作り、あれば対象の commit に合わせる。`-DryRun` は checkout を作らない。
 
 ### record と証拠の置き場
@@ -174,6 +176,8 @@ run の root の既定は driver のある checkout の `TestResults/scenario/<s
 ### 検証用の checkout の操作（実行の担当）
 
 `pwsh tools/Harness/scenario-checkout.ps1 -Operation <操作> -Path <checkout>`。4 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）。
+
+lease は checkout の path（小文字にした絶対 path）の SHA-256 の先頭 32 桁を名前にした排他の file で、worktree の git dir ではなく共通の git dir の `osm-scenario/leases/` に置く（worktree の git dir に開いたまま置くと `git worktree remove` が消せず、まだ無い checkout の作成の排他にも同じ file を使うため）。排他が効くのは同じ repo の呼び出しの間なので、別の repo の checkout は事前確認（共通の git dir の比較）が拒む。印・使用中の記録・予約は worktree の git dir の `osm-scenario/` にある。
 
 - `register`: 手で作った linked worktree（`git worktree add --detach`）に印を置く。detached、clean、同じ repo、lock なし、path 予算内の時だけ。
 - `remove`: 印のある checkout を、clean で隔離も予約も無い時だけ `git worktree remove`（`--force` なし）で外す。外し終わるまで lease を持つ。
