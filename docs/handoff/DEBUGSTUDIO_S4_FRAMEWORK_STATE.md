@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `B（差し戻し 1 巡目の修正）完了`（A3 凍結済み、revision 8。発見 C が挙げた現在の問いを阻害する欠陥 D1 を直し、Editor のコンパイルを確かめた。§6。Unity のテストは未実行。次は発見 C の再レビュー）
+- status: `発見 C 完了（blocker なし）`（A3 凍結済み、revision 8。差し戻し 1 巡目の修正の後、発見 C の再レビューで D1 の解消を確かめ、現在の問いを阻害する指摘は残っていない。§7。GO 候補 head は implementation head。次は判定 C）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
@@ -18,13 +18,14 @@
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は未生成（中身は進行役がローカルに用意済み。task の開始の後に implementation head から stage し、取得案内を残す）。evidence bundle・C' blind bundle は未生成
-- task: 未開始（`tools/workflow-task.ps1 start -Task debugstudio-s4` は owner がローカルで行う）
-- 引継ぎ票（Phase B の出口、2026-11-27。差し戻し 1 巡目の修正の後）:
-  - 次の Phase・役割: Phase C（発見 C の再レビュー。差し戻し 1 巡目の確認）。GO の判定はしない。
-  - 次の作業: §7 の発見 C の欠陥 D1 が implementation head で解消したか、修正が §2.1・§3 と常時契約に反していないかを、implementation base から head までの差分で確かめる。直前に見た head `2eea7f18` からの code の差は、写しのモデル `SceneDirectorDebugSnapshot` とその EditMode test の 2 file（§6 の「差し戻し 1 巡目の修正」）。動作確認は新しい head では実行していない（同じ節）。
-  - 必要な権限: 固定した commit の読み取り。
-  - 取得案内の所在: 入力は implementation base / head の commit で固定する。Phase B result snapshot は上の欄のとおり未生成。
-  - task: `debugstudio-s4`（owner が start を実行したが、`workflow-task.ps1 status` は `unregistered` を返している。2026-11-27、進行役が確認中。修正の担当が同日に実行した `status` も `unregistered`）。
+- task: 未登録（owner が start を実行したと伝えたが、`workflow-task.ps1 status -Task debugstudio-s4` は `unregistered`。進行役の start は自動の許可判定に拒否された。2026-11-27。owner の確認待ち）
+- 引継ぎ票（発見 C の出口、2026-11-27。blocker なし）:
+  - 次の Phase・役割: 判定 C（GO 候補 head = implementation head）。判断担当と実行担当を別の session に分ける。
+  - 次の作業: §5 の判定必須テスト（新規の test、既存の `SceneDirector*Tests`、`DebugCommandCatalogTests`、`SetActiveDebugCommandTests`、`DebugSocket*Tests`、最後に全 EditMode の回帰）と、AC11 の V0〜V6（疎通 (a)・(b)、oracle の導出の規則、比較の規則）を §5 のとおりに行う。oracle の eval の本文と照合の script は判定 C の担当が書き、git に入れない。§6 の動作確認で残った V6 の App の終了コードと、V1 の Play の入口の `StartupFailed` の扱いを含める。証拠は Git に入れず、レビュー証拠の規則で保存する。結論は C' が終わるまで状態ブロックと PR 本文に書かない。
+  - 読む範囲: 既定（Phase C は §0〜§8。§5.1 は含まない）。
+  - 必要な権限: Unity Editor の起動と Play、`pwsh tools/run-tests.ps1` の sandbox 外の実行、DebugStudio の App・CLI の Release の build と起動、Artifact Storage の stage（task の登録の後）。
+  - 取得案内の所在: Phase B result snapshot・evidence bundle は上の欄のとおり未生成。
+  - task: `debugstudio-s4`（上の欄のとおり未登録。証拠の stage はその解消の後）。
   - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
   - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない）。
 ### 実測の方法
@@ -575,6 +576,17 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 - harvest の文書（`05-scene.md`、`12-telemetry.md`、CLI README）から主要な判断は復元できる。
 - 未確認: Unity の EditMode テスト（AC1〜AC10）と全 EditMode 回帰、oracle による V1〜V6 の比較、V6 の App の終了コード、V1 の起動時の外部の例外の扱い（いずれも判定 C）。
 - 結果: B へ差し戻し（1 巡目）。
+
+### 発見 C（再レビュー、差し戻し 1 巡目の確認、2026-11-27）
+
+- 種別: 発見 C。GO の判定はしていない。C' は起動していない。
+- 担当: 1 回目と同じ系列・CLI・model の、新しい session（OpenAI の系列、Codex CLI、Phase C 系の model、effort medium）。packet と UTF-8 の指定も 1 回目と同じ。
+- 入力の固定: implementation base `07cc2c97`・head `0b933a5d` の完全 diff、`2eea7f18` からの差分、1 回目の発見 C の所見、新しい head で進行役が実行した contract-audit（errors 0、warnings 0）の log、commit `636b2f02` の tree の写し。テストは未実行。所見と入力は Git 外にローカル保全した。
+- D1: 解消。`SceneDirectorDebugSnapshot` は複写した配列を `Array.AsReadOnly` の view に包んで保持し、公開するのは view だけ（`SceneDirectorDebugSnapshot.cs` 28〜30・46〜70・78〜88 行）。AC1 に `Snapshot_ExposedLists_CannotBeRewrittenFromOutside` が加わった（`SceneDirectorDebugSnapshotTests.cs` 66〜86 行）。§2.1・§3 の責務・配置・公開面は変わっていない。
+- 修正による新しい、現在の問いを阻害する欠陥: なし（修正は写しのモデルとその test の 2 file に限られ、読み取りの順・JSON・dispatcher・SceneDirector の状態遷移に触れていない）。
+- 後続スライスへ送る物: 1 回目の記録のとおり（新規なし）。
+- 未確認: Unity の EditMode テストと全 EditMode 回帰、oracle による V1〜V6 の比較、V6 の App の終了コード、V1 の起動時の外部の例外の扱い、新しい head での動作確認（いずれも判定 C）。
+- 結果: blocker なし。GO 候補 head は `0b933a5d`。次は判定 C。
 
 ## 8. Phase C'
 
