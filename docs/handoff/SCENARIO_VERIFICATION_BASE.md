@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: `A3 凍結`（revision 0。A2 の 3 件、外部計画レビューの 1〜3 巡目、合成 fixture の作成時の主担当の自己点検 5 件を反映した改訂 4 を凍結した。次は Phase B）
+- status: `動作確認` 完了（Phase B の実装と、B の出口の動作確認 V1・V2 を終えた。差し戻しなし。次は発見 C。凍結した Phase A は revision 0）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
-- implementation head commit: `未固定`
+- implementation head commit: `698340f7e13346326bca4ec37b6f5f9baf5dcac5`
 - A3 凍結記録: 承認者 owner（root）、2026-11-26、revision 0（改訂 4。この記録を含む commit）。次の担当は Phase B
 - risk: `normal`（A1 で見直した。製品の code・公開 API・asmdef・Addressables を変えない。checkout を書き換え process を止める道具なので、A2 に不変条件を破る順序を探す観点を 1 件足した。§5.1。A2 の後も normal のままにした）
 - owner: root（依頼者）
@@ -16,15 +16,15 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [tools/Harness/README.md](../../tools/Harness/README.md)（基盤の契約と scenario の書き方。Phase B が書く）、program §9.1 の利用者表（各操作の状態）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 C の照合の合成 fixture 59 組と期待の一覧（README、`expectations.json`、観測ごとの zip 3 つ）を task `s4-v-scenario-verification-base` に `evidence stage` で固定し、別の process の `fetch` で 5 file の一致を確かめた。取得案内は主担当がこの PC の手元の取得案内の置き場に置いた（reference と packageSha256 はそこにだけある）。引渡し先は判定 C の担当で、Phase B には渡さない
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（発見 C は implementation head の commit で差分を固定して読む。動作確認の観測は未保存で、判定の入力にしない。§6）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B の実装担当。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、上の凍結記録・対象 revision・次の担当）を行う。§4 の順に commit を分けて実装し、§5 の判定必須の offline test と機械検査を通し、§6 に実装結果を書く。B の出口で動作確認の V1 と V2 を行ってよい（§5。V3 は判定 C）。task は `s4-v-scenario-verification-base`（開始済み）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表）。Phase B は §0〜§5 に加えて、[tools/Harness/README.md](../../tools/Harness/README.md) の「Unity終了時の既知native stallと調査の停止規則」と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を読む。
-  - 必要な権限: Phase B は `tools/` と文書の編集、Unity を起動しない offline test、実の検証用 checkout での `-DryRun`（git だけ）。動作確認と判定 C は Unity Editor の起動（窓あり、batch の test）。資格情報は要らない。
-  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない（足すなら先に表を直し、owner の確認を取る）。凍結の記録が無いまま Phase B を始めない。
-  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）。判定 C の入力で、Phase B は読まず、fixture の仮定に合わせて実装しない。
-  - C' の独立性の注記: Anthropic（主担当と A2）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー）が Phase A に関わった。未関与の系列は残っていない（§5）。
+  - 次の Phase・役割: Phase C の発見 C。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。implementation base `07cc2c97` から implementation head までの差分を、§3 の責務マップと §2 の不変条件・受け入れ条件に照らしてレビューし、§5 の判定必須の offline test と機械検査を走らせ、§7 に記録する。B の適応と行数の判断は §6 の「HANDOFF との差」にある。task は `s4-v-scenario-verification-base`（開始済み）。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表）。
+  - 必要な権限: offline test と機械検査、実の検証用 checkout での `-DryRun`（git だけ）。Unity の起動を伴う V2 の取り直しと V3 は判定 C の担当で、発見 C では要らない。資格情報は要らない。§6 の「残した物」の検証用の checkout は判定 C が使うので、発見 C は消さない。
+  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない。指摘の修正は B へ返し、発見 C の担当が実装しない。
+  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）は判定 C の入力で、発見 C には渡さない。§6 の動作確認の観測は B の session が取った物で、判定の入力にしない。
+  - C' の独立性の注記: Anthropic（主担当、A2、Phase B）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー）が関わった。未関与の系列は残っていない（§5）。
 
 ### 実測の方法
 
@@ -486,7 +486,52 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 
 ## 6. Phase B 実装結果
 
-未着手
+- 実装（§4 の順に 5 commit。base `07cc2c97` からの差分は `tools/`・`.github/workflows/offline-checks.yml`・文書だけで、`unity/` と `tools/unity-editor.ps1`・`.cmd` は差分に現れない）:
+  1. `7ede3a83` `tools/Harness/UnityProcess.psm1`（151 行）を作り、`run-tests.ps1` の process の起動と待機・lock・実行 file の解決を置き換えた（312 → 289 行）。`Invoke-UnityTestProcess` と `Test-UnityProjectLock` は名前と返す形を残した。既存の 4 本の offline suite を test の側を変えずに通した。
+  2. `be836e2f` `ScenarioRun.psm1`（381 行）、`ScenarioCheckout.psm1`（312 行）、`scenario-checkout.ps1`（95 行）、`Scenario.psm1` の中核、`tests/Scenario.Tests.ps1`。
+  3. `d7d7d20b` `ScenarioUnity.psm1`（97 行）、`Scenario.psm1` の test・batch・外部 command・補助の process の関数、`tools/s42-player-overlay.ps1` の移し替え（186 → 154 行）、`tests/ScenarioDriver.Tests.ps1`（S4-2 の互換）、`tests/ScenarioTestSupport.ps1`（fixture の共有）。互換の test は先に書き、base の driver の写しに対して 7 件が通ることを確かめてから移した（`-S42Driver <写し>` で同じ test を旧の driver に向けられる。旧の driver に無い挙動の 1 件は飛ばす）。
+  4. `7c8f2257` `ScenarioEditor.psm1`（168 行）、`Scenario.psm1` の Editor の関数（最終 763 行）、`scenario-editor-smoke.ps1`（61 行）、`tests/ScenarioUnity.Tests.ps1`（AC15 の複合 scenario を含む）、走査の test。
+  5. `698340f7` CI に 3 本を足し、Harness README に「実機の検証の scenario」の節（+63 行）、`phases-and-handoff.md` の「検証経路の成立」に 1 文。`docs/unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md` の S4-2 の driver の説明（「URP の設定を driver が戻す」）が実装と食い違うので直した。
+- 判定必須の offline と機械検査（implementation head `698340f7` で実行、全て exit 0）: `Scenario.Tests.ps1` 20 件、`ScenarioDriver.Tests.ps1` 12 件、`ScenarioUnity.Tests.ps1` 25 件、`Harness.Tests.ps1` 38 件、`UnityGate.Tests.ps1` 21 件、`UnityObservation.Tests.ps1` 16 件、`UnityTestRunner.Tests.ps1` 31 件、`contract-audit.tests.ps1` 29 件、`contract-audit.ps1`（違反なし）、`docs-audit.ps1`（error 0。警告 1 件は base からある `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の頃合い）。
+- 受け入れ条件と §2.4 の行から test への対応（AC11。test は名前の先頭に AC と行の番号 `Op<n>` を持つ。下に無い行は名前で辿れる）:
+  - AC1: `AC1 preflight refuses unsafe checkouts without writing anything`（印なし・主の worktree・branch・MERGE_HEAD・tracked・staged・未追跡・同じ checkout・隔離・別の run の予約・lock・lease・別の repo・HEAD の不一致）、`AC1 pending creation path is exclusive`。Op1・Op2。
+  - AC2: `AC2 patch is applied ...`、`AC2 a failing patch ...`、`AC2 a body exception ...`、`AC2 a restore that does not return ...`、`AC2 an evidence save failure ...`、`AC2 a body exception with the Editor open ...`。Op3。
+  - AC3: `AC3 quarantine blocks every run ...`、`AC3 an unexited batch is quarantined ...`、`AC3 an exit not confirmed by the deadline ...`、`AC5 AC3 a stale, missing or unconfirmed step ...`。Op7。
+  - AC4: `AC4 names reject ...`、`AC4 run root continuation ...`、`AC4 external root ...`（Op5）、`AC4 managed files ...`（Op9）、`AC4 managed file paths ...`、`AC4 unreserve ...`、`AC4 lock check reads without deleting ...`。
+  - AC5: `AC5 -Only with an unknown name ...`、`AC5 After writes scenario lines ...`、`Op4 AC5 the current step is accepted ...`、`AC5 a preflight step ...`、`Op16 AC5 evidence names ...`。Op6 は AC2 の保存の失敗と AC15。
+  - AC6: `AC6 foundation code names no product identifier`、`AC6 the scan sees literals and commands but not comments`。AC7: `AC7` の 4 件と既存の 4 本の suite。AC8: `AC8 S4-2 driver` の 8 件と `AC8 AC9 drivers hold only cases and declared evidence`。AC9: `AC9 prepared checkout ...`、`AC9 creation path checks ...`、`AC9 register and remove ...`、`AC9 the smoke scenario dry-run ...`。AC12: `AC12` と `Op8` の 7 件。AC15: `AC15 a composite scenario ...`。
+  - (b) の行: `Op10`・`Op11`・`Op12`・`Op13`・`Op14`・`Op15`・`Op18`。Op17 は計画のとおり Op12・Op14 と同じ拡張点。Op19 は `Op8 Op19 AC12 start, ready by PID ...`（送る eval の code・時刻・原応答の記録）。
+- §5 の「落ちる case を必ず持つ欠陥」: patch を当てない（`AC2 patch is applied` が body の中の bytes を見る）、body を呼ばない（呼び出しの回数）、復元しない（復元の後の bytes と status）、古い step を受け入れる（`stale` の変種）、別の Editor の応答を受け入れる（`another Editor answering`）、送る eval を送り直す（`a send is never resent`）、終了の未確認の後に戻す（`AC3` の 3 件が bytes と使用中の記録を見る）、証拠の保存の失敗を成功にする（`AC2 an evidence save failure`）。
+- HANDOFF との差（どれも B 適応。責務の置き場・依存の向き・公開の関数の範囲・record の契約の名前と意味は変えていない）:
+  - **test の file の分け方:** `Scenario.Tests.ps1`（run・checkout・case の順序・隔離と解除）、`ScenarioDriver.Tests.ps1`（S4-2 の互換・走査・疎通用の scenario の `-DryRun`）、`ScenarioUnity.Tests.ps1`（process の側・Editor の adapter・AC15。偽の process と偽の CLI がここにある）の 3 本に分け、fixture を `ScenarioTestSupport.ps1` で共有した。CI には 3 本を足した。
+  - **`Scenario.psm1` は 763 行で、§3 の予想（約 240）と行数の警報（500 行）を超えた。分けない。** 増えたのは case の body が使う関数（test・batch・外部 command・補助の process・Editor の 5 関数）と、その record と台帳の扱いで、どれも §3 の公開面の行に書かれた物である。台帳・record・現在の case を private に持つので、別の module にすると private の関数を公開するか、台帳の置き場を 2 つにすることになる。§3 の責務（順序の保証と台帳と body の公開関数）は増やしていない。約 3 割が契約と判断理由の comment。
+  - **lease の file の場所:** §3 は「worktree の git dir」と書くが、共通の git dir の `osm-scenario/leases/<path の SHA-256 の先頭 32 桁>.lease` に置いた。worktree の git dir に開いたまま置くと `git worktree remove` がその directory を消せず、まだ無い checkout の作成の排他（3 巡目の O の確認事項）にも同じ file を path から決めて使えるため。読み書きするのは `ScenarioCheckout` だけで、所有と寿命は変えていない。印・使用中の記録・予約は計画のとおり worktree の git dir（`osm-scenario/`）。
+  - **`scenario-checkout.ps1` は `ScenarioRun.psm1` も import する。** 予約の解除が、run の root の書く前の記録のとおりに管理する file を戻すため（`Restore-ScenarioManagedFiles` は run の root の path だけで動く）。
+  - **offline test の seam:** `Set-ScenarioSeam`（process の起動、Editor の CLI、時計、process の照会、repo の root、外部 root の基点）を置いた。test 専用で、driver の走査が禁止の名前に含める。外部 root の基点の seam は、offline test が実の drive の直下に書かないためにある（既定は run の root の drive）。
+  - **`Add-ScenarioCase -After`:** 復元の後に呼ばれ、scenario が自分の形の行を書く所。S4-2 の今ある行は復元の後の `git status` を持つので、これが要った。隔離の時も呼び、戻していない今の状態（`Restored` 偽、`Quarantined` 真、`GitStatusAfter` は戻す前の status）を渡す。AC8 の (2)「marker が無い時は record を書いてから止まる」と AC3 の「戻さない」を両立させるため。
+  - **record に足した欄と event:** `in-use` の状態は `state`（`placed`・`cleared`）。`quarantine` に `kind`・`restored`・`reason`。`test-run` に `childExitCode`・`unityExitCode`・`terminationConfirmed`。`eval` に `codePath`。`case-end` に `failure`。`run-start` に `only` と checkout ごとの `action`（`create`・`switch`・`use`）。event に `batch-start`・`command`・`helper-start`・`managed-file`・`managed-restore`。ready を待つ間の読む eval は `eval` の event にせず（原応答は `base/` に残り、通った 1 回は `editor-ready` の `callId` と `responsePath` が指す）、AC10 の event の列が ready の後の 5 回だけになるようにした。
+  - **`base/` の file 名と eval の原応答の形（判定 C の合成 fixture の仮定と照合する所）:** case の前は `before.status.txt`・`before.head.txt`・`before.index.diff`・`before.work.diff`、戻す前は `restore-before.*`、戻した後は `after.*`、隔離の時は `quarantine.*`。eval は `editor-<n>-eval-<k>-<種類>.cs`（送った code）と `.response.json`（`callId`・`kind`・`sentUtc`・`exitCode`・`timedOut`・`output`）。`output` は CLI の原出力で、この呼び出しの応答は `OSMEVAL|<callId>|<Editor の PID>|ok|<値の UTF-8 の Base64>`（PID が違えば `wrong-target`）を含む。Editor の log は `editor-<n>.log`、batch は `batch-<n>.log`、runner は `runner-<n>/` と `runner-<n>.out.txt`、外部 command は `command-<n>.out.txt`。
+  - **`-DryRun` は checkout を作らず、HEAD も切り替えない。** 用意されていない checkout では止まる（作ると dry-run が checkout を書くことになる）。
+  - **渡された checkout で `-Commit` を省いた時:** 対象の commit を確かめず（S4-2 の今の使い方）、run の印に checkout ごとの HEAD を持たせて、続きの実行で HEAD が変わっていれば拒む。S4-2 の driver に省ける `-Commit` を足した。
+  - **S4-2 の X の record の写し:** `x1-record.json` を run の root の直下ではなく、`evidence/CopyToY/<試行>/` に置く（run の root の直下は基盤の置き場の外なので）。Harness README の「前と変わる点」に足した。
+- 未実行: V3（全 EditMode 回帰。判定 C の担当）。Editor のコンパイル確認は対象なし（C# を変えていない）。
+- 開発中の副作用: 互換の test を base の driver に向けた時、base の driver が `C:\s42c\nomarker` と `C:\s42c\resume`（空の directory）を作った。消す操作は実行環境の保護で止められ、残っている。repo と検証用の checkout には影響しない。
+- implementation head commit: §0 の欄を正とする。
+- Phase B 担当・モデル・ベンダー: Claude Opus 5.5（Anthropic）。
+
+### 動作確認
+
+- 対象 head: `698340f7e13346326bca4ec37b6f5f9baf5dcac5`（implementation head）。この PC、Windows、Unity 6000.6.9f1、2026-11-26。
+- 条件ごとの実行担当・環境・実行したコマンド: V1 と V2 の実行担当は Phase B の session（§0 の引継ぎ票のとおり、判定の入力にはしない）。V3 は判定 C の担当なので行っていない。
+  - V1: `git worktree add --detach` で `D:\repositories\unity\osm-v\v1-X` と `v1-Y` を対象 head に作り、`scenario-checkout.ps1 -Operation register` で登録した。`git show 07cc2c97:tools/s42-player-overlay.ps1` を repo の外に書き出して `-XRoot <X> -YRoot <Y> -RunId v1old -DryRun`、続けて対象 head の `tools/s42-player-overlay.ps1` を `-RunId v1new -DryRun` で走らせた。前後の `git status --porcelain` と HEAD は driver の外で取った。
+  - V2: 新しい GUID の token で `pwsh tools/Harness/scenario-editor-smoke.ps1 -RunId v2 -Only editor -Token <token>` を 1 回（基盤が `D:\repositories\unity\osm-v\editor-smoke-E` を対象 head で作った。`Library` は無い状態から）。
+- 生の観測（合否は書かない）と保存先・状態:
+  - V1: どちらも exit 0。`event` を持たず `step` を持つ行は新旧とも 24 行で、順は `X1,X2,X-LaunchPlayable,X-BuildSmoke,X-LaunchSmoke,X3,Y01…Y17,cleanup`。旧の行の 257 個の key は全て新の行にあり、型と値は同じだった。外した値は `utc`（どちらも ISO 8601）と cleanup の行の `cacheRoot`（旧 `D:\s42c\v1old`、新 `D:\ovr\s42\v1new\cache`）だけ。新の行に足した key は無い。新の `driver.jsonl` には基盤の行が 120 行ある。X と Y は前後とも status が空、HEAD は対象 head のまま。
+  - V2: exit 0（00:13:55 〜 00:21:16 UTC）。`editor-start`（PID 14168、argv は `-projectPath <E>\unity -logFile <run の root>\base\editor\1\editor-1.log`、`-batchmode` なし）→ `editor-ready`（00:20:53、`evalPid` 14168。ready を待つ間の eval は 38 回で、最初は CLI が「No Pipeline instance found」を返した）→ `eval` read（値 `6000.6.9f1|D:\repositories\unity\osm-v\editor-smoke-E\unity`）→ `eval` send（1 回）→ `eval` read（値が token と完全に一致）→ `eval` exit が 3 回（5 秒おき。どれも応答なし）→ `process-exit`（00:21:14、PID 14168、signaled、終了コード 0、`forced` false）→ `restore`（3 つとも真）→ `in-use` cleared → `case-end`（`base` は `ok`）。read と send の原応答の印は record の `callId` と同じで、PID は 14168。`base/editor/1/` の `before.*` と `after.*` は status と index の差分が空で HEAD が同じ、`restore-before.status.txt` は ` M unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の 1 行（Editor の起動が書き換えた物を基盤が戻した）。終了の後、CIM の `Win32_Process` に Unity.exe は無く、checkout は clean で使用中の記録も無い。終了の stall は起きなかった（Editor は最初の終了の要求の約 16 秒後に終わった。Phase A の疎通では約 4.3 秒）。
+  - 保存先: V1 は `v1-Y` の `TestResults/s42/v1old`・`v1new`、V2 はこの worktree の `TestResults/scenario/editor-smoke/v2`（どちらも ignore される local の置き場）。未保存（Artifact Storage には入れていない。B の session の観測なので判定の入力にしない）。
+- 検証経路の期待と違う観測と、B への差し戻し: なし。
+- `未実施` の条件と理由・担当: V3（全 EditMode 回帰）は Unity の test なので動作確認の対象外で、判定 C の担当が行う。動作確認の条件の未実施は なし。
+- 残した物: 検証用の checkout `D:\repositories\unity\osm-v\v1-X`・`v1-Y`（V1 用、`Library` なし）と `editor-smoke-E`（V2 で import 済みの `Library` あり。V3 は同じ checkout を使う）。どれも登録済みで clean。判定 C が同じ head で使える。要らなくなったら `scenario-checkout.ps1 -Operation remove` で外す。
 
 ## 7. Phase C
 
