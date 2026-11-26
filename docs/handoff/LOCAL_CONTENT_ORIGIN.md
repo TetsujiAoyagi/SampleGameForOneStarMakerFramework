@@ -681,6 +681,14 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - 未確認事項: `PinnedOnly` を含む複数 origin の実際の取得順、F-C1 修正後の unit test、F-C2 修正後の PublishedOrigin integration test、E 系列の実 Editor / 別 Library / Built + local edits の全観測、domain reload・非前面 Editor の継続、部分失敗時の Unity Mono 実測。これらは未確認のまま C' を起動しない。
 - 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票に無い）。判断担当は本 session の OpenAI。Phase B と系列は異なるが、Phase A の外部計画レビューと同系列であり、完全な独立性ではない。この制約を明記した上で、C' 用の xAI/Grok は未使用・予約のままとする。
 
+### 発見 C の実行担当の記録（2 回目、2026-11-26）
+
+実行担当（進行役の session。判断はしない）が、発見 C の 2 回目の開始前に走らせた物の生の結果。HEAD は `83f42118`（implementation head `4f0af2c4` との差は `docs/handoff/` だけで、test と製品の file は同じ）。原記録はこの worktree の `TestResults/c-disc2/`・`TestResults/c-disc2-machine/`（git 管理外、未保存）。
+
+- Unity テスト: `pwsh tools/run-tests.ps1 -Filter '<§5 の起点 filter、1 回目と同じ文字列>' -OutputRoot <worktree>\TestResults\c-disc2`（sandbox の外）。XML（`c-disc2/8860d970-…/results.xml`）: total 317、passed 317、failed 0、inconclusive 0、skipped 0、root result `Passed`、14:17:21Z〜14:18:08Z。`step.json`: status `passed`、exitCode 0、failure の行なし。Unity の終了の stall は起きなかった（run の後に Unity.exe は残っていない）。
+- 機械検査（どれも `pwsh -NoProfile -File <script>`、sandbox の外。log は `c-disc2-machine/<名前>.log`）: `tools/contract-audit.ps1` exit 0（「機械で判定できる契約に違反なし」）。`tools/docs-audit.ps1` exit 0（検査 1・2 に違反なし、既存の警告 1 件）。`Scenario.Tests.ps1` exit 0（24 executed, 0 failed）、`ScenarioDriver.Tests.ps1` exit 0（13 executed, 0 failed）、`ScenarioUnity.Tests.ps1` exit 0（28 executed, 0 failed）。
+- 実行の前後で作業ツリーは clean のまま。
+
 ## 8. Phase C'
 
 未着手
