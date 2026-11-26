@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: `動作確認` 完了（Phase B の実装と、B の出口の動作確認 V1・V2 を終えた。差し戻しなし。次は発見 C。凍結した Phase A は revision 0）
+- status: 発見 C で B へ差し戻し（1 巡目。§7 の F1〜F3。凍結した Phase A は revision 0）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `698340f7e13346326bca4ec37b6f5f9baf5dcac5`
@@ -18,12 +18,12 @@
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 C の照合の合成 fixture 59 組と期待の一覧（README、`expectations.json`、観測ごとの zip 3 つ）を task `s4-v-scenario-verification-base` に `evidence stage` で固定し、別の process の `fetch` で 5 file の一致を確かめた。取得案内は主担当がこの PC の手元の取得案内の置き場に置いた（reference と packageSha256 はそこにだけある）。引渡し先は判定 C の担当で、Phase B には渡さない
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成（発見 C は implementation head の commit で差分を固定して読む。動作確認の観測は未保存で、判定の入力にしない。§6）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の発見 C。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。implementation base `07cc2c97` から implementation head までの差分を、§3 の責務マップと §2 の不変条件・受け入れ条件に照らしてレビューし、§5 の判定必須の offline test と機械検査を走らせ、§7 に記録する。B の適応と行数の判断は §6 の「HANDOFF との差」にある。task は `s4-v-scenario-verification-base`（開始済み）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表）。
-  - 必要な権限: offline test と機械検査、実の検証用 checkout での `-DryRun`（git だけ）。Unity の起動を伴う V2 の取り直しと V3 は判定 C の担当で、発見 C では要らない。資格情報は要らない。§6 の「残した物」の検証用の checkout は判定 C が使うので、発見 C は消さない。
-  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない。指摘の修正は B へ返し、発見 C の担当が実装しない。
-  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）は判定 C の入力で、発見 C には渡さない。§6 の動作確認の観測は B の session が取った物で、判定の入力にしない。
+  - 次の Phase・役割: Phase B（発見 C の差し戻しの修正。1 巡目）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行う。§7 の発見 C の F1〜F3 を B 適応で直し、それぞれを落とす offline test を足す（F1 は checkout を使う case の補助の process、F2 は AC15 の解除の後の続きの実行の欄、F3 は remove の間の lease）。「返却時に B が併せて見てよい点」は直すかを B が決める。直し方と判断を §6 に足し、新しい implementation head を §0 の欄に書く。§4 の A 再開の条件（§3 に無い状態・依存・公開の関数が要る）に当たると分かったら、実装せずに止めて owner へ返す。修正の後、§5 の判定必須の offline test と機械検査を走らせ、§6 の V1・V2 のうち修正が触れた経路の動作確認を B の出口で取り直すかを判断して記録する。次の担当は発見 C（2 回目）。task は `s4-v-scenario-verification-base`（開始済み）。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の差し戻し。§0〜§8）。
+  - 必要な権限: offline test と機械検査。Unity の起動は、動作確認を取り直すと判断した時だけ（V2）。資格情報は要らない。§6 の「残した物」の検証用の checkout は判定 C が使うので、消さない。
+  - 停止規則: 製品の code（`unity/Assets/` の下）を変えない。program §9.1 の表に無い汎用化を足さない。指摘の範囲の外の設計を変えない。
+  - 引き渡さないもの: Phase A snapshot（判定 C の照合の合成 fixture と期待の一覧）は判定 C の入力で、Phase B には渡さない。§7 の発見 C の所見を §6 の Phase B result へ転載しない（§6 には直した事実と判断だけを書く）。
   - 担当のモデルと独立性: 発見 C と判定 C は Phase B と同じ系列・モデルでよく、それぞれ新しい session で行う。owner はこの独立性の制約を受け入れている。各担当は §7 に使ったモデルと「独立性制約あり（owner 受容）」を記録する。C' は Phase B・C と違う系列で行い、未関与の系列は残っていないので、§8 に使ったモデルと「独立性制約あり」を記録する。
   - C' の独立性の注記: Anthropic（主担当、A2、Phase B）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー）が関わった。未関与の系列は残っていない（§5）。
 
@@ -536,7 +536,26 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 
 ## 7. Phase C
 
-未着手
+### 発見 C（1 回目、2026-11-26）
+
+- 種別: 発見
+- 対象: implementation base `07cc2c97` から implementation head `698340f7` までの差分（commit で固定。HEAD `05963fa3` との差は `docs/handoff/` の HANDOFF だけであることを `git merge-base --is-ancestor` と `git diff --stat` で確かめた）。
+- 使用したevidence bundle の取得案内・状態: 未生成（発見 C は commit で固定した差分を読んだ。§0 のとおり）。
+- 開始時の照合: 渡された SHA・HEAD・clean・票の存在・implementation head 欄は一致した。PR #215 の状態ブロックは Phase A（`3a65d9bd`、凍結前）のままで、`引き継ぐ commit` が渡された SHA と違う。原因は A3 凍結の commit `74e02dad` 以降が origin に push されていないこと（origin の branch は `3a65d9bd`）で、別の commit を指す引継ぎではない（`3a65d9bd` は HEAD の祖先）。食い違いの原因が未 push だけと確かめられたので発見 C を進め、push と状態ブロックの更新は公開点の規則に従って owner の判断に残す。PR timeline の新着は 3 巡目のレビュー（改訂 4 で反映済み）が最後で、現 head 宛ての指摘は無い。
+- 構造適合: §3 の責務マップと合う。依存の向きは `Scenario` → `ScenarioEditor`・`ScenarioUnity`・`ScenarioCheckout`・`ScenarioRun` → `UnityProcess`・`PathBudget` で、`ScenarioEditor` と `ScenarioUnity` は `ScenarioRun` を import しない。逆向きと循環は無い。`unity/` と `tools/unity-editor.ps1`・`.cmd` は差分に無い。`Scenario.psm1` の 763 行（予想約 240、警報 500）は、増分が §3 の公開面の行にある body の関数と、その record と台帳の扱いで、台帳・record・現在の case を private に持つために 1 module にした、という §6 の説明を受け入れる（責務は増えていない）。lease の置き場（共通の git dir）、`scenario-checkout.ps1` の `ScenarioRun` の import、test の file の分け方も §6 の説明のとおり B 適応の範囲と読む。
+- 現在の問いを阻害する findings（B へ返す。どれも B 適応で直せる。新しい状態・依存・公開の関数は要らないと見る。要ると分かったら A 再開の条件（§4）で止める）:
+  - **F1 補助の process を checkout を使う case で起動すると、終了を確かめないまま checkout を戻し、使用中の記録を消し、次の run に使わせる。** 違反: §2.4 の 11（「呼び出しの終わりに、基盤が自分の始めた process の終了を確かめる。確かめられなければ戻さない」）、N2（「終了を確かめていない process が使っている checkout を戻さない。…次の run にも使わせない」）、AC3（使用中の記録は process の PID を持ち、復元を確かめた後にだけ消す）、AC11（11 の行の offline test `Op11 …` は checkout を使わない case だけを見ていて、「戻さない」を示していない）、Harness README の「基盤が守ること」の 2 つ目（補助の process を、終了を確かめるまで戻さない process に挙げている）。経路: `Confirm-ScenarioCaseProcesses` が `helper` を飛ばす（`Scenario.psm1` の 458 行）ので、case の終わりに復元と `Clear-ScenarioCheckoutInUse` が通る。呼び出しの終わりの `Complete-ScenarioInvocationProcesses` は未確認の補助の process で非 0 にするだけで、隔離を置かない。`Invoke-Scenario` が例外で抜けた時は、補助の process の確認も record も無い。再現（発見 C が一時の写しの suite で offline に実行し、写しは消していない scratch に置いた）: 登録した checkout `E` を使う case で、終わらない偽の補助の process を `Start-ScenarioHelper -WorkingDirectory <E>` で起動 → driver は exit 1、偽の process は生きたまま、`in-use.json` は無く、event は `in-use`（placed）→ `helper-start` → `restore` → `in-use`（cleared）→ `case-end` → `process-exit`（signaled 偽）。続けて別の RunId の run が同じ `E` で exit 0 で通った。直し方は B が決めて §6 に記録する（例: checkout を使う case で起動した補助の process は、その case の復元の前に終了を確かめ、確かめられなければ他の process と同じく隔離する。checkout を使わない case の補助の process で、呼び出しの終わりに終了を確かめられない時に、どの checkout を使わせないかも決める）。checkout を使う case の補助の process が終わらない時に checkout が隔離されることを見る offline test を足す。
+  - **F2 隔離の解除の後の続きの実行が、前の「戻していない」record を指す行を残さない。** 違反: AC3 の最後の項（「解除の後の `-Only` の続きの実行は、新しい試行として通り、前の「戻していない」record を指す行を残す」）。新しい試行（attempt 2）にはなるが、`run-start`・`case-start` のどちらにも前の試行の `quarantine` を指す欄が無く（`Scenario.psm1` の 276・330 行）、AC15 の test も attempt が 2 であることしか見ていない。§6 の「HANDOFF との差」にも無い。前の試行の `quarantine` の record（case と試行の番号、または `base/<case>/<試行>/quarantine.*` の path）を指す欄か行を足し、AC15 の test でその値を見る。
+  - **F3 `scenario-checkout.ps1 -Operation remove` が、`git worktree remove` の前に lease を離す。** 違反: AC9（「4 つとも、その checkout の lease を取ってから行う（走っている run の checkout には触れない）」）。`scenario-checkout.ps1` の 56 行が事前確認の後に `$lease.Dispose()` してから外すので、その間に別の呼び出しが lease を取って事前確認を通れる。comment の理由（lease の file は共通の git dir にあり worktree と一緒には消えない）は、lease を持ったまま外せることを示しており、先に離す理由にならない。外し終わるまで lease を持つ。
+- 後続スライスへ移送する findings: なし。
+- 返却時に B が併せて見てよい点（凍結した条件の違反とは読まない。直すかは B が決める）: 同じ RunId を `-Only` なしで走らせ直すと、基盤が用意した checkout の HEAD を対象の commit へ切り替え（`Open-ScenarioInvocation` の 262 行）、その後の `Open-ScenarioRun` で「run の root が既にあります」と拒む。拒否は AC4 のとおりで、切り替えるのは lease を持った clean な検証用の checkout なので N1 も破らないが、run の root の有無と印の照合を checkout の書き込みより前に済ませれば、拒む run が何も書かない形にできる。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: §5 の判定必須の 1・2 を、implementation head と tree が同じ HEAD `05963fa3` で、filter なしで実行した（差し戻しの前の最初の発見 C なので全件。どれも Unity を起動しない）。F1 の再現は、`ScenarioUnity.Tests.ps1` の写しに 1 件を足し、`-Filter 'ZZ probe'` で走らせた（写しは scratch。repo には足していない）。
+- テスト結果（件数は各 suite の出力の行。全て exit 0）: `Scenario.Tests.ps1` 20 件、`ScenarioDriver.Tests.ps1` 12 件、`ScenarioUnity.Tests.ps1` 25 件、`Harness.Tests.ps1` 38 件、`UnityGate.Tests.ps1` 21 件、`UnityObservation.Tests.ps1` 16 件、`UnityTestRunner.Tests.ps1` 31 件、`contract-audit.tests.ps1` 29 件、いずれも失敗 0。`contract-audit.ps1` は error 0・warning 0。`docs-audit.ps1` は error 0、警告 1 件（base からある `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の頃合い）。F1〜F3 はどれも既存の test が見ていない経路なので、test が通ることは指摘と矛盾しない。
+- 判定必須のうち未実行: §5 の 3〜5（V1・V2・V3）。発見 C では行わない（判定 C の担当。差し戻しが決まったので、判定用の検証一式も行わない）。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: なし。
+- 未確認事項: 実の検証用の checkout での `-DryRun` は行っていない（AC8 の互換は offline test と、判定 C の V1 が見る）。
+- 巡: B と発見 C の差し戻しの 1 巡目（上限 4。最初の動作確認は数えていない）。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。独立性制約あり（owner 受容。Phase B と同じ系列・モデル）。
 
 ## 8. Phase C'
 
