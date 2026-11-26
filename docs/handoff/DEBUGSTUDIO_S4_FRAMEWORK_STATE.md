@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `発見 C 完了（B へ差し戻し 1 巡目）`（A3 凍結済み、revision 8。動作確認は期待との差なし。発見 C が現在の問いを阻害する欠陥 1 件を挙げた。§7。次は B の修正）
+- status: `B（差し戻し 1 巡目の修正）完了`（A3 凍結済み、revision 8。発見 C が挙げた現在の問いを阻害する欠陥 D1 を直し、Editor のコンパイルを確かめた。§6。Unity のテストは未実行。次は発見 C の再レビュー）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
-- implementation head commit: `2eea7f182296e5001c7c4fa80d3d090d068b6169`
+- implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
 - A3 凍結記録: 承認者は owner（root、依頼者）。2026-11-25（UTC）。対象は revision 8（commit `d151fdc8` の本文に、この凍結の記録と引継ぎ票を足した版）。根拠: owner が本 session で「それ終わったら凍結しよ」と指示した（主担当の自己点検の反映の後）。PR #216 の外部計画再レビューは「文書の修正と既定の docs-audit が済めば A3 凍結に進んでよい」とし、docs-audit と contract-audit は head `d151fdc8` の CI の `audit` ジョブ（`offline-checks.yml`）で実行されている。次の担当は Phase B で、owner の指示により Cloud の session が担う（「ローカルが長めの試験やる予定なので実装自体はクラウドでやりたい」。下の引継ぎ票の例外）。
 - risk: `normal`（理由は §2.6）
 - owner: root（依頼者）
@@ -19,13 +19,12 @@
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は未生成（中身は進行役がローカルに用意済み。task の開始の後に implementation head から stage し、取得案内を残す）。evidence bundle・C' blind bundle は未生成
 - task: 未開始（`tools/workflow-task.ps1 start -Task debugstudio-s4` は owner がローカルで行う）
-- 引継ぎ票（発見 C の出口、2026-11-27。B への差し戻し 1 巡目）:
-  - 次の Phase・役割: Phase B（差し戻しの修正）。修正後は発見 C の再レビュー。
-  - 次の作業: §7 の発見 C の「現在の問いを阻害する欠陥」D1（`SceneDirectorDebugSnapshot` が内部の配列をそのまま公開し、写しが外から書き換えられる）を、§2.1・§3 の責務と配置を変えずに直す（B 適応）。必要なら AC1 の test に、公開した列から写しを書き換えられないことの確認を足す。§7 の「後続スライスへ送る物」は直さない。修正の commit を implementation head とし、HANDOFF だけの記録 commit で §6 に修正の結果、§0 に票を書く。Unity の Editor でコンパイルを確かめる（Unity のテストは走らせない）。
-  - 読む範囲: Phase B の既定（§0〜§5）に加え、差し戻しなので §6〜§8。§5.1 は含まない。
-  - 必要な権限: 実装の commit と PR の branch への push。Editor のコンパイル確認の時は Unity の Editor の起動。
-  - 取得案内の所在: 発見 C の入力は implementation base / head の commit で固定した（下の §7）。Phase B result snapshot は上の欄のとおり未生成。
-  - task: `debugstudio-s4`（owner が start を実行したが、`workflow-task.ps1 status` は `unregistered` を返している。2026-11-27、進行役が確認中）。
+- 引継ぎ票（Phase B の出口、2026-11-27。差し戻し 1 巡目の修正の後）:
+  - 次の Phase・役割: Phase C（発見 C の再レビュー。差し戻し 1 巡目の確認）。GO の判定はしない。
+  - 次の作業: §7 の発見 C の欠陥 D1 が implementation head で解消したか、修正が §2.1・§3 と常時契約に反していないかを、implementation base から head までの差分で確かめる。直前に見た head `2eea7f18` からの code の差は、写しのモデル `SceneDirectorDebugSnapshot` とその EditMode test の 2 file（§6 の「差し戻し 1 巡目の修正」）。動作確認は新しい head では実行していない（同じ節）。
+  - 必要な権限: 固定した commit の読み取り。
+  - 取得案内の所在: 入力は implementation base / head の commit で固定する。Phase B result snapshot は上の欄のとおり未生成。
+  - task: `debugstudio-s4`（owner が start を実行したが、`workflow-task.ps1 status` は `unregistered` を返している。2026-11-27、進行役が確認中。修正の担当が同日に実行した `status` も `unregistered`）。
   - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
   - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない）。
 ### 実測の方法
@@ -468,7 +467,7 @@ A3 で固定した物（revision 5）: §5 の oracle の導出の規則、比�
 ## 6. Phase B 実装結果
 
 - 担当: Phase B（実装）。owner の指示による Cloud の session（§0 の引継ぎ票の例外）。開始時の照合: 渡された commit `5590a97f` = HEAD、作業ツリーは clean、§0 に A3 凍結記録（owner、revision 8）・票の次担当 B・implementation head 欄 `未固定` を確認した。
-- implementation head: `2eea7f182296e5001c7c4fa80d3d090d068b6169`（実装・test・harvest の文書。HANDOFF は含まない）。
+- 最初の実装の head: `2eea7f182296e5001c7c4fa80d3d090d068b6169`（実装・test・harvest の文書。HANDOFF は含まない）。差し戻し後の implementation head は §0 の欄と、下の「差し戻し 1 巡目の修正」。
 
 ### 実装（§3 の責務マップのとおり）
 
@@ -540,6 +539,25 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 - 検証経路の期待と違う観測と B への差し戻し: なし（実行担当の判断）。
 - `未実施`: V6 の App の終了コード（取得できなかった。判定 C の V6 で取る）。oracle を使う照合と疎通 (a) は判定 C の担当の作業で、動作確認の対象外として行っていない。
 - 判定 C への注意（進行役）: この観測は B 以外の担当が implementation head で取ったが、oracle を使っていないので、判定 C の V1〜V5 の比較の代わりにはならない。V1 の `StartupFailed` は、§5 の V1 の「起動の失敗が出たら、そのまま記録して未判定」に当たるかを判定 C の担当が判断する。
+
+### 差し戻し 1 巡目の修正（発見 C の D1、2026-11-27）
+
+- 担当: Phase B（差し戻しの修正）。ローカルの新しい session（Anthropic、Claude Sonnet 5.5）。専用の detached worktree。
+- 開始時の照合: 渡された commit `f4798525b4615b8057260b5c09fd4dd749d5687e` = HEAD、作業ツリーは clean。push の前に、implementation head 欄 `2eea7f18` が `f4798525` の祖先で差分が本書 1 file だけであること、PR #216 の状態ブロックの引き継ぐ commit と implementation base / head が一致することを確かめた。
+- implementation head: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`。
+- 分類: B 適応。責務・配置・依存・所有・寿命・公開面は変えていない（型は internal のまま、property の型 `IReadOnlyList<T>` も変えていない）。
+- 変更:
+
+| file | 内容 |
+|---|---|
+| `Scripts/Runtime/SceneSystem/Diagnostics/SceneDirectorDebugSnapshot.cs` | constructor で複写した 3 つの配列を `Array.AsReadOnly` の読み取り専用の view に包んで保持し、`Scenes`・`PendingUnloads`・`History` はその view を返す。配列への参照は view の外に残さない。理由のコメントを足した |
+| `Tests/Scene/SceneDirectorDebugSnapshotTests.cs` | AC1 の確認として `Snapshot_ExposedLists_CannotBeRewrittenFromOutside` を追加。渡した配列を後で書き換えても写しが変わらないこと、公開した 3 つの列が配列でなく、`IList<T>` へ cast して書くと `NotSupportedException` になることを見る |
+
+- コンパイル確認: 他の Unity Editor が動いていないことを確かめてから、この worktree の `unity/` を Editor 6000.6.9f1 で開いた（2026-11-26 23:36Z〜23:38Z、UTC）。`EditorUtility.scriptCompilationFailed` = False、`isCompiling` = False。読み込まれた assembly で、写しの 3 つの field の型が `ReadOnlyCollection` であることと、追加した test の method があることを確かめた。Editor.log に `error CS` の行は無い。
+- Editor の終了: eval の `EditorApplication.Exit(0)`（応答は既知の `Invalid response format`）。保持した process handle が signal になり、終了コード 0。native stall なし、`UnityLockfile` なし。終了後の tracked の差は上の 2 file だけ。
+- 機械検査: head `0b933a5d` で `pwsh tools/contract-audit.ps1`（errors 0、warnings 0）、`pwsh tools/docs-audit.ps1`（errors 0、warnings 3。どれも検査 3 の harvest の時期の警告で、対象は本書と、この修正で触っていない `docs/handoff/` の 2 file）。
+- 未実行: Unity の EditMode テスト（追加した test を含む AC1〜AC10）と全 EditMode 回帰（Phase C）。動作確認（V0〜V6）はこの head では実行していない。上の「動作確認」は `2eea7f18` の観測で、判定 C の V1〜V5 の証拠は GO 候補 head で揃える。
+- push の後の CI の結果は、本記録の時点では未確認。
 
 ## 7. Phase C
 
