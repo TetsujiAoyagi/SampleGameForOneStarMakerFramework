@@ -65,7 +65,8 @@ namespace SampleGame.Tests.Editor.Build
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 new GameObject("Title");
                 EditorSceneManager.SaveScene(scene, scenePath);
-                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "s43a-fixture"));
+                // coordinator が受け付ける出力先は artifacts/bs2b とテスト専用の TestResults/bs3-fixture の配下だけ。
+                var artifacts = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "TestResults", "bs3-fixture"));
                 built = new BuildContentCoordinator().Build(Request(declaration, artifacts, scenePath));
                 Assert.That(built.IsSuccess, Is.True, built.Summary);
                 _contentPath = built.ContentPath!;
