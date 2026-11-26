@@ -408,7 +408,7 @@ G01 / G02 は SampleGame の Scene graph の名前を変えた物であっては
 | 利用者 | 構成 | 基盤に要る操作 | 利用者が自分で持つ物 |
 |---|---|---|---|
 | S4-2（既存の driver `tools/s42-player-overlay.ps1`） | 2 つの worktree、batch の Player の build、`run-tests.ps1` の `[Explicit]` の case、Player の process | 検証用の worktree の用意と片付け（無ければ作り、基盤が作った物があれば対象の commit に合わせる。S4-V の A1 が足し、owner が 2026-11-25 に確かめた）、worktree の事前確認、固定 patch の適用と復元、`run-tests.ps1` の起動と実行件数の検査、run ごとの cache、証拠の退避、Harness の停止規則 | Player の起動と観測、case の列 |
-| S4-3a | 2 つの worktree、X の batch の publish、Y の窓のある Editor の Play、Y の固定 patch | batch の Unity の起動（`-executeMethod`）、窓のある Editor の adapter（起動、ready、操作を送る `eval` と状態を読む `eval` の区別、終了）、Play 中の読む `eval`、Editor を開く前の設定 file の書き込み、run ごとの fixture の root、固定 patch の適用と復元（2026-11-26、S4-3a の A3 の統合案で確かめ直し、後の 2 つを足した） | case の列、Local の取得元の fixture、照合する値 |
+| S4-3a | 2 つの worktree、X の batch の publish、Y の窓のある Editor の Play、Y の固定 patch | batch の Unity の起動（`-executeMethod`）、窓のある Editor の adapter（起動、ready、操作を送る `eval` と状態を読む `eval` の区別、終了）、Play 中の読む `eval`、移行の間に `eval` を送らない待ち（`Wait-ScenarioEditor -QuietMs`。S4-3a が基盤に足す）、Editor を開く前の設定 file の書き込み、run ごとの fixture の root、固定 patch の適用と復元（2026-11-26、S4-3a の A3 の統合案で確かめ直し、Play 中の読み・静かな待ち・固定 patch を足した） | case の列、Local の取得元の fixture、照合する値 |
 | S4-3b | 加えて、同じ PC で模擬する LAN の取得元と、遅延・切断の注入 | 補助の process（模擬の server）を driver の 1 回の呼び出しの間だけ起動・終了すること（`-Only` の呼び出しをまたいで生かす分は S4-3b が足す）、Editor の操作の途中で fault を入れる時点の制御 | 模擬の server と fault の中身 |
 | S4-3c | Play を押した時の取得、compile と domain reload をまたぐ取得、checkout hook | Editor の再起動、reload をまたいだ `eval` の再接続と状態の読み直し、外部 command（hook）の実行と記録 | hook と先読みの case |
 | S4-3d | 複数の revision と複数の Player、S4-2 の driver の再実行（S4-2 から移送した (1)(2) の修正） | S4-2 の行の操作の全て、1 つの run の中の複数の publish の名前付け | base を選ぶ case |
