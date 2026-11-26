@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `動作確認 完了`（A3 凍結済み、revision 8。implementation head でコンパイルと §5 の V0〜V6 を各 1 回軽く実行し、期待との差は無かった。§6 の「動作確認」。次は発見 C）
+- status: `発見 C 完了（B へ差し戻し 1 巡目）`（A3 凍結済み、revision 8。動作確認は期待との差なし。発見 C が現在の問いを阻害する欠陥 1 件を挙げた。§7。次は B の修正）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `2eea7f182296e5001c7c4fa80d3d090d068b6169`
@@ -19,13 +19,13 @@
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は未生成（中身は進行役がローカルに用意済み。task の開始の後に implementation head から stage し、取得案内を残す）。evidence bundle・C' blind bundle は未生成
 - task: 未開始（`tools/workflow-task.ps1 start -Task debugstudio-s4` は owner がローカルで行う）
-- 引継ぎ票（動作確認の出口、2026-11-27）:
-  - 次の Phase・役割: 発見 C（Phase C の一次レビュー。B と別の新しい session）。GO の判定はしない。C' も起動しない。
-  - 次の作業: 固定した差分（implementation base 〜 head）を、§3 の責務マップとの構造の適合、凍結した失敗経路、AC1〜AC10、§6 の「HANDOFF との差」（Bootstrap の namespace、`Compose` の null の素通し、振り分けの test の置き場）と照合する。指摘は「違反の根拠つきの、現在の問いを阻害する欠陥」と「後続スライスへ送る物」に分け、新しい事実は「新しい事実の分類」で分けてから扱う。差し戻すなら入力を固定して B へ返す。
-  - 読む範囲: 既定（発見 C は §0〜§8。§5.1 は含まない）。§6 の「動作確認」は観測の記録で、判定の入力ではない。
-  - 必要な権限: 読み取りだけ（git の固定 SHA の読み取り）。Unity・Artifact Storage・資格情報は要らない。
-  - 取得案内の所在: Phase B result snapshot は上の欄のとおり未生成。発見 C は implementation base / head の commit で差分を固定でき、snapshot を待たずに始めてよい。
-  - task: `debugstudio-s4`（未開始。owner が start する）。
+- 引継ぎ票（発見 C の出口、2026-11-27。B への差し戻し 1 巡目）:
+  - 次の Phase・役割: Phase B（差し戻しの修正）。修正後は発見 C の再レビュー。
+  - 次の作業: §7 の発見 C の「現在の問いを阻害する欠陥」D1（`SceneDirectorDebugSnapshot` が内部の配列をそのまま公開し、写しが外から書き換えられる）を、§2.1・§3 の責務と配置を変えずに直す（B 適応）。必要なら AC1 の test に、公開した列から写しを書き換えられないことの確認を足す。§7 の「後続スライスへ送る物」は直さない。修正の commit を implementation head とし、HANDOFF だけの記録 commit で §6 に修正の結果、§0 に票を書く。Unity の Editor でコンパイルを確かめる（Unity のテストは走らせない）。
+  - 読む範囲: Phase B の既定（§0〜§5）に加え、差し戻しなので §6〜§8。§5.1 は含まない。
+  - 必要な権限: 実装の commit と PR の branch への push。Editor のコンパイル確認の時は Unity の Editor の起動。
+  - 取得案内の所在: 発見 C の入力は implementation base / head の commit で固定した（下の §7）。Phase B result snapshot は上の欄のとおり未生成。
+  - task: `debugstudio-s4`（owner が start を実行したが、`workflow-task.ps1 status` は `unregistered` を返している。2026-11-27、進行役が確認中）。
   - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
   - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない）。
 ### 実測の方法
@@ -543,7 +543,20 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 
 ## 7. Phase C
 
-未到達。
+### 発見 C（1 回目、2026-11-27）
+
+- 種別: 発見 C。GO の判定はしていない。C' は起動していない。
+- 担当: B と別の新しい session（OpenAI の系列、Codex CLI、Phase C 系の model、effort medium）。選んだ理由: B は Anthropic の系列が実装したので、Phase C は B と別の model にする。C' は §5 のとおり Anthropic と OpenAI 以外の系列に予約してあるので、発見 C・判定 C には OpenAI を使う。Codex の read-only sandbox では日本語の file が化けて読まれることを事前のプローブで確かめたので、workspace-write の sandbox で、固定した入力の写しの packet だけを読ませ、UTF-8 の読み取りを明示した（同じ条件のプローブで原文どおり読めた）。
+- 入力の固定: implementation base `07cc2c97`・head `2eea7f18` の完全 diff、stat、name-status（`git diff --no-renames`）、head で実行した contract-audit・docs-audit の log、周辺の code と規則を読むための commit `af7b5542` の tree の写し（`git archive`）。テストは未実行。所見と入力はGit 外にローカル保全した（取得案内は未生成）。
+- 構造適合: 新規・変更の file はいずれも §3 の責務マップの配置・責務・依存と一致（`FrameworkDebugCommands` の namespace だけ §6 の記録どおり `OneStarMaker.Runtime`）。`#nullable enable`、`record`・`UnityEditor`・`Task.Delay`・`Thread.Sleep` の不使用、偽 null の該当箇所なし。
+- 現在の問いを阻害する欠陥:
+  - **D1（B 適応）:** `Scripts/Runtime/SceneSystem/Diagnostics/SceneDirectorDebugSnapshot.cs` の `Scenes`・`PendingUnloads`・`History` が、constructor で複写した内部の配列をそのまま `IReadOnlyList<T>` として返している（72・77・82 行）。配列へ cast すれば同じ写しの要素を書き換えられ、SceneDirector を読み直さずに `ScenesDebugCommand.Format` の出力が変わる。違反する凍結条件: §2.1 の「`CaptureDebugSnapshot` は … 不変の data に写す」と §3 の「一つの時点の不変の data に写す」。修正の向き: 内部の配列を外へ直接返さない（読み取り専用の view を constructor で作って保持する等）。所有・寿命・公開 API・dispatcher の責務は変えない。進行役が該当の行を読み、配列をそのまま返していることを確かめた。
+- 後続スライスへ送る物（違反根拠なし）: 写しの push・Inspector での利用・項目の追加・通し番号・Play の世代の識別（§2.2・§2.7 の所有範囲）。旧 `DebugSocketService` の dispatcher が新しい Play の SceneDirector を読みうる件の、世代単位の拒否（§2.2 が許容した制約）。SceneDirector の内部の collection の同期・main thread 外からの呼出しの保証、実 Player・AOT の stripping、DebugStudio の再接続や timeout の契約。
+- AC の所見（code から。テスト未実行）: AC1〜AC9 はそれぞれの test で成立する作りと読めた（AC1・AC3 は写し自身の書き換えられなさを確かめておらず、D1 が残る）。AC10 は `SetActiveDebugCommandTests` の変更が無いことまでで、通過は未確認。
+- §6 の「HANDOFF との差」: 3 件（Bootstrap の namespace、`Compose` の null の素通し、振り分けの test の置き場）とも、凍結した A3 の範囲の B 適応として妥当（namespace は §2.1 の「既存と同じ」、null の素通しは §2.3 の I4 の失敗の場所と文言を変えないこと、test は同じ asmdef の既存の dispatcher の test の境界）。
+- harvest の文書（`05-scene.md`、`12-telemetry.md`、CLI README）から主要な判断は復元できる。
+- 未確認: Unity の EditMode テスト（AC1〜AC10）と全 EditMode 回帰、oracle による V1〜V6 の比較、V6 の App の終了コード、V1 の起動時の外部の例外の扱い（いずれも判定 C）。
+- 結果: B へ差し戻し（1 巡目）。
 
 ## 8. Phase C'
 
