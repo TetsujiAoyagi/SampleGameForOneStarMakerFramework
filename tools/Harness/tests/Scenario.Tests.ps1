@@ -37,6 +37,22 @@ try {
         Assert ($r3.ExitCode -eq 0 -and $start3.checkouts.X.action -ceq 'switch' -and (Invoke-Git $root @('rev-parse', 'HEAD')).Trim() -ceq $next) 'switch'
     }
 
+    Run 'AC4 the same RunId without -Only is refused before the prepared checkout is switched' {
+        $fx = New-FixtureRepo
+        $s = New-Scenario -Name 'again' -Checkout 'X'
+        Add-ScenarioCase $s -Name 'a' -Checkout 'X'
+        $r1 = Invoke-Scenario $s -RunId 'r'
+        $root = Join-Path $fx.Place 'again-X'
+        Write-Text (Join-Path $fx.Repo 'data/new.txt') "n`n"
+        Invoke-Git $fx.Repo @('add', '-A') | Out-Null
+        Invoke-Git $fx.Repo @('commit', '-q', '-m', 'next') | Out-Null
+        $next = (Invoke-Git $fx.Repo @('rev-parse', 'HEAD')).Trim()
+        $lines = @(Read-Records $r1.RunRoot).Count
+        $c = Invoke-Captured { Invoke-Scenario $s -RunId 'r' -Commit $next }
+        Assert ($r1.ExitCode -eq 0 -and $c.Result.ExitCode -eq 1 -and $c.Err -like '*run の root が既にあります*') "refusal: $($c.Err)"
+        Assert ((Invoke-Git $root @('rev-parse', 'HEAD')).Trim() -ceq $fx.Head -and @(Read-Records $r1.RunRoot).Count -eq $lines) 'the refused run switched the checkout or wrote records'
+    }
+
     Run 'AC9 creation path checks refuse outside place, occupied path and long root' {
         $fx = New-FixtureRepo
         $long = Join-Path $fx.Place ('x' * 120)
@@ -400,6 +416,25 @@ try {
         $r6 = Invoke-ScenarioCheckoutOperation -Operation remove -Path $plain -RepoRoot $fx.Repo
         $list = (Invoke-Git $fx.Repo @('worktree', 'list', '--porcelain')) -join "`n"
         Assert ($r6.Ok -and -not [IO.Directory]::Exists($plain) -and $list -notlike "*plain*") "remove: $($r6.Problems -join '; ')"
+    }
+
+    Run 'AC9 remove holds the lease until the worktree is removed' {
+        $fx = New-FixtureRepo
+        $target = New-ManualWorktree $fx 'held' -Register
+        # 外す操作の直前に、別の呼び出しとして同じ checkout の lease を取りに行く（取れたら、外す間に別の
+        # 呼び出しが事前確認を通れることになる）。Remove-ScenarioCheckout をこの scope で上書きして観測する。
+        $script:leaseTaken = $null
+        function Remove-ScenarioCheckout {
+            param([string]$MainWorktree, [string]$Root)
+            try { $other = Enter-ScenarioCheckoutLease -CommonDir $fx.CommonDir -Path $Root; $other.Dispose(); $script:leaseTaken = $true }
+            catch { $script:leaseTaken = $false }
+            ScenarioCheckout\Remove-ScenarioCheckout -MainWorktree $MainWorktree -Root $Root
+        }
+        $r = Invoke-ScenarioCheckoutOperation -Operation remove -Path $target -RepoRoot $fx.Repo
+        Assert ($r.Ok -and -not [IO.Directory]::Exists($target)) "remove: $($r.Problems -join '; ')"
+        Assert ($script:leaseTaken -eq $false) 'another invocation took the lease while the checkout was being removed'
+        $after = Enter-ScenarioCheckoutLease -CommonDir $fx.CommonDir -Path $target
+        $after.Dispose()
     }
 
     Run 'AC5 After writes scenario lines without event after the restore' {

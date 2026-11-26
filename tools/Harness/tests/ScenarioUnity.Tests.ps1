@@ -316,6 +316,59 @@ try {
         Assert ($res2.Result.ExitCode -eq 1 -and -not $exit2.signaled -and $script:helper.Kills -eq 0) 'an unexited helper passed'
     }
 
+    Run 'Op11 AC3 a helper started in a checkout case is confirmed before the restore and an unexited one quarantines the checkout' {
+        $fx = New-FixtureRepo; [void](Use-FakeSeams $fx)
+        $e = New-ManualWorktree $fx 'e' -Register
+        $value = Join-Path $e 'data/value.txt'
+        # 終わる補助の process: case の終わり（戻す前）に終了を確かめ、それから戻す。
+        $global:OsmFake_onStart = { param($x, $a, $w, $o) $script:helper = New-FakeProcess -Id 4610 -ExitAfter 0; $script:helper }
+        $s = New-Scenario -Name 'helperco' -Checkout 'E'
+        Add-ScenarioCase $s -Name 'run' -Checkout 'E' -Patches 'patches/p1.patch' -Body { param($c) [void](Start-ScenarioHelper $c -Executable 'helper.exe' -WorkingDirectory $c.CheckoutRoot -TimeoutMs 100) }
+        $ok = Invoke-Scenario $s -RunId 'ok' -CheckoutRoots @{ E=$e }
+        $order = @(Get-Events $ok.RunRoot | ForEach-Object { $_.event })
+        Assert ($ok.ExitCode -eq 0 -and (Read-Bytes $value) -ceq "one`n" -and $null -eq (Get-InUse $e)) "exited helper: $($ok.ExitCode)"
+        Assert ([array]::IndexOf($order, 'process-exit') -ge 0 -and [array]::IndexOf($order, 'process-exit') -lt [array]::IndexOf($order, 'restore') -and @(Get-Events $ok.RunRoot 'process-exit').Count -eq 1) "order: $($order -join ',')"
+        # 終わらない補助の process: 戻さず、使用中の記録に PID を残して止まり、次の run にも使わせない。
+        $global:OsmFake_onStart = { param($x, $a, $w, $o) $script:helper = New-FakeProcess -Id 4611 -Never; $script:helper }
+        $bad = Invoke-Captured { Invoke-Scenario $s -RunId 'bad' -CheckoutRoots @{ E=$e } }
+        $events = @(Get-Events $bad.Result.RunRoot)
+        $q = @($events | Where-Object { $_.event -ceq 'quarantine' })
+        $inUse = Get-InUse $e
+        Assert ($bad.Result.ExitCode -eq 1 -and (Read-Bytes $value) -ceq "two`n" -and $script:helper.Kills -eq 0) 'an unexited helper was restored over or killed'
+        Assert ($null -ne $inUse -and @($inUse.processes | Where-Object { $_.pid -eq 4611 -and $_.kind -ceq 'helper' }).Count -eq 1) 'in-use record lost the helper'
+        Assert ($q.Count -eq 1 -and $q[0].kind -ceq 'helper' -and $q[0].pid -eq 4611 -and $q[0].checkout -ceq 'E' -and -not $q[0].restored) 'quarantine record'
+        Assert (@($events | Where-Object { $_.event -ceq 'restore' -or ($_.event -ceq 'in-use' -and $_.state -ceq 'cleared') }).Count -eq 0) 'restored or cleared after an unexited helper'
+        Assert (@($events | Where-Object { $_.event -ceq 'process-exit' -and $_.pid -eq 4611 }).Count -eq 1) 'helper exit recorded twice or not at all'
+        $next = Invoke-Captured { Invoke-Scenario $s -RunId 'next' -CheckoutRoots @{ E=$e } }
+        Assert ($next.Result.ExitCode -eq 1 -and $next.Err -like '*使用中の記録*' -and (Read-Bytes $value) -ceq "two`n") 'the next run used the quarantined checkout'
+    }
+
+    Run 'Op11 AC3 an unexited helper from a case without a checkout quarantines every checkout of the invocation' {
+        $fx = New-FixtureRepo; [void](Use-FakeSeams $fx)
+        $x = New-ManualWorktree $fx 'x' -Register
+        $global:OsmFake_onStart = { param($e, $a, $w, $o) $script:helper = New-FakeProcess -Id 4620 -Never; $script:helper }
+        $s = New-Scenario -Name 'helperall' -Checkout 'X'
+        Add-ScenarioCase $s -Name 'use' -Checkout 'X' -Patches 'patches/p1.patch'
+        Add-ScenarioCase $s -Name 'start' -Body { param($c) [void](Start-ScenarioHelper $c -Executable 'helper.exe' -TimeoutMs 100) }
+        $res = Invoke-Captured { Invoke-Scenario $s -RunId 'r' -CheckoutRoots @{ X=$x } }
+        $inUse = Get-InUse $x
+        $q = @(Get-Events $res.Result.RunRoot 'quarantine')
+        Assert ($res.Result.ExitCode -eq 1 -and (Read-Bytes (Join-Path $x 'data/value.txt')) -ceq "one`n") 'case restore or exit code'
+        Assert ($null -ne $inUse -and $inUse.case -ceq 'start' -and @($inUse.processes | Where-Object { $_.pid -eq 4620 }).Count -eq 1) 'checkout not quarantined for the helper'
+        Assert ($q.Count -eq 1 -and $q[0].checkout -ceq 'X' -and $q[0].kind -ceq 'helper' -and $q[0].case -ceq 'start' -and $q[0].restored) 'quarantine record'
+        $next = Invoke-Captured { Invoke-Scenario $s -RunId 'r2' -CheckoutRoots @{ X=$x } }
+        Assert ($next.Result.ExitCode -eq 1 -and $next.Err -like '*使用中の記録*') 'the next run used the checkout'
+        $released = Invoke-ScenarioCheckoutOperation -Operation release -Path $x -RepoRoot $fx.Repo -ProcessQuery { @() }
+        Assert ($released.Ok) "release: $($released.Problems -join '; ')"
+        # 例外で呼び出しを抜ける時も、補助の process の終了を確かめ、確かめられなければ隔離する。
+        $script:recordLock = $null
+        Add-ScenarioCase $s -Name 'boom' -Body { param($c) $script:recordLock = [IO.File]::Open((Join-Path $c.RunRoot 'driver.jsonl'), 'Open', 'ReadWrite', 'None') }
+        $global:OsmFake_onStart = { param($e, $a, $w, $o) $script:helper = New-FakeProcess -Id 4621 -Never; $script:helper }
+        try { $thrown = Invoke-Captured { Invoke-Scenario $s -RunId 'r3' -CheckoutRoots @{ X=$x } } } finally { if ($null -ne $script:recordLock) { $script:recordLock.Dispose() } }
+        $inUse3 = Get-InUse $x
+        Assert ($thrown.Result.ExitCode -eq 1 -and $null -ne $inUse3 -and @($inUse3.processes | Where-Object { $_.pid -eq 4621 }).Count -eq 1) "exception path did not quarantine: $($thrown.Err)"
+    }
+
     Run 'Op18 a body observation is saved as evidence of the case' {
         $fx = New-FixtureRepo; [void](Use-FakeSeams $fx)
         $s = New-Scenario -Name 'observe' -Checkout @()
@@ -630,7 +683,16 @@ exit $result.ExitCode
         Assert ($ok.Ok -and $null -eq (Get-InUse $y)) "release: $($ok.Problems -join '; ')"
         $global:OsmFake_onStart = { param($exe, $argv, $wd, $opt) $global:OsmFake_editor.Pid++; $p = New-FakeProcess -Id $global:OsmFake_editor.Pid -Never -ExitOnKill; $global:OsmFake_editor.Process = $p; $p }
         $c3 = Invoke-Composite 'C' @('edit')
-        Assert ($c3 -eq 0 -and @(Get-Events (Join-Path $fx.Repo 'TestResults/scenario/composite/C') 'case-start' | Where-Object { $_.case -ceq 'edit' -and $_.attempt -eq 2 }).Count -eq 1) "C after release: $c3"
+        $rootC = Join-Path $fx.Repo 'TestResults/scenario/composite/C'
+        Assert ($c3 -eq 0 -and @(Get-Events $rootC 'case-start' | Where-Object { $_.case -ceq 'edit' -and $_.attempt -eq 2 }).Count -eq 1) "C after release: $c3"
+        # 解除の後の続きの実行は、前の「戻していない」record を指す行を残す。
+        $startsC = @(Get-Events $rootC 'run-start')
+        Assert ($startsC.Count -eq 2 -and -not $startsC[0].continued -and @($startsC[0].priorQuarantines).Count -eq 0 -and $startsC[1].continued) "run-start lines of C: $(ConvertTo-Json $startsC -Compress -Depth 6)"
+        $prior = @($startsC[1].priorQuarantines)
+        Assert ($prior.Count -eq 1 -and $prior[0].case -ceq 'edit' -and $prior[0].attempt -eq 1 -and $prior[0].checkout -ceq 'Y' -and $prior[0].kind -ceq 'editor' -and $prior[0].restored -eq $false -and $prior[0].baseDirectory -ceq 'base/edit/1') "prior quarantine fields: $(ConvertTo-Json $prior -Compress)"
+        $pointed = ConvertFrom-Json -InputObject ([IO.File]::ReadAllLines((Join-Path $rootC 'driver.jsonl'))[$prior[0].line - 1]) -AsHashtable
+        Assert ($pointed.event -ceq 'quarantine' -and $pointed.case -ceq 'edit' -and $pointed.attempt -eq 1 -and $pointed.pid -eq $prior[0].pid -and -not $pointed.restored) 'the pointed line is not the earlier quarantine'
+        Assert ((Read-Bytes (Join-Path $rootC "$($prior[0].baseDirectory)/quarantine.status.txt")) -like '*data/value.txt*') 'the pointed base directory has no quarantine snapshot'
     }
 
     Run 'AC12 eval code checks the PID first and the response is read only by its call id' {

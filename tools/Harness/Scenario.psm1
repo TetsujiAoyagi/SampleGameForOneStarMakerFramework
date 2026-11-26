@@ -165,6 +165,9 @@ function Invoke-Scenario {
         return [pscustomobject]@{ ExitCode=$(if ($state.Failed) { 1 } else { 0 }); RunRoot=$state.Run.Root }
     } catch {
         Write-ScenarioError $_.Exception.Message
+        # 例外で抜ける時も、補助の process の終了を確かめ、確かめられなければ隔離してから lease を離す。
+        # case の途中で抜けた checkout は、使用中の記録が消されずに残るので既に隔離されている。
+        if ($null -ne $state) { try { [void](Complete-ScenarioInvocationProcesses $state) } catch { Write-ScenarioError $_.Exception.Message } }
         return [pscustomobject]@{ ExitCode=1; RunRoot=$(if ($null -ne $state -and $null -ne $state.Run) { $state.Run.Root } else { $null }) }
     } finally {
         if ($null -ne $state) { Close-ScenarioInvocation $state }
@@ -217,6 +220,9 @@ function Open-ScenarioInvocation {
     $continuing = $Continue -and [IO.Directory]::Exists($runRoot)
     $identity = @{ scenario=$Scenario.Name; runId=$RunId }
     $problems = [Collections.Generic.List[string]]::new()
+    # -Only なしの同じ RunId は Open-ScenarioRun が拒む。checkout を作る・切り替える前に同じ理由で止め、
+    # 拒む run が何も書かないようにする。
+    if (-not $Continue -and ([IO.Directory]::Exists($runRoot) -or [IO.File]::Exists($runRoot))) { $problems.Add("run の root が既にあります。同じ RunId で続けるには -Only を付けます: $runRoot") }
     $seenRoots = @{}
     foreach ($checkout in $state.Checkouts.Values) {
         $rootKey = $checkout.Root.ToLowerInvariant()
@@ -273,8 +279,32 @@ function Open-ScenarioInvocation {
         $version = try { Get-UnityRequestedVersion -ProjectPath (Join-Path $checkout.Root 'unity') } catch { 'unknown' }
         $checkoutRecord[$checkout.Name] = [ordered]@{ root=$checkout.Root; head=$checkout.Info.Head; unityVersion=$version; action=$checkout.Action }
     }
-    Add-ScenarioEvent $state 'run-start' $null ([ordered]@{ scenario=$Scenario.Name; runId=$RunId; mode=$mode; commit=$state.Commit; continued=$state.Run.Continued; only=@($Only); checkouts=$checkoutRecord })
+    # 配列の欄は、0 件・1 件でも JSON の配列になるよう、変数に配列のまま持つ（if の式は 1 件を展開する）。
+    [object[]]$prior = @()
+    if ($state.Run.Continued) { $prior = @(Get-ScenarioPriorQuarantines $state.Run) }
+    Add-ScenarioEvent $state 'run-start' $null ([ordered]@{ scenario=$Scenario.Name; runId=$RunId; mode=$mode; commit=$state.Commit; continued=$state.Run.Continued; only=@($Only); checkouts=$checkoutRecord; priorQuarantines=$prior })
     return $state
+}
+
+function Get-ScenarioPriorQuarantines {
+    # 続きの実行の run-start に、この run の前の呼び出しが残した隔離の record（多くは「戻していない」物。
+    # 補助の process の隔離は戻し終えた checkout にも置くので restored を写す）を指す欄を置く。
+    # 隔離の解除は run の外（scenario-checkout.ps1 の release）で行われるので、続きの試行だけを見ても、
+    # 前の試行の checkout を誰が戻したのかが record から辿れない。case と試行の番号、base/ の置き場、
+    # driver.jsonl の行の番号（1 から）で、前の quarantine の行と原出力を指す。
+    param([psobject]$Run)
+    $found = [Collections.Generic.List[object]]::new()
+    if (-not [IO.File]::Exists($Run.RecordPath)) { return @() }
+    $lines = [IO.File]::ReadAllLines($Run.RecordPath)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if (-not $lines[$i]) { continue }
+        $record = try { ConvertFrom-Json -InputObject $lines[$i] -AsHashtable } catch { $null }
+        if ($null -eq $record -or -not $record.Contains('event') -or $record.event -cne 'quarantine') { continue }
+        $found.Add([ordered]@{
+            line=$i + 1; case=$record.case; attempt=$record.attempt; checkout=$record.checkout; kind=$record.kind; pid=$record.pid; reason=$record.reason; restored=$record.restored
+            baseDirectory=$(if ($record.case -and $null -ne $record.attempt) { "base/$($record.case)/$($record.attempt)" } else { $null }) })
+    }
+    return @($found.ToArray())
 }
 
 function Get-ScenarioRunRoot {
@@ -450,12 +480,14 @@ function Wait-ScenarioLedgerEntry {
 }
 
 function Confirm-ScenarioCaseProcesses {
-    # case の終わりに、その case で始めた process（補助の process を除く）の終了を確かめる。
-    # 確かめられなかった entry を返す。
+    # case の終わりに、その case で始めた process の終了を確かめる。確かめられなかった entry を返す。
+    # 補助の process を飛ばすのは、checkout を使わない case で始めた物だけ（呼び出しの終わりまで生かす）。
+    # checkout を使う case の補助の process は、他の process と同じくここで終了を確かめる。飛ばすと、
+    # 生きている process の下で checkout を戻し、使用中の記録を消して次の run に使わせることになる。
     param([psobject]$State, [psobject]$Context)
     $unconfirmed = [Collections.Generic.List[object]]::new()
     foreach ($entry in @($Context.Processes)) {
-        if ($entry.Kind -ceq 'helper') { continue }
+        if ($entry.Kind -ceq 'helper' -and -not $Context.Checkout) { continue }
         if (-not $entry.Confirmed) {
             try {
                 if ($null -ne $entry.Finalize) { [void](& $entry.Finalize $Context $entry) }
@@ -469,18 +501,57 @@ function Confirm-ScenarioCaseProcesses {
 }
 
 function Complete-ScenarioInvocationProcesses {
-    # driver の呼び出しの終わりに、基盤が始めた補助の process の終了を確かめる。
+    # driver の呼び出しの終わりに（例外で抜ける時も）、checkout を使わない case で始めた補助の process の
+    # 終了を確かめる。checkout を使う case の物は、その case の終わりに確かめて記録済み（Recorded）である。
+    # 確かめられない時は、その process がどの checkout に触れたかを基盤は知らないので、この呼び出しの
+    # 全ての checkout に使用中の記録を置いて隔離する（戻す物は無いが、次の run に使わせない）。
+    # 隔離の記録は driver.jsonl への記録より先に置く（記録が書けない時も隔離は残る）。
     param([psobject]$State)
     $ok = $true
-    foreach ($entry in @($State.Ledger | Where-Object { $_.Kind -ceq 'helper' })) {
-        if (-not $entry.Confirmed) { [void](Wait-ScenarioLedgerEntry $entry $entry.TimeoutMs) }
-        if ($null -ne $State.Run) {
-            $record = [ordered]@{ event='process-exit'; case=$entry.Case; attempt=$entry.Attempt; pid=$entry.Handle.Id; kind=$entry.Kind; signaled=$entry.Signaled; exitCode=$entry.ExitCode; forced=$entry.Forced }
-            Add-ScenarioRecord -Run $State.Run -Record $record
+    foreach ($entry in @($State.Ledger | Where-Object { $_.Kind -ceq 'helper' -and -not $_.Recorded })) {
+        if (-not $entry.Confirmed) {
+            try { [void](Wait-ScenarioLedgerEntry $entry $entry.TimeoutMs) } catch { Write-ScenarioError $_.Exception.Message }
         }
-        if (-not $entry.Confirmed) { $ok = $false; Write-ScenarioError "補助の process（PID $($entry.Handle.Id)）の終了を確かめられません" }
+        $quarantined = @()
+        if (-not $entry.Confirmed) {
+            $ok = $false
+            Write-ScenarioError "補助の process（PID $($entry.Handle.Id)）の終了を確かめられません"
+            $quarantined = @(Set-ScenarioHelperQuarantine $State $entry)
+        }
+        $entry.Recorded = $true
+        if ($null -ne $State.Run) {
+            try {
+                $record = [ordered]@{ event='process-exit'; case=$entry.Case; attempt=$entry.Attempt; pid=$entry.Handle.Id; kind=$entry.Kind; signaled=$entry.Signaled; exitCode=$entry.ExitCode; forced=$entry.Forced }
+                Add-ScenarioRecord -Run $State.Run -Record $record
+                foreach ($q in $quarantined) {
+                    Add-ScenarioRecord -Run $State.Run -Record ([ordered]@{ event='quarantine'; case=$entry.Case; attempt=$entry.Attempt; checkout=$q.Checkout; pid=$entry.Handle.Id; startedUtc=$entry.Handle.StartedAt; kind=$entry.Kind; restored=$q.Restored; reason='termination-unconfirmed' })
+                }
+            } catch { Write-ScenarioError $_.Exception.Message }
+        }
     }
     return $ok
+}
+
+function Set-ScenarioHelperQuarantine {
+    # 終了を確かめられない補助の process の PID を、この呼び出しの全ての checkout の使用中の記録に置く。
+    # 既に使用中の記録がある（case が戻していない）checkout には PID を足すだけにする。
+    # 返す Restored は、その checkout を case が戻し終えていたか（使用中の記録が無かったか）である。
+    param([psobject]$State, [psobject]$Entry)
+    $result = [Collections.Generic.List[object]]::new()
+    if ($null -eq $State.Run) { return @() }
+    foreach ($checkout in $State.Checkouts.Values) {
+        try {
+            $info = Get-ScenarioCheckoutInfo $checkout.Root
+            if (-not $info.Exists -or -not $info.IsTop) { continue }
+            $restored = $null -eq $info.InUse
+            if ($restored) {
+                Set-ScenarioCheckoutInUse -Info $info -Record ([ordered]@{ scenario=$State.Scenario.Name; runId=$State.RunId; runRoot=$State.Run.Root; case=$Entry.Case; attempt=$Entry.Attempt; utc=[DateTime]::UtcNow.ToString('o') })
+            }
+            Add-ScenarioCheckoutInUseProcess -Info $info -ProcessId $Entry.Handle.Id -StartedAt $Entry.Handle.StartedAt -Kind $Entry.Kind
+            $result.Add([pscustomobject]@{ Checkout=$checkout.Name; Restored=$restored })
+        } catch { Write-ScenarioError "checkout $($checkout.Name) に隔離を置けません: $($_.Exception.Message)" }
+    }
+    return @($result.ToArray())
 }
 
 # --- case の body が使う関数 -------------------------------------------------
@@ -650,8 +721,11 @@ function Invoke-ScenarioCommand {
 }
 
 function Start-ScenarioHelper {
-    # 補助の process を起動して保持する。driver の呼び出しの終わりに、基盤が TimeoutMs まで終了を待って確かめる
-    # （KillOnTimeout を渡した時だけ、期限の後に止める）。-Only の続きの実行をまたいでは生かさない。
+    # 補助の process を起動して保持する。基盤が TimeoutMs まで終了を待って確かめる（KillOnTimeout を渡した時
+    # だけ、期限の後に止める）。確かめる時は、checkout を使う case で起動した物はその case の終わり（戻す前）、
+    # checkout を使わない case で起動した物は driver の呼び出しの終わりである。確かめられなければ、前者は
+    # その checkout を、後者はこの呼び出しの全ての checkout を隔離する。checkout に触れる補助の process は、
+    # その checkout を使う case で起動する。-Only の続きの実行をまたいでは生かさない。
     param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [string]$Executable, [AllowEmptyCollection()] [string[]]$Arguments = @(),
         [string]$WorkingDirectory = '', [int]$TimeoutMs = 60000, [switch]$KillOnTimeout, [hashtable]$Environment = @{})
     if ($Context.DryRun) { return $null }

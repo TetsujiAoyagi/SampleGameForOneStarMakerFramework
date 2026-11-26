@@ -52,8 +52,9 @@ function Invoke-ScenarioCheckoutOperation {
                 foreach ($p in (Get-ScenarioCheckoutProblems -Info $info -CommonDir $repo.CommonDir -BudgetRoot $RepoRoot)) { $problems.Add($p) }
                 if ($info.Exists -and $info.IsTop -and $null -ne $info.Reservation -and -not @($problems | Where-Object { $_ -like '*予約*' })) { $problems.Add("予約があります: $root") }
                 if ($problems.Count -eq 0) {
-                    # lease の file は共通の git dir にあり、worktree と一緒には消えない。先に離してから外す。
-                    $lease.Dispose(); $lease = $null
+                    # 外し終わるまで lease を持つ（離すと、その間に別の呼び出しが lease を取って事前確認を通れる）。
+                    # lease の file は共通の git dir にあり、`git worktree remove` が消す worktree の git dir の外なので、
+                    # 持ったまま外せる。
                     Remove-ScenarioCheckout -MainWorktree $repo.MainWorktree -Root $root
                 }
             }
