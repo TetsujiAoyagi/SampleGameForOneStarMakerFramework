@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `動作確認 完了`（**動作確認を終えた（§6 の後の「動作確認」。E 系列は未実施で判定 C が取る）。次は発見 C。** Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `C`（**発見 C の 1 回目が F-C2 を B へ返した（§7）。次は Phase B の修正。** 動作確認は §6 の後（E 系列は未実施で判定 C が取る）。 Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `2526ae39f8c0b0030b8f3abb25af85ac4f42f724`
@@ -18,13 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase C の発見 C（判断担当）。実行担当（Unity のテスト、pwsh の offline test と機械検査を無改変で走らせる担当）は別にいる。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。PR は読まなくてよい（状態ブロックの照合は進行役が済ませた）。implementation base から implementation head までの差分を、§3 の責務マップと §2 の不変条件・成立条件・受け入れ条件（§2.7）・実装制約（§2.8）に照らして、構造レビューを先に、続けて失敗経路をレビューする。B の適応と行数の判断は §6。実行担当が implementation head で走らせた起点 `-Filter` の Unity テストと機械検査の結果は §7 の最初の小節にあり、原記録（XML、step、log）はこの worktree の `TestResults/c-disc1/` と `TestResults/c-disc1-machine/` にある（git 管理外）。追加の Unity テスト・offline test・コマンドの実行が要る時は、自分で走らせず、コマンド・filter・理由を記録に書いて止まる（実行担当が無改変で走らせ、生の出力を返す）。結果を §7 の「発見 C（1 回目）」として [テンプレート](../../.agents/skills/osm-workflow/references/handoff-template.md) の §7 の項目で書き、記録の全文を最終メッセージにも出す。commit と次の票の更新は進行役が行う。task は `s4-3a-local-content-origin`（開始済み）。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase C の行。§0〜§8）。
+  - 次の Phase・役割: Phase B（発見 C の差し戻しの 1 巡目の修正）。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。§7 の「発見 C の判断担当の記録（1 回目）」の現在の問いを阻害する findings（F-C2 だけ）を直す。F-C1 は後続への入力で、直さない。直し方（test の出力 root を今の許可の root の下に置くか、許可の root の契約を合わせるか）は B が決め、凍結した契約と責務配置を変えない B 適応に収める。変える file が数 file を超える、または §4 の「Phase B から Phase A へ差し戻す条件」に当たる時は、直さずに止まって報告する。直したら Unity の batch で compile を確かめ、§5 の起点 `-Filter` の Unity テスト（`pwsh tools/run-tests.ps1 -Filter '<§5 の起点 filter>'`、sandbox の外）を走らせ、XML の total・failed・root result を §6 の後に「発見 C 1 巡目の修正」の小節で記録する（B の実行は判定の入力にしない）。実装の commit を先に切り、その SHA を implementation head 欄に書いた記録 commit で、票を発見 C（2 回目）へ更新する（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。push と PR の状態ブロックの更新は進行役が行う。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の行。差し戻しなので §6〜§8 も）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: repo の読みと git の読み、`docs/handoff/LOCAL_CONTENT_ORIGIN.md` の §7 の編集だけ。Unity の起動、sandbox の外の実行、資格情報は要らない（実行担当が持つ）。
-  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。製品の code・test・tools を変えない。指摘の修正は B へ返し、発見 C の担当が実装しない。GO 判定をしない。C' を起動しない。差し戻しが決まったら判定用の検証一式を求めない。
-  - 引き渡さないもの: なし（Phase A snapshot は無い。§5）。§6 の後の動作確認は E 系列を `未実施` としたので、判定の入力になる観測は無い。
+  - 必要な権限: 製品の code と test の編集、Unity の batch の起動と `run-tests.ps1`（sandbox の外）。資格情報は要らない。
+  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。F-C2 の外の変更を足さない。§7 の発見 C の記録を §6 へ転載しない。
+  - 引き渡さないもの: なし。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -652,6 +652,24 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - Unity テスト: `pwsh tools/run-tests.ps1 -Filter 'ContentOrigin|ContentAcquisition|IndexedContentOrigin|PublishedOriginAcquire|SampleGameContentBatch|ContentBaseSelection|ContentAcquireLauncher|PlayEntryCandidates|PlayEntryDecision' -OutputRoot <worktree>\TestResults\c-disc1`（§5 の起点 filter をそのまま。sandbox の外）。XML（`c-disc1/e66b565d-…/results.xml`）: total 317、passed 316、failed 1、inconclusive 0、skipped 0、root result `Failed(Child)`、13:54:09Z〜13:54:37Z。`step.json`: status `failed`、exitCode 1、failure の行は「失敗したテストがあります」「XML root result が Passed ではありません」「Unity process が正常終了しませんでした: 2」。class ごとの件数: `ContentAcquireLauncherTests` 7、`ContentAcquisitionRulesTests` 121、`ContentAcquisitionTests` 41、`ContentBaseSelectionTests` 8、`ContentOriginGuardTests` 23、`ContentOriginHeadTests` 16、`ContentOriginHeadWriterTests` 11、`IndexedContentOriginTests` 5、`PlayEntryCandidatesTests` 18、`PlayEntryDecisionTests` 48、`PublishedOriginAcquireIntegrationTests` 1、`SampleGameContentBatchTests` 18。失敗した 1 件は `SampleGame.Tests.Editor.Build.PublishedOriginAcquireIntegrationTests.PublishedContent_IsAcquiredFromTheOrigin_AndBecomesThePlayBase` で、message は `System.ArgumentException : Output root must be inside artifacts/bs2b or TestResults/bs3-fixture.`、stack の先頭は `BuildContentCoordinator.Build`（`BuildContentCoordinator.cs:54`）← `PublishedOriginAcquireIntegrationTests.cs:69`。Unity の終了の stall は起きなかった（XML の約 10 秒後に step が書かれ、Unity.exe は残っていない）。
 - 機械検査（どれも `pwsh -NoProfile -File <script>`、sandbox の外。log は `c-disc1-machine/<名前>.log`）: `tools/contract-audit.ps1` exit 0（「機械で判定できる契約に違反なし」、検査 1 の差分 29 file、基点 `origin/develop` = `9e7d414`）。`tools/docs-audit.ps1` exit 0（検査 1・2 に違反なし、警告 1 件は `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の harvest の頃合い）。`tools/Harness/Tests/Scenario.Tests.ps1` exit 0（24 executed, 0 failed）、`ScenarioDriver.Tests.ps1` exit 0（13 executed, 0 failed）、`ScenarioUnity.Tests.ps1` exit 0（28 executed, 0 failed）。
 - 実行の前後で作業ツリーは clean のまま。
+
+### 発見 C の判断担当の記録（1 回目、2026-11-26）
+
+- 種別: 発見 C（判断担当）。指定された引継ぎ commit は `8ba5e901c2a311b0ab253f241422ee1d1ce95557` で、開始時の HEAD と一致した。実装の比較対象は base `9e7d414833456e2c9dd930c5f96432b24d9ee919` から implementation head `2526ae39f8c0b0030b8f3abb25af85ac4f42f724` まで。作業ツリーは記録の追記前は clean だった。
+- 使用した evidence bundle: Phase B result snapshot / evidence bundle は未生成。実行担当の原記録は §7 冒頭の `TestResults/c-disc1/`・`TestResults/c-disc1-machine/`（git 管理外、未保存）だけで、追加の bundle は使用していない。
+- 構造適合: base..head の差分を §2.4 の N1〜N7、S1〜S8、§2.8、§3 の責務分担に照合した。Framework Runtime の取得元・調停・guard、Framework Editor の head 書き手、SampleGame Editor の取得操作・base 記録という配置は差分の責務と整合し、取得を使わない共通側の差分も見当たらない。`PinnedOnly` と `AcceptDeclared` の意味、失敗の段と証拠の振り分け、Play の選択記録の境界はコード上に実装されている。
+- 現在の問いを阻害する findings:
+  - **F-C2（blocker、AC9 の検証入力不成立）:** 実行担当の XML で `PublishedOriginAcquireIntegrationTests.PublishedContent_IsAcquiredFromTheOrigin_AndBecomesThePlayBase` が 1 件 failed。テストは `PublishedOriginAcquireIntegrationTests.cs:68` で `TestResults/s43a-fixture` を渡すが、`BuildContentCoordinator.Build` は `BuildContentCoordinator.cs:50-56` で `TestResults/bs3-fixture` のみを許可するため、build 内容の検証に入る前に `ArgumentException` で終了している。これは §7 冒頭の raw result（317 total / 316 passed / 1 failed）と一致し、Unity native stall ではない。テスト側または許可 root の契約を B で整合させ、起点 filter を再実行する必要がある。
+- 後続スライスへ移送する findings:
+  - **F-C1（後続への入力、blocker なし）:** 最初の記録は blocker としたが、進行役が凍結文の根拠を問い、判断担当が撤回した（問いと答えの原記録は `TestResults/c-disc1-codex-q1.log`）。§2.3 の 135 行の信頼の設定は期待 digest の出所を定め、§2.4 の 190 行は段 1（対象を決める）で「『pin だけ』の取得元は『pin が要る』と残して飛ばす」と定める。197 行は段 3 を「取得元から取る（host の順に全ての取得元）」と定める。`AcceptDeclared` の head で対象を固定した後、`PinnedOnly` の取得元からも bytes を取得し、固定済みの digest で検証する今の実装（`ContentAcquisition.cs:129-145`）はこの契約に合う。後続（S4-3b）で複数の取得元を組み合わせる時の test の例として、対象を決めた取得元が `AcceptDeclared`、検証済みの bytes を出した取得元が `PinnedOnly` の case を引き継ぐ。
+- F-C2 は frozen contract / AC9 を阻害するので、後続や C' に先送りしない。
+- 巡: B と発見 C の差し戻しの 1 巡目（上限 4。最初の動作確認は数えない）。F-C2 を B へ返す。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 判断担当は追加の Unity test、offline test、機械検査を実行していない（§0 の指示どおり、実行担当の無改変結果だけを読んだ）。起点コマンドは §7 冒頭の `pwsh tools/run-tests.ps1 -Filter 'ContentOrigin|ContentAcquisition|IndexedContentOrigin|PublishedOriginAcquire|SampleGameContentBatch|ContentBaseSelection|ContentAcquireLauncher|PlayEntryCandidates|PlayEntryDecision' -OutputRoot <worktree>\\TestResults\\c-disc1`。この filter は §5 の Phase C 起点指定をそのまま対象にしたもの。機械検査は同じく §7 冒頭の実行担当記録（contract/docs audit と Harness offline tests）を参照した。
+- テスト結果（XML 上の実行テスト名と件数）: XML は total 317、passed 316、failed 1、inconclusive 0、skipped 0、root `Failed(Child)`。失敗名は上記 F-C2 の `SampleGame.Tests.Editor.Build.PublishedOriginAcquireIntegrationTests.PublishedContent_IsAcquiredFromTheOrigin_AndBecomesThePlayBase`。機械検査は contract-audit exit 0、docs-audit exit 0、Scenario 24/24、ScenarioDriver 13/13、ScenarioUnity 28/28（いずれも実行担当記録）。
+- 判定必須のうち未実行: E 系列（S0、P1、E1、P2、E2、E3、E4、E5、E6、Cleanup）の実機操作は未実行で、AC10 の 4 観測も未取得。Phase C の判断担当として GO/NO-GO は出さない。F-C1/F-C2 の修正後に B が起点 test を再実行し、別担当が E 系列を実行する必要がある。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 該当なし。判断担当は静的な base..head review と、既存の実行担当記録の照合に限定した。
+- 未確認事項: `PinnedOnly` を含む複数 origin の実際の取得順、F-C1 修正後の unit test、F-C2 修正後の PublishedOrigin integration test、E 系列の実 Editor / 別 Library / Built + local edits の全観測、domain reload・非前面 Editor の継続、部分失敗時の Unity Mono 実測。これらは未確認のまま C' を起動しない。
+- 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票に無い）。判断担当は本 session の OpenAI。Phase B と系列は異なるが、Phase A の外部計画レビューと同系列であり、完全な独立性ではない。この制約を明記した上で、C' 用の xAI/Grok は未使用・予約のままとする。
 
 ## 8. Phase C'
 
