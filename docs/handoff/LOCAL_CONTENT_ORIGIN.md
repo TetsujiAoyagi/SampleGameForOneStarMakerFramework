@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**発見 C の 1 回目が F-C2 を B へ返した（§7）。次は Phase B の修正。** 動作確認は §6 の後（E 系列は未実施で判定 C が取る）。 Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `C`（**発見 C 1 巡目の修正を Phase B で行った（§6「発見 C 1 巡目の修正」）。次は発見 C の 2 回目。** その前の記録: 発見 C の 1 回目が F-C2 を B へ返した（§7）。 動作確認は §6 の後（E 系列は未実施で判定 C が取る）。 Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
-- implementation head commit: `2526ae39f8c0b0030b8f3abb25af85ac4f42f724`
+- implementation head commit: `4f0af2c412c1eb6f845aafce585dda0956de62da`
 - A3 凍結記録: 承認者 owner（root）、2026-11-26、revision 0（改訂 3。この記録を含む commit）。根拠は owner の会話での指示（D の裁定を「両方 ok、凍結しよ」で承認）。次の担当は Phase B
 - risk: `high`（Framework の公開 API に取得元の差込口を足し、cache への書き込みを呼ぶ調停と、Play の入口の候補の並びに触れる。program の行は `normal` だったが、高リスクの例の「公開 API」に当たるので上げた）
 - owner: root（依頼者）
@@ -18,13 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（発見 C の差し戻しの 1 巡目の修正）。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。§7 の「発見 C の判断担当の記録（1 回目）」の現在の問いを阻害する findings（F-C2 だけ）を直す。F-C1 は後続への入力で、直さない。直し方（test の出力 root を今の許可の root の下に置くか、許可の root の契約を合わせるか）は B が決め、凍結した契約と責務配置を変えない B 適応に収める。変える file が数 file を超える、または §4 の「Phase B から Phase A へ差し戻す条件」に当たる時は、直さずに止まって報告する。直したら Unity の batch で compile を確かめ、§5 の起点 `-Filter` の Unity テスト（`pwsh tools/run-tests.ps1 -Filter '<§5 の起点 filter>'`、sandbox の外）を走らせ、XML の total・failed・root result を §6 の後に「発見 C 1 巡目の修正」の小節で記録する（B の実行は判定の入力にしない）。実装の commit を先に切り、その SHA を implementation head 欄に書いた記録 commit で、票を発見 C（2 回目）へ更新する（[引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の (a)）。push と PR の状態ブロックの更新は進行役が行う。
-  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase B の行。差し戻しなので §6〜§8 も）。
+  - 次の Phase・役割: Phase C の発見 C（2 回目。判断担当）。実行担当（Unity のテスト、pwsh の offline test と機械検査を無改変で走らせる担当）は別にいる。
+  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、上の implementation head 欄が HEAD の祖先で、そこから HEAD までの差分が `docs/handoff/` だけであること）を行う。判断担当は PR を読まなくてよい（状態ブロックの照合は進行役が行う）。実行担当は、発見 C の開始前に implementation head で §5 の起点 `-Filter` の Unity テスト（`-OutputRoot <worktree>\TestResults\c-disc2`）と機械検査（`tools/contract-audit.ps1`、`tools/docs-audit.ps1`、基盤の offline test 3 本。log は `TestResults/c-disc2-machine/`）を走らせ、生の結果を §7 に記録する。判断担当は、1 回目の後に変わった製品側の差分（implementation head の commit の `docs/handoff/` 以外の file。§6「発見 C 1 巡目の修正」）が F-C2 を解消し、§2 の不変条件・成立条件・受け入れ条件（§2.7）・実装制約（§2.8）と §3 の責務分担を崩していないかをレビューする。追加の Unity テスト・offline test・コマンドの実行が要る時は、自分で走らせず、コマンド・filter・理由を記録に書いて止まる。結果を §7 の「発見 C（2 回目）」として [テンプレート](../../.agents/skills/osm-workflow/references/handoff-template.md) の §7 の項目で書き、記録の全文を最終メッセージにも出す。commit と次の票の更新は進行役が行う。task は `s4-3a-local-content-origin`（開始済み）。
+  - 読む範囲: 既定（[SKILL.md](../../.agents/skills/osm-workflow/SKILL.md#作業ごとの読み先) の表の Phase C の行。§0〜§8）。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 製品の code と test の編集、Unity の batch の起動と `run-tests.ps1`（sandbox の外）。資格情報は要らない。
-  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。F-C2 の外の変更を足さない。§7 の発見 C の記録を §6 へ転載しない。
-  - 引き渡さないもの: なし。
+  - 必要な権限: 判断担当は repo の読みと git の読み、`docs/handoff/LOCAL_CONTENT_ORIGIN.md` の §7 の編集だけ。実行担当は Unity の起動と `run-tests.ps1`（sandbox の外）、pwsh の script。資格情報は要らない。
+  - 停止規則: §2.7 の停止規則と、§4 の「Phase B から Phase A へ差し戻す条件」。製品の code・test・tools を変えない。指摘の修正は B へ返し、発見 C の担当が実装しない。GO 判定をしない。C' を起動しない。差し戻しが決まったら判定用の検証一式を求めない。
+  - 引き渡さないもの: なし（Phase A snapshot は無い。§5）。E 系列は `未実施` のままで、判定の入力になる観測は無い。§6 の Phase B の実行は判定の入力にしない。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -642,6 +642,16 @@ A2 の観点の再レビューの要否: 要らない（owner が 2026-11-25 に
 - 生の観測と保存先・状態: なし（実行していない）。
 - 検証経路の期待と違う観測と、B への差し戻し: なし。
 - `未実施` の条件と理由・担当: E 系列の全 case（S0〜E6、Cleanup）。理由は Unity の起動と build を伴うこと（動作確認の対象外）。担当は判定 C の実行担当。判定 C を完了と記録する前に解消する。
+
+### 発見 C 1 巡目の修正
+
+- 担当: Claude Code の desktop の session（Anthropic、Claude Sonnet 5.5）、2026-11-26。起動指示の SHA `b438849d` の本書の票から始めた。開始時の照合（HEAD と SHA、clean、implementation head `2526ae39` が祖先で差分が本書だけ、PR #214 の状態ブロックの引き継ぐ commit と implementation base / head、`workflow-task.ps1 status` の active）は一致した。
+- 変更（implementation head `4f0af2c4`、1 file）: `PublishedOriginAcquireIntegrationTests` が build に渡す出力 root を `TestResults/s43a-fixture` から `TestResults/bs3-fixture` へ変え、理由の comment を 1 行足した。`BuildContentCoordinator` が出力を受け付けるのは `artifacts/bs2b` とこの test 用の root の配下だけである。許可の root を広げる案は、§3 の責務マップに無い `BuildContentCoordinator` の契約を変えるので採らず、build を伴う他の統合 test と同じ root にした。
+- 分類: B 適応（凍結した契約と責務配置は変えていない。製品の code と tools の変更は無く、§4 の差し戻し条件に当たらない。Phase A は再開していない）。
+- compile の確認: Unity 6000.6.9f1 の `-batchmode -nographics -quit`、exit 0、log に `error CS` は無い（`TestResults/b-fix1/compile.log`）。
+- Unity テスト（sandbox の外。実装 commit を切る前の、変更がこの 1 file だけの作業ツリー）: `pwsh tools/run-tests.ps1 -Filter 'ContentOrigin|ContentAcquisition|IndexedContentOrigin|PublishedOriginAcquire|SampleGameContentBatch|ContentBaseSelection|ContentAcquireLauncher|PlayEntryCandidates|PlayEntryDecision' -OutputRoot <worktree>\TestResults\b-fix1`。XML（`b-fix1/975f392f-45a6-447c-aefb-713c75903ea1/results.xml`）: total 317、passed 317、failed 0、inconclusive 0、skipped 0、root result `Passed`、14:13:12Z〜14:14:31Z。`PublishedContent_IsAcquiredFromTheOrigin_AndBecomesThePlayBase` は Passed。`step.json`: status `passed`、exitCode 0。終了の後に Unity.exe は残っていない。この実行は判定の入力にしない。原記録は git 管理外（未保存）。
+- 機械検査: `pwsh tools/contract-audit.ps1` exit 0（errors 0、warnings 0）、`pwsh tools/docs-audit.ps1` は本書の記録の後に errors 0。基盤の offline test は走らせていない（`tools/` は変えていない）。
+- 未実行（Phase C の責任）: 全 EditMode 回帰、E 系列（S0〜E6、Cleanup）。E 系列の動作確認は上の記録と同じ理由で `未実施` のまま。
 
 ## 7. Phase C
 
