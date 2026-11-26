@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-V。要求の正本は program §9.1）
-- status: C' blind bundle の作り直し待ち（head `c38e0762` で判定 C（2 回目）は GO。C'（2 巡目）は GO だったが、その入力 bundle に固定 manifest が無く、前巡の C' の結果を収録していたので、作り直した bundle で C' をやり直す。§7・§8。凍結した Phase A は revision 0）
+- status: C'（2 巡目のやり直し）待ち（head `c38e0762` で判定 C（2 回目）は GO。C'（2 巡目）は GO だったが、その入力 bundle に固定 manifest が無く、前巡の C' の結果を収録していたので、判定 C の担当が manifest を持ち前巡の C' の結果を除いた bundle を作り直した。§7・§8。凍結した Phase A は revision 0）
 - branch: `claude/scenario-verification-base`（PR の base は `develop`）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`
 - implementation head commit: `c38e076263d138c7ad9445a161dc0ff2c617d1bf`
@@ -17,16 +17,16 @@
 - harvest to: [tools/Harness/README.md](../../tools/Harness/README.md)（基盤の契約と scenario の書き方。Phase B が書く）、program §9.1 の利用者表（各操作の状態）
 - Phase A snapshot の取得案内・状態: ローカル固定済み（未昇格）。判定 C の照合の合成 fixture 59 組と期待の一覧（README、`expectations.json`、観測ごとの zip 3 つ）を task `s4-v-scenario-verification-base` に `evidence stage` で固定し、別の process の `fetch` で 5 file の一致を確かめた。取得案内は、判定 C の時点で手元の取得案内の置き場に無く、主担当の session の stage の出力（reference と packageSha256）から判定 C が取得し、同じ内容の案内を S4-V の取得案内の置き場（この PC の git 管理外の運用 directory の `s4-v-scenario-verification-base/handoff-guides/` の `phase-a.md`）に再掲した。別の process の取得で 5 file を確かめた（判定 C、2026-11-26）。Phase B には渡さない
 - Phase B result snapshot の取得案内・状態: 該当なし（B は Unity の test を実行していない。結果は §6 と implementation head の差分。C' 用には Phase C の前の §6 を C' blind bundle に収録した）
-- evidence bundle の取得案内・状態: **head `c38e0762` の物:** ローカル固定済み（未昇格）。判定 C（2 回目）の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と fixture・原記録の結果。30 file）を implementation head で固定し、別の process の取得で 30 file が元の file と同じ SHA-256 であることを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement-c38e0762.md`。**旧 head `c3f02632` の物（新しい head の合格証拠にしない）:** ローカル固定済み（未昇格）。判定 C の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と結果。29 file と manifest）を implementation head で固定し、別の process の取得で manifest の全 file の SHA-256 が一致することを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement.md`
-- C' blind bundle の取得案内・状態: **head `c38e0762` の物（C' の 2 巡目の入力）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた base から head までの diff と、前巡の head `c3f02632` から `c38e0762` への修正差分（本書を除く）、C' 自身の 1 巡目の結果（§8 の転記）、判定 C と同じ原記録・期待集合・offline と監査の log（26 file。所見と判定 C の照合 script・結果は含まない。C' 用決定記録は無い）。別の process の取得で 26 file が元の file と同じ SHA-256 であることを確かめた（2026-11-26）。引渡し先・担当は C'（2 巡目）の担当。取得案内は同じ置き場の `cprime-c38e0762.md`。**旧 head `c3f02632` の物（使わない）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた diff、判定 C と同じ生証拠（23 file と manifest。所見と判定 C の照合 script・結果は含まない）。別の process の取得で全 file の SHA-256 の一致を確かめた。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime.md`
+- evidence bundle の取得案内・状態: **head `c38e0762` の物（manifest 付き）:** ローカル固定済み（未昇格）。判定 C（2 回目）の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と fixture・原記録の結果。30 file）に、各 file の path・元の file の最終書込み時刻・bytes・SHA-256 を持つ固定 manifest を足して implementation head で固定し直した。30 file は下の旧版と同じ bytes である。別の process の取得で manifest の全 file の SHA-256 と bytes の一致と過不足が無いことを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement-c38e0762-manifest.md`。**head `c38e0762` の manifest の無い旧版（使わない）:** 同じ 30 file。取得案内 `judgement-c38e0762.md`（冒頭に「使わない」と書いた）。**旧 head `c3f02632` の物（新しい head の合格証拠にしない）:** ローカル固定済み（未昇格）。判定 C の生証拠（V1・V2・V3 の原記録、offline と監査の log、V3 の期待集合、Phase A snapshot、完全 diff、判定 C の照合 script と結果。29 file と manifest）を implementation head で固定し、別の process の取得で manifest の全 file の SHA-256 が一致することを確かめた（2026-11-26）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ）。取得案内は同じ置き場の `judgement.md`
+- C' blind bundle の取得案内・状態: **head `c38e0762` の作り直し版（C' の 2 巡目のやり直しの入力）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた base から head までの diff と、前巡の head `c3f02632` から `c38e0762` への修正差分（本書を除く）、判定 C と同じ原記録（run `j2`）・期待集合・offline と監査の log の 25 file と、各 file の path・元の file の最終書込み時刻・bytes・SHA-256 を持つ固定 manifest。所見、判定 C の照合 script・結果、前巡の C' の結果は含まない。C' 用決定記録は無い（1 巡目の C' 指摘への人間の裁定は無い）。25 file は下の旧版の同じ path の file と同じ bytes である。別の process の取得で manifest の全 file の SHA-256 と bytes の一致と過不足が無いことを確かめた（2026-11-26）。引渡し先・担当は C'（2 巡目のやり直し）の担当。取得案内は同じ置き場の `cprime-c38e0762-manifest.md`。**head `c38e0762` の旧版（使わない。manifest が無く前巡の C' の結果を収録）:** 26 file。取得案内 `cprime-c38e0762.md`（冒頭に「使わない」と書いた）。**旧 head `c3f02632` の物（使わない）:** ローカル固定済み（未昇格）。凍結した Phase A（A3 凍結版 `74e02dad` の本書と Phase A snapshot）、Phase C の前の Phase B 結果（`05963fa3` の §6）、本書を除いた diff、判定 C と同じ生証拠（23 file と manifest。所見と判定 C の照合 script・結果は含まない）。別の process の取得で全 file の SHA-256 の一致を確かめた。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime.md`
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C の担当（C' blind bundle の作り直し。head `c38e0762`）。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合を行う。判定 C（2 回目）が固定した C' blind bundle（取得案内 `cprime-c38e0762.md`）は [review-evidence](../../.agents/skills/osm-workflow/references/review-evidence.md) の 2 点に合わない。(1) 各 file の path・生成時刻・hash を記録する固定 manifest が無い（同文書の「manifest に記録する」「packageSha256 と混同しない」）。(2) 前巡の C' の結果（`cprime-prior/`）を収録している（同文書の「C' 用決定記録」は、2 巡目以降に渡せるのを C' 自身の前巡の指摘への人間の裁定だけに限る。今回は裁定が無いので渡す物は無い）。同じ head・同じ原記録（run `j2`）から、manifest を持ち `cprime-prior/` を除いた C' blind bundle を stage し直し、別の process の取得で manifest の全 file の SHA-256 の一致を確かめ、新しい取得案内を既存と同じ置き場に置き、§0 と §7 に記録する。判定用の evidence bundle（`judgement-c38e0762.md`）にも固定 manifest があるかを確かめ、無ければ同じく作り直す。Unity は起動しない（原記録は欠けていない）。判定 C の結論は変えない。次の担当は C'（2 巡目のやり直し）。
-  - 読む範囲: §0、§7 の判定 C（2 回目）、review-evidence の C' blind bundle と C' 用決定記録の節。
-  - 必要な権限: Artifact Storage の通常操作（stage と取得）。Unity の起動は要らない。
-  - 停止規則: 実装を直さない。判定をやり直さない。C' blind bundle に発見 C・判定 C・C' の所見、照合 script と結果を入れない。
-  - 引き渡すもの: 新しい C' blind bundle の取得案内（C' の担当へは進行役が渡す）。
-  - 担当のモデルと独立性: 判定 C と同じく Phase B と同じ系列・モデルでよく、新しい session で行う（owner 受容）。C' は Phase B・C と違う系列で、新しい session で行い、§8 に使ったモデルと「独立性制約あり」を記録する。
+  - 次の Phase・役割: C'（2 巡目のやり直し。head `c38e0762` の独立監査）。
+  - 次の作業: 進行役が作り直した C' blind bundle（取得案内 `cprime-c38e0762-manifest.md`）を `fetch` し、bundle の `manifest.json` の全 file の SHA-256 の一致と過不足が無いことを確かめ、所見を含まない入力だけを C' の担当へ渡す。前巡の C' の結果と C' 用決定記録は渡さない（裁定は無い）。C' は [巡ごとの範囲](../../.agents/skills/osm-workflow/references/review-evidence.md#巡ごとの範囲) のとおり、`c3f02632` から `c38e0762` への修正差分とその影響経路を中心に監査し、run `j2` の原記録を見る。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記し、§8 の C'（2 巡目）の GO をそれで置き換える。GO なら次は Phase D、阻害する指摘があれば B へ返す（C' の差し戻しは別に数えて上限 3 巡）。PR 本文の状態ブロックより下の古い説明は Phase D で直す。task は `s4-v-scenario-verification-base`（開始済み）。
+  - 読む範囲: 進行役は §0 と §8。C' の担当は blind bundle だけ。
+  - 必要な権限: Artifact Storage の `fetch`（sandbox 外の非仮想化 pwsh。資格情報は要らない）。C' は読み取り専用でよい。
+  - 停止規則: C' に発見 C・判定 C・前巡の C' の所見、照合 script と結果、本書、PR の会話を渡さない。bundle の file を加工しない。
+  - 引き渡すもの: C' blind bundle（§0 の作り直し版の取得案内）。evidence bundle（`judgement-c38e0762-manifest.md`）は Phase D の突き合わせ用で、C' には渡さない。
+  - 担当のモデルと独立性: C' は Phase B・C と違う系列で、新しい session で行い、§8 に使ったモデルと「独立性制約あり」を記録する。
   - C' の独立性の注記: Anthropic（主担当、A2、Phase B、発見 C、判定 C）、OpenAI（設計の材料、A2 の目的レビュー、外部計画レビュー）、xAI の Grok（外部計画レビュー、C'）が関わった。
 
 ### 実測の方法
@@ -688,6 +688,18 @@ A2 の後の設計の変更（印、PID の照合、lock の確認、試行、�
 - 判定必須のうち未実行: なし。
 - 未確認事項: なし。
 - 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。判断と実行を同じ session が行った。独立性制約あり（owner 受容。Phase B・発見 C と同じ系列・モデル）。
+
+### 判定 C の bundle の作り直し（2026-11-26）
+
+- 種別: 判定 C の記録（bundle の収録の修正。判定はやり直していない）
+- 対象: implementation base `07cc2c97`、head `c38e0762`（implementation head 欄）。Unity は起動していない。
+- 開始時の照合: 渡された SHA `0bf0befd` と HEAD が一致し、作業ツリーは clean、HEAD の本書に票がある。implementation head `c38e0762` は HEAD の祖先で、HEAD との差分は本書だけだった。PR #215 の状態ブロックの `引き継ぐ commit` と implementation base / head は、渡された SHA と §0 の欄に一致した。PR timeline の新着は 2026-11-26 05:19〜05:21（UTC）の外部再レビューと cursor[bot] のコメント（この作り直しの入力）が最後で、`0bf0befd` の後の新着は無い。
+- 理由: 判定 C（2 回目）が固定した 2 つの bundle には、[review-evidence](../../.agents/skills/osm-workflow/references/review-evidence.md#対象を固定する) の言う各 file の path・生成時刻・hash を記録する固定 manifest が無かった（判定用の evidence bundle も同じ）。C' blind bundle は前巡の C' の結果（`cprime-prior/`）を収録していた（[C' 用決定記録](../../.agents/skills/osm-workflow/references/review-evidence.md#c-用決定記録) の外）。原記録の欠けではなく収録の不備なので、[操作・目視証拠の受け渡し](../../.agents/skills/osm-workflow/references/review-evidence.md#操作目視証拠の受け渡し) のとおり既存の証拠から梱包し直した。
+- 手順: 旧版の 2 つの bundle を取得案内（`cprime-c38e0762.md`・`judgement-c38e0762.md`）で別の process から取得し、取得した全 file が判定 C（2 回目）の作業 directory の元の file と同じ SHA-256 であることを確かめた。取得した写しから、C' 用は `cprime-prior/` の 1 file を除いた 25 file、判定用は 30 file 全てを新しい directory に複写し、それぞれに `manifest.json`（purpose、task、base、head、生成時刻、file ごとの path・bytes・SHA-256・元の file の最終書込み時刻）を足して `evidence stage` で固定した。C' 用の収録 file を、発見 C・判定 C・C' の所見と照合 script の語で grep し、当たりが凍結した Phase A・Phase A snapshot・repo の diff の文と、Phase B 結果の担当の名前だけであることを確かめた。
+- 取得の確認: 別の process の `fetch` で 2 つとも取得し、manifest の全 file（C' 用 25、判定用 30）の SHA-256 と bytes が manifest と元の file に一致し、manifest に無い file も manifest にあって無い file も無いこと、C' 用に `cprime-prior/` が無いことを確かめた。
+- 取得案内: 同じ置き場の `cprime-c38e0762-manifest.md`（C' 用）と `judgement-c38e0762-manifest.md`（判定用）。旧版の 2 つの案内の冒頭に「使わない」と新しい案内の名前を書いた。
+- 判定 C（2 回目）の結論（GO）は変えない。implementation head は変わらず、payload は同じ bytes なので、Unity の回帰をやり直す理由にしない。
+- 担当・モデル: Claude Opus 5.5（Anthropic）。新しい session。独立性制約あり（owner 受容。Phase B・発見 C・判定 C と同じ系列・モデル）。
 
 ## 8. Phase C'
 
