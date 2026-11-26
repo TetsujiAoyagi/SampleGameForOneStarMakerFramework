@@ -160,10 +160,17 @@ function Save-YState([psobject]$Context, [string]$Point) {
     if (Test-Path -LiteralPath $selection) { [void](Save-Evidence $Context -Name "$Point-selection.json" -Path $selection) }
     $installed = Join-Path $cacheRoot "installed/$purpose"
     if (Test-Path -LiteralPath $installed) {
-        foreach ($revision in Get-ChildItem -LiteralPath $installed -Directory) {
+        # revision の名前（build の identity）は基盤の証拠の名前の上限に入るとは限らないので、写しは番号で呼ぶ。
+        # 番号は時点ごとに振り直すので、どの revision の写しかは同じ時点の対応の file で読む。
+        $copies = [Collections.Generic.List[object]]::new()
+        foreach ($revision in Get-ChildItem -LiteralPath $installed -Directory | Sort-Object -Property Name) {
             $receipt = Join-Path $revision.FullName 'receipt.json'
-            if (Test-Path -LiteralPath $receipt) { [void](Save-Evidence $Context -Name "$Point-receipt-$($revision.Name).json" -Path $receipt) }
+            if (-not (Test-Path -LiteralPath $receipt)) { continue }
+            $name = "$Point-receipt-$($copies.Count + 1).json"
+            [void](Save-Evidence $Context -Name $name -Path $receipt)
+            $copies.Add([ordered]@{ evidence=$name; installed="$purpose/$($revision.Name)" })
         }
+        if ($copies.Count -gt 0) { [void](Save-Evidence $Context -Name "$Point-receipts.json" -Content (ConvertTo-Json -InputObject $copies.ToArray())) }
     }
 }
 

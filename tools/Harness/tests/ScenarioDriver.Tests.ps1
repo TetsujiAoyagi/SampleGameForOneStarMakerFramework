@@ -332,6 +332,44 @@ try {
             }
             Assert (-not [IO.Directory]::Exists((Join-Path (Get-RunRoot $fx 's43a' 'd1') 'evidence'))) 'dry-run saved evidence'
         }
+
+        Run 'AC9 the S4-3a driver saves receipt copies under names within the foundation limit' {
+            # -DryRun は証拠を保存しないので、driver の証拠を保存する関数だけを取り出し、基盤の本物の保存で走らせる。
+            $ast = Get-ScriptAst (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1')
+            foreach ($name in 'Save-Evidence', 'Get-CacheListing', 'Save-YState') {
+                $definition = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object { $_.Name -ceq $name })
+                Assert ($definition.Count -eq 1) "driver function $name"
+                . ([scriptblock]::Create($definition[0].Extent.Text))
+            }
+            # 時点の名前は driver の呼び出しから拾う（長い時点を足しても、この test が上限を見る）。
+            $points = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] }, $true) |
+                Where-Object { $_.GetCommandName() -ceq 'Save-YState' } | ForEach-Object { $_.CommandElements[2].Value } | Sort-Object -Unique)
+            Assert ($points -ccontains 'after-acquire') "points $($points -join ',')"
+
+            $fx = New-FixtureRepo
+            $purpose = 'spring-full'
+            $selectionRecord = 'unity/UserSettings/OSMContentBaseSelection.json'
+            $run = [pscustomobject]@{ Root=(Join-Path $fx.Fixture 'run'); ExternalRoot=(Join-Path $fx.Fixture 'external') }
+            $evidence = Join-Path $run.Root 'evidence/E1/1'
+            $context = [pscustomobject]@{ DryRun=$false; Roots=@{ Y=$fx.Repo }; State=[pscustomobject]@{ Run=$run }; Attempt=[pscustomobject]@{ EvidenceDirectory=$evidence } }
+            # 実際の build の identity の長さと、それより長い名前。receipt の無い directory は写しを作らない。
+            $revisions = @('20261126T150018464Z-690b81d7359d46c2828215ed2fb10f46', ('r' * 100))
+            $installed = Join-Path $run.ExternalRoot "cache/installed/$purpose"
+            foreach ($revision in $revisions) { Write-Text (Join-Path $installed "$revision/receipt.json") "{`"revision`":`"$revision`"}`n" }
+            [void][IO.Directory]::CreateDirectory((Join-Path $installed 'no-receipt'))
+            Write-Text (Join-Path $fx.Repo $selectionRecord) "{}`n"
+
+            foreach ($point in $points) {
+                Save-YState $context $point
+                $copies = @(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText((Join-Path $evidence "$point-receipts.json"))))
+                Assert ((@($copies | ForEach-Object { $_.installed } | Sort-Object) -join ',') -ceq (@($revisions | ForEach-Object { "$purpose/$_" } | Sort-Object) -join ',')) "$point copied revisions"
+                Assert (@($copies | ForEach-Object { $_.evidence } | Sort-Object -Unique).Count -eq $revisions.Count) "$point evidence names are not distinct"
+                foreach ($copy in $copies) {
+                    $revision = $copy.installed.Substring($purpose.Length + 1)
+                    Assert ((Read-Bytes (Join-Path $evidence $copy.evidence)) -ceq (Read-Bytes (Join-Path $installed "$revision/receipt.json"))) "$point $($copy.evidence) is not the receipt of $revision"
+                }
+            }
+        }
     }
 } finally {
     foreach ($name in 'FAKE_X_ROOT', 'FAKE_Y_ROOT', 'FAKE_RUNNER_LOG', 'FAKE_RUNNER_PLAN') { [Environment]::SetEnvironmentVariable($name, $null) }
