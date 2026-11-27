@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `C' 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定 C は GO、C' は現在の問いを阻害する欠陥なし。§7・§8。次は Phase D）
+- status: `Phase D 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定 C は GO、C' は現在の問いを阻害する欠陥なし。§9 のとおり harvest し、次の commit で本書を削除する。マージ・task `debugstudio-s4` の終了・検証用の checkout と branch・worktree の片付けは進行役）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
@@ -17,7 +17,7 @@
 - harvest to: `unity/Assets/Docs/Architecture/05-scene.md` §5.12（外から読める Scene の状態、出力の意味、観測が状態と寿命を変えないこと。あわせて §5.12 の `SceneEvent` の欄の記述が code に遅れている点を直す）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（Framework が Editor でだけ持つ内部の catalog と振り分けの dispatcher）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（`osm.scenes` の送り方と出力の読み方）
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 3 つともローカル固定済み（未昇格）。implementation head で stage し、別の process の取得で全 file が元の file と同じ SHA-256 であることを確かめた（2026-11-27）。**Phase B result snapshot:** base から head までの完全 diff・stat・name-status と head での contract-audit・docs-audit の log（6 file。所見を含まない）。引渡し先・担当は Phase D・owner。取得案内は進行役の置き場の `phase-b-result-0b933a5d.md`。**evidence bundle:** 判定 C の判定必須テストと V0〜V6 の原記録、判定 C の照合の基盤と結論、進行役の再実行、1〜4 回目の履歴（9 file、原記録の群は zip）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ。C' には渡さない）。取得案内は同じ置き場の `judgement-0b933a5d.md`。**C' blind bundle:** 凍結した Phase A（A3 凍結版の本書）、Phase C の前の Phase B 結果（B の出口の §6）、本書を除いた base から head までの diff、判定 C と同じ原記録（テストと V0〜V6）、固定 manifest（338 file。発見 C・判定 C の所見と結論、照合 script と結果は含まない）。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime-0b933a5d.md`。判定 C の 1 回目の原記録の 1 file にあった Unity の資格情報の値は、stage の前に進行役が削除した
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 3 つとも確認済み（ローカル固定、未昇格。Phase D で 3 つとも別の取得で閲覧を確かめた。§9）。以下は C' の出口の時点の記録。implementation head で stage し、別の process の取得で全 file が元の file と同じ SHA-256 であることを確かめた（2026-11-27）。**Phase B result snapshot:** base から head までの完全 diff・stat・name-status と head での contract-audit・docs-audit の log（6 file。所見を含まない）。引渡し先・担当は Phase D・owner。取得案内は進行役の置き場の `phase-b-result-0b933a5d.md`。**evidence bundle:** 判定 C の判定必須テストと V0〜V6 の原記録、判定 C の照合の基盤と結論、進行役の再実行、1〜4 回目の履歴（9 file、原記録の群は zip）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ。C' には渡さない）。取得案内は同じ置き場の `judgement-0b933a5d.md`。**C' blind bundle:** 凍結した Phase A（A3 凍結版の本書）、Phase C の前の Phase B 結果（B の出口の §6）、本書を除いた base から head までの diff、判定 C と同じ原記録（テストと V0〜V6）、固定 manifest（338 file。発見 C・判定 C の所見と結論、照合 script と結果は含まない）。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime-0b933a5d.md`。判定 C の 1 回目の原記録の 1 file にあった Unity の資格情報の値は、stage の前に進行役が削除した
 - task: `debugstudio-s4`（開始済み。owner が「どうにか君がやって先に進めて」と指示したので進行役が start した。2026-11-27）
 - 引継ぎ票（C' の出口、2026-11-27）:
   - 次の Phase・役割: Phase D（判定 C と C' の突き合わせ、harvest、マージの準備）。
@@ -632,4 +632,45 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 
 ## 9. Phase D
 
-未到達。
+### 開始時の照合（2026-11-27）
+
+- 渡された SHA `d019c189` と HEAD が一致し、作業ツリーは clean、HEAD の本書に票がある。implementation head `0b933a5d` は HEAD の祖先で、HEAD との差分は本書だけだった（`git diff --name-only`）。PR #216 の状態ブロックの `引き継ぐ commit` と implementation base / head は、渡された SHA と §0 の欄に一致した（origin の branch も `d019c189`）。PR timeline の新着は、`d019c189` の後は Phase D の入力の外部レビュー（owner の account、2026-11-27 07:53 UTC）だけで、ほかに無い。
+
+### C と C' の突き合わせ
+
+- 結論は一致した。判定 C は GO（阻害する指摘なし、移送なし）。C' は現在の問いを阻害する欠陥なし（GO 相当）。
+- 値の突き合わせ（判定 C の原記録と C' の読みに食い違いは無い）: 全 EditMode 回帰は両者とも total 2475、Passed 2415、Failed 0、Inconclusive 25、Skipped 35。V1 は `OutGameScene` と `Title` が `Stable`・`history: []`・`canGoBack: false`、V3 は完了の印が `success`・管理集合が `OutGameScene` と `OutGameSession`（`Title` と `HomeScene` は無い）・履歴の先頭が `{from: Title, to: OutGameSession}`・`canGoBack: true`、V4 は `Background`（NodeId 7）の `debug.set-active` の false → true と `inspect` の rawValue と独立した eval の値が一致・`debugsocket.ping` が応答、V5 は再 Play で V1 と同じ集合・履歴 `[]`、V2 は 5 回の前後の oracle が不変。V6 は WPF が `CloseMainWindow` の後に終了コード 0、Editor は eval の `EditorApplication.Exit(0)` で終わり（応答は既知の `Invalid response format`）、`Title.unity` は dirty でなく、tracked の差は無い。
+- 判定 C が確認し C' が確認していない範囲は、判定の結論を変えない。C' は manifest の照合・テスト・実機の再実行をしていない（Shell を使わない）。限定 EditMode の 163 件と V0 は判定 C の原記録だけで確認した。照合 script は判定 C の環境に Python が無く判断担当自身は再実行できなかったが、同じ規則を原記録で手で確かめ、進行役が同じ原記録で再実行して V1・V2・V3・V5 の一致を確かめた。C' は照合 script を見ておらず、V1・V3・V4・V5・V2 の値を自分で原記録から読んだ。
+- C' の指摘のうち本スライスで扱うもの: (1) `contract-audit`・`docs-audit` の log が C' の bundle に無いのは、Phase B result snapshot にあるため（head `0b933a5d` で errors 0。docs-audit の警告は検査 3 の harvest の時期だけ）。(2) `FrameworkDebugCommands` の namespace の字面（`OneStarMaker.Runtime`）が §2.1 の括弧内と違う件は、§6 が B 適応として記録し、発見 C が妥当とした差で、harvest 先の文書は namespace を書かず folder（`Bootstrap/`）だけを書くので食い違わない。
+- 全 EditMode 回帰の終了: runner の exit は 1（Inconclusive 25 件による step の failed と、XML の書き込みの後の native の終了 stall に対する進行役の CIM Terminate による）で、全テストが正常終了した記録ではない。件数と Failed 0 は XML で確定している。Inconclusive は全て VFX の `*PlayTests`（`-nographics` の既知の条件）。Inconclusive の扱いと終了 stall は既知で（Harness README の停止規則）、owner が受容する扱いに従い、本スライスの判定を変えない。
+- 後続へ送る物: 判定 C・C' とも移送なし。構想（[DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)）の段 A〜G が所有する（event の時系列、Play の世代、Player への公開、Inspector 向けの表示）。
+
+### 外部レビューへの対応（owner の account、2026-11-27、PR head `d019c189`）
+
+- 結論は「Phase D へ進めてよい。実装の差し戻しを求める blocker なし。harvest の文言を 2 点直してから HANDOFF を削除する」。外部の静的レビューで、evidence の原記録の取得と Unity の再実行はしていないと明記されている。C / C' の独立の再認証ではない。
+- P2-1（採用）: `05-scene.md` §5.12 で、`SceneEvent.State` を「通知に載せた状態（`SceneBase` の実状態と一致するとは限らない）」に直し、「存在の意味」の記述を、写しの正本は管理集合（`_currentScenes`）と `Lifecycle.State`、存在の境界は管理集合の追加と除去、`SceneEvent` は通知されたフェーズと状態のラベル、と言い直した。通知が遷移の前に出る・`AfterUnloading` が `Removed` に載る・`CancelCleanedUp` が `LoadCanceled` を載せるという既知のずれを並べ、既存の event だけで写しを再構成できることは確かめておらず、厳密な対応（再開と失敗の後始末の経路を含む）は後続で確かめると書いた。「入る側の境界は `StateChanged`（`PreLoading`）」「出る側の境界は `Removed` / `CancelCleanedUp` と揃う」という断定は消した。event の実装と push は足していない。
+- P2-2（採用）: CLI README の `osm.scenes` の「Not delivered」を「No confirmed result」に改め、CommandResult 行が無い終わり方（timeout を含む）は実行されたかが不明で、timeout は実行されなかった証拠ではないこと、読み取りだけなので送り直してよく、送り直しは前回の応答の復元ではなくその時点の新しい写しであることを書いた。S3 の節の「unknown」の扱いと揃えた。CLI・protocol は変えていない。
+- 「D の出口で残すこと」: 判定対象 `0b933a5d`、最終 head との製品差分の有無（`0b933a5d` から PR の最終 head まで、製品の code と test の差は無く、変わるのは本書と上の harvest 先の文書だけ）、全回帰の件数、runner の exit と強制終了の区別、最新 head の CI の結果は PR 本文に書く。取得案内の所在・原記録の資格情報は下のとおり。
+
+### harvest to の 3 文書と implementation head の突き合わせ
+
+- `05-scene.md` §5.12、`12-telemetry.md` §10.5、CLI README の `osm.scenes` の節を、head `0b933a5d` の `FrameworkFirstDebugCommandDispatcher`・`FrameworkDebugCommands`・`ScenesDebugCommand`・`SceneDirector.DebugSnapshot.cs` と `AbstractApplicationInitializer.cs` の配線の行（`CreateDebugSocketService`）に読み比べた。振り分け（Ordinal の完全一致、null の command と cancel 済みの扱い）、Player で Game の dispatcher を同じ参照で返すこと、`Compose` が固定の名前の登録だけを行うこと、出力の項目と順と意味、`unavailable: scene-director-not-created`、実行の時に SceneDirector を解決することは、いずれも code と一致した。上の P2-1・P2-2 を直した以外に直す点は無かった。
+- `docs/handoff/DEBUG_COMMAND_VISION.md`（構想。HANDOFF の外）の起点の欄が本書へのリンクだったので、本書の削除に合わせてリンクを外し、HANDOFF が削除済みで全文が git 履歴にあることを書いた。「今の姿（S4 の完了を仮定）」は「完了後」に直した。ほかに本書を参照する文書は無い。
+
+### Evidence の保存・引渡し確認
+
+- evidence bundle（判定 C）: 取得案内 `judgement-0b933a5d.md` の手順で、非仮想化の pwsh から main checkout で `fetch` し（status `passed`、`complete`）、判定 C の結論・実行担当の記録・テストと V0〜V6 の原記録・照合の基盤・1〜4 回目の履歴（9 file）が取得でき、判定 C の結論を閲覧できることを確かめた。
+- Phase B result snapshot（`phase-b-result-0b933a5d.md`、6 file）と C' blind bundle（`cprime-0b933a5d.md`、manifest を含む 338 file）も同じ手順で取得し、file 数が案内の記録と一致することを確かめた。C' blind bundle には所見を含まないまま引き渡し済みである。
+- 状態: 3 つとも **確認済み**（ローカル固定、未昇格）。Cloud・別 host の読み手は無く、owner の昇格の指示も無いので昇格しない。取得案内 3 つ（`judgement-0b933a5d.md`・`cprime-0b933a5d.md`・`phase-b-result-0b933a5d.md`）は進行役の置き場（この PC の Git 管理外の運用 directory の `guides`。削除予定の worktree の外）にあり、owner はここから辿れる。所在は PR 本文にも書いた（reference と packageSha256 の実値、ローカルの path は PR にも本書にも書かない）。保持は Storage の条件（task の終了から 30 日）に従う。
+- 未保存分: 無い。判定 C・C' の所見と AC の根拠は本書（git 履歴）にあり、harvest 先へ移した。C' の出力と発見 C の所見と入力は Git 外にローカル保全してある（判定の入力は上の bundle に収録済み）。
+- 原記録への資格情報の混入（運用事項。製品の欠陥ではない）: 判定 C の 1 回目の原記録の 1 file に Unity の資格情報が入っていた。値は本書にも PR にも書かない。進行役が Artifact Storage へ stage する前に削除し、stage 済みの bundle には入っていない。stage の前の保全物（削除前の未加工の物が残っていないかを含む）のアクセス範囲の確認と、必要なら資格情報の失効・再発行は owner の側で行う（本 Phase D では行っていない）。
+- Evidence の日次清掃 job: 非仮想化の pwsh で `pwsh tools/artifacts.ps1 evidence schedule status` を実行し `passed`（登録あり、次回 2026-11-28 03:00 JST）。job 自身の前回の結果は `partial` で、この確認の基準（`passed`）の外なので直していない。
+
+### harvest と後始末
+
+- harvest: 上の 3 文書（`05-scene.md` §5.12、`12-telemetry.md` §10.5、CLI README）は Phase B が書き、本 Phase D が P2-1・P2-2 を直した。構想 `DEBUG_COMMAND_VISION.md` は構想のまま残す（リンクだけ直した）。
+- 削除: 本書を次の commit で消す。git 履歴のこの commit に全文が残る。
+- 機械検査: `pwsh tools/contract-audit.ps1` と `pwsh tools/docs-audit.ps1` は削除の commit の後に実行する結果を PR 本文に書く。
+- task `debugstudio-s4` の終了: 行っていない。進行役が owner の完了の決定を受けて行う（`workflow-task.ps1 end`）。マージ、検証用の checkout・branch・worktree の削除も進行役。
+- マージの前に残る事項: owner のマージ判断。原記録の資格情報の件の owner 側の確認。PR は Draft のまま（Ready にするのは owner か進行役）。
+- 担当・モデル: Phase D の担当（新しい session）。

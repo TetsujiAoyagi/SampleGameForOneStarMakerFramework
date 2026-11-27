@@ -80,7 +80,7 @@ Telling the outcomes apart:
 
 - Read: `success=true message=captured` (exit `0`). `scenes: []` is a successful read of an empty managed set.
 - Cannot read: `success=false message=unavailable: scene-director-not-created` (exit `1`; the line goes to stderr). SceneDirector has not been created yet or has already been released. Retry after startup.
-- Not delivered: no `CommandResult` line (Play not running, WPF host not running, timeout exit `2`, other failures exit `1`). The command reads only, so it is safe to send again.
+- No confirmed result: no `CommandResult` line (Play not running, WPF host not running, timeout exit `2`, other failures exit `1`). Whether the command ran is unknown, as for the other commands above; a timeout does not mean it did not run. The command reads only, so it is safe to send again. The new read is a fresh capture of that moment, not a recovery of the earlier response.
 
 After stopping and restarting Play, the output shows only the new Play's scenes; the history starts empty.
 

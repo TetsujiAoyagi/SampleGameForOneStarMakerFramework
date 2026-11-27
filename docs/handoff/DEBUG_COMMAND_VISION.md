@@ -8,7 +8,7 @@
 - created: 2026-11-25
 - expires: 2027-02-28、または構想を置き換える revision。期限時は owner が更新・廃止を判断する
 - harvest to: 各段階のスライスが実装・実証した契約だけを `unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（コマンドの口・公開範囲・出力）、`05-scene.md` §5.12（Scene の観測）、`tools/DebugStudio/src/DebugStudio.Cli/README.md` へ移す。構想そのものは公開面へ移さない
-- 起点: [DEBUGSTUDIO_S4_FRAMEWORK_STATE.md](DEBUGSTUDIO_S4_FRAMEWORK_STATE.md) の計画の過程（revision 1〜3）で出た、S4 では作らない基盤の論点を集めた。owner の依頼「debugcommand 基盤整備についてビジョンがあれば折角なのでまとめて欲しい」（2026-11-25）
+- 起点: DebugStudio S4（`osm.scenes`。完了。契約は上の harvest 先にあり、計画の HANDOFF `docs/handoff/DEBUGSTUDIO_S4_FRAMEWORK_STATE.md` は削除済みで全文は git 履歴にある）の計画の過程（revision 1〜3）で出た、S4 では作らない基盤の論点を集めた。owner の依頼「debugcommand 基盤整備についてビジョンがあれば折角なのでまとめて欲しい」（2026-11-25）
 - 実測: base `07cc2c97` の code を読んだだけ。Unity も .NET も起動していない
 
 ## 1. 何のための基盤か
@@ -52,7 +52,7 @@ DebugStudio はそのための有力な手段だが、**DebugStudio を使わせ
 
 DontDestroyOnLoad に置くデバッグ表示用の GameObject は、今の DebugStudio の hierarchy には出ない（`SceneManager.GetSceneAt` で走査しているため。S3 から移送された項目）。両方の手段を使う時は、DebugStudio の hierarchy の DontDestroyOnLoad 対応と、デバッグ表示用の GameObject を検証の対象から区別する方法を合わせて考える。
 
-## 3. 今の姿（S4 の完了を仮定）
+## 3. 今の姿（S4 の完了後）
 
 - 口: Game は `CreateDebugCommandDispatcher()` の override で自分の dispatcher（実際は `DebugCommandCatalog` + `CatalogDebugCommandDispatcher`）を作る。Framework は Editor でだけ内部の catalog を持ち、振り分けの dispatcher が Framework の名前を先に引く（S4）。
 - コマンド: 組込みの `ping` / `runtime-diagnostics`（transport の層、main thread を待たない、大小文字を区別しない）。Framework の `osm.scenes`（読み取り、Editor だけ、S4）。SampleGame の `debug.set-active`（書き込み、Editor だけ、S3）。

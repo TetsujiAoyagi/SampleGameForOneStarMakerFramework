@@ -641,7 +641,7 @@ public readonly struct SceneEvent
 {
     public SceneEventType Type { get; }        // StateChanged / Added / Removed / CancelCleanedUp
     public string SceneIdentify { get; }
-    public SceneState State { get; }           // イベント発生時点の状態
+    public SceneState State { get; }           // 通知に載せた状態（SceneBase の実状態と一致するとは限らない。「今の状態の写し」の節）
     public long ElapsedMs { get; }             // 直前フェーズの所要時間 (ms)。テレメトリ用
     public long TimestampUtcTicks { get; }     // イベント発生時刻 (UTC ticks)。テレメトリ用
 }
@@ -689,7 +689,7 @@ sceneDirector.OnSceneEvent
 
 - **写す物:** 管理集合の Scene の id と各 `SceneState`、unload の待ちの id の全集合、遷移の履歴（新しい順の `{from, to}`）、`CanGoBack`。語彙は `SceneEvent` と同じ（id は `SceneIdentify` と同じ文字列、状態は `SceneState`）。
 - **観測は状態と寿命を変えない:** field を読むだけで、field に書かない、event を出さない、`SceneBase` の method・`GetLoadedScene`・`SceneResource` を呼ばない、履歴は列挙だけ。main thread で await を挟まずに読むので、1 回の写しは一つの時点の値で、操作の途中の状態（`PreLoading`、`LoadCanceled` など）はそのまま写る。要求された時だけ作り、継続して作らない（pull）。`OnSceneEvent` も購読しない。
-- **存在の意味:** 写しに載るのは SceneDirector の管理集合にある Scene で、PreLoad の前（`_currentScenes` に加えた時）から unload の完了（`Remove`）まで。`Added` は `Stable` に達した時に出るので、写しには `Added` の前の Scene も載る。出る側の境界は `Removed` / `CancelCleanedUp` と揃う。event を写しに当てて寿命を表示する時は、入る側の境界が `StateChanged`（`PreLoading`）であって `Added` ではない。Unity のロード済みの全 Scene とは別の集合である。
+- **存在の意味:** 写しの正本は `_currentScenes`（管理集合）と各 Scene の `Lifecycle.State` で、写しに載るのは管理集合にある Scene、つまり管理集合へ加えた時（PreLoad の前）から `Remove` まで。存在の境界はこの管理集合の追加と除去である。`SceneEvent` は通知された時点のフェーズと状態のラベルであり、`SceneBase` の実状態や管理集合の出入りの記録ではない。`Added` は `Stable` に達した時に出るので、写しには `Added` の前の Scene も載る。`PreLoading` / `PreUnloading` の通知は実際の遷移より前に出る。`AfterUnloading` は単独の `StateChanged` を持たず `Removed` に載る。`CancelCleanedUp` は `LoadCanceled` の状態を載せて出る。通常の経路の参考にはなるが、既存の event だけで写しの状態や所属を正確に再構成できることは確かめていない。event と写しの厳密な対応（再開と失敗の後始末の経路の通知を含む）は、寿命の可視化を担う後続で確かめる。Unity のロード済みの全 Scene とは別の集合である。
 - **unload の待ち:** 管理集合の部分集合とは限らない（取消の後始末は先に管理集合から外し、後でまとめて待ちを外す）。
 - **履歴:** 成功した遷移の記録ではなく、戻り先の管理用の stack。`SwitchScene` が PoNR の後、unload と add の前に積む（`from` が null の遷移は積まない）ので、遷移の途中や失敗の後にも entry がある。`GoBack` の成功で減り、`ClearHistory` で空になる。最大 8 件で、超えると最古の entry が黙って捨てられる。
 - **Dispose 済みの SceneDirector は扱わない。** initializer の `ReleaseAll` が SceneDirector の参照を null に戻すことに依存する。
