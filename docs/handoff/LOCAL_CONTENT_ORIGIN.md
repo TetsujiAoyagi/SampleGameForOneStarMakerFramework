@@ -5,10 +5,10 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C'`（**C'（2 巡目、2026-11-27）は blocker なし。CP-1 は owner の裁定（§8 の DC-1 版 1）で解消。判定 C（判断担当、2 回目）は GO。C' まで完了し、次は Phase D（owner の指示を待つ）。** implementation head は `34673237`）
+- status: `C`（**owner の決定 DC-2（§8）で外部実装レビューの P1-1・P1-2 を Phase B 4 巡目で直した（§6）。次は判定 C（全 EditMode 回帰と機械検査を新しい head で取り直し、E 系列は `j3` を使い回す）。** 前の implementation head `34673237` の判定 C・C' の結果は新しい head の合格に流用しない）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
-- implementation head commit: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`
+- implementation head commit: `8acd2ca5bc75276cca8481d8bd4958184c64df97`
 - A3 凍結記録: 承認者 owner（root）、2026-11-27、revision 1（この記録を含む commit）。根拠は owner の会話での指示（revision 1 の凍結と、A2 の観点の再レビュー・目的レビューのやり直しを行わないことの 2 点を「両方 ok、凍結しよ」で承認）。次の担当は Phase B。前の記録: revision 0（改訂 3）は owner が 2026-11-26 に凍結した（commit `5a906078`。根拠は D の裁定の承認）
 - risk: `high`（Framework の公開 API に取得元の差込口を足し、cache への書き込みを呼ぶ調停と、Play の入口の候補の並びに触れる。program の行は `normal` だったが、高リスクの例の「公開 API」に当たるので上げた）
 - owner: root（依頼者）
@@ -16,15 +16,15 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「DIST transport と disk cache の境界」（取得元の差込口、取得元の head、digest の出所、取得の調停と止まる規則、取得が古い install を消しうること）と「まだ保証しないこと」、[18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「配信用 transport の公開境界」（head の登録）と「宣言からの Play 経路」（取得の操作、選んだ base の記録）、[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（別の `Library` の base と上書きの答え）、repo の README の「試す」、[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 の行と後続へ送る入力
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は個別に作らない（§6 の Phase B の実装結果と「動作確認」の節を両方の bundle に収録した）。判定 C の evidence bundle と C' blind bundle（1 巡目）はどちらもローカル固定済み（未昇格）で、取得は送信と別の process で確かめた。取得案内は進行役の worktree の git 管理外に置き、evidence bundle の案内は Phase D の担当へ、C' blind bundle の案内は C' の担当へ進行役が渡す。両方の bundle は判定 C の判断担当が読んだのと同じ原記録から、判定 C の後に作った。C' blind bundle の Phase A は凍結した revision 1 の §1〜§5（§5.1 を除く）を手を加えずに収め、§5 の本文にある §6 の節への参照 1 か所もそのまま残した（参照先の節は収めていない）
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: implementation `34673237` の判定 C の evidence bundle と C' blind bundle（1・2 巡目）はローカル固定済み（未昇格）で、取得案内は進行役の worktree の git 管理外にある。新しい implementation head の bundle は未生成（判定 C の後に進行役が作る）。
 - 引継ぎ票:
-  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。owner の指示で始める。
-  - 次の作業: 開始時に引継ぎ票の照合をする。review-evidence.md の「Phase D の保存・引渡し確認」に従い、判定 C の evidence bundle と C' blind bundle（どちらもローカル固定済み、未昇格。取得案内は進行役の worktree の git 管理外にある）と C' の入力（DC-1 の写しを含む packet）の保存・引渡しを確かめる。DC-1 の後続のスパイクの入力を program の未所有の項目へ移し、harvest の後に HANDOFF を消す。
-  - 読む範囲: 既定（§0）。harvest のために §1〜§8 の必要な節。
+  - 次の Phase・役割: 判定 C（実行担当と判断担当）。DC-2 により発見 C は挟まない。
+  - 次の作業: 開始時に引継ぎ票の照合をする。実行担当は新しい implementation head で全 EditMode 回帰（空 filter）と §5 の機械検査を取り直し、生の結果を §7 に書く。E 系列は取り直さず、`j3`（implementation `34673237`）の原記録を DC-2 のとおり使う。判断担当は §6 の「外部実装レビュー P1-1・P1-2 の修正」と修正差分（`34673237..` の新しい head）を含めて GO / NO-GO を判定する。GO なら C'（3 巡目）。
+  - 読む範囲: 既定（§0〜§8）。重点は §6 の「外部実装レビュー P1-1・P1-2 の修正」、§7 の判定 C（判断担当、2 回目）、§8 の DC-2。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: `docs/` の編集、git、`tools/artifacts.ps1`（evidence の fetch・schedule status。非仮想化の pwsh）。Unity の起動は要らない。
-  - 停止規則: Phase D の規則。保存・引渡しが未完了なら元証拠を残す。
-  - 引き渡さないもの: なし。
+  - 必要な権限: 実行担当は Unity の起動（batch のテスト）と sandbox の外の実行。判断担当は読み取りと HANDOFF の編集。資格情報は要らない。
+  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。判定 C の後の差し戻しは 4 巡目（上限）に達した。さらに戻す必要が出たら owner に聞く。
+  - 引き渡さないもの: C' には発見 C・判定 C の所見と、外部実装レビューの本文を渡さない。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -730,6 +730,16 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 - 実行した確認（この実行は判定の入力にしない。Unity は起動していない）: `ScenarioDriver.Tests.ps1` 15 件 0 失敗（S4-3a の driver の走査、用意した 2 つの checkout での `-DryRun` の全 case、足した test を含む）、`Scenario.Tests.ps1` 24 件 0 失敗、`ScenarioUnity.Tests.ps1` 28 件 0 失敗、`pwsh tools/contract-audit.ps1` exit 0（違反なし）。`pwsh tools/docs-audit.ps1` は本書の記録の後に errors 0（警告 1 件は program の harvest の時期の既存の物）。
 - 未実行（Phase C の責任）: 改めた driver の実機の通し（判定 C の E 系列の取り直し）、全 EditMode 回帰。eval の C# の code は Unity で compile していない（probe5 の読み方と同じ reflection だが、driver の文字列としては実機で通っていない）。E 系列の動作確認は前の記録と同じ理由で `未実施`。
 
+### 外部実装レビュー P1-1・P1-2 の修正（Phase B 4 巡目、2026-11-27）
+
+owner の決定 DC-2（§8）で、C' の後に PR #214 に来た外部実装レビュー（implementation `34673237`）の P1-1・P1-2 を現スライスで直した。implementation head は `8acd2ca5`。
+
+- **P1-1（取得元の後片付けの例外、AC3・N1）:** `ContentOriginGuard` の `Dispose`（取得口）と `GuardStream.Dispose`（stream）、打ち切った task の後で走る遅れた後片付け（遅れて返った stream の破棄、打ち切った読みの後の stream の破棄）は、例外を投げ直さずに診断にする。後片付けは成功・取消・元の失敗の結果を上書きしない。`ContentAcquisition` は guard の診断を受ける列を持ち、`Finish` で結果を作る前に今の guard を破棄してその診断を結果の `Diagnostics` に入れる（返した結果は後から変えない。結果の後に来た遅れた分は入らない）。`Dispose` は 2 回目以降は何もしない。
+- **P1-2（head の別名の file、AC3）:** `ContentOriginHeadWriter` の別名の file への書き込みを後片付けの範囲（finally の削除）に入れた。書き込みの失敗も置き換えの失敗も、例外は後片付けの後に作るので、別名の file を消せなかった診断が `Message`（batch の `originHeadFailure`）に入る。書き込みは `Operations` に注入できる（既定は `File.WriteAllBytes`）。D-5-6 (b) の公開物の保持と終了コード 6 は変えていない。
+- **test:** `ContentOriginGuardTests` に 4 件（取得口の `Dispose` が投げても install 後は `Acquired`・一覧・lock が食い違わない、読みの失敗の最中に stream の `Dispose` が投げても元の失敗と次の取得元の取得が保たれる、取消の最中に取得口と stream の `Dispose` が投げても `Canceled` のまま staging が残らない、取消の後に遅れて返った stream の `Dispose` が投げても外へ出ない）。後の 2 件のうち memory と Indexed の両方で走る行がある。`ContentOriginHeadWriterTests` に 3 件（途中まで書いて失敗しても前の head の bytes と別名の file の無いこと、最初の書き込みの途中失敗で head も別名の file も無いこと、別名の file を消せない時に診断が `Message` に入ること）。fixture（`ContentOriginTestSupport.cs`）の memory の取得口と `ControlledStream` に `Dispose` が投げる設定を足した。
+- Phase B の確認: `pwsh tools/run-tests.ps1 -Filter <§5 の開始の filter>`（`TestResults/b4-filter/`、git 管理外）は total 326、passed 326、failed 0（`ContentOriginGuardTests` 29、`ContentOriginHeadWriterTests` 14）。XML ができた後も Unity が終わらず、既知の終了の stall として CIM の Terminate で止めた（note は同じ場所）。
+- 変えていないもの: 調停の段・止まる規則・installer・cache・Play の入口・driver・E 系列の観測。正常な経路の動きは変わらない（後片付けが投げない時は前と同じ）。
+
 ## 7. Phase C
 
 ### 発見 C の実行担当の記録（1 回目、2026-11-26）
@@ -933,6 +943,15 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 - 新しい blocker: なし。後続の入力: DC-1 の後続のスパイク（実際の Player の build での実測）だけ。
 - 監査できなかった範囲（C' の申告）: Player の build の実行と、build に入った一覧の実測。`RenderPipelineGraphicsSettingsStripper.PerformStripping` の本文。修正差分が無いことの git での確認。CP-1 と当該 asset 以外の再監査（2 巡目の範囲外）。
 - 引き渡し: C' まで完了。Phase D は owner の指示で始める（§0 の票）。
+
+
+### 決定記録 DC-2（版 1、2026-11-27、owner）
+
+- 対象: C'（2 巡目）の後に PR #214 に来た外部実装レビュー（implementation `34673237`、HANDOFF `71f48965`、OpenAI ChatGPT）の P1-1・P1-2 と、後続へ送る項目。同じ時刻の cursor の 2 件のレビューは blocker なし。
+- 結論: (1) P1-1・P1-2 は AC3（と P1-1 は N1）の失敗経路の穴として現スライスで直す（Phase B 4 巡目。判定 C の後の差し戻しの上限 4 巡に当たる）。(2) E 系列（RunId `j3`、implementation `34673237`）の結果を新しい implementation head の判定に使い回す。全 EditMode 回帰と機械検査は新しい head で取り直し、判定 C と C'（3 巡目、修正差分が中心）をやり直す。(3) 次の項目は後続へ送り、現スライスでは直さない。
+- (2) の理由: 修正は取得元の後片付けの例外の経路と head の別名の file の書き込みの失敗の経路だけで、正常な経路の動きは変わらない。E 系列はこれらの経路を一度も通っていない（後片付けの例外と書き込みの失敗を注入していない）。凍結条件の意味・合否は変えない。
+- (3) 後続へ送る項目: S4-3b の入力として、取得元の照会・open・read が Task を返す前に止まると打ち切れない件と、adapter が速やかに Task を返す契約、stream と取得口の寿命（遅れた読みが残る間に取得口が破棄される場合を含む）。driver の `Invoke-Acquire` が `Start` の応答を失った時に最大 30 分待って case を続ける件。別の書き手がいる部分失敗で前の head が backup 名のまま残る件。壊れた選んだ base の記録を書き直す時に他の cache root の entry を捨てる件。検証 Play の `RecordOriginHead` が書き込み成功時の診断を捨てる件。DC-1 のスパイク（URP の asset の件）。所有するスライスの無いものは Phase D の harvest で program の未所有の項目へ移す。
+- C' への渡し方: C' 自身の指摘ではないので C' 用決定記録には入れない。C' の 3 巡目には、修正差分と、E 系列の結果が前の implementation head のものであるという事実だけを入力の説明に書く。
 
 ## 9. Phase D
 
