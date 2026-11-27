@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `B`（**C'（1 巡目、2026-11-27）が blocker 1 件（CP-1、§8）。B へ戻す。** 判定 C（判断担当、2 回目）は implementation head `34673237` で GO だったが、C' の blocker の修正で implementation head が変わるので、その判定 C と C' の結果は新しい head に流用しない）
+- status: `C'`（**C'（1 巡目、2026-11-27）の CP-1 を owner が blocker にしないと裁定した（§8 の決定記録 DC-1 版 1）。implementation head `34673237` は変えない。次は C' の 2 巡目。** 判定 C（判断担当、2 回目）は GO）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`
@@ -18,13 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は個別に作らない（§6 の Phase B の実装結果と「動作確認」の節を両方の bundle に収録した）。判定 C の evidence bundle と C' blind bundle（1 巡目）はどちらもローカル固定済み（未昇格）で、取得は送信と別の process で確かめた。取得案内は進行役の worktree の git 管理外に置き、evidence bundle の案内は Phase D の担当へ、C' blind bundle の案内は C' の担当へ進行役が渡す。両方の bundle は判定 C の判断担当が読んだのと同じ原記録から、判定 C の後に作った。C' blind bundle の Phase A は凍結した revision 1 の §1〜§5（§5.1 を除く）を手を加えずに収め、§5 の本文にある §6 の節への参照 1 か所もそのまま残した（参照先の節は収めていない）
 - 引継ぎ票:
-  - 次の Phase・役割: Phase B（C' の CP-1 の修正）。
-  - 次の作業: 開始時に引継ぎ票の照合をする。§8 の CP-1 を直す: `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` を implementation base の内容に戻す（base `9e7d4148` からの差分がこの file に残らないこと）。この file は §3 の責務マップに無い。ほかに Library の無い checkout での Unity 起動で書き換わり、意図せず commit された file が diff に無いかを、base..head の name-status で確かめて §6 に記録する。修正後に新しい implementation head を固定し、発見 C へ渡す。新しい head では判定必須の検証（全 EditMode 回帰と E 系列）と判定 C・C'（2 巡目）をやり直す。
-  - 読む範囲: 既定（§0〜§5、差し戻しなので §6〜§8 も）。重点は §8 の CP-1 と §3 の責務マップ。
+  - 次の Phase・役割: C'（独立監査、2 巡目）。
+  - 次の作業: C' 担当が C' blind bundle（1 巡目と同じ。implementation head は変わっていない）と、C' 自身の 1 巡目の指摘への決定記録 DC-1（版 1）だけを入力に、CP-1 の解消を監査する。裁定が不変条件を破る、または凍結条件の意味・合否を変えると示せる場合に限り、裁定への異議を blocker にできる。結果は進行役が §8 に記録する。
+  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力と決定記録 DC-1 の写しだけ）。§8 に記録する進行役は §0・§7・§8。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: `unity/Assets/Settings/` の asset と `docs/handoff/` の編集、git。Unity の起動と資格情報は要らない（asset は git で base の内容に戻す）。
-  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。変更は CP-1 の asset の復元と、同じ原因で混入した file の復元・§6 の記録に限る。製品 code・test・driver を変える必要が出たら止めて owner に聞く。判定 C の後の差し戻しはこれで 4 巡目で、§0 の上限（4 巡）に達する。
-  - 引き渡さないもの: C' 2 巡目には、C' 自身の前巡の指摘（CP-1）への人間の裁定だけを決定記録として渡し、発見 C・判定 C の所見は渡さない。
+  - 必要な権限: C' は bundle と決定記録の読み取りだけ（Unity の起動、資格情報、network は要らない）。bundle の取得は進行役が行う。
+  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。C' が凍結条件または常時契約の blocker を見つけたら、C' の規則に従って B へ戻す。判定 C の後の差し戻しは 3 巡で、上限は 4 巡。
+  - 引き渡さないもの: 発見 C・判定 C の所見と結論。C' には DC-1 の結論と理由だけを渡す。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -913,7 +913,16 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 - **CP-1（blocker）:** Phase A §2.4 の N5（取得を使わない利用者と Player の動きが変わらない）への違反。`unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の `m_RuntimeSettings.m_List` が、base の 16 件から head で `[]` になっている。この file は §3 の責務マップに無い。program の文書（S4-1 から移送した入力の (7)）は、Library の無い worktree の最初の Unity 起動がこの一覧を `[]` に書き換えると書いている。head にはそれを戻す変更が無い。進行役は事実だけを確かめた: `git diff 9e7d4148 34673237 -- <この asset>` は 1 insertion・17 deletions（16 件の rid を `m_List: []` に置き換え）で、入った commit は `2526ae39`（Phase B の実装 commit）。
 - 後続の入力（C' の記述の要約。現スライスを広げない）: driver の `Invoke-Acquire` は `Start` の応答が失われた時に case を止めず最大 30 分待つ（j3 では踏んでいない）。別の書き手が head を置いた部分失敗で前の head が backup 名のまま残る。壊れた選んだ base の記録を書き直す時に他の cache root の entry を捨てる。pin の revision が head の revision 欄と一致する時の所在の解決。driver の行数（507 行。§3 の予想は約 200 行）。E6 の観測は記録されている。
 - 監査できなかった範囲（C' の申告）: manifest の sha256 の再計算（shell を使わない設定）。test 本体の細部（合否は XML に依る）。Editor log の全文。Player 上の描画。
-- 引き渡し: CP-1 は凍結条件への違反なので B へ戻す（§0 の票）。CP-1 への人間の裁定は未記録。
+- 引き渡し: 進行役は CP-1 を凍結条件への違反として B へ戻す票を書いたが、owner の裁定（下の DC-1）で取り消した。
+
+### C' 用決定記録 DC-1（版 1、2026-11-27、owner）
+
+- 対象: C'（1 巡目）の CP-1（`unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の `m_RuntimeSettings.m_List` が base の 16 件から `[]` になっている）。
+- 結論: **blocker にしない。** asset は base の内容に戻さず、implementation head `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` を変えない。懸念が残るなら後続のスパイクにする。
+- 理由: SRP core（`com.unity.render-pipelines.core`、`Runtime/RenderPipeline/RenderPipelineGraphicsSettingsContainer.cs`）では、Editor が使う一覧は `m_SettingsList` で、`m_RuntimeSettings` は Editor では読まれない。Editor が asset を保存するたびに `OnBeforeSerialize` が `m_RuntimeSettings` を空にし、中身を詰めるのは `BuildPipeline.isBuildingPlayer` の間（Player の build のデータへの書き出し）だけである。Player が読む一覧は build のたびに `m_SettingsList` から作られ、asset に保存された一覧には依らない。したがってこの差分は、取得を使わない利用者と Player の動き（N5）を変えない。凍結条件の意味・合否は変えない（N5 の読み方も変えない）。
+- 確かめていないこと: 実際の Player の build での差の実測（根拠は code を読んだ範囲）。
+- 後続のスパイクの入力: Player の build で `m_RuntimeSettings` が build 時に作られ、asset の保存値（`[]` か 16 件か）で Player の動きが変わらないことの実測。あわせて、新しい worktree の最初の起動でこの asset が書き換わる件（program の S4-1 から移送した入力の (7)）の扱い。所有するスライスは未定で、Phase D の harvest で program の未所有の項目へ移す。
+- C' への渡し方: C' の 2 巡目に、この記録の結論と理由（版 1）だけを渡す。
 
 ## 9. Phase D
 
