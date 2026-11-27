@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定必須テストと AC11 の V0〜V6 の証拠が GO 候補 head で揃った。§7。次は C'。C' の blind bundle の stage は task の登録の後）
+- status: `判定 C 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定必須テストと AC11 の V0〜V6 の証拠が GO 候補 head で揃った。§7。Phase B result・evidence bundle・C' blind bundle は stage 済み。次は C'）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
@@ -17,17 +17,17 @@
 - harvest to: `unity/Assets/Docs/Architecture/05-scene.md` §5.12（外から読める Scene の状態、出力の意味、観測が状態と寿命を変えないこと。あわせて §5.12 の `SceneEvent` の欄の記述が code に遅れている点を直す）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（Framework が Editor でだけ持つ内部の catalog と振り分けの dispatcher）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（`osm.scenes` の送り方と出力の読み方）
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: いずれも未生成（未保存）。中身は進行役が Git 外にローカル保全している（Phase B result は implementation head の完全 diff と audit の log。evidence bundle は判定 C の判定必須テストの XML・log と V0〜V6 の原記録、判定 C の照合 script と結果。C' blind bundle はまだ組んでいない）。task の登録の後に implementation head から stage し、取得案内を残す。引渡し先・担当: evidence bundle は Phase D・owner（C' の後の突き合わせ）、C' blind bundle は C' の担当
-- task: 未登録（owner が start を実行したと伝えたが、`workflow-task.ps1 status -Task debugstudio-s4` は `unregistered`。進行役の start は自動の許可判定に拒否された。2026-11-27。owner の確認待ち）
-- 引継ぎ票（判定 C の出口、2026-11-27）:
-  - 次の Phase・役割: C'（GO 候補 head = implementation head の独立監査）。その前に進行役が Phase B result snapshot・evidence bundle・C' blind bundle を stage する。
-  - 次の作業: task の登録の後、implementation head から Phase B result snapshot（所見を含まない）、evidence bundle（判定 C と同じ原記録と、判定 C の照合 script と結果）、C' blind bundle（凍結した Phase A、所見を含まない Phase B 結果、本書を除いた base から head までの diff、判定 C と同じ原記録。発見 C・判定 C の所見、照合 script と結果は入れない）を固定 manifest つきで stage し、別の process の取得で全 file の一致を確かめて §0 に取得案内を残す。C' の担当の起動は owner に確かめてから行う。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記する。
-  - 読む範囲: 進行役は §0・§7・§8。C' の担当は blind bundle だけ。
-  - 必要な権限: Artifact Storage の stage と取得（task の登録の後）。Unity は起動しない（原記録は揃っている）。
-  - 取得案内の所在: 上の欄のとおり未生成。
-  - task: `debugstudio-s4`（未登録。stage はその解消の後）。
-  - 停止規則: 実装を直さない。判定をやり直さない。C' blind bundle に発見 C・判定 C の所見、照合 script と結果を入れない。bundle の file を加工しない。
-  - 引き渡さないもの: 発見 C・判定 C の所見と結論（C' へ）。
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 3 つともローカル固定済み（未昇格）。implementation head で stage し、別の process の取得で全 file が元の file と同じ SHA-256 であることを確かめた（2026-11-27）。**Phase B result snapshot:** base から head までの完全 diff・stat・name-status と head での contract-audit・docs-audit の log（6 file。所見を含まない）。引渡し先・担当は Phase D・owner。取得案内は進行役の置き場の `phase-b-result-0b933a5d.md`。**evidence bundle:** 判定 C の判定必須テストと V0〜V6 の原記録、判定 C の照合の基盤と結論、進行役の再実行、1〜4 回目の履歴（9 file、原記録の群は zip）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ。C' には渡さない）。取得案内は同じ置き場の `judgement-0b933a5d.md`。**C' blind bundle:** 凍結した Phase A（A3 凍結版の本書）、Phase C の前の Phase B 結果（B の出口の §6）、本書を除いた base から head までの diff、判定 C と同じ原記録（テストと V0〜V6）、固定 manifest（338 file。発見 C・判定 C の所見と結論、照合 script と結果は含まない）。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime-0b933a5d.md`。判定 C の 1 回目の原記録の 1 file にあった Unity の資格情報の値は、stage の前に進行役が削除した
+- task: `debugstudio-s4`（開始済み。owner が「どうにか君がやって先に進めて」と指示したので進行役が start した。2026-11-27）
+- 引継ぎ票（判定 C の出口、2026-11-27。bundle の stage 済み）:
+  - 次の Phase・役割: C'（GO 候補 head = implementation head の独立監査。1 巡目で最終 C'）。
+  - 次の作業: 進行役が C' blind bundle（取得案内 `cprime-0b933a5d.md`）を `fetch` して manifest の全 file の一致を確かめ、所見を含まない入力だけを C' の担当へ渡す。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記する。GO なら次は Phase D、阻害する指摘があれば B へ返す（C' の差し戻しは別に数えて上限 3 巡）。
+  - 読む範囲: 進行役は §0・§8。C' の担当は blind bundle だけ。
+  - 必要な権限: Artifact Storage の `fetch`（非仮想化の pwsh。資格情報は要らない）。C' は読み取り専用でよい。
+  - 取得案内の所在: 上の欄のとおり。
+  - task: `debugstudio-s4`（開始済み）。
+  - 停止規則: C' に発見 C・判定 C の所見、照合 script と結果、本書、PR の会話を渡さない。bundle の file を加工しない。
+  - 引き渡すもの: C' blind bundle。evidence bundle は Phase D の突き合わせ用で、C' には渡さない。
 ### 実測の方法
 
 - base `07cc2c97` の code と文書を `grep`・`wc -l`・行範囲の読み取りで確かめた。Unity も .NET も起動していない。
@@ -614,7 +614,7 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 - 判定: GO（I1〜I4 と E1〜E4 を同じ GO 候補 head で満たし、判定必須テストが全て通る。§2.5）。高コスト証拠は無いので、次の C' が最終 C'。
 - 判定必須のうち未実行: なし。
 - 未確認事項: 判断担当の環境に Python が無く、照合 script を判断担当自身は再実行できなかった（同じ規則を原記録で読んで確かめ、進行役の再実行の結果と一致した）。全回帰の runner が終了 stall なしに exit することは確かめていない（件数は XML で確定）。
-- 証拠: Git 外にローカル保全（取得案内は §0 のとおり未生成）。
+- 証拠: §0 の evidence bundle（ローカル固定済み、未昇格。取得の確認済み）。
 
 ## 8. Phase C'
 
