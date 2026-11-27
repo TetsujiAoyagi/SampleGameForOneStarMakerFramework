@@ -1,7 +1,7 @@
 # Streaming の純政策ベンチマーク（S-9a）の小計画（`STREAMING_POLICY_BENCHMARK`）
 
 > type: program
-> ステータス: **A0 の計画。実装キューではない。** S-9a を 6 つの小スライスに分ける（測定 4 本と、Telemetry の修正 2 本）。各スライスは着手時に `slice` の HANDOFF を切る。最初の 1 本は [STREAMING_BENCHMARK_BACKEND.md](STREAMING_BENCHMARK_BACKEND.md)（A1 初稿）。
+> ステータス: **A0 の計画。実装キューではない。** S-9a を 6 つの小スライスに分ける（測定 4 本と、Telemetry の修正 2 本）。各スライスは着手時に `slice` の HANDOFF を切る。最初の 1 本は [STREAMING_BENCHMARK_BACKEND.md](STREAMING_BENCHMARK_BACKEND.md)（A3 統合案、未凍結）。
 > 位置付け: [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6 の S-9a。S-9b・S-9c は含まない。
 > owner: root（依頼者）。created: 2026-11-27。期限: 2026-12-31、または各スライスへの取り込み。
 > harvest 先: `docs/streaming/STREAMING_CURRENT_SPEC.md` §6（測定記録）、`SEASON_WORLD_DESIGN.md` §6 の S-9a の行と S-9c への入力、`unity/Assets/Docs/Architecture/21-scene-streaming.md` §9（計測の口の現況）。全スライスの harvest の後に本書を `git rm` する。
@@ -84,6 +84,7 @@
 - S-9a-3 の結果だけで S-9c の入力になる項目（照会数、収束、starvation、duplicate、残留）がある。S-9a-4 を待たずに harvest する。
 - Telemetry の 2 本を測定の後ろに置く理由: 読み口に何を出すかは、件数の測定（S-9a-3）で実際に使った値から決める。先に公開面を決めると、使わない値まで契約になる。S-9a-5 は他の 2 ラインと重ならないので S-9a-3 の後すぐ着手でき、S-9a-4 と順序の依存は無い。S-9a-6 は S-9a-5 の読み口を使い、PR #216 と同じ file を触るので merge を待つ。
 - S-9a-5 が Controller に読み口を足した後に時間と確保を測る（S-9a-4 が後になる）場合、S-9a-4 は読み口の追加が Tick の時間と確保を変えていない事を、追加の前後の commit で測って確かめる。
+- S-9a-2 の runner は、duplicate が 1 件でも出た反復を、それ以降の件数の測定が無効な反復として記録する（S-9a-1 の A2 の指摘。duplicate に完了済みの task を返すので、Controller の in-flight の会計が実物とずれる）。
 - 予算外が出ても、どのスライスも Controller の Tick の計算を直さない（§6 の S-9a の行）。
 - Phase B は Editor での compile 確認まで、Unity テストは Phase C。Cloud では Unity を動かさない。
 
@@ -93,11 +94,9 @@
 
 ### 5.1 測定用 backend の模型（S-9a-1 で凍結）
 
-- `RequestAdd(id)` は `現在の Tick + Add の遅延` に完了する。完了の時点でその identity はロード済みになる。
-- `RequestRemove(id)` は `現在の Tick + Remove の遅延` に完了し、その時点で未ロードになる。
-- 保留中の Add に `RequestRemove` が来たら、Add は元の時点で完了してロード済みになり、Remove は「Add の完了と `現在の Tick + Remove の遅延` の遅い方」に完了して未ロードになる（保留 unload の模型）。
-- 完了は呼び出し側が Tick と Tick の間に進める。配送は期限の順、同じ期限なら要求の順。
-- duplicate: 保留中かロード済みの identity への Add、保留中の Remove がある identity への Remove、未ロードで Add の保留も無い identity への Remove。
+定義の正本は [STREAMING_BENCHMARK_BACKEND.md](STREAMING_BENCHMARK_BACKEND.md) §2 である。S-9a-1 の harvest の時に、凍結した定義を本節へ移す。
+
+- 要求は Tick 番号だけで完了し、Add の完了でロード済みになる。保留中の Add への Remove は、Add の完了の後に未ロードへ戻す（保留 unload の模型）。
 - 実物の SceneDirector（キャンセル窓と保留 unload の両方がある）の再現は主張しない。実物は S-9b が測る。
 
 ### 5.2 workload manifest（S-9a-3 で凍結）
@@ -157,7 +156,7 @@ stale completion の件数には予算を置かない（テレポートでは起
 |---|---|---|
 | P1 | B5 の値と対象ハードウェア（CPU、メモリ、OS、電源設定）。Cloud からは測定機の構成が分からない | owner。S-9a-4 の A3 まで |
 | P2 | B6 の値（0 byte か、0 でない上限か） | owner。S-9a-4 の A3 まで |
-| P3 | 保留中の Add への Remove の模型を 1 通りで足りるとするか | S-9a-1 の A2 |
+| P3 | **解決済み:** 保留中の Add への Remove の模型は 1 通り（保留 unload）で足りる。取消の模型が要るなら S-9b の Phase A で足す | S-9a-1 の A2 |
 | P5 | system ごとの Tick 時間と frame ごとの確保量（T2・T3）、SampleGame の driver が UpdateSystem に登録されていない事を、どの計画が持つか | owner。S-9a-6 の着手まで |
 | P4 | `[Explicit]` の test を `run-tests.ps1 -Filter` で選べるか、`TestContext.Progress` の行が保存される出力に残るか | S-9a-3 の Phase C で初回確認 |
 
