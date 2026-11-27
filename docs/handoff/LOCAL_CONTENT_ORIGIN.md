@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C'`（**C'（1 巡目、2026-11-27）の CP-1 を owner が blocker にしないと裁定した（§8 の決定記録 DC-1 版 1）。implementation head `34673237` は変えない。次は C' の 2 巡目。** 判定 C（判断担当、2 回目）は GO）
+- status: `C'`（**C'（2 巡目、2026-11-27）は blocker なし。CP-1 は owner の裁定（§8 の DC-1 版 1）で解消。判定 C（判断担当、2 回目）は GO。C' まで完了し、次は Phase D（owner の指示を待つ）。** implementation head は `34673237`）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`
@@ -18,13 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は個別に作らない（§6 の Phase B の実装結果と「動作確認」の節を両方の bundle に収録した）。判定 C の evidence bundle と C' blind bundle（1 巡目）はどちらもローカル固定済み（未昇格）で、取得は送信と別の process で確かめた。取得案内は進行役の worktree の git 管理外に置き、evidence bundle の案内は Phase D の担当へ、C' blind bundle の案内は C' の担当へ進行役が渡す。両方の bundle は判定 C の判断担当が読んだのと同じ原記録から、判定 C の後に作った。C' blind bundle の Phase A は凍結した revision 1 の §1〜§5（§5.1 を除く）を手を加えずに収め、§5 の本文にある §6 の節への参照 1 か所もそのまま残した（参照先の節は収めていない）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査、2 巡目）。
-  - 次の作業: C' 担当が C' blind bundle（1 巡目と同じ。implementation head は変わっていない）と、C' 自身の 1 巡目の指摘への決定記録 DC-1（版 1）だけを入力に、CP-1 の解消を監査する。裁定が不変条件を破る、または凍結条件の意味・合否を変えると示せる場合に限り、裁定への異議を blocker にできる。結果は進行役が §8 に記録する。
-  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力と決定記録 DC-1 の写しだけ）。§8 に記録する進行役は §0・§7・§8。
+  - 次の Phase・役割: Phase D（保存・引渡しと後始末）。owner の指示で始める。
+  - 次の作業: 開始時に引継ぎ票の照合をする。review-evidence.md の「Phase D の保存・引渡し確認」に従い、判定 C の evidence bundle と C' blind bundle（どちらもローカル固定済み、未昇格。取得案内は進行役の worktree の git 管理外にある）と C' の入力（DC-1 の写しを含む packet）の保存・引渡しを確かめる。DC-1 の後続のスパイクの入力を program の未所有の項目へ移し、harvest の後に HANDOFF を消す。
+  - 読む範囲: 既定（§0）。harvest のために §1〜§8 の必要な節。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: C' は bundle と決定記録の読み取りだけ（Unity の起動、資格情報、network は要らない）。bundle の取得は進行役が行う。
-  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。C' が凍結条件または常時契約の blocker を見つけたら、C' の規則に従って B へ戻す。判定 C の後の差し戻しは 3 巡で、上限は 4 巡。
-  - 引き渡さないもの: 発見 C・判定 C の所見と結論。C' には DC-1 の結論と理由だけを渡す。
+  - 必要な権限: `docs/` の編集、git、`tools/artifacts.ps1`（evidence の fetch・schedule status。非仮想化の pwsh）。Unity の起動は要らない。
+  - 停止規則: Phase D の規則。保存・引渡しが未完了なら元証拠を残す。
+  - 引き渡さないもの: なし。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -923,6 +923,16 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 - 確かめていないこと: 実際の Player の build での差の実測（根拠は code を読んだ範囲）。
 - 後続のスパイクの入力: Player の build で `m_RuntimeSettings` が build 時に作られ、asset の保存値（`[]` か 16 件か）で Player の動きが変わらないことの実測。あわせて、新しい worktree の最初の起動でこの asset が書き換わる件（program の S4-1 から移送した入力の (7)）の扱い。所有するスライスは未定で、Phase D の harvest で program の未所有の項目へ移す。
 - C' への渡し方: C' の 2 巡目に、この記録の結論と理由（版 1）だけを渡す。
+
+### C'（2 巡目、2026-11-27）
+
+- 種別: C'（独立監査、2 巡目）。implementation base / head は 1 巡目と同じ（`9e7d4148` / `34673237`）。前巡の head からの修正差分は無い。
+- 入力: 1 巡目と同じ C' blind bundle の写し・展開・implementation head の tracked file の写しと、DC-1（版 1）の結論・理由の写し、DC-1 が根拠にした SRP core の `RenderPipelineGraphicsSettingsContainer.cs` の写し。1 巡目の会話は引き継がない新しい起動。
+- 担当・モデル: xAI の Grok（cursor-agent、ask mode、読み取りだけ）。1 巡目と同じ系列。独立性制約あり（owner 受容）。実行時間は約 5 分。
+- 結論: **blocker なし**。CP-1 は DC-1 により解消で、異議なし。C' の根拠: Editor の `settingsList` は `m_SettingsList` を返し、`OnAfterDeserialize` は Editor で `m_RuntimeSettings` を空にし、`OnBeforeSerialize` は `BuildPipeline.isBuildingPlayer` の時だけ `m_SettingsList` から詰め直すので、保存された一覧は Editor の使用一覧でも Player の一覧の生成元でもない。DC-1 は N5 の意味・合否を変えていない。
+- 新しい blocker: なし。後続の入力: DC-1 の後続のスパイク（実際の Player の build での実測）だけ。
+- 監査できなかった範囲（C' の申告）: Player の build の実行と、build に入った一覧の実測。`RenderPipelineGraphicsSettingsStripper.PerformStripping` の本文。修正差分が無いことの git での確認。CP-1 と当該 asset 以外の再監査（2 巡目の範囲外）。
+- 引き渡し: C' まで完了。Phase D は owner の指示で始める（§0 の票）。
 
 ## 9. Phase D
 
