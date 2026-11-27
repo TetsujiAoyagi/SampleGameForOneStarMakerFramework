@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**owner の決定 DC-2（§8）で外部実装レビューの P1-1・P1-2 を Phase B 4 巡目で直した（§6）。次は判定 C（全 EditMode 回帰と機械検査を新しい head で取り直し、E 系列は `j3` を使い回す）。** 前の implementation head `34673237` の判定 C・C' の結果は新しい head の合格に流用しない）
+- status: `C'`（**判定 C（判断担当、3 回目）が GO と判定した。次は C' 3 巡目（新しい implementation head の修正差分を中心に独立監査）であり、C' 完了前に Phase D へ進まない。** 前の implementation head `34673237` の判定 C・C' の結果は新しい head の合格に流用しない）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `8acd2ca5bc75276cca8481d8bd4958184c64df97`
@@ -18,8 +18,8 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: implementation `34673237` の判定 C の evidence bundle と C' blind bundle（1・2 巡目）はローカル固定済み（未昇格）で、取得案内は進行役の worktree の git 管理外にある。新しい implementation head の bundle は未生成（判定 C の後に進行役が作る）。
 - 引継ぎ票:
-  - 次の Phase・役割: 判定 C（実行担当と判断担当）。DC-2 により発見 C は挟まない。
-  - 次の作業: 開始時に引継ぎ票の照合をする。実行担当は新しい implementation head で全 EditMode 回帰（空 filter）と §5 の機械検査を取り直し、生の結果を §7 に書く。E 系列は取り直さず、`j3`（implementation `34673237`）の原記録を DC-2 のとおり使う。判断担当は §6 の「外部実装レビュー P1-1・P1-2 の修正」と修正差分（`34673237..` の新しい head）を含めて GO / NO-GO を判定する。GO なら C'（3 巡目）。
+  - 次の Phase・役割: C' 3 巡目（独立監査）。
+  - 次の作業: 開始時に引継ぎ票の照合をする。判定 C の入力と同じ implementation base / head `9e7d414833456e2c9dd930c5f96432b24d9ee919` / `8acd2ca5bc75276cca8481d8bd4958184c64df97`、完全 diff、判定 C の生結果、機械検査を使う。判定 C の結論・指摘と外部実装レビュー本文は blind input に含めず、C' 3 巡目では修正差分を中心に独立監査する。前の implementation head `34673237` の E 系列 `j3` 原記録を使い回した事実だけを入力の説明に書く。C' が blocker なしなら Phase D の owner 判断へ渡す。
   - 読む範囲: 既定（§0〜§8）。重点は §6 の「外部実装レビュー P1-1・P1-2 の修正」、§7 の判定 C（判断担当、2 回目）、§8 の DC-2。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
   - 必要な権限: 実行担当は Unity の起動（batch のテスト）と sandbox の外の実行。判断担当は読み取りと HANDOFF の編集。資格情報は要らない。
@@ -920,6 +920,24 @@ owner の決定 DC-2（§8）で、C' の後に PR #214 に来た外部実装レ
 - (2) E 系列: 取り直していない。DC-2 のとおり `TestResults/scenario/s43a/j3/`（implementation `34673237`、判定 C の実行担当の記録（3 回目）の (2)）を使う。
 - (3) 機械検査（HEAD `1c019db8`、`pwsh -NoProfile -File <script>`、log は `TestResults/c-judge4-machine/`）: `tools/contract-audit.ps1` exit 0（違反の行は無い）。`tools/docs-audit.ps1` exit 0（警告 2 件。この HANDOFF と program の HANDOFF の「§7 と §8 が両方埋まっている」）。`Scenario.Tests.ps1` 24 executed / 0 failed。`ScenarioDriver.Tests.ps1` 15 executed / 0 failed。`ScenarioUnity.Tests.ps1` 28 executed / 0 failed。
 - 実行担当の扱い: 合否と GO / NO-GO は書かない。(1)・(3) は揃ったので、判断担当を起動する。
+
+### 判定 C（判断担当、3 回目、2026-11-27）
+
+- 種別: 判定 C（判断担当）。指定された引継ぎ commit は `c5c738ea84071acd9351f807d072347fe3d3e7a0` で、開始時の HEAD と一致した。指定形式の `status --porcelain` は空で、作業ツリーは開始時 clean だった。PR #214 は open・draft、base は `develop`、状態ブロックと一致した。implementation base / head は `9e7d414833456e2c9dd930c5f96432b24d9ee919` / `8acd2ca5bc75276cca8481d8bd4958184c64df97` で、§0 と一致した。
+- 使用した evidence: 新しい implementation head の指定原記録 `D:\repositories\unity\osm-s43a\TestResults\c-judge4\`（`results.xml`、`step.json`、`unity.log`、`executor-note.txt`）、`D:\repositories\unity\osm-s43a\TestResults\c-judge4-run.log`、機械検査 `D:\repositories\unity\osm-s43a\TestResults\c-judge4-machine\`、および DC-2（§8）により許可された E 系列の `D:\repositories\unity\osm-s43a\TestResults\scenario\s43a\j3\` と `D:\repositories\unity\osm-s43a\TestResults\e-j3-driver.log` を使用した。修正差分は `git diff 346732372c19ee5cdaa8ad9b8d00495e91e6d7a5 8acd2ca5bc75276cca8481d8bd4958184c64df97` で確認した。判定担当は追加の Unity test、E 系列、offline test、機械検査を実行していない。
+- 構造適合: 修正差分は `ContentOriginHeadWriter`、`ContentAcquisition`、`ContentOriginGuard` と対応する test/support に限定され、`Runtime/ContentResolution`、`Runtime/AssetManagement`、`Runtime/SceneSystem`、`Runtime/Bootstrap`、既存 installer/cache/Play entry の対象 file、asmdef、依存方向を変更していない。P1-1・P1-2 の失敗経路（取得口・stream の後片付け例外、head の別名 file の部分書き込み失敗）を test 注入で確認する差分であり、§2.8 の既存契約に適合する。機械検査は errors 0、offline driver test は failed 0 だった。
+- 現在の問いを阻害する findings: なし。
+- AC1〜AC8 の照合: 新 head の全 EditMode XML で `ContentAcquisitionRulesTests` 121、`ContentAcquisitionTests` 41、`ContentOriginGuardTests` 29、`ContentOriginHeadTests` 16、`ContentOriginHeadWriterTests` 14、`IndexedContentOriginTests` 5、`PublishedOriginAcquireIntegrationTests` 1 など §5 対象 fixture は全て failed 0。新規の後片付け例外・遅延 stream・部分書き込みの test も含まれる。`ContentAcquisitionRulesTests` と `ContentAcquisitionTests` の既存失敗分類・cache の後片付け、guard の取消境界、head の前 bytes 維持を阻害する結果は無い。
+- AC9 の照合: DC-2 に従い E 系列は再実行せず、implementation `34673237` の `j3` 原記録を使用した。P1/E1/P2/E2/E3/E4/E5/E6 は全て attempt 1 の `case-end`、failure 空、driver exit 0。P1/P2 の head identity・digest・`transport.json` digest、E1/E2 の `Acquired` と Play load identity、E3 の `AlreadyInstalled`・bytes origin 空・一覧と receipt の維持、E4 の R1 選択、E5(a) `NotFound`・E5(b) `ArrivalDigestConflict` と `selectionSaved=false`、後続 Play の R1 を確認した。各 acquire の operation 番号と `Start` 番号は一致し、対象 record は `BuiltRoute`、`EnteredPlay`、`errorCount=0`、`exceptionCount=0` だった。DC-2 の理由どおり、修正差分は E 系列が通らない後片付け例外と head 書き込み失敗の経路に限定され、正常経路の E 証拠の意味を変えない。
+- AC10 の照合: E6 は `BuiltWithLocalEdits` で Play に到達し、`overlayRoots=1`、`unbuildable=[]`、overlay の `Built`・`overlayRegistered`・`overlayCheck=matched`、`Title` の `ContentOverlay` / `RecordedBaseMatch` と patch token、`HpGauge` の R1 `ContentDirectory` / `VerifiedDigest`、`OutGameScene` の `EditorSnapshot` / `OpenSceneSnapshot`、観測後の `errorCount=0`・`exceptionCount=0` を記録した。4 観測は全て肯定的で、AC10 を阻害する未実施・観測不能はない。
+- AC11 の照合: `results.xml` は total 2697、passed 2637、failed 0、inconclusive 25、skipped 35、root result `Passed`（12:07:57Z〜12:22:54Z）。既知の VFX inconclusive 25 件以外の失敗は無い。Unity は XML 生成後 120 秒で既知の終了 stall として停止されたが、強制終了は成功証拠に数えず、XML の root result と failed 件数で判定した。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 判定担当は追加実行なし。実行担当の無改変記録から、全 EditMode 回帰 `pwsh tools/run-tests.ps1 -OutputRoot <worktree>\\TestResults\\c-judge4`（空 filter）、E 系列 `pwsh tools/s43a-local-origin.ps1 -RunId j3 -Commit 346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`、および `tools/contract-audit.ps1`、`tools/docs-audit.ps1`、`Scenario.Tests.ps1`、`ScenarioDriver.Tests.ps1`、`ScenarioUnity.Tests.ps1` の結果を照合した。空 filter は AC11、新 head の機械検査は構造と driver の健全性、E 系列は AC9・AC10 を対象にした。
+- テスト結果（原記録の実行テスト名と件数）: XML は total 2697 / passed 2637 / failed 0 / inconclusive 25 / skipped 35 / `Passed`。機械検査は `contract-audit` exit 0（errors 0、warnings 0）、`docs-audit` exit 0（harvest 前の HANDOFF §7・§8 記録による既知 warning 2 件）、`Scenario.Tests` 24/24、`ScenarioDriver.Tests` 15/15、`ScenarioUnity.Tests` 28/28。E 系列は S0・P1・E1・P2・E2・E3・E4・E5・E6・Cleanup が全て `case-end`、failure 空、driver exit 0 だった。
+- 判定必須のうち未達: なし。AC1〜AC11 は判定表の定義を満たす。
+- 結論と引き渡し: **GO**。現在の問いを阻害する blocker は無い。次は同じ implementation base / head と判定入力から作る C' 3 巡目の blind bundle による独立監査であり、C' 完了前に Phase D へ進めない。新 head の全 EditMode 回帰・機械検査と、DC-2 が許可した旧 head の E 系列使い回しを確認済みである。
+- 重い検証を判定段階で追加実行しなかった理由と範囲: §0 と DC-2 の指示どおり、判定担当は原記録だけを照合し、E 系列を新たに実行しなかった。新 head で全 EditMode 回帰と機械検査が取り直され、E 系列は正常経路の証拠であり今回の修正経路を含まないため、承認済みの `j3` 原記録を再利用した。
+- 未確認事項: 判定必須条件に関する未確認事項はない。Evidence bundle と C' blind bundle は未生成で、進行役が取得案内を作成した後に C' 担当が保存・転送・閲覧可能性を確認する。DC-2 が後続へ送った取得元の Task 応答停止、複数書き手の head、cache root の entry 破棄、`RecordOriginHead` の診断欠落、DC-1 の URP asset 実測は今回の問いの後続入力である。
+- 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票にない）。判断担当は OpenAI（Phase A の外部計画レビューと同じ系列。独立性制約あり（owner 受容））。Phase B は Anthropic。次の C' 3 巡目は判定 C と別系列の xAI/Grok を使用する予約を維持する。
 
 ## 8. Phase C'
 
