@@ -24,6 +24,7 @@
   - 必要な権限: なし（文書のみ）。
   - 停止規則: `CONTENT_DIRECTORY_STARTUP` は D4 の (2) `BUILDSYSTEM_STANDALONE_ENTRY` の Phase D より前に A1 を始めない。BOOTSTRAP と ASSET_CYCLE の停止規則は各書の §0 に従う。
   - 引き渡さないもの: なし。
+  - 延期（2026-11-27、owner）: D4 の (2) `BUILDSYSTEM_STANDALONE_ENTRY` を A1 改稿までで止めた。再開は Play Content 解決の S4-4 の Phase D の後。(3) 以降（`CONTENT_DIRECTORY_STARTUP`、asmdef 分割）は (2) の後なので、同じく進まない。理由、再開時にやり直すこと、列の後ろの順序と日付の期限（上の expires）の未裁定は [BUILDSYSTEM_STANDALONE_ENTRY.md](BUILDSYSTEM_STANDALONE_ENTRY.md) §0「延期と再開」。本書の §2 の実測（base `d4861882`）は同書 §1 が base `9e7d4148` で測り直しており、差分は同書を正とする。
 
 ### 実測の方法
 
@@ -221,8 +222,8 @@ Editor 側の P 検査: `Selection` 単独 **成功**。`Materialization` は全
 | 項目 | 後続 | 入力 |
 |---|---|---|
 | X5: Bootstrap の Content Directory 起動ポリシーを facade に集める | `CONTENT_DIRECTORY_STARTUP`（旧 BOOTSTRAP S2。D4 で独立スライス化。[RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md](RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md)） | 本書 §4.2 |
-| X6: BuildSystem 単独の入力経路（`BuildMaterializationSnapshot` を SceneResourceMap 無しで作る public 入口）と、実行時に成果物を読む・検証する public 入口（`ContentDirectoryIndex` 等） | [BUILDSYSTEM_STANDALONE_ENTRY.md](BUILDSYSTEM_STANDALONE_ENTRY.md)（A1 初稿、2026-11-26。A2 未実施。D5） | §2.3 の U-B の行。public 面を増やすので、最小の入口 1 つから始める。コンストラクタをそのまま公開せず、候補・依存の閉包・tag・graph を利用者が組み立てられる factory にし、OSM 専用の provider identity を一般用途に漏らさない。AC に「SceneResourceMap も `InternalsVisibleTo` も使わない」を入れる |
-| X7: 出力先と target の固定 | `BUILDSYSTEM_STANDALONE_ENTRY` か別の小スライス（D5）。`BUILDSYSTEM_STANDALONE_ENTRY` の A1 初稿は別の小スライスに分ける案で、順序は同書の未決事項 U3（owner 未裁定） | 「安全な出力先の検証」と「OSM が許可する置き場所の規約」を別の責務に分ける。安全機構は外さない。検証: OSM 既定とは別の、利用者が選んだ安全な path で public 経路の Build が成立し、既存の path 境界・symlink の防御が退行しない。target は Windows Player のまま（§1.1） |
+| X6: BuildSystem 単独の入力経路（`BuildMaterializationSnapshot` を SceneResourceMap 無しで作る public 入口）と、実行時に成果物を読む・検証する public 入口（`ContentDirectoryIndex` 等） | [BUILDSYSTEM_STANDALONE_ENTRY.md](BUILDSYSTEM_STANDALONE_ENTRY.md)（A1 改稿まで。**2026-11-27 に owner が延期を決めた**。再開は `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の S4-4 の Phase D の後。D5） | §2.3 の U-B の行。public 面を増やすので、最小の入口 1 つから始める。コンストラクタをそのまま公開せず、候補・依存の閉包・tag・graph を利用者が組み立てられる factory にし、OSM 専用の provider identity を一般用途に漏らさない。AC に「SceneResourceMap も `InternalsVisibleTo` も使わない」を入れる |
+| X7: 出力先と target の固定 | `BUILDSYSTEM_STANDALONE_ENTRY` か別の小スライス（D5）。`BUILDSYSTEM_STANDALONE_ENTRY` の A1 は別の小スライスに分ける案で、順序は同書の「延期と再開」の未裁定の事項。target は S4-5 と同じ課題 | 「安全な出力先の検証」と「OSM が許可する置き場所の規約」を別の責務に分ける。安全機構は外さない。検証: OSM 既定とは別の、利用者が選んだ安全な path で public 経路の Build が成立し、既存の path 境界・symlink の防御が退行しない。target は Windows Player のまま（§1.1） |
 | X1・X4: asmdef の構成（AssetManagement、BuildSystem 本体、共通契約、連携、OSM 固有をどの assembly に入れるか）と、連携部分が越える internal の扱い | asmdef 分割スライス（未作成） | 本書 §2.2 X4 の 13 件、§2.4 の `BuildContentRoot` のシリアライズ互換、P 検査の集合 |
 | 別の Unity プロジェクトでの実証（program の完了判定） | 上記の後 | §5.2 段階 4 |
 

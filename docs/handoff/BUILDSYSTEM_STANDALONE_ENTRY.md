@@ -5,11 +5,12 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。
 
 - type: `slice`
-- status: `A`（**A1 改稿。A2 未実施、A3 未凍結。実装キューではない**）
+- status: `A`（**延期。A1 改稿までで止めた。A2 未実施、A3 未凍結。実装キューではない**）。owner が 2026-11-27 に延期を決めた。再開の条件は、`PLAY_CONTENT_RESOLUTION_PROGRAM.md` の S4-4（要求の時点の install と登録）の Phase D の後。理由と、再開時にやり直すことは下の「延期と再開」
 - 位置付け: program [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.3 の X6 と、§6 D4 の順序 (2)。X7（出力先と target の固定）は本書 §2 の分割の判断で別の小スライスへ分けた
 - 版の経緯:
   - 2026-11-26 A1 初稿。新しい public は入力の入口 1 型だけで、実行時の読み口は「今の public で辿れる」として外していた。
   - 2026-11-26 U1（経路テスト用の asmdef）を owner が裁定。
+  - 2026-11-27 延期（owner）。改稿への外部計画レビュー（F-04・F-05。Play Content 解決の S4-3b 以降との依存と統合のゲート）を受けて、owner が S4 の後続との衝突を避けるために決めた。F-04・F-05 は本書に反映せず、再開時の入力として「延期と再開」に記録した。
   - 2026-11-27 A1 改稿。Draft PR の外部計画レビュー（判定「A1 要改訂」、F-01〜F-03）と owner の指摘「前提から考えていない」を受けて、公開面を「最小の数」からではなく §1 の「公開面の導き方」から導き直した。読み口を本スライスに入れ、目的・利用者の文言を改め、P 検査を A3 の前提にし、入力の GUID の契約を固定した。レビューの採否は §5.1。
 - branch: `claude/fervent-ritchie-zhhe6k`（`origin/develop` の `9e7d4148` から切った計画ブランチ。PR の base は `develop`）
 - implementation base commit: `9e7d4148`（2026-11-26 の `origin/develop` の head。§1 の現況はこの commit で測り直した）
@@ -18,23 +19,40 @@
 - risk: `high`（公開 API を増やす。[Phase A の内部フロー](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の内部フロー) の高リスクの例に当たる）
 - owner: root（依頼者）
 - created: 2026-11-26
-- expires: 2026-12-31、または置換 revision。親の program の期限（2026-11-30）より後なので、§2 未決事項 U4 で owner に確認する
+- expires: 2026-12-31、または置換 revision。延期の再開の条件より前に来る見込みで、書き換えは owner の判断（「延期と再開」の未裁定の事項、§2 U4）
 - harvest to: `unity/Assets/Docs/Architecture/18-asset-description.md`（build の入力の入口と、生成物の root の読み口の契約。SceneResourceMap からの入口と並べて書く）と、program §2.2 X6・§2.3 の U-B の行の状態
 - Phase A snapshot の取得案内・状態: 未生成（A3 で凍結する時に作る。A1 の時点で Git 外の補助 file は無い）
 - Phase B result snapshot の取得案内・状態: 未生成
 - evidence bundle の取得案内・状態: 未生成
 - C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の作業（順に）:
-    1. owner が、改めた目的・利用者の文言（§1）を承認する（U5）。承認の前に A2 へ進まない。
-    2. ローカルの担当が、A3 の前の P 検査の preflight（§5）を行い、結果を本書 §5 に記録する。A2 と並行してよい。
-    3. A2（独立レビュー）。アーキテクチャゲート 1 件、目的レビュー 1 件、高リスクなので A0（§1 の目的・利用者・対象外・現況と §2 の未決事項）だけを読んで代替構成を出す担当 1 件。
-    4. A3 で owner が未決事項 U3〜U5 と A2 の指摘を裁定して凍結する。
-  - 次の担当が読む範囲: 既定どおり全節。
-  - A2 の入力版: この票を含む commit を Git 配布の例外 commit として使う（本書は Cloud で書いた。[Phase A の commit と snapshot](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#phase-a-の-commit-と-snapshot)）。固定 base は `9e7d4148`。本書の sha256 は A2 を起動する担当がその commit の file から取る。
-  - 必要な権限: A2 は無し（文書と code の読み取りだけ）。preflight と Phase C の P 検査・Unity のテストは、Unity Editor と Git 外の P 検査の script がある環境が要る。
-  - 停止規則: A3 の凍結の前に Phase B へ入らない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md` の A1 は本スライスの Phase D まで始めない（program §0）。
+  - 次の Phase・役割と作業: 無し（延期中）。再開の条件（S4-4 の Phase D）を満たした後、owner が再開を指示したら、新しい session が「延期と再開」の「再開時にやり直すこと」を行ってから A1 を改訂し、A2 へ進む。
+  - 次の担当が読む範囲: 既定どおり全節。先に「延期と再開」を読む。
+  - 引き継ぐ commit: 再開時の `develop`。本書の実測と行番号は base `9e7d4148` の物で、再開時には古い。
+  - 必要な権限: 再開時の preflight と Phase C は、Unity Editor と Git 外の P 検査の script がある環境が要る。
+  - 停止規則: owner の再開の指示の前に A2・A3・Phase B へ入らない。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP.md` の A1 は本スライスの Phase D まで始めない（program §0。この条件を S4-4 との関係で見直すかは「延期と再開」の未裁定の事項）。
   - 引き渡さないもの: 目的レビューには §1 の「目的」と「利用者」の原文だけを渡し、本書の他の部分を渡さない。
+
+### 延期と再開
+
+- **延期の決定:** owner、2026-11-27。再開の条件は `PLAY_CONTENT_RESOLUTION_PROGRAM.md` の S4-4 の Phase D の後。
+- **理由:**
+  - 本スライス（X6）の code は S4-3b〜d（取得元、取得のきっかけ、base の選び方）と直接は重ならない。重なるのは本スライスの後ろである。`CONTENT_DIRECTORY_STARTUP` は S4-4（要求の時点の install と登録、起動の順序、登録の寿命）と責務が直接重なる。X7 の target は S4-5（Windows 以外の target、target の固定を解く）と同じ課題で、X7 の出力先は S4-3c・S4-3d が触る SampleGame の呼び手（`SampleGameContentBatch.cs`、`VerifyPlayLauncher.cs`）と接する。asmdef 分割は S4 の各行が足す型の全てに影響される。
+  - 本スライスだけを先に入れても、新しい public を使う物が無い。単独利用を宣言できるのは X7 と asmdef 分割の後の段階 4（program §5.2）で、SampleGame は新しい入口を使わない。public な API を先に凍結して、S4 の間維持する負担だけが残る。
+  - preflight・Phase B・Phase C は Unity Editor が要り、S4 のラインと同じローカルの Editor を使う。S4 の merge のたびに U-B の集合に file が増えるので、P 検査の基準と GO の検査も動く。
+  - S4-3b 以降は program の計画の行を読んだ評価で、未作成の HANDOFF との非衝突を確かめた物ではない。
+- **再開時にやり直すこと（A1 の改訂の入力）:**
+  1. **base の取り直し。** §1 の現況、行番号、可視性、呼び出しの数（35 箇所）、`InternalsVisibleTo` を再開時の `develop` で測り直す。S4-3a（PR #214。2026-11-27 の時点で head `97d56546`、Phase A）以降が `Runtime/BuildContent/Distribution/` と `Editor/Build/Content/` に足した file と、S4-4 が変えた登録・起動の契約を含める。
+  2. **§1 の「公開面の導き方」の表の作り直し。** S4 の間に増えた規則（取得、origin、head、pin）が、U-B の利用者に書き直しを強いる箇所を足すかを同じ問い方で見る。S4-3b の LAN の取得元が U-B に入るか、外部依存を持つ adapter として分けるかは、その行の A1 が決めた結果を読む。
+  3. **S4 の各行との責務の境界を本文に書く（F-04）。** 取得・origin・head・pin・cache・installer は取得の側の責務で、本スライスは build の入力と単独の root の解決だけを持つ。取得の結果の target・identity・digest を読み口が独自に解釈し直さない。読み口は session の代わりではない。prefetch、Play の transaction、checkout hook、base の選び方は対象外。
+  4. **`BuildContentResult.Target` の意味（F-04）。** coordinator の固定値を返すだけの property を将来の契約にしない。「この結果が実際に build した target を保持して返す」と定め、その時点で扱える target を書く。S4-5 が target の固定を解いていれば、その契約に合わせる。target の対応表や検査の規則を X7 と S4-5 で別々に作らない（所有を 1 つにする）。
+  5. **統合のゲート（F-05）。** GO 候補 head は、merge する時点の最新の `develop` を含むことを必須にする（今の AC12 の「含むなら」を改める）。統合した commit で P 検査、全 EditMode 回帰、取得（acquisition）と Play の既存の回帰を記録する。共有する契約に差分が出た時は、影響する実機の scenario を選んで取り直す。
+  6. **P 検査の preflight（§5）。** 再開時の base で行う。S4 の完了の後に、集合の定義と、連携部分が越える internal の一覧（program §2.2 X4）を取り直す。古い集合のまま凍結しない。
+  7. **目的・利用者の文言の承認（U5）。** 改稿への外部計画レビューは文言を支持したが、owner の承認はまだ無い。
+- **未裁定の事項（延期の間、owner が持つ）:**
+  - **program の列の後ろの順序。** 外部計画レビューの第一案は、S4-4 の実証を先にして、その時点の起動・登録・寿命の契約で `CONTENT_DIRECTORY_STARTUP` の A1 を作り直すこと、多 target を予定するなら S4-5 の契約も決めてから `CONTENT_DIRECTORY_STARTUP` と asmdef 分割を凍結すること。X7 は path の安全性だけを独立させ、多 target は S4-5 と所有を 1 つにすること。U3（§2）はこの裁定に含める。
+  - **日付の期限。** program の期限（2026-11-30）と本書の期限（2026-12-31）は、再開の条件（S4-4 の Phase D の後）より前に来る見込みである。日付の書き換えは owner の判断なので、本書は書き換えていない（U4）。
+- **改稿への外部計画レビュー（2026-11-27、入力は A1 改稿の head `feabd57b`）の記録:** 判定は「前回の指摘は解消の方向で、X6 の構成自体に新しい blocker は見当たらない。F-04・F-05 を A3 の前に解くことを推奨」。F-04（両 program の依存と変更の所有を A3 の前に照合する）と F-05（統合のゲートを具体化する）は、上の 3〜6 に入力として写した。本書の §2〜§5 には反映していない（延期のため）。静的レビューで、Unity と P 検査は未実行。
 
 ## 1. 目的と対象外
 
