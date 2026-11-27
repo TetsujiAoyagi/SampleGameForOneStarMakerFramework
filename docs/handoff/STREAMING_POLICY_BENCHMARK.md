@@ -15,6 +15,7 @@
 | 2026-11-27 | 測定の中で Telemetry の不備を一覧にする。Streaming の中に閉じる計測の口は S-9a で直し、Telemetry の基盤側は後続へ送る | §3 |
 | 2026-11-27 | A1 初稿（S-9a を 1 スライスで行う案。新規 code 約 1,400 行）は大きい。もっと細かく切る | §4 の測定 4 スライス。初稿の「分割しない」案は捨てた |
 | 2026-11-27 | 実行時の Telemetry の修正も S-9a の列に入れる（Controller の読み口と、Streaming の Telemetry の 2 本） | §4 の S-9a-5・S-9a-6。「後続（S-9b の Phase A）へ送る」だけの扱いをやめた |
+| 2026-11-27 | PR #218 の外部計画レビューの推奨を採る | S-9a-1 の採否（S-9a-1 の HANDOFF §5.1）。P5: system ごとの Tick 時間と frame ごとの確保量は UpdateSystem / Profiler の独立した計画で持ち、S-9a-6 の完了条件に混ぜない。P1・P2（時間と確保の予算、対象の機械）は S-9a-4 まで保留。§4 の後続スライスへの提言は各スライスの A1 の入力にする |
 
 文書にモデル・製品の担当割当を書かない（owner 指示）。
 
@@ -64,7 +65,7 @@
 
 - **測定のスライスで直す物（D1〜D7。S-9a-1〜4）:** 値を test の中で読めれば足りる。変更は `unity/Assets/OneStarMaker/Tests/Streaming/Benchmark/` に閉じる。**S-9a-1〜4 は Runtime の code を変えない。** 測る Controller は `develop` の物そのままである。
 - **Telemetry のスライスで直す物（T1・T4 と D5 の Controller の読み口。S-9a-5・S-9a-6）:** 値を実行時に外へ出す。S-9a-5 は `Runtime/Streaming` の中に閉じる。S-9a-6 は Telemetry の基盤（名前、payload 形、wire、DebugStudio の表示）を増やすので、同じ領域を変更中の PR #216 の merge の後に着手する。
-- **S-9a に入れない物（T2・T3・T5）:** system ごとの Tick 時間と frame ごとの確保量は UpdateSystem と Profiler の側の機能で、Streaming に閉じない。SampleGame の driver が UpdateSystem に登録されていない事の扱いも含めて、別の計画が要る（所有は未定。§6 P5）。T5 は S-9b の値で、S-9b の Phase A が持つ。
+- **S-9a に入れない物（T2・T3・T5）:** system ごとの Tick 時間と frame ごとの確保量は UpdateSystem と Profiler の側の機能で、Streaming に閉じない。SampleGame の driver が UpdateSystem に登録されていない事の扱いも含めて、UpdateSystem / Profiler の独立した計画で持つ（owner 決定 2026-11-27。§6 P5。その計画はまだ無い）。T5 は S-9b の値で、S-9b の Phase A が持つ。
 - 測定の中で見つかった不備は、各スライスがこの表に足す。
 
 ## 4. スライス列
@@ -166,7 +167,7 @@ stale completion の件数には予算を置かない（テレポートでは起
 | P2 | B6 の値（0 byte か、0 でない上限か） | owner。S-9a-4 の A3 まで |
 | P3 | **解決済み:** 保留中の Add への Remove の模型は 1 通り（保留 unload）で足りる。取消の模型が要るなら S-9b の Phase A で足す | S-9a-1 の A2 |
 | P6 | B4 の式の導出（Remove の保留が残る再進入を含むか）と、観測の時系列 | S-9a-2 の A1〜A3。B4 の凍結は S-9a-3 |
-| P5 | system ごとの Tick 時間と frame ごとの確保量（T2・T3）、SampleGame の driver が UpdateSystem に登録されていない事を、どの計画が持つか。外部計画再レビューの推奨は「Streaming に固有でないので、UpdateSystem / Profiler の独立した計画で持つ。driver の接続の仕方もそこで判断する。S-9a-6 の完了条件に混ぜない」 | owner。S-9a-6 の着手まで |
+| P5 | **解決済み（owner 決定 2026-11-27）:** UpdateSystem / Profiler の独立した計画で持つ。driver の接続の仕方もそこで判断する。S-9a-6 の完了条件に混ぜない。以下は元の論点: system ごとの Tick 時間と frame ごとの確保量（T2・T3）、SampleGame の driver が UpdateSystem に登録されていない事を、どの計画が持つか。外部計画再レビューの推奨は「Streaming に固有でないので、UpdateSystem / Profiler の独立した計画で持つ。driver の接続の仕方もそこで判断する。S-9a-6 の完了条件に混ぜない」 | 決定済み。独立した計画の着手時期は未定 |
 | P4 | `[Explicit]` の test を `run-tests.ps1 -Filter` で選べるか、`TestContext.Progress` の行が保存される出力に残るか | S-9a-3 の Phase C で初回確認 |
 
 ## 7. 触らない場所
