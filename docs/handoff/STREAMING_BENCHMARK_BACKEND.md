@@ -9,6 +9,7 @@
 - 位置付け: 小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) §4 の S-9a-1。6 本のうちの最初の 1 本
 - 版の経緯:
   - 2026-11-27 A1 初稿（S-9a を 1 スライスで行う初稿を owner が「大きい」と判断し、小スライスに分けた後の 1 本目）
+  - 2026-11-27 A3 統合案の改訂 3。Draft PR #218 の外部計画再レビュー（入力は head `0c0adb8`。判定「ごく小さい AC の補正後に凍結推奨」）を反映した（§5.1）
   - 2026-11-27 A3 統合案の改訂 2。Phase C が判定できない所を主担当が見直した（§5.1 の「Phase C の観点の見直し」）
   - 2026-11-27 A3 統合案の改訂。Draft PR #218 の外部計画レビュー（入力は head `03eb1ced`。判定「小修正後に凍結推奨」）を反映した（§5.1）
   - 2026-11-27 A3 統合案。A2 の 2 件（アーキテクチャゲート、目的レビュー）の採否を §5.1 に記録し、模型の定義と受け入れ条件を改めた
@@ -50,13 +51,13 @@
 
 - このスライスが答える問い: 測定用 backend の模型は、定義（下）どおりに完了・ロード済み・計数を返すか。
 - 模型の定義（**本節が正本**。A3 で凍結する。小計画 §5.1 は本節を指す）:
-  - **構築。** 候補の identity の列（重複なし）、Add の遅延、Remove の遅延（どちらも Tick 数、0 以上）を受ける。id ごとの状態は構築時に確保する。列が null・空・重複あり、または遅延が負なら、構築は `ArgumentException`（派生型を含む。以下同じ）にする。列に無い id（null と空文字を含む）を渡す呼び出し（`RequestAdd` / `RequestRemove` / `IsLoaded` / id ごとの読み口）も `ArgumentException` にする（test の誤用で、duplicate ではない）。
+  - **構築。** 候補の identity の列（重複なし）、Add の遅延、Remove の遅延（どちらも Tick 数、0 以上）を受ける。id ごとの状態は構築時に確保する。列が null・空・重複あり、列の要素が null か空文字、または遅延が負なら、構築は `ArgumentException`（派生型を含む。以下同じ）にする。列に無い id（null と空文字を含む）を渡す呼び出し（`RequestAdd` / `RequestRemove` / `IsLoaded` / id ごとの読み口）も `ArgumentException` にする（test の誤用で、duplicate ではない）。
   - **時間。** 現在の Tick は 0 から始まり、`AdvanceTick()` で 1 だけ進む。任意の Tick へ飛ぶ口は持たない。
   - **Add。** `RequestAdd(id, priority)` は `現在の Tick + Add の遅延` に完了し、その時点で id はロード済みになる。`priority` は読まず、記録もしない。
   - **Remove。** `RequestRemove(id)` は `現在の Tick + Remove の遅延` に完了し、その時点で id は未ロードになる。Remove の保留中も、完了までは id はロード済みである。
   - **保留中の Add への Remove。** Add は元の時点で完了してロード済みになり、Remove は「Add の完了と `現在の Tick + Remove の遅延` の遅い方」に完了して未ロードになる。両方が同じ Tick なら Add、Remove の順に配送する。
   - **遅延 0。** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了する。状態を反映してから戻り、返る task は完了済みである（継続は生じないので、下の「再入」の対象にならない）。保留中の Add への Remove は、Remove の遅延が 0 でも上の行に従う。
-  - **配送。** `AdvanceTick()` は、進めた後の Tick が期限の完了を、要求の順に 1 件ずつ配送する。1 件の配送は「状態の反映 → その task の完了」の順で、次の 1 件は前の task の継続が戻った後に反映する。戻り値は配送した完了の列（種別と id）で、backend が持つ buffer の読み取り専用の view である。次の `AdvanceTick()` までだけ有効とする。
+  - **配送。** `AdvanceTick()` は、進めた後の Tick が期限の完了を、要求の順に 1 件ずつ配送する。1 件の配送は「状態の反映 → その task の完了」の順で、次の 1 件は前の task の継続が戻った後に反映する。戻り値は配送した完了の列（種別と id）で、backend が持つ buffer の読み取り専用の view である。次の `AdvanceTick()` までだけ有効とし、その後の内容は保証しない。
   - **再入。** 配送の最中（task の継続の中）から `RequestAdd` / `RequestRemove` / `AdvanceTick` が呼ばれたら `InvalidOperationException` にする。拒否した呼び出しは状態も計数も変えず、その `AdvanceTick()` の残りの配送は続く。`IsLoaded` と読み口は呼んでよい。継続が自分で捕まえなかった例外を backend は扱わない（UniTask の扱いに従う）。
   - **duplicate。** 次の 3 種類を別々に数え、例外は投げず、状態を変えず、完了済みの task を返す: (1) 保留中の Add がある id、またはロード済みの id への Add、(2) 保留中の Remove がある id への Remove、(3) 未ロードで保留中の Add も無い id への Remove。Remove は (2) を先に見る（保留中の Add と保留中の Remove の両方がある id への Remove は (2)）。
   - **計数。** `IsLoaded` の呼び出し、Add の要求、Remove の要求を累計で数える。要求の計数は duplicate を含む全ての呼び出しの数である。計数を 0 に戻す口は持たない（区間の値は読む側が差を取る）。
@@ -75,17 +76,17 @@
     - **S2** 同じ要求と `AdvanceTick` の列を 2 回与えると、配送の列と計数が一致する。
     - **S3** 10,000 件の id への Add を出して進めても、定義どおりに全件がロード済みになる。
 - 受け入れ条件:
-  - **AC1（S1・I1）** Tick 0 に遅延 3 の Add を出す。`AdvanceTick()` を 2 回呼んだ後（Tick 2）は未ロードで task は未完了、3 回目の後（Tick 3）はロード済みで task は完了している。task に付けた継続は 3 回目の `AdvanceTick()` から戻る前に走っており、継続の中で読んだ `IsLoaded` は true である。読み口の「現在の Tick」は `AdvanceTick()` のたびに 1 増える。不合格の例: 3 回目から戻った直後に継続がまだ走っていない。継続の中の `IsLoaded` が false である。
+  - **AC1（S1・I1）** Tick 0 に遅延 3 の Add を出す。`AdvanceTick()` を 2 回呼んだ後（Tick 2）は未ロードで task は未完了、3 回目の後（Tick 3）はロード済みで task は完了している。task に付けた継続は 3 回目の `AdvanceTick()` から戻る前に走っており、継続の中で読んだ `IsLoaded` は true である。読み口の「現在の Tick」は `AdvanceTick()` のたびに 1 増える。Remove も同じ形で確かめる: ロード済みの id に正の遅延の Remove を出すと、期限の前は保留中の Remove = true でロード済み = true、期限の `AdvanceTick()` の後は未ロードで、Remove の task の継続の中で読んだ `IsLoaded` は false である。不合格の例: 3 回目から戻った直後に継続がまだ走っていない。継続の中の `IsLoaded` が false である。
   - **AC2（S1）** 保留中の Add に Remove を出すと、Add の期限でロード済みになり、Remove の期限で未ロードになる。次の 3 つを別々に確かめる。(a) Remove の期限が Add の期限より後: Add の期限の Tick の後はロード済み、Remove の期限の Tick の後は未ロード。(b) `現在の Tick + Remove の遅延` が Add の期限以下（等しい場合を含む）: Add の期限の 1 回の `AdvanceTick()` が Add、Remove の順に 2 件を返し、終わりは未ロード。(c) Remove の遅延が 0 で Add が保留中: Remove の task は呼び出しから戻った時点で未完了で、(b) と同じく Add の期限に配送される。(b) と (c) では Add の task と Remove の task に継続を 1 つずつ付け（同じ task を 2 回 await しない）、継続の中から読んだ状態を確かめる: Add の継続ではロード済み = true、保留中の Add = false、保留中の Remove = true。Remove の継続ではロード済み = false、保留は両方 false。Add の継続が Remove の継続より先に走る。不合格の例: Add と Remove の状態をまとめて反映してから task を順に完了する実装（Add の継続の中でロード済みが false に見える）。
-  - **AC3（S1）** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了し、返る task は完了済みである。
-  - **AC4（I2。失敗経路）** 次の 5 つを 1 件ずつ出す: 保留中の Add がある id への Add、ロード済みの id への Add、ロード済みで Remove の保留中の id への Add、保留中の Remove がある id への Remove、未ロードで保留も無い id への Remove。それぞれ、対応する種類の duplicate の計数が 1 増え、返る task は完了済みで、呼び出しの直後の保留の数とロード済みの数は呼び出しの前と同じである。先に出した要求は元の期限で完了する。
+  - **AC3（S1）** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了し、返る task は完了済みである。呼び出しから戻った直後に、Add ではロード済み = true、Remove ではロード済み = false で、保留中の Add の数と保留中の Remove の数はどちらも 0 である。
+  - **AC4（I2。失敗経路）** 次の 6 つを 1 件ずつ出す: 保留中の Add がある id への Add、ロード済みの id への Add、ロード済みで Remove の保留中の id への Add、保留中の Remove がある id への Remove、保留中の Add と保留中の Remove の両方がある id への Remove（種類は (2)）、未ロードで保留も無い id への Remove。それぞれ、対応する種類の duplicate の計数が 1 増え、返る task は完了済みで、呼び出しの直後の保留の数とロード済みの数は呼び出しの前と同じである。先に出した要求は元の期限で完了する。
   - **AC5（S1）** `IsLoaded`、Add、Remove の計数が呼び出しの数と一致する。有効な Add 1 回と duplicate の Add 1 回の後、Add の計数は 2、duplicate は 1 である。読み口を何回呼んでも `IsLoaded` の計数は増えない。
   - **AC6（S2）** 同じ列を 2 つの instance に与えると、`AdvanceTick()` が返す列と全ての計数が一致する。同じ期限の完了は要求の順に並ぶ。違う id の 2 つの Add が同じ期限の時、先の Add の継続の中から読むと、後の id はまだ未ロードで、保留中の Add が true である。
-  - **AC7（S3）** 10,000 件の id に Add を出して期限まで進めると、ロード済みの数が 10,000、保留が 0 になる。続けて、同じ Tick に全件の Add と全件の Remove の期限が重なる列（保留中の Add への Remove）を与えると、その 1 回の `AdvanceTick()` が 20,000 件を返す。戻り値の view は次の `AdvanceTick()` の後、新しい配送の内容に変わっている（前の列を保持しない）。
-  - **AC8（I1・I3）** `git diff --name-status <A3 凍結 commit> <implementation head>` が、§3 の 5 file の追加と HANDOFF の記録（`docs/handoff/`）だけである（implementation base からの差分には計画の文書 4 file が入るので、基準にしない。Phase B は `develop` を branch へ取り込まない）。`pwsh tools/contract-audit.ps1`（`Task.Delay` / `Thread.Sleep`、`#nullable enable`、`record` を含む）と `pwsh tools/docs-audit.ps1` が違反なし。
+  - **AC7（S3）** 10,000 件の id に Add を出して期限まで進めると、ロード済みの数が 10,000、保留が 0 になる。別の新しい instance で、10,000 件の Add を全て保留にしたまま 10,000 件の Remove を出し、Add と Remove の期限を同じ Tick に揃えると、その 1 回の `AdvanceTick()` が 20,000 件を返し、duplicate は 0、終わりは全件が未ロードである。view の再利用と読み取り専用である事は構造レビューで見る（期限を過ぎた view の内容は契約にしない）。
+  - **AC8（I1・I3）** `git diff --name-status <A3 凍結 commit> <implementation head>` が、§3 の 5 file の追加と、本書（`docs/handoff/STREAMING_BENCHMARK_BACKEND.md`）への実装・レビューの記録だけである。他の計画の文書の変更は含めない（implementation base からの差分には計画の文書 4 file が入るので、基準にしない。Phase B は `develop` を branch へ取り込まない）。`pwsh tools/contract-audit.ps1`（`Task.Delay` / `Thread.Sleep`、`#nullable enable`、`record` を含む）と `pwsh tools/docs-audit.ps1` が違反なし。
   - **AC11（I3）** GO 候補 head の全 EditMode 回帰（空 filter）が failed 0 で、XML に `StreamingBenchmarkBackendTests` の test が §5 の「XML で確かめる集合」のとおり入っている。本スライスと関係の無い test が落ちた時の扱いは §5 に従う。
   - **AC9（I1。失敗経路）** task の継続の中から `RequestAdd`、`RequestRemove`、`AdvanceTick` を呼ぶと、それぞれ `InvalidOperationException` になる。test の継続は例外を自分で捕まえて記録し、`AdvanceTick()` から戻った後に確かめる（継続から例外を漏らすと、UniTask の未観測例外として log に出て、別の理由で test が落ちる）。拒否の後、計数と保留の数は変わらず、同じ `AdvanceTick()` の後続の配送は行われている。
-  - **AC10（I2。失敗経路）** 構築時の列に無い id で `RequestAdd`、`RequestRemove`、`IsLoaded`、id ごとの読み口を呼ぶと `ArgumentException` になり、計数と状態は変わらない。null の列、空の列、重複のある列、負の遅延での構築も `ArgumentException` になる。
+  - **AC10（I2。失敗経路）** 構築時の列に無い id で `RequestAdd`、`RequestRemove`、`IsLoaded`、id ごとの読み口を呼ぶと `ArgumentException` になり、計数と状態は変わらない。構築は、列そのものが null、列が空、列に重複がある、列の要素が null、列の要素が空文字、遅延が負、のそれぞれで `ArgumentException` になる。
 - 定義と確認の対応（S1。判定 C はこの表で漏れを見る）:
 
   | 定義の行 | 確かめる方法 |
@@ -96,7 +97,7 @@
   | Remove | AC2 (a)、AC4（Remove の保留中もロード済み） |
   | 保留中の Add への Remove | AC2 |
   | 遅延 0 | AC3、AC2 (c) |
-  | 配送 | AC1、AC2、AC6、AC7（戻り値の view） |
+  | 配送 | AC1、AC2、AC6、AC7（件数）。戻り値の view の再利用と読み取り専用は構造レビュー |
   | 再入 | AC9 |
   | duplicate | AC4 |
   | 計数 | AC5 |
@@ -158,7 +159,7 @@
 - 単体テスト: `StreamingBenchmarkBackendTests`（AC1〜AC7、AC9、AC10）。
 - 差し戻し中の起点 `-Filter`: `OneStarMaker.Tests.Streaming`（既存の Streaming の test と新しい fixture。限定実行では XML で新しい fixture の test が入った事を確かめる）
 - 判定必須テスト（GO 候補 head）: 全 EditMode 回帰 `pwsh tools/run-tests.ps1`（空 filter、1 process）
-- XML で確かめる集合（判定 C）: fixture `OneStarMaker.Tests.Streaming.Benchmark.StreamingBenchmarkBackendTests` に、名前が `AC1_`、`AC2_`、`AC3_`、`AC4_`、`AC5_`、`AC6_`、`AC7_`、`AC9_`、`AC10_` で始まる test がそれぞれ 1 件以上あり、全て Passed である。AC2 は (a)(b)(c) を別の test か別の case として持つ。全体の件数は固定しない（他の fixture の件数は本スライスの条件ではない）。
+- XML で確かめる集合（判定 C）: fixture `OneStarMaker.Tests.Streaming.Benchmark.StreamingBenchmarkBackendTests` に、名前が `AC1_`、`AC2_`、`AC3_`、`AC4_`、`AC5_`、`AC6_`、`AC7_`、`AC9_`、`AC10_` で始まる test がそれぞれ 1 件以上あり、全て Passed である。AC2 は (a)(b)(c) を別の test か別の case として持つ。全体の件数は固定しない（他の fixture の件数は本スライスの条件ではない）。接頭辞だけでは AC の中の個々の case の漏れは分からないので、判定 C は §2 の AC の文と「定義と確認の対応」の表を test の code と突き合わせて、case ごとに確かめる。test の名前と件数をこれ以上は固定しない。
 - 本スライスと関係の無い test が全 EditMode 回帰で落ちた時: GO にしない。同じ test が A3 凍結 commit でも落ちる事を同じ環境の実行で示し、その証拠を付けて owner に返す（本スライスの欠陥ではないので B へは戻さない。owner が GO の扱いを決める）。Unity の終了時の native stall と `0xC0000005` は [Harness README の停止規則](../../tools/Harness/README.md#unity終了時の既知native-stallと調査の停止規則) に従い、XML が完成していれば XML と log の末尾で判定する。
 - 判定の evidence に入れる物: `run-tests.ps1` の出力一式（XML、Unity の log、step の記録）、`git diff --name-status <A3 凍結 commit> <implementation head>` の出力、2 つの audit の出力。
 - 全 EditMode 回帰の適用除外: なし
@@ -170,7 +171,7 @@
 - 判定 C の照合 script の方式: なし（test の XML の合否で足りる）
 - 機械検査: `pwsh tools/contract-audit.ps1`、`pwsh tools/docs-audit.ps1`
 - A0/A1 主担当・モデル・ベンダー: Cloud の計画担当（owner の 2026-11-27 の指示により、文書にモデル・製品の割当を書かない）
-- C' 用に予約した担当・モデル・ベンダー: 未定。**凍結の時に owner が決める**（A・B・C に関与しない担当。A2 の 2 件と A1 の主担当は A に関与済みなので使えない）
+- C' 用に予約した担当・モデル・ベンダー: 未定。**凍結の時に owner が決める**（A・B・C に関与しない担当。A1 の主担当、A2 の 2 件、Draft PR の外部計画レビューの担当は A に関与済みなので使えない）
 - 独立性の強化条件を満たせない場合の理由: 該当なし（risk は `low`）
 
 ### 5.1 A2 の独立レビューと A3 の採否
@@ -218,6 +219,18 @@
   | E6 | 申し送り（S-9a-4）: 全 Tick・要求を出した Tick・静かな Tick の分布を分けて記録する。条件を A3 で固定する | 後続へ移送 | 小計画 §4・§5.3 |
   | E7 | 申し送り（S-9a-6）: 先行するのは純政策の値の emit と表示の基盤だけ。T-08 の完了は S-9b | 採用 | 小計画 §4、`SEASON_WORLD_DESIGN.md` §6 |
   | E8 | 目的の文言は変えなくてよい。M4・M5 の不採用、模型 1 通り、duplicate の計数に賛成 | —（owner の裁定の入力） | — |
+
+- Draft PR #218 の外部計画再レビュー（2026-11-27、owner のアカウントからの投稿。入力は head `0c0adb8`。判定「S-9a-1 はごく小さい AC の補正後に凍結推奨」。E1〜E8 の採否案には全て賛成、目的の文言は変更不要、スライス分割と A2 の全面再実施は不要、との意見）。下の採否は統合担当の案で、確定は owner の凍結判断による:
+
+  | # | 指摘 | 採否（案） | 反映 |
+  |---|---|---|---|
+  | R1 | AC7 の「続けて」は全件ロード済みからの Add になり duplicate になる。新しい instance で、全 Add を保留中に全 Remove を出す。期限を過ぎた view の内容は契約にしない | 採用 | AC7、定義「配送」、対応表 |
+  | R2 | AC3 に呼び出し直後の状態と保留数。ロード済みへの正の遅延の Remove の case。両方の保留がある id への Remove が種類 (2) になる case | 採用 | AC3、AC1、AC4 |
+  | R3 | AC10 は列そのものの null・空と、要素の null・空を区別し、どちらも拒否する | 採用 | 定義「構築」、AC10 |
+  | R4 | AC 接頭辞だけでは case の漏れを検出できない。判定 C が対応表で case を照合すれば足り、名前や件数をこれ以上固定しない | 採用 | §5「XML で確かめる集合」 |
+  | R5 | AC8 の `docs/handoff` の許容を本書の記録に限る | 採用 | AC8 |
+  | R6 | C' は A・B・C と外部計画レビューに関与していない担当を owner が予約する | 採用 | §5 |
+  | R7 | 後続（S-9a-2〜4、P5）への提言 | 後続へ移送 | 小計画 §4・§5.2・§5.3・§5.4・§6 |
 
 - Phase C の観点の見直し（2026-11-27、主担当。owner の依頼。レビューではなく、判定 C が合否を決められない所を埋めた）:
 
