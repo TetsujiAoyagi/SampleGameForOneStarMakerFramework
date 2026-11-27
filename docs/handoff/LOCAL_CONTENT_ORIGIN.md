@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C'`（**判定 C（判断担当、2 回目）は GO（2026-11-27、§7）。AC1〜AC11 を判定必須テストと E 系列の原記録で確認し、現在の問いを阻害する指摘なし。次は C' の独立監査。** Phase B が revision 1 の driver の観測を実装した（2026-11-27、§6「revision 1 の driver の観測の修正」）。発見 C（4 回目）は阻害する指摘なし（§7）。Phase A の revision 1 を凍結した（2026-11-27）。判定 C の F-C3 を受けて §5 の観測の対象だけを改めた（§5.1 の revision 1）。以下は前の記録: Phase B は F-C3 の原因を切り分け、直さずに Phase A へ戻した（§6「判定 C で見つかった F-C3 の修正」）。判定 C（判断担当、1 回目）は NO-GO（§7、F-C3）。判定 C の 2 回目の実行は §7。発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `B`（**C'（1 巡目、2026-11-27）が blocker 1 件（CP-1、§8）。B へ戻す。** 判定 C（判断担当、2 回目）は implementation head `34673237` で GO だったが、C' の blocker の修正で implementation head が変わるので、その判定 C と C' の結果は新しい head に流用しない）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`
@@ -18,13 +18,13 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は個別に作らない（§6 の Phase B の実装結果と「動作確認」の節を両方の bundle に収録した）。判定 C の evidence bundle と C' blind bundle（1 巡目）はどちらもローカル固定済み（未昇格）で、取得は送信と別の process で確かめた。取得案内は進行役の worktree の git 管理外に置き、evidence bundle の案内は Phase D の担当へ、C' blind bundle の案内は C' の担当へ進行役が渡す。両方の bundle は判定 C の判断担当が読んだのと同じ原記録から、判定 C の後に作った。C' blind bundle の Phase A は凍結した revision 1 の §1〜§5（§5.1 を除く）を手を加えずに収め、§5 の本文にある §6 の節への参照 1 か所もそのまま残した（参照先の節は収めていない）
 - 引継ぎ票:
-  - 次の Phase・役割: C'（独立監査）。判定 C（判断担当、2 回目）は GO。動作確認は対象なし（offline で閉じない条件は E 系列だけで、§5 のとおり判定 C の実行担当が取った）。
-  - 次の作業: C' 担当が C' blind bundle（1 巡目）の取得案内で bundle を取り、所定の blind 入力だけで implementation head `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` を独立監査し、結果を進行役へ返す（進行役が §8 に記録する）。判定 C は AC1〜AC11 の GO を確認済みで、C' が終わるまで Phase D へ進まない。
-  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力だけ）。§8 に記録する進行役は §0・§7・§8。
+  - 次の Phase・役割: Phase B（C' の CP-1 の修正）。
+  - 次の作業: 開始時に引継ぎ票の照合をする。§8 の CP-1 を直す: `unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` を implementation base の内容に戻す（base `9e7d4148` からの差分がこの file に残らないこと）。この file は §3 の責務マップに無い。ほかに Library の無い checkout での Unity 起動で書き換わり、意図せず commit された file が diff に無いかを、base..head の name-status で確かめて §6 に記録する。修正後に新しい implementation head を固定し、発見 C へ渡す。新しい head では判定必須の検証（全 EditMode 回帰と E 系列）と判定 C・C'（2 巡目）をやり直す。
+  - 読む範囲: 既定（§0〜§5、差し戻しなので §6〜§8 も）。重点は §8 の CP-1 と §3 の責務マップ。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: C' は bundle の読み取りだけ（Unity の起動、資格情報、network は要らない）。bundle の取得は進行役が行う。
-  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。C' が凍結条件または常時契約の blocker を見つけたら、C' の規則に従って B へ戻す。判定 C の差し戻しの巡は 3 巡目で、上限は 4 巡。
-  - 引き渡さないもの: なし。
+  - 必要な権限: `unity/Assets/Settings/` の asset と `docs/handoff/` の編集、git。Unity の起動と資格情報は要らない（asset は git で base の内容に戻す）。
+  - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。変更は CP-1 の asset の復元と、同じ原因で混入した file の復元・§6 の記録に限る。製品 code・test・driver を変える必要が出たら止めて owner に聞く。判定 C の後の差し戻しはこれで 4 巡目で、§0 の上限（4 巡）に達する。
+  - 引き渡さないもの: C' 2 巡目には、C' 自身の前巡の指摘（CP-1）への人間の裁定だけを決定記録として渡し、発見 C・判定 C の所見は渡さない。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
 
 ### 実測の方法
@@ -904,7 +904,16 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 
 ## 8. Phase C'
 
-未着手
+### C'（1 巡目、2026-11-27）
+
+- 種別: C'（独立監査、1 巡目）。対象は implementation base / head `9e7d414833456e2c9dd930c5f96432b24d9ee919` / `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`。
+- 入力: C' blind bundle（1 巡目。§0 の取得案内のとおりローカル固定済み、未昇格）を取得した無改変の写し、その zip を展開したもの、implementation head の tracked file の写し（この HANDOFF と binary asset を除く）、起動指示 1 file。PR と可変 HANDOFF は渡していない。C' 用決定記録は 1 巡目なので無い。
+- 担当・モデル: xAI の Grok（cursor-agent、ask mode、読み取りだけ）。Phase A（Anthropic・OpenAI）、Phase B（Anthropic）、発見 C・判定 C（OpenAI）と別の系列で、§5 の C' の予約のとおり。進行役（Anthropic）が bundle を作った。Phase A の §5 の本文にある §6 の節への参照 1 か所はそのまま渡した（§0）。独立性制約あり（owner 受容）。実行時間は約 10 分。
+- 結論: **blocker あり（1 件）**。
+- **CP-1（blocker）:** Phase A §2.4 の N5（取得を使わない利用者と Player の動きが変わらない）への違反。`unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の `m_RuntimeSettings.m_List` が、base の 16 件から head で `[]` になっている。この file は §3 の責務マップに無い。program の文書（S4-1 から移送した入力の (7)）は、Library の無い worktree の最初の Unity 起動がこの一覧を `[]` に書き換えると書いている。head にはそれを戻す変更が無い。進行役は事実だけを確かめた: `git diff 9e7d4148 34673237 -- <この asset>` は 1 insertion・17 deletions（16 件の rid を `m_List: []` に置き換え）で、入った commit は `2526ae39`（Phase B の実装 commit）。
+- 後続の入力（C' の記述の要約。現スライスを広げない）: driver の `Invoke-Acquire` は `Start` の応答が失われた時に case を止めず最大 30 分待つ（j3 では踏んでいない）。別の書き手が head を置いた部分失敗で前の head が backup 名のまま残る。壊れた選んだ base の記録を書き直す時に他の cache root の entry を捨てる。pin の revision が head の revision 欄と一致する時の所在の解決。driver の行数（507 行。§3 の予想は約 200 行）。E6 の観測は記録されている。
+- 監査できなかった範囲（C' の申告）: manifest の sha256 の再計算（shell を使わない設定）。test 本体の細部（合否は XML に依る）。Editor log の全文。Player 上の描画。
+- 引き渡し: CP-1 は凍結条件への違反なので B へ戻す（§0 の票）。CP-1 への人間の裁定は未記録。
 
 ## 9. Phase D
 
