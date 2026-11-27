@@ -236,6 +236,87 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
             Assert.That(result.Attempts.Last().Outcome, Is.EqualTo("TooLarge"));
         }
 
+        // ─── 後片付けの例外（外部実装レビュー P1-1）───
+
+        [Test]
+        public async Task ArtifactSourceDisposeThrowsAfterAnInstall_StaysAcquiredAndIsDiagnosed()
+        {
+            var origin = new MemoryOrigin("memory", MemoryOrigin.FromDirectory("x", _root).Files())
+            {
+                DisposeThrows = () => new IOException("fixture source dispose failure"),
+            };
+            var result = await Acquire(origin, CancellationToken.None);
+            Assert.That(result.State, Is.EqualTo(ContentAcquisitionState.Acquired), result.Reason);
+            Assert.That(result.BytesOriginId, Is.EqualTo("memory"));
+            Assert.That(_fixture.Installed(), Is.EqualTo(new[] { "set/r1" }), "結果と一覧が食い違わない");
+            Assert.That(result.Diagnostics, Has.Some.Contain("fixture source dispose failure"));
+            Assert.DoesNotThrow(() => _fixture.Store().Inspect(), "cache の transaction の lock を取り直せる");
+        }
+
+        [Test]
+        public async Task StreamDisposeThrowsWhileAReadFailure_KeepsTheFailureAndTheNextOriginDelivers([Values] Misbehaving kind)
+        {
+            var second = _fixture.OriginRoot(2);
+            OriginFixture.Publish(second, "r1", Payload);
+            var origin = Origin(kind, (path, _) => Content(path, stream =>
+            {
+                stream.ThrowAtRead = 2;
+                stream.ThrowOnDispose = new IOException("fixture stream dispose failure");
+                return Task.FromResult<Stream>(stream);
+            }));
+            var result = await ContentAcquisition.AcquireAsync(_fixture.Request(),
+                new[] { OriginFixture.Accept(origin), OriginFixture.Accept(ContentOrigins.Directory("dir2", second)) }, _fixture.Store(), CancellationToken.None);
+            Assert.That(result.State, Is.EqualTo(ContentAcquisitionState.Acquired), result.Reason);
+            Assert.That(result.BytesOriginId, Is.EqualTo("dir2"));
+            Assert.That(result.Attempts.Select(x => x.Outcome), Is.EqualTo(new[] { "Target", "Unreachable", "Installed" }), "元の読みの失敗が上書きされない");
+            Assert.That(result.Diagnostics, Has.Some.Contain("fixture stream dispose failure"));
+        }
+
+        [Test]
+        public async Task SourceAndStreamDisposeThrowWhileCanceling_StaysCanceled()
+        {
+            var started = new TaskCompletionSource<bool>();
+            var release = new TaskCompletionSource<bool>();
+            var origin = new MemoryOrigin("memory", MemoryOrigin.FromDirectory("x", _root).Files())
+            {
+                DisposeThrows = () => new IOException("fixture source dispose failure"),
+            };
+            origin.OpenOverride = (path, _) => Content(path, stream =>
+            {
+                stream.BeforeRead = index => { if (index != 1) return null; started.TrySetResult(true); return release.Task; };
+                stream.ThrowOnDispose = new IOException("fixture stream dispose failure");
+                return Task.FromResult<Stream>(stream);
+            });
+            var staging = _fixture.Staging();
+            using var cts = new CancellationTokenSource();
+            var acquisition = Acquire(origin, cts.Token);
+            await started.Task;
+            cts.Cancel();
+            var result = await acquisition;
+            Assert.That(result.State, Is.EqualTo(ContentAcquisitionState.Canceled), result.Reason);
+            Assert.That(result.Diagnostics, Has.Some.Contain("fixture source dispose failure"));
+            AssertNothingLeft(staging);
+            // 打ち切った読みが後で終わると、その後で stream を閉じる。その Dispose の例外も外へ出ない。
+            Assert.DoesNotThrow(() => release.SetResult(true));
+            AssertNothingLeft(staging);
+        }
+
+        [Test]
+        public async Task LateStreamWhoseDisposeThrows_AfterCancel_DoesNotEscape([Values] Misbehaving kind)
+        {
+            var opened = new TaskCompletionSource<bool>();
+            var late = new TaskCompletionSource<Stream>();
+            var origin = Origin(kind, (path, _) => Content(path, _ => { opened.TrySetResult(true); return late.Task; }));
+            using var cts = new CancellationTokenSource();
+            var acquisition = Acquire(origin, cts.Token);
+            await opened.Task;
+            cts.Cancel();
+            Assert.That((await acquisition).State, Is.EqualTo(ContentAcquisitionState.Canceled));
+            var stream = new ControlledStream(Encoding.UTF8.GetBytes(Payload)) { ThrowOnDispose = new IOException("fixture late dispose failure") };
+            Assert.DoesNotThrow(() => late.SetResult(stream));
+            Assert.That(stream.Disposed, Is.True);
+        }
+
         // ─── guard の単体 ───
 
         private ContentOriginGuard Guard(IContentOrigin origin)

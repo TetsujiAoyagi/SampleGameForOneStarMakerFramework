@@ -17,6 +17,8 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
     /// <item>取得元の側の例外を、installer へは <c>ContentDeliveryException(TransportFailure)</c> として返す（installer は他の型を
     /// 到着点の側の <c>IoFailure</c> に包むため）。取得元が自分で投げた <see cref="OperationCanceledException"/> も取得元の失敗にする。
     /// 呼び手の取消だけを <see cref="OperationCanceledException"/> で返す。</item>
+    /// <item>取得口と stream の後片付け（<c>Dispose</c>）の例外は投げ直さず、<c>cleanupFailed</c> へ診断として渡す。後片付けは
+    /// 成功・取消・元の失敗の結果を上書きしない。打ち切った task の後で走る遅れた後片付けの例外も観測する。</item>
     /// <item>失敗の証拠を記録する: (i) 取得元の open・read の失敗を観測した、(ii) installer へ渡した bytes そのものが対象と食い違った
     /// （<c>transport.json</c> の SHA-256 か上限、content の file の大きさか SHA-256）。hash の違いと「短い」は EOF まで渡した時だけ確定し、
     /// installer が途中で読むのを止めた時の部分の hash は数えない。「長い」は上限を超えて渡した時点で確定する。</item>
@@ -31,13 +33,18 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
         private readonly string _originId;
         private readonly string _targetDigest;
         private readonly Action<string>? _beforeEndOfFileReturned;
+        private readonly Action<string>? _cleanupFailed;
+        private bool _disposed;
         private Dictionary<string, ContentTransportFile> _expected = new(StringComparer.Ordinal);
 
-        internal ContentOriginGuard(IContentOrigin origin, ContentOriginEntry entry, string targetDigest, Action<string>? beforeEndOfFileReturned)
+        /// <param name="cleanupFailed">後片付けの例外の診断を受ける。打ち切った task の後片付けからは別の thread で呼ばれうる。</param>
+        internal ContentOriginGuard(IContentOrigin origin, ContentOriginEntry entry, string targetDigest, Action<string>? beforeEndOfFileReturned,
+            Action<string>? cleanupFailed = null)
         {
             _originId = origin.Id;
             _targetDigest = targetDigest;
             _beforeEndOfFileReturned = beforeEndOfFileReturned;
+            _cleanupFailed = cleanupFailed;
             // OpenArtifacts は同期の契約で、打ち切れない。投げた例外は取得元の失敗 (i) として、以後の open で返す。
             try { _inner = origin.OpenArtifacts(entry) ?? throw new InvalidOperationException("The origin returned no artifact source."); }
             catch (Exception ex)
@@ -149,7 +156,7 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             try
             {
                 var task = _inner.OpenReadAsync(relativePath, cancellationToken) ?? throw new InvalidOperationException("The origin returned no task.");
-                stream = await AwaitOrAbandon(task, cancellationToken, late => late?.Dispose());
+                stream = await AwaitOrAbandon(task, cancellationToken, late => DisposeQuietly(late, "a late stream of " + relativePath));
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
@@ -163,8 +170,21 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             // 取得口の Dispose は同期の契約で、待たない。違反は host の不備としてここでは打ち切らない。
-            _inner?.Dispose();
+            // 投げた例外は診断にし、成功・取消・元の失敗を上書きしない。
+            DisposeQuietly(_inner, "the artifact source");
+        }
+
+        private void DisposeQuietly(IDisposable? disposable, string what)
+        {
+            try { disposable?.Dispose(); }
+            catch (Exception ex)
+            {
+                try { _cleanupFailed?.Invoke("Origin '" + _originId + "': disposing " + what + " failed: " + ex.Message); }
+                catch (Exception) { /* 診断の受け手の失敗で後片付けの結果を変えない */ }
+            }
         }
 
         private Exception SourceFailure(Exception ex, CancellationToken token)
@@ -200,7 +220,12 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                         _ = task.ContinueWith(late =>
                         {
                             if (late.IsFaulted) _ = late.Exception;
-                            else if (late.Status == TaskStatus.RanToCompletion) disposeLate?.Invoke(late.Result);
+                            else if (late.Status == TaskStatus.RanToCompletion)
+                            {
+                                // 遅れた後片付けの例外も観測する（disposeLate は自分で診断にするが、ここで観測されない例外を残さない）。
+                                try { disposeLate?.Invoke(late.Result); }
+                                catch (Exception) { /* 観測して捨てる */ }
+                            }
                         }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
                         throw new OperationCanceledException("Content acquisition was canceled.", token);
                     }
@@ -308,8 +333,9 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                     // 打ち切った読みがまだ走っていれば、終わってから閉じる（読みの最中の stream を閉じない）。
                     var pending = _pending;
                     if (pending != null && !pending.IsCompleted)
-                        _ = pending.ContinueWith(_ => _inner.Dispose(), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
-                    else _inner.Dispose();
+                        _ = pending.ContinueWith(_ => _owner.DisposeQuietly(_inner, "the stream of " + _path + " after an abandoned read"),
+                            CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                    else _owner.DisposeQuietly(_inner, "the stream of " + _path);
                 }
                 base.Dispose(disposing);
             }

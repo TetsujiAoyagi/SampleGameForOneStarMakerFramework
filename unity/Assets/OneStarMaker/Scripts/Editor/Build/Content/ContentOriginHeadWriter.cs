@@ -50,8 +50,9 @@ namespace OneStarMaker.Editor.Build.Content
         internal sealed class Operations
         {
             internal Operations(Action<string, string, string> replace, Action<string, string> move, Action<int> wait, Func<long>? elapsedMilliseconds,
-                bool windows)
+                bool windows, Action<string, byte[]>? writeAllBytes = null)
             {
+                WriteAllBytes = writeAllBytes ?? File.WriteAllBytes;
                 Replace = replace;
                 Move = move;
                 Wait = wait;
@@ -63,6 +64,8 @@ namespace OneStarMaker.Editor.Build.Content
                 (source, destination, backup) => File.Replace(source, destination, backup, ignoreMetadataErrors: true),
                 File.Move, System.Threading.Thread.Sleep, null, Environment.OSVersion.Platform == PlatformID.Win32NT);
 
+            /// <summary>別名の file へ head の bytes を書く。test は途中まで書いてから失敗する書き込みを注入する。</summary>
+            internal Action<string, byte[]> WriteAllBytes { get; }
             /// <summary>(別名の file, head, backup)。head を backup へ移してから別名を head にする。</summary>
             internal Action<string, string, string> Replace { get; }
             /// <summary>既にある宛先を上書きしない移動。</summary>
@@ -87,12 +90,20 @@ namespace OneStarMaker.Editor.Build.Content
             var temporary = headPath + "." + token + ".tmp";
             var backup = headPath + "." + token + ".bak";
             var diagnostics = new List<string>();
-            File.WriteAllBytes(temporary, draft.Bytes);
             var clock = Stopwatch.StartNew();
             long Elapsed() => operations.ElapsedMilliseconds?.Invoke() ?? clock.ElapsedMilliseconds;
+            string? failure = null;
+            Exception? failureCause = null;
             try
             {
-                for (var attempt = 1; ; attempt++)
+                // 別名の file の書き込みも後片付けの範囲に入れる（途中まで書いて失敗した file を残さない）。
+                try { operations.WriteAllBytes(temporary, draft.Bytes); }
+                catch (Exception error)
+                {
+                    failure = "The origin head could not be written: " + temporary + ". " + error.Message;
+                    failureCause = error;
+                }
+                for (var attempt = 1; failureCause == null; attempt++)
                 {
                     try
                     {
@@ -107,8 +118,11 @@ namespace OneStarMaker.Editor.Build.Content
                         var transient = operations.Windows && ContentStagingMove.IsTransient(error) && File.Exists(temporary);
                         if (!transient || attempt >= ContentStagingMove.MaxAttempts
                                        || Elapsed() + ContentStagingMove.WaitMilliseconds > ContentStagingMove.BudgetMilliseconds)
-                            throw new ContentOriginHeadWriteException("The origin head could not be replaced: " + headPath + ". " + error.Message,
-                                diagnostics, error);
+                        {
+                            failure = "The origin head could not be replaced: " + headPath + ". " + error.Message;
+                            failureCause = error;
+                            break;
+                        }
                         operations.Wait(ContentStagingMove.WaitMilliseconds);
                     }
                 }
@@ -117,6 +131,8 @@ namespace OneStarMaker.Editor.Build.Content
             {
                 TryDelete(temporary, diagnostics);
             }
+            // 失敗の例外は後片付けの後に作る（後片付けの失敗の診断を、呼び手が記録する Message に含める）。
+            if (failureCause != null) throw new ContentOriginHeadWriteException(failure!, diagnostics, failureCause);
             // 置き換えは成功した。backup の削除の失敗は head の段を失敗にしない（公開先を消すと head が消えた revision を指す）。
             TryDelete(backup, diagnostics);
             return new ContentOriginHeadWriteResult(headPath, draft.Head, diagnostics);

@@ -55,8 +55,15 @@ namespace OneStarMaker.Tests.Editor.Build
         private string[] Leftovers() => Directory.GetFiles(Path.GetDirectoryName(_headPath)!).Where(x => x != _headPath).ToArray();
 
         private static ContentOriginHeadWriter.Operations Ops(Action<string, string, string>? replace = null, Action<string, string>? move = null,
-            Action<int>? wait = null, Func<long>? elapsed = null) =>
-            new(replace ?? ((s, d, b) => File.Replace(s, d, b, true)), move ?? File.Move, wait ?? (_ => { }), elapsed ?? (() => 0), windows: true);
+            Action<int>? wait = null, Func<long>? elapsed = null, Action<string, byte[]>? write = null) =>
+            new(replace ?? ((s, d, b) => File.Replace(s, d, b, true)), move ?? File.Move, wait ?? (_ => { }), elapsed ?? (() => 0), windows: true, write);
+
+        /// <summary>半分だけ書いてから失敗する書き込み（disk full の模擬）。</summary>
+        private static void PartialWrite(string path, byte[] bytes)
+        {
+            File.WriteAllBytes(path, bytes.Take(bytes.Length / 2).ToArray());
+            throw new IOException("fixture disk full");
+        }
 
         [Test]
         public void FirstWrite_CreatesTheHeadPointingAtThePublish()
@@ -89,6 +96,48 @@ namespace OneStarMaker.Tests.Editor.Build
             Assert.Throws<ContentOriginHeadWriteException>(() => ContentOriginHeadWriter.Write(Publish("r1")));
             Assert.That(File.ReadAllText(_headPath), Is.EqualTo(existing));
             Assert.That(Leftovers(), Is.Empty);
+        }
+
+        [Test]
+        public void PartialWriteFails_KeepsThePreviousHeadAndLeavesNoTemporaryFile()
+        {
+            ContentOriginHeadWriter.Write(Publish("r1"));
+            var before = File.ReadAllBytes(_headPath);
+            var error = Assert.Throws<ContentOriginHeadWriteException>(() => ContentOriginHeadWriter.Write(Publish("r2"), Ops(write: PartialWrite)));
+            Assert.That(error!.Message, Does.Contain("fixture disk full"));
+            Assert.That(File.ReadAllBytes(_headPath), Is.EqualTo(before));
+            Assert.That(Leftovers(), Is.Empty);
+        }
+
+        [Test]
+        public void PartialFirstWriteFails_LeavesNoHeadAndNoTemporaryFile()
+        {
+            Assert.Throws<ContentOriginHeadWriteException>(() => ContentOriginHeadWriter.Write(Publish("r1"), Ops(write: PartialWrite)));
+            Assert.That(File.Exists(_headPath), Is.False);
+            Assert.That(Leftovers(), Is.Empty);
+        }
+
+        [Test]
+        public void PartialWriteFailsAndTheTemporaryFileCannotBeDeleted_TheMessageCarriesTheCleanupDiagnostic()
+        {
+            ContentOriginHeadWriter.Write(Publish("r1"));
+            FileStream? held = null;
+            try
+            {
+                var error = Assert.Throws<ContentOriginHeadWriteException>(() => ContentOriginHeadWriter.Write(Publish("r2"), Ops(write: (path, bytes) =>
+                {
+                    File.WriteAllBytes(path, bytes.Take(1).ToArray());
+                    held = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None); // 削除できない別名の file
+                    throw new IOException("fixture disk full");
+                })));
+                Assert.That(error!.Diagnostics, Has.Some.Contain("Could not delete"));
+                Assert.That(error.Message, Does.Contain("Could not delete"), "batch の originHeadFailure は Message を記録する");
+                Assert.That(ReadHead().revision, Is.EqualTo("r1"));
+            }
+            finally
+            {
+                held?.Dispose();
+            }
         }
 
         [Test]

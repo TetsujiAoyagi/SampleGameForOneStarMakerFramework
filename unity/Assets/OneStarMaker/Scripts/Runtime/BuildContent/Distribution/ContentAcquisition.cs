@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -57,6 +58,9 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             private readonly ContentAcquisitionHooks? _hooks;
             private readonly List<ContentAcquisitionAttempt> _attempts = new();
             private readonly List<string> _diagnostics = new();
+            // 取得元の後片付けの失敗。打ち切った task の後片付けは別の thread から来るので、Finish で _diagnostics へ移す。
+            private readonly ConcurrentQueue<string> _cleanupFailures = new();
+            private ContentOriginGuard? _guard;
             private ContentCacheSnapshot? _before;
             private bool _installerCalled;
             private string? _revision;
@@ -144,7 +148,8 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                         entry = query.Entry;
                     }
 
-                    using var guard = new ContentOriginGuard(origin.Origin, entry!, _digest!, _hooks?.BeforeEndOfFileReturned);
+                    using var guard = new ContentOriginGuard(origin.Origin, entry!, _digest!, _hooks?.BeforeEndOfFileReturned, _cleanupFailures.Enqueue);
+                    _guard = guard;
                     var pre = await guard.PreReadManifestAsync(token);
                     var preOutcome = pre.Outcome;
                     var reason = pre.Reason;
@@ -299,6 +304,9 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
             internal ContentAcquisitionResult Finish(ContentAcquisitionState state, string reason, ContentInstallResult? install = null,
                 string? bytesOriginId = null)
             {
+                // 取得元の後片付けを結果を作る前に済ませ、その失敗を診断に入れる（返した結果を後から変えない。遅れた分は入らない）。
+                _guard?.Dispose();
+                _guard = null;
                 var removed = new List<string>();
                 if (_installerCalled && _before != null)
                 {
@@ -311,6 +319,7 @@ namespace OneStarMaker.Runtime.BuildContent.Distribution
                     }
                     catch (ContentDeliveryException ex) { _diagnostics.Add("Removed installs could not be observed: " + ex.Message); }
                 }
+                while (_cleanupFailures.TryDequeue(out var cleanup)) _diagnostics.Add(cleanup);
                 return new ContentAcquisitionResult(state, reason, install, _revision, _digest, _targetOriginId, bytesOriginId, _authority,
                     _attempts.ToArray(), removed, _diagnostics.ToArray());
             }

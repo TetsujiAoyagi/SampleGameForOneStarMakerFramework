@@ -146,6 +146,8 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         /// <summary>(location 付きの相対 path, token) → stream。null を返せば既定の動き。</summary>
         internal Func<string, CancellationToken, Task<Stream>?>? OpenOverride { get; set; }
         internal Action? OnOpenArtifacts { get; set; }
+        /// <summary>取得口の Dispose が投げる例外（null なら投げない）。</summary>
+        internal Func<Exception>? DisposeThrows { get; set; }
 
         public Task<ContentOriginAnswer> FindAsync(ContentOriginQuery query, CancellationToken cancellationToken)
         {
@@ -192,7 +194,11 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
                 return Task.FromResult<Stream>(new MemoryStream(bytes, false));
             }
 
-            public void Dispose() { }
+            public void Dispose()
+            {
+                var error = _owner.DisposeThrows?.Invoke();
+                if (error != null) throw error;
+            }
         }
     }
 
@@ -241,6 +247,8 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         internal Func<int, Task?>? BeforeRead { get; set; }
         internal int? ThrowAtRead { get; set; }
         internal bool Disposed { get; private set; }
+        /// <summary>Dispose が投げる例外（null なら投げない）。</summary>
+        internal Exception? ThrowOnDispose { get; set; }
 
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
@@ -252,7 +260,12 @@ namespace OneStarMaker.Tests.BuildContent.Distribution
         }
 
         public override int Read(byte[] buffer, int offset, int count) => ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
-        protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+            if (disposing && ThrowOnDispose != null) throw ThrowOnDispose;
+        }
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
