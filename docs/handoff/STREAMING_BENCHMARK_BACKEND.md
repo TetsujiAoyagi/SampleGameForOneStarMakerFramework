@@ -9,6 +9,7 @@
 - 位置付け: 小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) §4 の S-9a-1。6 本のうちの最初の 1 本
 - 版の経緯:
   - 2026-11-27 A1 初稿（S-9a を 1 スライスで行う初稿を owner が「大きい」と判断し、小スライスに分けた後の 1 本目）
+  - 2026-11-27 A3 統合案の改訂 4。凍結前の実行検証レビュー（入力は head `60cc4b06`）を反映した（§5.1）。模型の動きは変えず、AC の漏れを埋めた
   - 2026-11-27 owner の裁定: 採否は外部計画レビューの推奨どおりとする（§5.1 の「owner の裁定」）。凍結の記録はまだ無い
   - 2026-11-27 A3 統合案の改訂 3。Draft PR #218 の外部計画再レビュー（入力は head `0c0adb8`。判定「ごく小さい AC の補正後に凍結推奨」）を反映した（§5.1）
   - 2026-11-27 A3 統合案の改訂 2。Phase C が判定できない所を主担当が見直した（§5.1 の「Phase C の観点の見直し」）
@@ -55,11 +56,11 @@
   - **構築。** 候補の identity の列（重複なし）、Add の遅延、Remove の遅延（どちらも Tick 数、0 以上）を受ける。id ごとの状態は構築時に確保する。列が null・空・重複あり、列の要素が null か空文字、または遅延が負なら、構築は `ArgumentException`（派生型を含む。以下同じ）にする。列に無い id（null と空文字を含む）を渡す呼び出し（`RequestAdd` / `RequestRemove` / `IsLoaded` / id ごとの読み口）も `ArgumentException` にする（test の誤用で、duplicate ではない）。
   - **時間。** 現在の Tick は 0 から始まり、`AdvanceTick()` で 1 だけ進む。任意の Tick へ飛ぶ口は持たない。
   - **Add。** `RequestAdd(id, priority)` は `現在の Tick + Add の遅延` に完了し、その時点で id はロード済みになる。`priority` は読まず、記録もしない。
-  - **Remove。** `RequestRemove(id)` は `現在の Tick + Remove の遅延` に完了し、その時点で id は未ロードになる。Remove の保留中も、完了までは id はロード済みである。
+  - **Remove。** `RequestRemove(id)` は `現在の Tick + Remove の遅延` に完了し、その時点で id は未ロードになる。ロード済みの id への Remove の保留中は、完了まで id はロード済みである。
   - **保留中の Add への Remove。** Add は元の時点で完了してロード済みになり、Remove は「Add の完了と `現在の Tick + Remove の遅延` の遅い方」に完了して未ロードになる。両方が同じ Tick なら Add、Remove の順に配送する。
-  - **遅延 0。** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了する。状態を反映してから戻り、返る task は完了済みである（継続は生じないので、下の「再入」の対象にならない）。保留中の Add への Remove は、Remove の遅延が 0 でも上の行に従う。
-  - **配送。** `AdvanceTick()` は、進めた後の Tick が期限の完了を、要求の順に 1 件ずつ配送する。1 件の配送は「状態の反映 → その task の完了」の順で、次の 1 件は前の task の継続が戻った後に反映する。戻り値は配送した完了の列（種別と id）で、backend が持つ buffer の読み取り専用の view である。次の `AdvanceTick()` までだけ有効とし、その後の内容は保証しない。
-  - **再入。** 配送の最中（task の継続の中）から `RequestAdd` / `RequestRemove` / `AdvanceTick` が呼ばれたら `InvalidOperationException` にする。拒否した呼び出しは状態も計数も変えず、その `AdvanceTick()` の残りの配送は続く。`IsLoaded` と読み口は呼んでよい。継続が自分で捕まえなかった例外を backend は扱わない（UniTask の扱いに従う）。
+  - **遅延 0。** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了する。状態を反映してから戻り、返る task は完了済みである（継続は生じないので、下の「再入」の対象にならない）。遅延 0 で完了した要求は `AdvanceTick()` の戻り値に出ない。duplicate の判定は即時の完了より先に行う（ロード済みの id への遅延 0 の Add は duplicate である）。保留中の Add への Remove は、Remove の遅延が 0 でも上の行に従う。
+  - **配送。** `AdvanceTick()` は、進めた後の Tick が期限の完了を、要求の順に 1 件ずつ配送する。1 件の配送は「状態の反映 → その task の完了」の順で、次の 1 件は前の task の継続が戻った後に反映する。戻り値はその 1 回の `AdvanceTick()` で配送した完了だけの列（種別と id。配送が無ければ空で、前の Tick の配送を含まない）で、backend が持つ buffer の読み取り専用の view である。次の `AdvanceTick()` までだけ有効とし、その後の内容は保証しない。
+  - **再入。** 配送の最中（task の継続の中）から `RequestAdd` / `RequestRemove` / `AdvanceTick` が呼ばれたら `InvalidOperationException` にする（列に無い id での再入も、再入の検査を先に行い `InvalidOperationException` にする）。拒否した呼び出しは状態も計数も現在の Tick も変えず、拒否の後も backend は通常どおり要求と `AdvanceTick()` を受け、その `AdvanceTick()` の残りの配送は続く。`IsLoaded` と読み口は呼んでよい。継続が自分で捕まえなかった例外を backend は扱わない（UniTask の扱いに従う）。
   - **duplicate。** 次の 3 種類を別々に数え、例外は投げず、状態を変えず、完了済みの task を返す: (1) 保留中の Add がある id、またはロード済みの id への Add、(2) 保留中の Remove がある id への Remove、(3) 未ロードで保留中の Add も無い id への Remove。Remove は (2) を先に見る（保留中の Add と保留中の Remove の両方がある id への Remove は (2)）。
   - **計数。** `IsLoaded` の呼び出し、Add の要求、Remove の要求を累計で数える。要求の計数は duplicate を含む全ての呼び出しの数である。計数を 0 に戻す口は持たない（区間の値は読む側が差を取る）。
   - **読み口（どれも `IsLoaded` の計数に入らない）。** 現在の Tick、保留中の Add の数、保留中の Remove の数、ロード済みの数、id ごとの「ロード済み / 保留中の Add がある / 保留中の Remove がある」。
@@ -68,7 +69,7 @@
   - 不変条件:
     - **I1 模型が時間を自分で進めない。** 状態が変わるのは要求と `AdvanceTick` の呼び出しの中だけで、実時間・frame・thread に依らない。
       - 崩しうる経路: 完了を `UniTask.Delay` や `Yield` で作る。`Task.Delay` / `Thread.Sleep` を使う。完了の継続が `AdvanceTick` から戻った後に走る。継続の中から要求が再入して、配送中の保留の列が変わる。状態の反映より先に task が完了して、継続が古い状態を読む。
-      - 探索した境界: `ISceneStreamingBackend`、`FakeStreamingBackend`、`WorldStreamingController` の完了の観測（`ObserveAddCompletionAsync`）。未確認: `UniTaskCompletionSource` の継続が `TrySetResult` の中で同期に走る事（UniTask の source は A2 でも読めていない。既存の test がこの前提で通っており、本スライスの AC1 で直接確かめる）。
+      - 探索した境界: `ISceneStreamingBackend`、`FakeStreamingBackend`、`WorldStreamingController` の完了の観測（`ObserveAddCompletionAsync`）。確認済み（実行検証レビューが source で確かめた。UniTask 2.5.11、`packages-lock.json` の hash `e5acc106`）: `UniTaskCompletionSource.TrySetResult` は継続をその場で同期に呼ぶ。`async UniTaskVoid` が未完了の task を await した継続は PlayerLoop を通らない（PlayerLoop に触れるのは IL2CPP の枝だけ）。継続の例外は `TrySetResult` の呼び出し元へ伝わらず、未観測例外として `Debug.LogException` へ行く（repo は handler を登録していない）。完了済みの task の await は同期に続く。未確認: その log で Unity Test Framework の test が落ちる事（AC9 は例外を継続の中で捕まえるので、どちらでも成り立つ）。C# は動かしていないので、AC1 でも直接確かめる。
     - **I2 誤った要求を黙って受けない。** duplicate の 3 種類は必ず数えられ、状態を変えない。
       - 崩しうる経路: 二重の Add が保留を上書きして、先の task が完了しないまま残る。未ロードへの Remove がロード済みの数を負にする。Remove を受けた時点でロード済みを外す実装にすると、Remove の保留中の Add が受理される。候補に無い id を受理して状態を増やす。
     - **I3 既存の test と Runtime を変えない。** 変更は §3 の新規 file だけである。
@@ -77,17 +78,17 @@
     - **S2** 同じ要求と `AdvanceTick` の列を 2 回与えると、配送の列と計数が一致する。
     - **S3** 10,000 件の id への Add を出して進めても、定義どおりに全件がロード済みになる。
 - 受け入れ条件:
-  - **AC1（S1・I1）** Tick 0 に遅延 3 の Add を出す。`AdvanceTick()` を 2 回呼んだ後（Tick 2）は未ロードで task は未完了、3 回目の後（Tick 3）はロード済みで task は完了している。task に付けた継続は 3 回目の `AdvanceTick()` から戻る前に走っており、継続の中で読んだ `IsLoaded` は true である。読み口の「現在の Tick」は `AdvanceTick()` のたびに 1 増える。Remove も同じ形で確かめる: ロード済みの id に正の遅延の Remove を出すと、期限の前は保留中の Remove = true でロード済み = true、期限の `AdvanceTick()` の後は未ロードで、Remove の task の継続の中で読んだ `IsLoaded` は false である。不合格の例: 3 回目から戻った直後に継続がまだ走っていない。継続の中の `IsLoaded` が false である。
-  - **AC2（S1）** 保留中の Add に Remove を出すと、Add の期限でロード済みになり、Remove の期限で未ロードになる。次の 3 つを別々に確かめる。(a) Remove の期限が Add の期限より後: Add の期限の Tick の後はロード済み、Remove の期限の Tick の後は未ロード。(b) `現在の Tick + Remove の遅延` が Add の期限以下（等しい場合を含む）: Add の期限の 1 回の `AdvanceTick()` が Add、Remove の順に 2 件を返し、終わりは未ロード。(c) Remove の遅延が 0 で Add が保留中: Remove の task は呼び出しから戻った時点で未完了で、(b) と同じく Add の期限に配送される。(b) と (c) では Add の task と Remove の task に継続を 1 つずつ付け（同じ task を 2 回 await しない）、継続の中から読んだ状態を確かめる: Add の継続ではロード済み = true、保留中の Add = false、保留中の Remove = true。Remove の継続ではロード済み = false、保留は両方 false。Add の継続が Remove の継続より先に走る。不合格の例: Add と Remove の状態をまとめて反映してから task を順に完了する実装（Add の継続の中でロード済みが false に見える）。
-  - **AC3（S1）** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了し、返る task は完了済みである。呼び出しから戻った直後に、Add ではロード済み = true、Remove ではロード済み = false で、保留中の Add の数と保留中の Remove の数はどちらも 0 である。
-  - **AC4（I2。失敗経路）** 次の 6 つを 1 件ずつ出す: 保留中の Add がある id への Add、ロード済みの id への Add、ロード済みで Remove の保留中の id への Add、保留中の Remove がある id への Remove、保留中の Add と保留中の Remove の両方がある id への Remove（種類は (2)）、未ロードで保留も無い id への Remove。それぞれ、対応する種類の duplicate の計数が 1 増え、返る task は完了済みで、呼び出しの直後の保留の数とロード済みの数は呼び出しの前と同じである。先に出した要求は元の期限で完了する。
-  - **AC5（S1）** `IsLoaded`、Add、Remove の計数が呼び出しの数と一致する。有効な Add 1 回と duplicate の Add 1 回の後、Add の計数は 2、duplicate は 1 である。読み口を何回呼んでも `IsLoaded` の計数は増えない。
-  - **AC6（S2）** 同じ列を 2 つの instance に与えると、`AdvanceTick()` が返す列と全ての計数が一致する。同じ期限の完了は要求の順に並ぶ。違う id の 2 つの Add が同じ期限の時、先の Add の継続の中から読むと、後の id はまだ未ロードで、保留中の Add が true である。
+  - **AC1（S1・I1）** Tick 0 に遅延 3 の Add を出す。`AdvanceTick()` を 2 回呼んだ後（Tick 2）は未ロードで task は未完了、3 回目の後（Tick 3）はロード済みで task は完了している。task に付けた継続は 3 回目の `AdvanceTick()` から戻る前に走っており、継続の中で読んだ `IsLoaded` は true である。読み口の「現在の Tick」は `AdvanceTick()` のたびに 1 増える。配送の無い `AdvanceTick()`（1 回目と 2 回目）の戻り値は空で、配送のあった Tick の次の `AdvanceTick()` の戻り値も、前の配送を含まない。Remove も同じ形で確かめる: ロード済みの id に正の遅延の Remove を出すと、期限の前は保留中の Remove = true でロード済み = true、期限の `AdvanceTick()` の後は未ロードで、Remove の task の継続の中で読んだ `IsLoaded` は false である。不合格の例: 3 回目から戻った直後に継続がまだ走っていない。継続の中の `IsLoaded` が false である。
+  - **AC2（S1）** 保留中の Add に Remove を出すと、Add の期限でロード済みになり、Remove の期限で未ロードになる。次の 3 つを別々に確かめる。(a) Remove の期限が Add の期限より後: Add の期限の Tick の後はロード済み、Remove の期限の 1 つ前の Tick の後はまだロード済みで保留中の Remove = true、Remove の期限の Tick の後は未ロード。(b) `現在の Tick + Remove の遅延` が Add の期限以下（等しい場合を含む）: Add の期限の 1 回の `AdvanceTick()` が Add、Remove の順に 2 件を返し、終わりは未ロード。(c) Remove の遅延が 0 で Add が保留中: Remove の task は呼び出しから戻った時点で未完了で、(b) と同じく Add の期限に配送される。(b) と (c) では Add の task と Remove の task に継続を 1 つずつ付け（同じ task を 2 回 await しない）、継続の中から読んだ状態を確かめる: Add の継続ではロード済み = true、保留中の Add = false、保留中の Remove = true。Remove の継続ではロード済み = false、保留は両方 false。Add の継続が Remove の継続より先に走る。不合格の例: Add と Remove の状態をまとめて反映してから task を順に完了する実装（Add の継続の中でロード済みが false に見える）。(d) 期限が要求の順に並ばない列（Add 3 / Remove 1）: Y をロード済みにしておき、Tick 3 に X へ Add（期限 6）、Tick 4 に X へ Remove（期限 6）、続けて Y へ Remove（期限 5）を出す。Tick 5 の戻り値は Y の Remove だけで Y は未ロード、Tick 6 の戻り値は X の Add、X の Remove の順である。不合格の例: Remove を要求の順の列で持ち、先頭の期限が来るまで後ろを出さない実装（Tick 5 の戻り値が空になる）。
+  - **AC3（S1）** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了し、返る task は完了済みである。遅延 0 で完了した要求は、次の `AdvanceTick()` の戻り値に出ない。呼び出しから戻った直後に、Add ではロード済み = true、Remove ではロード済み = false で、保留中の Add の数と保留中の Remove の数はどちらも 0 である。
+  - **AC4（I2。失敗経路）** 次の 7 つを 1 件ずつ出す: 保留中の Add がある id への Add、保留中の Add と保留中の Remove の両方がある id への Add（種類は (1)）、ロード済みの id への Add、ロード済みで Remove の保留中の id への Add、保留中の Remove がある id への Remove、保留中の Add と保留中の Remove の両方がある id への Remove（種類は (2)）、未ロードで保留も無い id への Remove。それぞれ、対応する種類の duplicate の計数が 1 増え、返る task は完了済みで、呼び出しの直後の保留の数とロード済みの数は呼び出しの前と同じである。先に出した要求は元の期限で完了する。「ロード済みの id への Add」は、Add の遅延が 0 の instance でも 1 件確かめる（即時に完了せず duplicate になる）。
+  - **AC5（S1）** `IsLoaded`、Add、Remove の計数が呼び出しの数と一致する。有効な Add 1 回と duplicate の Add 1 回の後、Add の計数は 2、duplicate は 1 である。duplicate の Remove も Remove の計数に入る。読み口を何回呼んでも `IsLoaded` の計数は増えない。
+  - **AC6（S2）** 同じ列を 2 つの instance に与えると、`AdvanceTick()` が返す列と全ての計数が一致する。同じ期限の完了は要求の順に並ぶ。この順は、id の序数順とも構築時の列の順とも違う順で要求して確かめ、違う id の Add と Remove が同じ期限になる case を 1 つ含める（Add を全部出してから Remove、のような種別ごとの並びにならない事）。違う id の 2 つの Add が同じ期限の時、先の Add の継続の中から読むと、後の id はまだ未ロードで、保留中の Add が true である。
   - **AC7（S3）** 10,000 件の id に Add を出して期限まで進めると、ロード済みの数が 10,000、保留が 0 になる。別の新しい instance で、10,000 件の Add を全て保留にしたまま 10,000 件の Remove を出し、Add と Remove の期限を同じ Tick に揃えると、その 1 回の `AdvanceTick()` が 20,000 件を返し、duplicate は 0、終わりは全件が未ロードである。view の再利用と読み取り専用である事は構造レビューで見る（期限を過ぎた view の内容は契約にしない）。
   - **AC8（I1・I3）** `git diff --name-status <A3 凍結 commit> <implementation head>` が、§3 の 5 file の追加と、本書（`docs/handoff/STREAMING_BENCHMARK_BACKEND.md`）への実装・レビューの記録だけである。他の計画の文書の変更は含めない（implementation base からの差分には計画の文書 4 file が入るので、基準にしない。Phase B は `develop` を branch へ取り込まない）。`pwsh tools/contract-audit.ps1`（`Task.Delay` / `Thread.Sleep`、`#nullable enable`、`record` を含む）と `pwsh tools/docs-audit.ps1` が違反なし。
   - **AC11（I3）** GO 候補 head の全 EditMode 回帰（空 filter）が failed 0 で、XML に `StreamingBenchmarkBackendTests` の test が §5 の「XML で確かめる集合」のとおり入っている。本スライスと関係の無い test が落ちた時の扱いは §5 に従う。
-  - **AC9（I1。失敗経路）** task の継続の中から `RequestAdd`、`RequestRemove`、`AdvanceTick` を呼ぶと、それぞれ `InvalidOperationException` になる。test の継続は例外を自分で捕まえて記録し、`AdvanceTick()` から戻った後に確かめる（継続から例外を漏らすと、UniTask の未観測例外として log に出て、別の理由で test が落ちる）。拒否の後、計数と保留の数は変わらず、同じ `AdvanceTick()` の後続の配送は行われている。
-  - **AC10（I2。失敗経路）** 構築時の列に無い id で `RequestAdd`、`RequestRemove`、`IsLoaded`、id ごとの読み口を呼ぶと `ArgumentException` になり、計数と状態は変わらない。構築は、列そのものが null、列が空、列に重複がある、列の要素が null、列の要素が空文字、遅延が負、のそれぞれで `ArgumentException` になる。
+  - **AC9（I1。失敗経路）** task の継続の中から `RequestAdd`、`RequestRemove`、`AdvanceTick` を呼ぶと、それぞれ `InvalidOperationException` になる。test の継続は例外を自分で捕まえて記録し、`AdvanceTick()` から戻った後に確かめる（継続から例外を漏らすと、UniTask の未観測例外として log に出て、別の理由で test が落ちる）。拒否した呼び出しの直前と直後に継続の中で読み口を読み、計数・保留の数・現在の Tick が変わっていない。同じ `AdvanceTick()` の後続の配送は行われている。戻った後、現在の Tick は 1 だけ進んでおり、次の `RequestAdd` と `AdvanceTick()` は通常どおり受理される。
+  - **AC10（I2。失敗経路）** 構築時の列に無い id（null と空文字を含む）で `RequestAdd`、`RequestRemove`、`IsLoaded`、id ごとの読み口を呼ぶと `ArgumentException` になり、計数と状態は変わらない。構築は、列そのものが null、列が空、列に重複がある、列の要素が null、列の要素が空文字、遅延が負、のそれぞれで `ArgumentException` になる。
 - 定義と確認の対応（S1。判定 C はこの表で漏れを見る）:
 
   | 定義の行 | 確かめる方法 |
@@ -97,8 +98,8 @@
   | Add | AC1 |
   | Remove | AC2 (a)、AC4（Remove の保留中もロード済み） |
   | 保留中の Add への Remove | AC2 |
-  | 遅延 0 | AC3、AC2 (c) |
-  | 配送 | AC1、AC2、AC6、AC7（件数）。戻り値の view の再利用と読み取り専用は構造レビュー |
+  | 遅延 0 | AC3（戻り値に出ない事を含む）、AC2 (c)。duplicate の判定が先である事は AC4 の「ロード済みの id への Add」を遅延 0 の instance でも 1 件確かめる |
+  | 配送 | AC1（戻り値は当該 Tick の配送だけ）、AC2（中間の状態、(d) の期限が要求の順に並ばない列）、AC6（要求の順）、AC7（件数）。戻り値の view の再利用と読み取り専用は構造レビュー |
   | 再入 | AC9 |
   | duplicate | AC4 |
   | 計数 | AC5 |
@@ -111,7 +112,7 @@
   - Controller が件数の予算に収まるか → S-9a-3
   - 時間と確保 → S-9a-4。backend 自身が測定中に確保しない事の確認も S-9a-4
   - 実物の SceneDirector との一致 → S-9b（`SEASON_WORLD_DESIGN.md` §6）
-- スライス分割の判断: 契機なし。小計画 §4 で分けた後の 1 本で、問いは 1 つ、新規 code は約 500 行である（A2 と見直しの反映で約 400 行から増えた。問いは 1 つのままで、増えたのは test である）。
+- スライス分割の判断: 契機なし。小計画 §4 で分けた後の 1 本で、問いは 1 つ、新規 code は約 530 行である（A2 と見直しと実行検証の反映で約 400 行から増えた。問いは 1 つのままで、増えたのは test である。backend は約 260 行のまま）。500 行の警報に当たるが、test の case を別のスライスに分けると測定器の正しさを 1 回で判定できなくなるので、分割しない。
 - 判定定義: **GO** は I1〜I3 と S1〜S3 を満たす事（AC1〜AC11 が全て合格）。**NO-GO** はそのいずれかを満たさない事。
 - 停止規則: 進める最低条件を満たし、現在の問いに致命的な反証がなければ GO で終了する。最低条件未達のまま終了しない。oracle や runner を作り始めたら停止する。
 - A3 後の例外承認: なし
@@ -123,6 +124,8 @@
   - repo 相対 path は 150 文字以内（`tools/path-budget.json`）。
   - 長い実行で確保が伸びない作りにする: 呼び出しの履歴を溜めない。id ごとの状態は構築時に受けた identity の列で確保する。`AdvanceTick()` の戻り値は再利用する buffer にする。保留ごとの completion source の確保は本スライスでは許容する（要求を出さない Tick では走らない。確保量の確認は S-9a-4）。
   - backend が測定を支配しない作りにする（後続の S-9a-4 は `controller.Tick` の中の `IsLoaded` / `RequestAdd` / `RequestRemove` ごと測る）: identity から状態への索引を構築時に作る。`IsLoaded` と要求の受付で、候補の全件も保留の全件も走査・整列しない。配送の buffer は、同じ Tick に Add と Remove の両方が全候補分（候補数の 2 倍）来ても伸ばさずに済む大きさで確保する。`AdvanceTick()` の処理は Tick の時間の測定の外である。時間や確保を測る code と test は本スライスでは足さない。
+  - Remove の期限は要求の順に単調ではない（保留中の Add への Remove は Add の期限まで延びる）。期限ごとに、要求の順で取り出せる持ち方にする。
+  - 完了には pool しない `UniTaskCompletionSource` を使う（`AutoResetUniTaskCompletionSource` は結果の取得で返却され、その後に task の状態を読むと例外になるので、AC1・AC4 の「task は完了している」を継続の後に読めない）。
   - Unity テストは Phase C。Phase B は Editor での compile 確認まで。
 - 未決事項:
   - A1 の U1（保留中の Add への Remove の模型は 1 通りで足りるか）と U2（duplicate を例外ではなく計数にする）は、A2 で「1 通りで足りる」「計数でよい」となり、その形で定義に入れた（§5.1）。
@@ -135,11 +138,11 @@
 | file | 責務 | 依存 | 公開面 | 行数（現在 → 見込み） |
 |---|---|---|---|---|
 | `StreamingBenchmarkBackend.cs` | §2 の模型。`ISceneStreamingBackend` の実装、Tick 番号での完了、計数、保留とロード済みの読み口 | `ISceneStreamingBackend`、UniTask | `internal` | 0 → 約 260 |
-| `StreamingBenchmarkBackendTests.cs` | AC1〜AC7、AC9、AC10 | 上 | test | 0 → 約 240 |
+| `StreamingBenchmarkBackendTests.cs` | AC1〜AC7、AC9、AC10 | 上 | test | 0 → 約 270 |
 
 変更 file は 5 つ: 上の 2 file、それぞれの `.meta`、新しい folder `Benchmark` の `.meta`（`Benchmark.meta`）。
 
-配置の理由: `FakeStreamingBackend` に遅延と計数を足すと既存の test の前提（例外、手動の完了）が変わるので、別の型にする。後続の測定器と同じ folder に置き、Runtime には置かない。行数の警報（500 行、3 責務、50% 増）には当たらない。
+配置の理由: `FakeStreamingBackend` に遅延と計数を足すと既存の test の前提（例外、手動の完了）が変わるので、別の型にする。後続の測定器と同じ folder に置き、Runtime には置かない。行数の警報は合計 500 行に当たる（約 530 行）。非分割の理由は §2「スライス分割の判断」。3 責務と 50% 増には当たらない。
 
 ## 4. 実装計画
 
@@ -228,6 +231,25 @@
   - C' は、A・B・C と外部計画レビューに関与していない担当を owner が指名する。
   - スライス分割と A2 の全面再実施はしない。
   - 外部計画レビューの結論は「補正の後に凍結推奨」である。凍結の記録（承認者・日付・対象の commit）は、補正を全て入れた commit を owner が指定した時に §0 に書く。この裁定だけでは凍結済みにしない。
+- 凍結前の実行検証レビュー（2026-11-27、owner の依頼。担当は主担当が起動した独立した担当。入力: head `60cc4b06307fd4dba8154cd280b36e781e0b4b8d`、本書の copy の sha256 `675ca8e62ffb0136e50bb4811bfcd02b276e21d6e67767b8c56a78f322f2df93`、小計画の copy の sha256 `f5d3b306502dc33ff0660286e4d2b4b9f34953242421d8e199681fb913199bdd`）:
+  - **やった事。** §2 の定義だけから模型を python で実装し、AC を test にして通した。誤実装を 24 個作り、AC を全て通る物を探した。Controller の Tick を python に写して模型と組み、小計画の 24 workload（1,000 と 10,000 候補、縮小なし）と乱数の列 約 25 万を回した。UniTask の source（lock の hash の commit）を読んだ。
+  - **限界。** C# は 1 行も動かしていない。全て python の写しでの結果である。script と結果は Git に入れておらず、Cloud の作業領域にあるだけで保存していない（Artifact Storage へは Cloud から届かない）。判定の証拠には使えない。
+  - **結論。** blocker なし。定義だけで実装でき、状態（5 つ）× 操作（3 つ）の全ての組が定義の 1 行で決まる。正しい Controller はこの模型で duplicate も配送中の再入も出さない（遅延 0 を含む）。UniTask の前提は成り立つ。major は 1 群: AC を全て通る誤実装が 12 個あった。
+  - 採否（統合担当。どれも既存の AC への 1〜2 文の追加で、模型の動きを変えない。owner の裁定「外部計画レビューの推奨どおり」の範囲の外なので、凍結の時に owner が確認する）:
+
+  | # | 指摘 | 採否 | 反映 |
+  |---|---|---|---|
+  | V1 | major: 種別ごとの列で持ち、先頭の期限が来るまで後ろを出さない実装が AC を通る（実装制約から最も自然に出る形）。Remove の期限は要求の順に単調でない | 採用 | AC2 (d)、実装制約 |
+  | V2 | major: 保留中の Add への Remove の期限が 1 Tick 早い実装が通る（測定値が変わる） | 採用 | AC2 (a) |
+  | V3 | major: 戻り値を溜め続ける実装、遅延 0 の完了を次の戻り値に入れる実装が通る（後続の stale の計数が変わる） | 採用 | 定義「配送」「遅延 0」、AC1、AC3 |
+  | V4 | minor: 同じ期限の順を id 順・列の順・種別ごとにした実装が通る | 採用 | AC6 |
+  | V5 | minor: 拒否の後に guard を戻し忘れる実装、拒否した `AdvanceTick` が Tick だけ進める実装が通る。「拒否の後に変わらない」を戻った後に読むと文面どおりにならない | 採用 | 定義「再入」、AC9 |
+  | V6 | minor: duplicate になる組は 7 つで、AC4 は 6 つ（両方の保留がある id への Add が無い） | 採用 | AC4 |
+  | V7 | note: duplicate の Remove が計数に入る例が無い。列に無い id での再入の例外の型。Remove の保留中のロード済みの文。遅延 0 と duplicate の先後。AC10 の null と空文字 | 採用 | AC5、定義「再入」「Remove」「遅延 0」、AC10 |
+  | V8 | note: 配送の中で読む現在の Tick を固定する | 不採用 | 測定値を変えず、要る利用者が無い |
+  | V9 | note: UniTask の前提は確認済み。pool する completion source では AC1・AC4 の読み方ができない | 採用 | I1、実装制約 |
+  | V10 | 小計画への入力（B4 の反例と式の候補、テレポートの読み、workload の値） | 後続へ移送 | 小計画 §4 |
+
 - Draft PR #218 の外部計画再レビュー（2026-11-27、owner のアカウントからの投稿。入力は head `0c0adb8`。判定「S-9a-1 はごく小さい AC の補正後に凍結推奨」。E1〜E8 の採否案には全て賛成、目的の文言は変更不要、スライス分割と A2 の全面再実施は不要、との意見）。下の採否は統合担当の案で、確定は owner の凍結判断による:
 
   | # | 指摘 | 採否（案） | 反映 |

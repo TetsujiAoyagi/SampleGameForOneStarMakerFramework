@@ -91,6 +91,16 @@
   - **規模の比較（S-9a-3）:** 1,000 候補の格子（幅 4,000）では、複数 Focus の最大の x は 1,500 で、テレポート先は x = 4,000 の境界の上になる。10,000 候補では内側である。密の workload は desired / retain の数と境界での欠け方が 2 つの規模で違うので、候補数だけの比較にならない。24 workload は捨てず、Tick ごとの desired / retain / resident の数と移動の区間を記録する。候補数だけを比べる問いを立てる時は、同じ局所の配置・経路・desired / retain を持つ組（遠くの候補だけを増やす等）を別に選ぶ。今は workload を増やさない。
   - **時間と確保の測り方（S-9a-4）:** 引き算で測定器の費用を消した値を正本にしない。(A) 同じ backend を使った `controller.Tick` 全体の実測を正本にする。(B) backend だけを同じ条件で再生した値を診断として併記する（同じ候補、ロード済みと保留の状態、`IsLoaded` の呼び出しの列、要求の種別と順序。trace は測定の外の別の反復で取り、測定中に呼び出しごとの timer や履歴を持たない。Controller の await と継続の登録を含まない等の差を明記する）。(C) 測定器の空の区間の overhead を健全性の確認にする。p99(A) − p99(B) は Controller の p99 ではない。B が大きければ帰属を「分離不能」とし、A を「Controller と模型 backend の呼び出し経路」の値として扱う。Runtime に計測の hook を足さない。
   - **集計の区間（S-9a-4）:** 静止の開始直後のロード、移動・テレポート中、止まった後の収束、収束後の 50 Tick を別に集計する（全 Tick の p99 だけだと、密の長い収束が移動中の spike を薄める）。区間ごとに標本数、反復数、中央値・p95・p99・最大、要求数を残す。標本が少なくて p99 が最大と同じになる区間はそう明記し、反復で補う。確保は 1 Tick あたりの byte と、5 Hz での 1 秒あたりの平均 byte を分ける。対象の機械が指定される前に、実機での合格を主張しない。予算外は測定スライスの失敗ではなく S-9c への結果である。
+- 凍結前の実行検証の結果（2026-11-27。Controller の Tick と S-9a-1 の模型を python に写して 24 workload を回した値。**C# の実測ではなく、script と結果は保存していない。** 各スライスの A1 の入力で、判定の証拠にしない。上の「1 Tick の順序の案」で回した）:
+  - **全 workload で成り立った事:** 5,000 Tick 以内に収束（最長は `N10k-F4-still-dense` の 1,176 Tick）。duplicate 0、距離順の違反 0、残留 0。保留中の Add の最大は 2。照会数は毎 Tick ちょうど候補数（Controller の構造から最小と最大が同じになる。B1 は code が変わらない限り動かない）。静かな Tick はどの workload も 55 以上で、確保量の予算は判定できる。
+  - **B4（S-9a-2・S-9a-3）:** 今の案の式は、manifest の遅延（Add 3 / Remove 1）では破れなかった。Remove の遅延が 2 以上だと破れる（最小の反例: 2 候補、`maxInFlight` 1、Add 2 / Remove 2、注視点が 1 Tick だけ離れて戻る。止まった時点で未ロードの desired は 0、Remove の保留中の desired が 2。式は 4、実際は 5）。波の周期は Add の遅延ちょうどで、案の「遅延 + 1」は緩い。破れなかった式の候補: `収束 ≤ max(Add の遅延, Remove の遅延) + ceil(need / maxInFlight) × max(Add の遅延, 1) + 1`。need は、止まった Tick の「配送の後・要求の前」の snapshot で、desired のうち未ロード（Add の保留中を含む）または Remove の保留中の数。余裕の最小は 0 で、きつい式である。
+  - **テレポートの定義が 2 通りに読める（S-9a-3 の A3 までに直す）:** 「2 Tick ごとに往復し 20 回跳んだ後、跳んだ先で止まる」は、文面どおりだと 20 回目の行き先が始点になる。+2,500 の側で止まる読みでは値が変わる（`N1k-F4-teleport-dense` の収束は 833 と 646）。位置を Tick の式で書く。等速の「止まった Tick」も 40 と 41 の両方に読める。
+  - **複数 Focus のテレポートの重なり（同上）:** 10,000 候補では、x = 1,250 の注視点の行き先 3,750 が、別の注視点の始点 3,750 と一致する。desired の半分は跳んでも desired のままで、「Add の遅延より短い間隔で離れる」が半分にしか効かない。距離を変えるか、始点と行き先の desired / retain の重なりを記録に足す。
+  - **desired の実数:** §5.2 の「約 9」は、注視点 1 つあたり 4〜8 である（始点が cell の中心か境界かで変わる。1,000 と 10,000 の疎の単一 Focus は 8 と 4）。密は 163〜208。始点を格子に対して同じ位相に置くかを決める。
+  - **stale completion:** テレポート中は滞在 2 Tick が Add の遅延 3 より短く、何も resident にならない。stale の完了は 14〜16 件あるが、全て同じ `AdvanceTick` の中で Add、Remove の順に配送され、snapshot には現れない。stale は `AdvanceTick` の戻り値から数える。「未ロードへ戻るまでの Tick 数」は Remove の遅延が 1 の間は 0 にしかならない。
+  - **starvation:** 同距離の desired は全 workload で起きる。oracle は Controller と同じ「最寄りの注視点への XZ 距離、厳密な不等号」で比べる。Remove の保留中の近い候補は、未ロードの条件で既に除かれる。
+  - **収束の定義:** 「配送の後の snapshot で成立」と「Tick の後に成立し、次の Tick が要求 0」は、正の遅延では一致した。遅延 0 を含むと 1 Tick ずれる。どちらかに固定する。
+  - **その他:** 1 Tick の中の Remove の順は `HashSet` の列挙順に依るので、配送の列の順を合否に使わない。S-9a-4 の Editor の条件に「UniTask Tracker を off」を入れる（completion source と runner が tracker を通る）。manifest の UniTask は tag の無い git URL なので、版ではなく lock の hash を記録する。
 - S-9a-2 の A1 が決める事（PR #218 の外部計画レビューの申し送り）: (1) 1 Tick の中の順序（注視点の設定、`AdvanceTick`、`controller.Tick`、oracle と前後の snapshot）と、「止まった時点」「収束した時点」の定義。stale completion を前の Tick の注視点と新しい注視点のどちらで判定するかもここで決まる。(2) どの id に要求が出たかを runner が知る方法（S-9a-1 の backend は履歴を持たない。正の遅延で Tick の前後の状態の差から復元するか、最小の観測の口を足す）。(3) 行って戻る・入り直す小さい列を自己 test に入れ、正しい Controller を不合格にしない事。
 - duplicate が出た事そのものを FAIL と記録する。無効な反復を除いて成功の扱いにしない。
 - S-9a-2 の runner は、duplicate が 1 件でも出た反復を、それ以降の件数の測定が無効な反復として記録する（S-9a-1 の A2 の指摘。duplicate に完了済みの task を返すので、Controller の in-flight の会計が実物とずれる）。
@@ -114,8 +124,8 @@
 |---|---|---|
 | 候補の配置 | 均一格子。間隔 100、体積は `StreamingCandidateFixtures.CellVolume`。1,000 件 = 40×25、10,000 件 = 100×100 | 既存 fixture の既定値 |
 | `maxInFlight` | 2 | 現状仕様の値 |
-| 疎 | `LoadRadius` 150 / `UnloadRadius` 250（注視点 1 つの desired は約 9） | 既存 fixture の既定値 |
-| 密 | `LoadRadius` 800 / `UnloadRadius` 1200（注視点 1 つの desired は約 200） | desired が `maxInFlight` の 100 倍になり backlog が出る |
+| 疎 | `LoadRadius` 150 / `UnloadRadius` 250（注視点 1 つの desired は 4〜8。§4 の実行検証の結果） | 既存 fixture の既定値 |
+| 密 | `LoadRadius` 800 / `UnloadRadius` 1200（注視点 1 つの desired は 163〜208） | desired が `maxInFlight` の 100 倍になり backlog が出る |
 | Tick の間隔（模擬時間） | 0.2 秒。Tick 数を秒へ換算する時だけ使う | 現状仕様の Tick |
 | backend の遅延 | Add は 3 Tick、Remove は 1 Tick | 模型の値。実物の所要時間ではない |
 | 単一 Focus の始点 | 格子の幅の 1/4、奥行きの 1/2 | — |
@@ -127,7 +137,7 @@
 
 workload は「候補数 2 × Focus 数 2 × 動き 3 × 密度 2」の 24 個。名前は `N{1k|10k}-F{1|4}-{still|linear|teleport}-{sparse|dense}`。SampleGame の所要時間（ロード時間、横断時間）を値の根拠にしない。
 
-記録に添える manifest: 上の値、止まった時点の desired 数と resident 数、Unity と UniTask の版、Editor / EditMode である事、対象 commit、A3 の revision。S-9a-4 はこれに対象ハードウェア、反復数、測定の日時を足す。`SEASON_WORLD_DESIGN.md` §6 の manifest のうち contentSet・配信 bytes・quality tier・解像度・cache は S-9b の項目である。
+記録に添える manifest: 上の値、止まった時点の desired 数と resident 数、Unity の版、UniTask の lock の hash、Editor / EditMode である事、対象 commit、A3 の revision。S-9a-4 はこれに対象ハードウェア、反復数、測定の日時を足す。`SEASON_WORLD_DESIGN.md` §6 の manifest のうち contentSet・配信 bytes・quality tier・解像度・cache は S-9b の項目である。
 
 ### 5.3 測る値（件数は S-9a-2、時間と確保は S-9a-4 で凍結）
 
@@ -153,7 +163,7 @@ workload は「候補数 2 × Focus 数 2 × 動き 3 × 密度 2」の 24 個�
 | B1 | `IsLoaded` の照会は 1 Tick に候補数以下 | 再照合（G-6）は候補 1 件につき 1 回で足りる | S-9a-3 |
 | B2 | 保留中の Add は常に `maxInFlight` 以下 | `StreamingPolicySettings` の契約 | S-9a-3 |
 | B3 | duplicate request = 0、starvation（距離順の違反）= 0、cancel 後残留の値が全て 0 | 政策の仕様（§21 §8、§34 §4）。duplicate = 0 はこの模型での条件で、実物の backend に一般化しない | S-9a-3 |
-| B4 | 収束 Tick 数 ≤ `ceil((止まった時点で未ロードの desired の数 + 枠を占めている desired 外の Add の数) / maxInFlight) × (Add の遅延 + 1) + Remove の遅延 + 2` | 1 回の波が `maxInFlight` 件を「遅延 + 再発行の 1 Tick」で運ぶ。**この式は案で、足りない場合がある:** desired に戻った identity に Remove の保留が残っていると、Controller は Remove の完了まで Add を出さない。止まった時点の snapshot がロード済み・Remove 保留中の 1 件だけなら、式は 0 波と数えてしまう。S-9a-2 で観測の順序を決めた後、その状態が起きない理由を示すか、Remove の待ちと再 Add を含む上界に直す（§6 P6） | S-9a-3 |
+| B4 | 収束 Tick 数 ≤ `ceil((止まった時点で未ロードの desired の数 + 枠を占めている desired 外の Add の数) / maxInFlight) × (Add の遅延 + 1) + Remove の遅延 + 2` | 1 回の波が `maxInFlight` 件を「遅延 + 再発行の 1 Tick」で運ぶ。**この式は案で、足りない場合がある（反例と式の候補は §4 の「凍結前の実行検証の結果」）:** desired に戻った identity に Remove の保留が残っていると、Controller は Remove の完了まで Add を出さない。止まった時点の snapshot がロード済み・Remove 保留中の 1 件だけなら、式は 0 波と数えてしまう。S-9a-2 で観測の順序を決めた後、その状態が起きない理由を示すか、Remove の待ちと再 Add を含む上界に直す（§6 P6） | S-9a-3 |
 | B5（案） | Tick 時間の p99: 1,000 候補で 0.5 ms 以下、10,000 候補で 2.0 ms 以下 | 60 fps の 1 frame の 3% と 12% を上限に置く案。割合と対象ハードウェアは owner が決める | S-9a-4 |
 | B6（案） | 静かな Tick の確保量は 0 byte。5 Hz で走る処理なので、1 frame の瞬間の予算（B5）と平均の負荷は分けて扱う | 毎 frame 呼ばれる Tick は確保しないという repo 内の前例に揃える案。コードの読解では今の実装は満たさない見込み | S-9a-4 |
 
