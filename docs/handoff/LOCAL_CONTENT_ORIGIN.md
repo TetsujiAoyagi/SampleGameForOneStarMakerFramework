@@ -846,6 +846,13 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 - 未確認事項: F-C3 の原因（content directory の `SceneResourceMap` 読込失敗または `HomeScene` 登録経路の不成立）の切り分け、AC9 再実行後の Play load Identity、AC10 の4観測、部分失敗時の Unity Mono 実測、複数 origin の実際の取得順は未確認である。判定後の head 変更が必要なため、今回の結果は `cd4a16b18dfa53cc5b607eb978f88ca46be05316` に対する記録として扱う。
 - 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票にない）。判断担当は本 session の OpenAI。Phase B は Anthropic で系列は異なるが、Phase A の外部計画レビューと発見 C の判断担当の一部が同系列であるため完全な独立性ではない。C' 用の xAI/Grok は未使用・予約のままとする。
 
+### 発見 C の実行担当の記録（4 回目、2026-11-27）
+
+実行担当（進行役の session。判断はしない）の生の結果。HEAD は `573a6fb9`（implementation head `34673237` との差は `docs/handoff/` だけ）。log はこの worktree の `TestResults/c-disc4-machine/`（git 管理外、未保存）。Unity テストは票のとおり走らせていない。
+
+- `tools/contract-audit.ps1` exit 0（最後の行「設計判断（…）は対象外。」、違反の行なし）。`tools/docs-audit.ps1` exit 0（既存の警告 1 件）。`Scenario.Tests.ps1` exit 0（24 executed, 0 failed）、`ScenarioDriver.Tests.ps1` exit 0（15 executed, 0 failed）、`ScenarioUnity.Tests.ps1` exit 0（28 executed, 0 failed）。どれも `pwsh -NoProfile -File <script>`、sandbox の外。
+- 実行の前後で作業ツリーは clean のまま。
+
 ## 8. Phase C'
 
 未着手
