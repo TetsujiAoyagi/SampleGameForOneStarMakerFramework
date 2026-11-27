@@ -198,7 +198,7 @@ W-8 の前提: **実コンテンツの計測フライト中の desired はすべ
 ## 6. スライス順序
 
 順序: **M-1〜M-4（完了）→ S-4 → S-5 → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。S-6 / S-7 実装スライスは WCD で廃止。現行 Content build と DIST が担う。
-**例外（owner 決定 2026-11-27）:** S-9a（純政策ベンチマーク）だけは S-5・S-8a より前に出す。S-9b・S-9c は上の順序のままで、S-9a の着手時 HANDOFF（[STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md)）に入れない。
+**例外（owner 決定 2026-11-27）:** S-9a（純政策ベンチマーク）だけは S-5・S-8a より前に出す。S-9b・S-9c は上の順序のままで、S-9a に入れない。S-9a は小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) で 4 つの小スライスに分け、それぞれ着手時に HANDOFF を切る。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
 Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を正とする。ローカルでは対象project / 版 / pathを確認し、必要ならEditorを起動してよい。人間の手動起動は前提でない。Phase BはEditor操作・compile確認まで、UnityテストとBuildはPhase C。`unity test` / `unity run`、CloudのUnity CLI、Scene / asset YAML手編集は禁止し、人間のEditorを強制終了しない。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も維持する。
@@ -213,7 +213,7 @@ Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agent
 | S-6 | 廃止（WCD） | 1 変奏 = 1 Addressables グループは現行契約にない。Content Directory の contentSet 選択が担う |
 | S-7 | 廃止（WCD） | 未チェックアウト経路は DIST。部分 Checkout 再燃は Architecture §20 どおり未所有 |
 | S-8a | 春の演奏レイヤ | 線沿い + 見証。4動詞の出荷判定にはW-4の判定方法の確定と実証が必要。`HandEditProbe`はS-4bで撤去済みで、復活させない |
-| S-9 | Streaming の計測と撤退判断（下記 S-9a〜c） | 純政策ベンチマーク → 変奏 II 背コリドーで §21 T-07〜T-09 → 結果に基づく最適化・撤退判断。y=4 未昇格を確認してから S-9b を測る。それまで T-07〜T-09 凍結。S-9a だけ先行し、着手時 HANDOFF は [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md)（Phase A） |
+| S-9 | Streaming の計測と撤退判断（下記 S-9a〜c） | 純政策ベンチマーク → 変奏 II 背コリドーで §21 T-07〜T-09 → 結果に基づく最適化・撤退判断。y=4 未昇格を確認してから S-9b を測る。それまで T-07〜T-09 凍結。S-9a だけ先行し、小計画は [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md)（4 スライス） |
 | S-8b〜d | 夏・秋・冬の演奏レイヤ | 品質バー W-7。動詞の証明条件ではない |
 
 ### S-9 — Streaming の計測を 3 段に分ける
