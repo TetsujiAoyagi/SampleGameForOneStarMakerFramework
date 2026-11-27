@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `発見 C 完了（blocker なし）`（A3 凍結済み、revision 8。差し戻し 1 巡目の修正の後、発見 C の再レビューで D1 の解消を確かめ、現在の問いを阻害する指摘は残っていない。§7。GO 候補 head は implementation head。次は判定 C）
+- status: `判定 C 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定必須テストと AC11 の V0〜V6 の証拠が GO 候補 head で揃った。§7。次は C'。C' の blind bundle の stage は task の登録の後）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
@@ -17,17 +17,17 @@
 - harvest to: `unity/Assets/Docs/Architecture/05-scene.md` §5.12（外から読める Scene の状態、出力の意味、観測が状態と寿命を変えないこと。あわせて §5.12 の `SceneEvent` の欄の記述が code に遅れている点を直す）、`unity/Assets/Docs/Architecture/12-telemetry.md` §10.5（Framework が Editor でだけ持つ内部の catalog と振り分けの dispatcher）、`tools/DebugStudio/src/DebugStudio.Cli/README.md`（`osm.scenes` の送り方と出力の読み方）
 - 関連: [DEBUG_COMMAND_VISION.md](DEBUG_COMMAND_VISION.md)（デバッグコマンドの基盤の構想。未承認。本スライスが作らない物と、将来の観測の形の置き場）
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は未生成（中身は進行役がローカルに用意済み。task の開始の後に implementation head から stage し、取得案内を残す）。evidence bundle・C' blind bundle は未生成
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: いずれも未生成（未保存）。中身は進行役が Git 外にローカル保全している（Phase B result は implementation head の完全 diff と audit の log。evidence bundle は判定 C の判定必須テストの XML・log と V0〜V6 の原記録、判定 C の照合 script と結果。C' blind bundle はまだ組んでいない）。task の登録の後に implementation head から stage し、取得案内を残す。引渡し先・担当: evidence bundle は Phase D・owner（C' の後の突き合わせ）、C' blind bundle は C' の担当
 - task: 未登録（owner が start を実行したと伝えたが、`workflow-task.ps1 status -Task debugstudio-s4` は `unregistered`。進行役の start は自動の許可判定に拒否された。2026-11-27。owner の確認待ち）
-- 引継ぎ票（発見 C の出口、2026-11-27。blocker なし）:
-  - 次の Phase・役割: 判定 C（GO 候補 head = implementation head）。判断担当と実行担当を別の session に分ける。
-  - 次の作業: §5 の判定必須テスト（新規の test、既存の `SceneDirector*Tests`、`DebugCommandCatalogTests`、`SetActiveDebugCommandTests`、`DebugSocket*Tests`、最後に全 EditMode の回帰）と、AC11 の V0〜V6（疎通 (a)・(b)、oracle の導出の規則、比較の規則）を §5 のとおりに行う。oracle の eval の本文と照合の script は判定 C の担当が書き、git に入れない。§6 の動作確認で残った V6 の App の終了コードと、V1 の Play の入口の `StartupFailed` の扱いを含める。証拠は Git に入れず、レビュー証拠の規則で保存する。結論は C' が終わるまで状態ブロックと PR 本文に書かない。
-  - 読む範囲: 既定（Phase C は §0〜§8。§5.1 は含まない）。
-  - 必要な権限: Unity Editor の起動と Play、`pwsh tools/run-tests.ps1` の sandbox 外の実行、DebugStudio の App・CLI の Release の build と起動、Artifact Storage の stage（task の登録の後）。
-  - 取得案内の所在: Phase B result snapshot・evidence bundle は上の欄のとおり未生成。
-  - task: `debugstudio-s4`（上の欄のとおり未登録。証拠の stage はその解消の後）。
-  - 停止規則: 人間が開いた Editor を強制終了しない。共有の Editor を触らない。S4-V・S4-3a と Unity の実行の時間を分ける。`RUNTIME_REFACTOR_CONTENT_DIRECTORY_STARTUP` の Phase B と同時に走らせない。Unity 終了時の native stall は `tools/Harness/README.md` の停止規則に従う。
-  - 引き渡さないもの: なし（C' には発見 C・判定 C の所見を渡さない）。
+- 引継ぎ票（判定 C の出口、2026-11-27）:
+  - 次の Phase・役割: C'（GO 候補 head = implementation head の独立監査）。その前に進行役が Phase B result snapshot・evidence bundle・C' blind bundle を stage する。
+  - 次の作業: task の登録の後、implementation head から Phase B result snapshot（所見を含まない）、evidence bundle（判定 C と同じ原記録と、判定 C の照合 script と結果）、C' blind bundle（凍結した Phase A、所見を含まない Phase B 結果、本書を除いた base から head までの diff、判定 C と同じ原記録。発見 C・判定 C の所見、照合 script と結果は入れない）を固定 manifest つきで stage し、別の process の取得で全 file の一致を確かめて §0 に取得案内を残す。C' の担当の起動は owner に確かめてから行う。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記する。
+  - 読む範囲: 進行役は §0・§7・§8。C' の担当は blind bundle だけ。
+  - 必要な権限: Artifact Storage の stage と取得（task の登録の後）。Unity は起動しない（原記録は揃っている）。
+  - 取得案内の所在: 上の欄のとおり未生成。
+  - task: `debugstudio-s4`（未登録。stage はその解消の後）。
+  - 停止規則: 実装を直さない。判定をやり直さない。C' blind bundle に発見 C・判定 C の所見、照合 script と結果を入れない。bundle の file を加工しない。
+  - 引き渡さないもの: 発見 C・判定 C の所見と結論（C' へ）。
 ### 実測の方法
 
 - base `07cc2c97` の code と文書を `grep`・`wc -l`・行範囲の読み取りで確かめた。Unity も .NET も起動していない。
@@ -587,6 +587,34 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 - 後続スライスへ送る物: 1 回目の記録のとおり（新規なし）。
 - 未確認: Unity の EditMode テストと全 EditMode 回帰、oracle による V1〜V6 の比較、V6 の App の終了コード、V1 の起動時の外部の例外の扱い、新しい head での動作確認（いずれも判定 C）。
 - 結果: blocker なし。GO 候補 head は `0b933a5d`。次は判定 C。
+
+### 判定 C（2026-11-27）
+
+- 種別: 判定
+- 対象: implementation base `07cc2c97`、GO 候補 head `0b933a5d`（implementation head 欄）。
+- 開始時の照合: 作業場所は GO 候補 head に detached で、作業ツリーは clean。記録 commit `fc8dc367` との差分は本書だけ。
+- 担当: 判断担当と実行担当を別にした。判断担当は発見 C と同じ系列・CLI・model の新しい session（OpenAI の系列、Codex CLI、Phase C 系の model、effort medium）で、Unity を実行できないので、packet の固定入力から oracle の eval・照合の script・実行の手順書を書き、実行担当の原記録から判定した。実行担当は Anthropic の系列の安価な model（Claude Haiku）の新しい session で、手順書と進行役の優先規則だけを実行し、解釈をしない。選んだ理由: C' は Anthropic と OpenAI 以外の系列に予約してあり、判断は B と別の系列にする。実行は判断を含まないので最も安い model にした。
+- 判定必須テスト（実行担当、この PC、Windows 11、Unity 6000.6.9f1、`-nographics`）:
+  1. 限定の EditMode（`run-tests.ps1 -Filter`）: total 163、Passed 163、Failed 0。`SceneDirector*`（`SceneDirectorCancellationTests` を含む）97、`SceneDirectorDebugSnapshotTests` 8、`DebugCommandCatalogTests` 10、`SetActiveDebugCommandTests` 25、`FrameworkFirstDebugCommandDispatcherTests` 13、`FrameworkDebugCommandsTests` 5、`BeforeSceneLoadServiceStagingTests` 5、`FrameworkServiceSetTests` 2、`ScenesDebugCommand*` 6。`DebugSocketBuiltInCommandHandlerTests` はこの filter に入らず、2 の全回帰の XML で確かめた。
+  2. 全 EditMode の回帰（filter なし）: total 2475、Passed 2415、Failed 0、Inconclusive 25、Skipped 35。Inconclusive は全て `SampleGame.Tests.Rendering.Vfx.*PlayTests`（`-nographics` の既知の条件）。判定必須の `SceneDirectorDebugSnapshotTests` 8、`ScenesDebugCommand*` 6、`DebugSocketBuiltInCommandHandlerTests` 5、`SetActiveDebugCommandTests` 25 は Passed。XML の書き込みの後に Unity が終わらず CPU 時間が増え続けた（既知の native の終了 stall）ので、進行役が CIM の Terminate でその PID だけを止めた。runner の exit は 1（Inconclusive と強制終了による）で、件数の判定は XML による。
+  3. コンパイルエラー: 両方の unity.log で `error CS` 0 件。
+- AC11 の V0〜V6（§5。実行担当、fresh の Editor・WPF App・CLI。判断担当の照合 script は git に入れていない）:
+  - V0: App・CLI の Release build は exit 0、App は `--listen` で待受け、Editor は 6000.6.9f1 で ready、Play の前の oracle は `{"sceneDirector": null}`。
+  - V1: Title を開いて Play。Play の入口の `[PlayEntry]` は `state=EnteredPlay`、`exceptions=0` で、`StartupFailed` は出なかった（§6 の残りの 1 件）。`osm.scenes` の出力は前後の oracle と一致（照合 script は valid・match）。
+  - V2: 5 回の oracle・`osm.scenes`・oracle と、コマンドを送らない対照の oracle 2 回で、oracle の全項目に変化なし。
+  - V3: eval の `SwitchScene("Title", "OutGameSession")` の完了の印は 1 回目の読みで `success`。その後の `osm.scenes` は oracle と一致し、`OutGameSession` があり `Title` は無く全て `Stable`、履歴の先頭は `{from:"Title", to:"OutGameSession"}`、`canGoBack` は true。
+  - V4: root の `Background`（同名の root は 1 つ）に `debug.set-active` を false → true。各回の `inspect` の rawValue は独立の eval の `activeSelf` と一致。`debugsocket.ping` は応答した。
+  - V5: 同じ Editor で Play を止めて再び Play。何も操作せずに V1 と同じ照合が一致し、履歴は `[]`、`canGoBack` は false。
+  - V6: Play の停止後、Title は dirty でない。WPF App は起動時に保持した同じ process object で `CloseMainWindow()` が true、`WaitForExit(15000)` が true、終了コード 0（§6 の残りの 1 件）。Editor は eval の `EditorApplication.Exit(0)` で自然に終わり（Terminate なし）、lockfile は消え、作業ツリーに tracked の変更は無い。
+  - 照合 script の結果は進行役も同じ原記録で再実行し、V1・V2・V3・V5 とも一致を確かめた。
+- 検証の基盤の修正の経緯（製品の code の変更は無い）: V0〜V6 は 5 回目の実行で揃った。1 回目は oracle が基底型の private field を派生型から探して NRE になり、疎通 (a) が成立しなかった。2 回目は oracle の JSON の閉じ括弧の欠けと、照合 script が file の最後の JSON を拾う読み方で照合が成立しなかった。3 回目は実行担当が Editor の起動の直後に eval の応答を待たずに進み、503 で V0 の疎通が成立しなかった。4 回目は oracle が履歴の要素の public field を探さず、V3 の後の読みで NRE になった。いずれも判断担当が検証の基盤の不備と分類して直し、§5 の oracle の導出の規則と比較の規則は変えていない。V1〜V5 の判定には 5 回目の原記録だけを使った。
+- 実行上の逸脱と証拠への影響（判断担当の評価）: V1 の読み直しの loop が条件を満たした後も上限まで回った（各回同じ内容）、V1 の照合に最初は Play の前の oracle を渡して正しい入力で取り直した、Unity の CommandLine を一度 raw に書いて PID だけに上書きした、全回帰の Terminate。いずれも V0〜V6 と件数の判定の有効性を損なわない。
+- 現在の問いを阻害する findings: なし。
+- 後続スライスへ移送する findings: なし（発見 C の記録のとおり）。
+- 判定: GO（I1〜I4 と E1〜E4 を同じ GO 候補 head で満たし、判定必須テストが全て通る。§2.5）。高コスト証拠は無いので、次の C' が最終 C'。
+- 判定必須のうち未実行: なし。
+- 未確認事項: 判断担当の環境に Python が無く、照合 script を判断担当自身は再実行できなかった（同じ規則を原記録で読んで確かめ、進行役の再実行の結果と一致した）。全回帰の runner が終了 stall なしに exit することは確かめていない（件数は XML で確定）。
+- 証拠: Git 外にローカル保全（取得案内は §0 のとおり未生成）。
 
 ## 8. Phase C'
 
