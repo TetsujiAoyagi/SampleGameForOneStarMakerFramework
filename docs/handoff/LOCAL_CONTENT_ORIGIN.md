@@ -16,13 +16,13 @@
 - expires: 2026-12-31、または Phase D で harvest・削除した時点
 - harvest to: [13 章](../../unity/Assets/Docs/Architecture/13-resource-system.md)「DIST transport と disk cache の境界」（取得元の差込口、取得元の head、digest の出所、取得の調停と止まる規則、取得が古い install を消しうること）と「まだ保証しないこと」、[18 章](../../unity/Assets/Docs/Architecture/18-asset-description.md)「配信用 transport の公開境界」（head の登録）と「宣言からの Play 経路」（取得の操作、選んだ base の記録）、[実測の事実](../unity-content/CONTENT_DIRECTORY_BUILD_FACTS.md)（別の `Library` の base と上書きの答え）、repo の README の「試す」、[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 の行と後続へ送る入力
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
-- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
+- Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: Phase B result snapshot は個別に作らない（§6 の Phase B の実装結果と「動作確認」の節を両方の bundle に収録した）。判定 C の evidence bundle と C' blind bundle（1 巡目）はどちらもローカル固定済み（未昇格）で、取得は送信と別の process で確かめた。取得案内は進行役の worktree の git 管理外に置き、evidence bundle の案内は Phase D の担当へ、C' blind bundle の案内は C' の担当へ進行役が渡す。両方の bundle は判定 C の判断担当が読んだのと同じ原記録から、判定 C の後に作った。C' blind bundle の Phase A は凍結した revision 1 の §1〜§5（§5.1 を除く）を手を加えずに収め、§5 の本文にある §6 の節への参照 1 か所もそのまま残した（参照先の節は収めていない）
 - 引継ぎ票:
   - 次の Phase・役割: C'（独立監査）。判定 C（判断担当、2 回目）は GO。動作確認は対象なし（offline で閉じない条件は E 系列だけで、§5 のとおり判定 C の実行担当が取った）。
-  - 次の作業: 進行役が同一の判定 C 入力から evidence bundle と C' blind bundle の取得案内を作成した後、C' 担当が固定された blind 入力で implementation head `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` を独立監査する。判定 C は AC1〜AC11 の GO を確認済みで、C' が終わるまで Phase D へ進まない。
-  - 読む範囲: 既定（§0〜§8）。重点は §5（検証経路の節）、§5.1 の「revision 1」、§6 の「driver が保存する証拠」「revision 1 の driver の観測の修正」、§7 の「判定 C（判断担当、1 回目）」。
+  - 次の作業: C' 担当が C' blind bundle（1 巡目）の取得案内で bundle を取り、所定の blind 入力だけで implementation head `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` を独立監査し、結果を進行役へ返す（進行役が §8 に記録する）。判定 C は AC1〜AC11 の GO を確認済みで、C' が終わるまで Phase D へ進まない。
+  - 読む範囲: C' は HANDOFF を読まない（所定の blind 入力だけ）。§8 に記録する進行役は §0・§7・§8。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
-  - 必要な権限: 発見 C は pwsh の offline test と読み取り。Unity の起動と資格情報は要らない（判定 C の実行担当は Unity の起動と sandbox の外の実行が要る）。
+  - 必要な権限: C' は bundle の読み取りだけ（Unity の起動、資格情報、network は要らない）。bundle の取得は進行役が行う。
   - 停止規則: §2.7 の停止規則と §4 の差し戻し条件。C' が凍結条件または常時契約の blocker を見つけたら、C' の規則に従って B へ戻す。判定 C の差し戻しの巡は 3 巡目で、上限は 4 巡。
   - 引き渡さないもの: なし。
   - 独立性の注記: Phase A に関与した系列は Anthropic（主担当、初回と改訂 3 の A2、Phase C の立場の事前の読み）と OpenAI（外部計画レビュー 1〜4 件目と修正差分の確認）。Phase B は Anthropic。発見 C と判定 C の判断担当は OpenAI（Phase B と違う系列。Phase A の外部計画レビューと同じ系列なので独立性制約あり）。C' 用に xAI の Grok を残す（§5 の C' の予約）。
