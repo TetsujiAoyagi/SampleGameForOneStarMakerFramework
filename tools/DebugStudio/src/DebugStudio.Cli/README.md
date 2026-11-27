@@ -55,6 +55,37 @@ Reading the result (send output and exits are unchanged):
 - Write `active` as JSON `true` or `false`. Other values are not guaranteed to be rejected: in measurement, `"false"` and `null` were applied as `false`, and `"true"` as `true`. Read the applied value from the result's `activeSelf`.
 - NodeIds across Plays: after restarting Play, rerun `hierarchy` before sending. A NodeId from a previous Play can be applied to a different GameObject that has the same number in the next Play. Check which GameObject was changed with the result's `name`.
 
+### Reading SceneDirector's scenes (`osm.scenes`, Editor Play)
+
+In Editor Play only, the framework registers `osm.scenes`. It reads, at the moment the command runs, the scenes that SceneDirector manages, each scene's `SceneState`, and the transition history. It only reads: it does not change any scene, state or history, and it creates no GameObject. Players do not register it. A game that overrides `CreateDebugSocketService` does not get it.
+
+```sh
+debugstudio-cli send --command osm.scenes --payload "{}"
+```
+
+The payload is ignored; send `{}`. A successful read prints `success=true message=captured` (exit `0`, stdout) and a JSON payload such as:
+
+```json
+{"capturedFrame":1234,"scenes":[{"id":"OutGameSession","state":"Stable","pendingUnload":false}],"history":[{"from":"Title","to":"OutGameSession"}],"canGoBack":true}
+```
+
+- `capturedFrame`: the frame the values were read in. The values are those of that frame; a later read may differ. Do not use it to tell Plays apart (it is not guaranteed to restart smaller in a new Play).
+- `scenes`: SceneDirector's managed set, ordered by `id` (ordinal). This is not the set of Unity scenes that are loaded, and `state` is SceneDirector's lifecycle state, not Unity's load state. A scene is listed from the moment SceneDirector starts adding it (before PreLoad) until its unload completes, so scenes that have not reached `Stable` yet are included. A destroyed scene is not listed. States are written by name. Intermediate states (such as `PreLoading` or `LoadCanceled`) appear as they are. Empty is `[]`.
+- `pendingUnload`: whether this row's scene is waiting to be unloaded (an unload requested while it was still loading). Waiting ids that are no longer in the managed set do not appear.
+- `history`: SceneDirector's stack of return destinations, newest first. It is not a record of successful transitions: `SwitchScene` pushes an entry before it unloads and adds, so an entry can exist during a transition or after a failed one. Only `SwitchScene` with a source pushes; a successful `GoBack` removes one; `ClearHistory` empties it. At most 8 entries are kept; beyond that the oldest is dropped silently. Empty is `[]`.
+- `canGoBack`: SceneDirector's existing `CanGoBack` (the history is not empty). It does not guarantee that `GoBack` succeeds.
+- Fields are only ever added; existing names and meanings are not changed or removed.
+
+Telling the outcomes apart:
+
+- Read: `success=true message=captured` (exit `0`). `scenes: []` is a successful read of an empty managed set.
+- Cannot read: `success=false message=unavailable: scene-director-not-created` (exit `1`; the line goes to stderr). SceneDirector has not been created yet or has already been released. Retry after startup.
+- No confirmed result: no `CommandResult` line (Play not running, WPF host not running, timeout exit `2`, other failures exit `1`). Whether the command ran is unknown, as for the other commands above; a timeout does not mean it did not run. The command reads only, so it is safe to send again. The new read is a fresh capture of that moment, not a recovery of the earlier response.
+
+After stopping and restarting Play, the output shows only the new Play's scenes; the history starts empty.
+
+Command names: built-in names (`ping`, `debugsocket.ping`, `runtime-diagnostics`, `debugsocket.runtime-diagnostics`) are handled first, case-insensitively. In Editor Play, names the framework registered (ordinal exact match; currently only `osm.scenes`) are handled by the framework next, even if the game registers the same name. Everything else, including unregistered `osm.*` names and names that differ only in case (such as `OSM.SCENES`), goes to the game's dispatcher unchanged. The `osm.` prefix is a naming convention for framework commands and is not enforced.
+
 ## Offline comparison
 
 ```sh

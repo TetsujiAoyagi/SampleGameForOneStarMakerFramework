@@ -25,6 +25,7 @@ namespace OneStarMaker.Runtime.SceneSystem
     ///   SceneDirector.FailedLoadCleanup.cs … 通常例外で失敗した Add の newlyCreated 回収
     ///   SceneDirector.Unloading.cs   … UnloadScene, RemoveScene, 3-Phase, CleanupCanceledScene, PerformUnitySceneUnload
     ///   SceneDirector.Transitions.cs … SwitchScene, GoBack, ClearHistory, ExecuteTransitionPlan
+    ///   SceneDirector.DebugSnapshot.cs … CaptureDebugSnapshot（観測用の写し。状態を変えない）
     /// </summary>
     public partial class SceneDirector : IDisposable, ISceneQuery, ISceneVolumeQuery, ISceneController
     {

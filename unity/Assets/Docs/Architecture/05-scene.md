@@ -639,9 +639,11 @@ public Observable<SceneEvent> OnSceneEvent => _sceneEventSubject;
 // SceneEvent は readonly struct（GC 負荷最小化）
 public readonly struct SceneEvent
 {
-    public SceneEventType Type { get; }        // Added / Removed / CancelCleanedUp
+    public SceneEventType Type { get; }        // StateChanged / Added / Removed / CancelCleanedUp
     public string SceneIdentify { get; }
-    public SceneState State { get; }
+    public SceneState State { get; }           // 通知に載せた状態（SceneBase の実状態と一致するとは限らない。「今の状態の写し」の節）
+    public long ElapsedMs { get; }             // 直前フェーズの所要時間 (ms)。テレメトリ用
+    public long TimestampUtcTicks { get; }     // イベント発生時刻 (UTC ticks)。テレメトリ用
 }
 
 public enum SceneEventType
@@ -657,6 +659,7 @@ public enum SceneEventType
 
 | タイミング | SceneEventType | 用途 |
 |---|---|---|
+| `TransitionSceneState` の遷移ごと（`SceneBase` が自分で遷移する `PreLoading` / `PreLoaded` / `PreUnloading` / `PreUnloaded` は SceneDirector が前後で通知する） | `StateChanged` | 状態の変化 |
 | `LoadUnityScene` 完了時 | `Added` | 新シーンが Stable に到達 |
 | `PhaseAfterUnloadAndDispose` 完了時 | `Removed` | シーンが辞書から除去 |
 | `CleanupCanceledScene` 完了時 | `CancelCleanedUp` | キャンセル後処理完了 |
@@ -679,6 +682,21 @@ sceneDirector.OnSceneEvent
 - `OnSceneEvent` は観測専用。サブスクライバが SceneDirector の動作に影響を与えてはならない。
 - Subject は SceneDirector の Dispose 時に自動的に Dispose される。
 - Phase 2 以降でシーン間通信が必要になった場合は R3 `EventChannel<T>` パターンを検討する（MessagePipe はそれでも不足な場合）。
+
+### 今の状態の写し（`CaptureDebugSnapshot` と `osm.scenes`）
+
+`OnSceneEvent` は「どう変わったか・どれだけかかったか」を流す。これとは別に、SceneDirector は「今どう在るか」を一つの時点の不変の値に写す internal の `CaptureDebugSnapshot()`（`SceneDirector.DebugSnapshot.cs`）を持つ。写しのモデルは `SceneDirectorDebugSnapshot`（`SceneSystem/Diagnostics/`）で、コマンドや JSON を知らない。
+
+- **写す物:** 管理集合の Scene の id と各 `SceneState`、unload の待ちの id の全集合、遷移の履歴（新しい順の `{from, to}`）、`CanGoBack`。語彙は `SceneEvent` と同じ（id は `SceneIdentify` と同じ文字列、状態は `SceneState`）。
+- **観測は状態と寿命を変えない:** field を読むだけで、field に書かない、event を出さない、`SceneBase` の method・`GetLoadedScene`・`SceneResource` を呼ばない、履歴は列挙だけ。main thread で await を挟まずに読むので、1 回の写しは一つの時点の値で、操作の途中の状態（`PreLoading`、`LoadCanceled` など）はそのまま写る。要求された時だけ作り、継続して作らない（pull）。`OnSceneEvent` も購読しない。
+- **存在の意味:** 写しの正本は `_currentScenes`（管理集合）と各 Scene の `Lifecycle.State` で、写しに載るのは管理集合にある Scene、つまり管理集合へ加えた時（PreLoad の前）から `Remove` まで。存在の境界はこの管理集合の追加と除去である。`SceneEvent` は通知された時点のフェーズと状態のラベルであり、`SceneBase` の実状態や管理集合の出入りの記録ではない。`Added` は `Stable` に達した時に出るので、写しには `Added` の前の Scene も載る。`PreLoading` / `PreUnloading` の通知は実際の遷移より前に出る。`AfterUnloading` は単独の `StateChanged` を持たず `Removed` に載る。`CancelCleanedUp` は `LoadCanceled` の状態を載せて出る。通常の経路の参考にはなるが、既存の event だけで写しの状態や所属を正確に再構成できることは確かめていない。event と写しの厳密な対応（再開と失敗の後始末の経路の通知を含む）は、寿命の可視化を担う後続で確かめる。Unity のロード済みの全 Scene とは別の集合である。
+- **unload の待ち:** 管理集合の部分集合とは限らない（取消の後始末は先に管理集合から外し、後でまとめて待ちを外す）。
+- **履歴:** 成功した遷移の記録ではなく、戻り先の管理用の stack。`SwitchScene` が PoNR の後、unload と add の前に積む（`from` が null の遷移は積まない）ので、遷移の途中や失敗の後にも entry がある。`GoBack` の成功で減り、`ClearHistory` で空になる。最大 8 件で、超えると最古の entry が黙って捨てられる。
+- **Dispose 済みの SceneDirector は扱わない。** initializer の `ReleaseAll` が SceneDirector の参照を null に戻すことに依存する。
+
+Editor の Play では、この写しを DebugStudio の CLI から `osm.scenes` で読める（`ScenesDebugCommand`、同じ folder）。対象の SceneDirector は登録の時ではなく実行の時に initializer を通して解決し、SceneDirector が無ければ `unavailable: scene-director-not-created` の失敗になる。出力の項目と読み方は [`tools/DebugStudio/src/DebugStudio.Cli/README.md`](../../../../tools/DebugStudio/src/DebugStudio.Cli/README.md)、コマンドの振り分けは [12-telemetry.md §10.5](12-telemetry.md#105-realtime-transport-と-debugstudio-連携) にある。
+
+旧 Play の DebugSocketService の dispatcher への参照は Dispose の後も残りうる。その handler が動いた場合も、読むのは initializer を通した今の SceneDirector（または null）なので、出力に旧 Play の Scene は出ない。これは読み取り専用のコマンドなので許容した制約であり、Play の世代を区別する仕組みは無い（旧 Play の要求が新しい Play で実行されないことは保証しない）。
 
 ## 5.13 Cell と職種 companion の分類
 

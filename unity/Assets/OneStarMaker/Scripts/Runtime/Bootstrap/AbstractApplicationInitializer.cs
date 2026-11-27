@@ -1433,7 +1433,7 @@ namespace OneStarMaker.Runtime
                 return null;
             }
 
-            return new DebugSocketService(options, CreateDebugCommandDispatcher());
+            return new DebugSocketService(options, FrameworkDebugCommands.Compose(Application.isEditor, CreateDebugCommandDispatcher(), () => SceneDirector));
         }
 
         /// <summary>
