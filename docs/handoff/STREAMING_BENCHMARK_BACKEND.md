@@ -6,7 +6,7 @@
 
 - type: `slice`
 - status: `A`（A1 初稿。A2 未実施、A3 未凍結。実装キューではない）
-- 位置付け: 小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) §4 の S-9a-1。4 本のうちの最初の 1 本
+- 位置付け: 小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) §4 の S-9a-1。6 本のうちの最初の 1 本
 - 版の経緯:
   - 2026-11-27 A1 初稿（S-9a を 1 スライスで行う初稿を owner が「大きい」と判断し、4 本に分けた後の 1 本目）
 - branch: `claude/s9a-policy-benchmark-handoff-qbq8fq`（`origin/develop` の `61b60e63` から切った計画ブランチ。PR の base は `develop`）

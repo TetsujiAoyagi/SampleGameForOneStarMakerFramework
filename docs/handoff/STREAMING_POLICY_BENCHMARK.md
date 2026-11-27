@@ -1,7 +1,7 @@
 # Streaming の純政策ベンチマーク（S-9a）の小計画（`STREAMING_POLICY_BENCHMARK`）
 
 > type: program
-> ステータス: **A0 の計画。実装キューではない。** S-9a を 4 つの小スライスに分ける。各スライスは着手時に `slice` の HANDOFF を切る。最初の 1 本は [STREAMING_BENCHMARK_BACKEND.md](STREAMING_BENCHMARK_BACKEND.md)（A1 初稿）。
+> ステータス: **A0 の計画。実装キューではない。** S-9a を 6 つの小スライスに分ける（測定 4 本と、Telemetry の修正 2 本）。各スライスは着手時に `slice` の HANDOFF を切る。最初の 1 本は [STREAMING_BENCHMARK_BACKEND.md](STREAMING_BENCHMARK_BACKEND.md)（A1 初稿）。
 > 位置付け: [SEASON_WORLD_DESIGN.md](SEASON_WORLD_DESIGN.md) §6 の S-9a。S-9b・S-9c は含まない。
 > owner: root（依頼者）。created: 2026-11-27。期限: 2026-12-31、または各スライスへの取り込み。
 > harvest 先: `docs/streaming/STREAMING_CURRENT_SPEC.md` §6（測定記録）、`SEASON_WORLD_DESIGN.md` §6 の S-9a の行と S-9c への入力、`unity/Assets/Docs/Architecture/21-scene-streaming.md` §9（計測の口の現況）。全スライスの harvest の後に本書を `git rm` する。
@@ -13,7 +13,8 @@
 |---|---|---|
 | 2026-11-27 | S-9a だけを S-5・S-8a より前に出す。S-9b・S-9c は入れない | `SEASON_WORLD_DESIGN.md` §1・§6 に反映済み |
 | 2026-11-27 | 測定の中で Telemetry の不備を一覧にする。Streaming の中に閉じる計測の口は S-9a で直し、Telemetry の基盤側は後続へ送る | §3 |
-| 2026-11-27 | A1 初稿（S-9a を 1 スライスで行う案。新規 code 約 1,400 行）は大きい。もっと細かく切る | §4 の 4 スライス。初稿の「分割しない」案は捨てた |
+| 2026-11-27 | A1 初稿（S-9a を 1 スライスで行う案。新規 code 約 1,400 行）は大きい。もっと細かく切る | §4 の測定 4 スライス。初稿の「分割しない」案は捨てた |
+| 2026-11-27 | 実行時の Telemetry の修正も S-9a の列に入れる（Controller の読み口と、Streaming の Telemetry の 2 本） | §4 の S-9a-5・S-9a-6。「後続（S-9b の Phase A）へ送る」だけの扱いをやめた |
 
 文書にモデル・製品の担当割当を書かない（owner 指示）。
 
@@ -52,22 +53,23 @@
 | D2 | 1 Tick の GC allocation | Telemetry は `GcSpike`（Gen0 の回収回数の差分）と managed heap の大きさだけ。test では `GC.GetAllocatedBytesForCurrentThread` の前例がある（`VfxSystemTickAllocationTests`） | Telemetry では取れない | S-9a-4（test 側の測定器） |
 | D3 | `IsLoaded` の照会数 | どこも数えていない | 取れない | S-9a-1（測定用 backend） |
 | D4 | 収束までの時間 | Controller は desired を公開しない。SampleGame の `GetResidentCellIdentities` は resident だけで、呼ぶたびに全件を再照合して配列を確保する | 取れない | S-9a-2（test 側の oracle） |
-| D5 | in-flight 数 | Controller の集合は private | 取れない | S-9a-1（backend から見た保留数で測る）。Controller の読み口は後続へ送る |
+| D5 | in-flight 数 | Controller の集合は private | 取れない | S-9a-1（backend から見た保留数で測る）。Controller の読み口は S-9a-5 |
 | D6 | backlog、最古要求待ち時間、starvation | 無い | 取れない | S-9a-2 |
 | D7 | duplicate request、stale completion、cancel 後残留 | 保留中の Add への再 Add を例外にするだけ | 取れない | duplicate は S-9a-1、stale と残留は S-9a-2 |
-| T1 | 実行時に上の値を Telemetry として出す | §21 §9 の「Controller が定期 emit」は未実装。Streaming 用の名前も payload 形も無い | 取れない | 後続（Telemetry の基盤側） |
-| T2 | 実行時の Tick 時間の帰属 | `UpdateLayerIds.Streaming` / `StreamingLayerOrder` の参照は定義 file の外に 0 件。SampleGame の driver は自前の loop で Tick する | 取れない | 後続 |
-| T3 | 実行時の確保量 | frame ごとの確保 byte 数を出す record が無い | 取れない | 後続 |
-| T4 | DebugStudio での Cell 状態の観測（§21 T-08） | resident の一覧は SampleGame の HUD 用の口だけ | 取れない | 後続 |
-| T5 | Cell のロード時間、cancel・保留 unload の数（S-9b の値） | Cell の `SceneLoad` / `SceneUnload` span は Verbose で出る。件数を出す口は見当たらない。`Runtime/SceneSystem` は PR #216 が変更中 | span は取れる | 後続（S-9b の Phase A で測り直す） |
+| T1 | 実行時に上の値を Telemetry として出す | §21 §9 の「Controller が定期 emit」は未実装。Streaming 用の名前も payload 形も無い | 取れない | S-9a-5（読み口）と S-9a-6（Telemetry） |
+| T2 | 実行時の Tick 時間の帰属 | `UpdateLayerIds.Streaming` / `StreamingLayerOrder` の参照は定義 file の外に 0 件。SampleGame の driver は自前の loop で Tick する | 取れない | S-9a の外（下の「S-9a に入れない物」） |
+| T3 | 実行時の確保量 | frame ごとの確保 byte 数を出す record が無い | 取れない | S-9a の外（同上） |
+| T4 | DebugStudio での Cell 状態の観測（§21 T-08） | resident の一覧は SampleGame の HUD 用の口だけ | 取れない | S-9a-6 |
+| T5 | Cell のロード時間、cancel・保留 unload の数（S-9b の値） | Cell の `SceneLoad` / `SceneUnload` span は Verbose で出る。件数を出す口は見当たらない。`Runtime/SceneSystem` は PR #216 が変更中 | span は取れる | S-9a の外（S-9b の Phase A で測り直す） |
 
-- **S-9a で直す物（D1〜D7）:** 値を test の中で読めれば足りる。変更は `unity/Assets/OneStarMaker/Tests/Streaming/Benchmark/` に閉じる。**Runtime の code は S-9a のどのスライスでも変えない。** 測る Controller は `develop` の物そのままである。
-- **後続へ送る物（T1〜T5 と、D5 の Controller の読み口）:** 値を実行時に外へ出すには Telemetry の契約（名前、payload 形、sink、wire、DebugStudio の表示）か Controller の公開面を増やす必要がある。所有は §21 の T-08 で、S-9b の Phase A が PR #216 の merge の後の Telemetry を基準に決める。
+- **測定のスライスで直す物（D1〜D7。S-9a-1〜4）:** 値を test の中で読めれば足りる。変更は `unity/Assets/OneStarMaker/Tests/Streaming/Benchmark/` に閉じる。**S-9a-1〜4 は Runtime の code を変えない。** 測る Controller は `develop` の物そのままである。
+- **Telemetry のスライスで直す物（T1・T4 と D5 の Controller の読み口。S-9a-5・S-9a-6）:** 値を実行時に外へ出す。S-9a-5 は `Runtime/Streaming` の中に閉じる。S-9a-6 は Telemetry の基盤（名前、payload 形、wire、DebugStudio の表示）を増やすので、同じ領域を変更中の PR #216 の merge の後に着手する。
+- **S-9a に入れない物（T2・T3・T5）:** system ごとの Tick 時間と frame ごとの確保量は UpdateSystem と Profiler の側の機能で、Streaming に閉じない。SampleGame の driver が UpdateSystem に登録されていない事の扱いも含めて、別の計画が要る（所有は未定。§6 P5）。T5 は S-9b の値で、S-9b の Phase A が持つ。
 - 測定の中で見つかった不備は、各スライスがこの表に足す。
 
 ## 4. スライス列
 
-1 スライス = 1 ブランチ = 1 HANDOFF。どれも test の code だけで、asmdef は既存の `OneStarMaker.Tests` を使う。行数は test を含む見込みである。
+1 スライス = 1 ブランチ = 1 HANDOFF。S-9a-1〜4 は test の code だけで、asmdef は既存の `OneStarMaker.Tests` を使う。行数は test を含む見込みである。
 
 | # | 答える問い | 作る物 | 見込み | owner の裁定 | 前提 |
 |---|---|---|---|---|---|
@@ -75,10 +77,14 @@
 | **S-9a-2** oracle と件数の runner | Controller を呼ばない oracle と runner は、小さい格子で収束・backlog・待ち・starvation・stale・残留を正しく数えるか | `StreamingBenchmarkOracle`、`StreamingBenchmarkRunner`（件数だけ。時間と確保は測らない）、既知の列を与える自己 test（失敗経路を含む） | 約 500 行 | 不要 | S-9a-1 |
 | **S-9a-3** 件数の測定 | 今の Controller は、24 workload で件数の予算（B1〜B4）に収まるか | workload の一覧、注視点の位置の純関数、記録（1 行の JSON）、`[Explicit]` の測定用 test。判定の表 | 約 500 行 | 不要（B1〜B4 は機械に依らない） | S-9a-2 |
 | **S-9a-4** 時間と確保の測定 | 今の Controller は、対象ハードウェアで時間と確保の予算（B5・B6）に収まるか | 時刻と確保 byte 数の取得口（注入）、nearest-rank の統計、その自己 test。同じ 24 workload を測る | 約 300 行 | **必要**（B5 の値と対象ハードウェア、B6 の値。着手時の A3 まで） | S-9a-3 |
+| **S-9a-5** Controller の読み口 | Controller の in-flight・desired・backlog の件数を、Tick の計算を変えずに外から読めるか | `WorldStreamingController` の読み口（どの値を出すかは S-9a-3 の測定で要ると分かった物に限る）と test | 未見積もり（着手時の A1） | **必要**（公開 API の追加。risk は `high`） | S-9a-3 |
+| **S-9a-6** Streaming の Telemetry | Streaming の件数を実行時に Telemetry として出し、DebugStudio で見られるか（§21 の T-08） | Streaming 用の `TelemetryStartType` と payload 形、定期 sample の emit、wire と DebugStudio の表示、`12-telemetry.md` / §28 の更新 | 未見積もり（着手時の A1） | **必要**（Telemetry の契約の追加） | S-9a-5 と、PR #216 の merge |
 
-- 切り方の理由: 1〜2 は測定器で、測定器が正しいかという問いは Controller の測定結果と独立に判定できる。3 は結果が模擬時間だけで決まり、どの機械で測っても同じ値になる。4 だけが機械と owner の裁定に依る。裁定を待つ間も 1〜3 は進められる。
+- 測定の切り方の理由: 1〜2 は測定器で、測定器が正しいかという問いは Controller の測定結果と独立に判定できる。3 は結果が模擬時間だけで決まり、どの機械で測っても同じ値になる。4 だけが機械と owner の裁定に依る。裁定を待つ間も 1〜3 は進められる。
 - S-9a-3 の結果だけで S-9c の入力になる項目（照会数、収束、starvation、duplicate、残留）がある。S-9a-4 を待たずに harvest する。
-- 予算外が出ても、どのスライスも Controller を直さない（§6 の S-9a の行）。
+- Telemetry の 2 本を測定の後ろに置く理由: 読み口に何を出すかは、件数の測定（S-9a-3）で実際に使った値から決める。先に公開面を決めると、使わない値まで契約になる。S-9a-5 は他の 2 ラインと重ならないので S-9a-3 の後すぐ着手でき、S-9a-4 と順序の依存は無い。S-9a-6 は S-9a-5 の読み口を使い、PR #216 と同じ file を触るので merge を待つ。
+- S-9a-5 が Controller に読み口を足した後に時間と確保を測る（S-9a-4 が後になる）場合、S-9a-4 は読み口の追加が Tick の時間と確保を変えていない事を、追加の前後の commit で測って確かめる。
+- 予算外が出ても、どのスライスも Controller の Tick の計算を直さない（§6 の S-9a の行）。
 - Phase B は Editor での compile 確認まで、Unity テストは Phase C。Cloud では Unity を動かさない。
 
 ## 5. スライスをまたいで固定する定義
@@ -152,8 +158,9 @@ stale completion の件数には予算を置かない（テレポートでは起
 | P1 | B5 の値と対象ハードウェア（CPU、メモリ、OS、電源設定）。Cloud からは測定機の構成が分からない | owner。S-9a-4 の A3 まで |
 | P2 | B6 の値（0 byte か、0 でない上限か） | owner。S-9a-4 の A3 まで |
 | P3 | 保留中の Add への Remove の模型を 1 通りで足りるとするか | S-9a-1 の A2 |
+| P5 | system ごとの Tick 時間と frame ごとの確保量（T2・T3）、SampleGame の driver が UpdateSystem に登録されていない事を、どの計画が持つか | owner。S-9a-6 の着手まで |
 | P4 | `[Explicit]` の test を `run-tests.ps1 -Filter` で選べるか、`TestContext.Progress` の行が保存される出力に残るか | S-9a-3 の Phase C で初回確認 |
 
 ## 7. 触らない場所
 
-他の 2 ラインの領域: `unity/Assets/Docs/Architecture/12-telemetry.md` と `05-scene.md`、`Runtime/SceneSystem`、`Runtime/Bootstrap`、`DebugSocketServices`、`tools/DebugStudio`（PR #216）、`Runtime/BuildContent`、`Editor/Build`、SampleGame の `DependOnAll`、`tools/Harness`（PR #214）。S-9a は `Runtime/Streaming` も変えない。
+他の 2 ラインの領域: `unity/Assets/Docs/Architecture/12-telemetry.md` と `05-scene.md`、`Runtime/SceneSystem`、`Runtime/Bootstrap`、`DebugSocketServices`、`tools/DebugStudio`（PR #216）、`Runtime/BuildContent`、`Editor/Build`、SampleGame の `DependOnAll`、`tools/Harness`（PR #214）。S-9a-1〜5 はこれらに触れない。S-9a-6 だけが Telemetry の基盤と `12-telemetry.md` に触れるので、PR #216 の merge の後に着手する。
