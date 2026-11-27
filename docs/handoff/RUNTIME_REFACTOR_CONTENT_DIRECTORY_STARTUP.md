@@ -7,7 +7,7 @@
 - type: `slice`
 - status: `A`（**A0 入力だけ。A1 未着手、実装キューではない**）。本書は `RUNTIME_REFACTOR_BOOTSTRAP.md`（PR #166 で完了・削除。本文は git 履歴にある）の A1 改訂（2026-11-07）で同書から切り出した S2 の設計素材を、program A0 [ASSET_BUILDSYSTEM_INDEPENDENCE.md](ASSET_BUILDSYSTEM_INDEPENDENCE.md) §4.2 の改訂を当てた形で預かる。素材の正本は本書だけで、BOOTSTRAP には残していない
 - 切り出しの根拠: program A0 §6 D4（owner 判断、2026-11-07）。「S2（+ AC9 / AC10）を独立スライス `CONTENT_DIRECTORY_STARTUP` にする」
-- 順序（D4）: (1) ASSET_CYCLE 改訂版 → (2) `BUILDSYSTEM_STANDALONE_ENTRY`（未作成） → **(3) 本スライス** → (4) asmdef スライス。(2) の Phase D より前に本書の A1 を始めない。BOOTSTRAP（S3〜S5）はこの列の外にあるが、同じ `AbstractApplicationInitializer.cs` を触るので、**本スライスと BOOTSTRAP の Phase B を同時に走らせない**
+- 順序（D4）: (1) ASSET_CYCLE 改訂版 → (2) `BUILDSYSTEM_STANDALONE_ENTRY`（[A1 改稿まで](BUILDSYSTEM_STANDALONE_ENTRY.md)。2026-11-27 に owner が延期し、再開は Play Content 解決の S4-4 の Phase D の後。本スライスは S4-4 と責務が重なるので、開始条件の見直しは同書 §0「延期と再開」の未裁定の事項） → **(3) 本スライス** → (4) asmdef スライス。(2) の Phase D より前に本書の A1 を始めない。BOOTSTRAP（S3〜S5）はこの列の外にあるが、同じ `AbstractApplicationInitializer.cs` を触るので、**本スライスと BOOTSTRAP の Phase B を同時に走らせない**
 - branch: 未定（A1 の担当が決める）
 - implementation base commit: 未固定。A1 の着手時に `develop` の head で測る。下の素材は base `d4861882` の実測で、(2) と BOOTSTRAP が先に入れば行番号と型の可視性が変わる
 - implementation head commit: 未固定
