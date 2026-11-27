@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C`（**Phase B が revision 1 の driver の観測を実装した（2026-11-27、§6「revision 1 の driver の観測の修正」）。次は発見 C（4 回目）。** Phase A の revision 1 を凍結した（2026-11-27）。判定 C の F-C3 を受けて §5 の観測の対象だけを改めた（§5.1 の revision 1）。以下は前の記録: Phase B は F-C3 の原因を切り分け、直さずに Phase A へ戻した（§6「判定 C で見つかった F-C3 の修正」）。判定 C（判断担当、1 回目）は NO-GO（§7、F-C3）。判定 C の 2 回目の実行は §7。発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
+- status: `C`（**Phase B が revision 1 の driver の観測を実装した（2026-11-27、§6「revision 1 の driver の観測の修正」）。発見 C（4 回目）は阻害する指摘なし（§7）。次は判定 C の実行担当と判断担当。** Phase A の revision 1 を凍結した（2026-11-27）。判定 C の F-C3 を受けて §5 の観測の対象だけを改めた（§5.1 の revision 1）。以下は前の記録: Phase B は F-C3 の原因を切り分け、直さずに Phase A へ戻した（§6「判定 C で見つかった F-C3 の修正」）。判定 C（判断担当、1 回目）は NO-GO（§7、F-C3）。判定 C の 2 回目の実行は §7。発見 C の 3 回目は阻害する指摘なし（§7）。 判定 C の 1 回目の実行は driver の証拠名で止まり、B が直した（§6「判定 C の実行で見つかった driver の修正」）。発見 C の 1 回目は F-C2 を B へ返し、B が直した。動作確認は §6 の後。Phase B の実装は §6。以下は凍結の時の記録: Phase A のやり直しの改訂 3 を凍結した。 A3 の統合案の改訂 2 まで進んだ後、2026-11-26 に S4-V が merge され、owner が Phase A のやり直しを決めた。改訂 1 は外部計画レビュー 1 件目の採否の案と base の取り直し、改訂 2 は外部計画レビュー 2・3 件目の採否の案（設計の 5 件の修正と、実機の検証を S4-V の基盤の上に置くこと）、改訂 3 はやり直しで、base `9e7d4148` での現況の取り直し、§3・§5 の driver を S4-V の基盤の実の契約に合わせた書き直し、作り直した版の A2 とその採否の案（§5.1）。改訂 3 の A3 の統合と、Phase C の立場の事前の読み、外部計画レビュー 4 件目（XR-1〜XR-5）の採否、その修正差分の確認（blocker なし）と残件 4 件の反映、owner の裁定（§2.9）を経て凍結した）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5`
@@ -18,8 +18,8 @@
 - Phase A snapshot の取得案内・状態: 該当なし（機械向けの期待値・照合 script は無い。§5。レビューの入力は本書と base の code だけ）
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 未生成
 - 引継ぎ票:
-  - 次の Phase・役割: 発見 C（4 回目。実行担当と判断担当。差し戻しの 3 巡目の再レビュー）。動作確認は対象なし（offline で閉じない条件は E 系列だけで、§5 のとおり判定 C の実行担当が取る）。
-  - 次の作業: 開始時に [引継ぎ票](../../.agents/skills/osm-workflow/references/phases-and-handoff.md#引継ぎ票) の照合（渡された SHA と HEAD、clean、implementation head `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` が祖先で HEAD までの差分が本書だけ、PR の状態ブロック）を行う。前の implementation head `cd4a16b18dfa53cc5b607eb978f88ca46be05316` から今の implementation head までの差分（`tools/s43a-local-origin.ps1` と `tools/Harness/tests/ScenarioDriver.Tests.ps1` の 2 file）を、§5 の約束の 5・case の表・「E6 の観測」・E6 の記録、§5.1 の「revision 1」の表と突き合わせる。製品の code と基盤は前の head から変わっていない。発見 C が阻害する指摘なしなら、判定 C の全 EditMode 回帰と E 系列の取り直し（新しい RunId、`-Commit` は今の implementation head）へ進む。
+  - 次の Phase・役割: 判定 C（実行担当と判断担当）。動作確認は対象なし（offline で閉じない条件は E 系列だけで、§5 のとおり判定 C の実行担当が取る）。
+  - 次の作業: `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` を `-Commit` に指定した新しい RunId で、判定 C の全 EditMode 回帰と E 系列を実行し、§5 の判定必須条件を照合する。発見 C（4 回目）は、前の implementation head `cd4a16b18dfa53cc5b607eb978f88ca46be05316` からの `tools/s43a-local-origin.ps1` と `tools/Harness/tests/ScenarioDriver.Tests.ps1` の差分、実行担当の機械検査結果、§5 の revision 1 契約との照合で阻害する指摘なしと判断した。
   - 読む範囲: 既定（§0〜§8）。重点は §5（検証経路の節）、§5.1 の「revision 1」、§6 の「driver が保存する証拠」「revision 1 の driver の観測の修正」、§7 の「判定 C（判断担当、1 回目）」。
   - 引き継ぐ commit: この票を含む commit（SHA は起動指示と PR の状態ブロックで渡す）。
   - 必要な権限: 発見 C は pwsh の offline test と読み取り。Unity の起動と資格情報は要らない（判定 C の実行担当は Unity の起動と sandbox の外の実行が要る）。
@@ -852,6 +852,20 @@ owner の指示で、Phase A の改訂より先に、上の案の観測の経路
 
 - `tools/contract-audit.ps1` exit 0（最後の行「設計判断（…）は対象外。」、違反の行なし）。`tools/docs-audit.ps1` exit 0（既存の警告 1 件）。`Scenario.Tests.ps1` exit 0（24 executed, 0 failed）、`ScenarioDriver.Tests.ps1` exit 0（15 executed, 0 failed）、`ScenarioUnity.Tests.ps1` exit 0（28 executed, 0 failed）。どれも `pwsh -NoProfile -File <script>`、sandbox の外。
 - 実行の前後で作業ツリーは clean のまま。
+
+### 発見 C の判断担当の記録（4 回目、2026-11-27）
+
+- 種別: 発見 C（判断担当）。指定された引継ぎ commit は `97d56546ed0736ef44fef2bea2a4024d768523b6` で、開始時の HEAD と一致した。作業ツリーは開始時 clean だった。PR #214 は open・draft、base は `develop`、implementation base / head は `9e7d414833456e2c9dd930c5f96432b24d9ee919` / `346732372c19ee5cdaa8ad9b8d00495e91e6d7a5` で、状態ブロックと一致した。
+- 使用した evidence bundle: Phase B result snapshot / evidence bundle は未生成。§7 の発見 C 4 回目の実行担当の原記録、implementation head 間の 2 file の commit 固定差分、§5・§5.1・§6 の frozen contract、`tools/contract-audit.ps1` の結果を使用した。
+- 構造適合: `tools/s43a-local-origin.ps1` は E 系列の revision 1 の観測対象と順序を実装し、Built では `Title` の load record を読むだけ、E6 では `Title`・UI token・`HpGauge`・`OutGameScene`・Play record の再読を順に保存する。`ScenarioDriver.Tests.ps1` は Built / overlay / Play 未到達の順序と証拠を偽 Editor で検査する。製品 Runtime / Editor code、Harness 基盤、asmdef、依存方向、凍結契約は変更されていない。`contract-audit` は errors 0、warnings 0 だった。
+- 現在の問いを阻害する findings: なし。長い revision 名を証拠名へ埋め込んでいた前回の blocker は、時点連番の receipt 写しと対応表で解消済みであり、今回の revision 1 観測差分にも §5 の対象・順序・「合否を判定しない」約束への違反は見つからなかった。
+- 後続スライスへ移送する findings: なし。判定 C の全 EditMode 回帰、E 系列の実 Editor 操作、AC10 の 4 観測、部分失敗時の Unity Mono 実測、複数 origin の実際の取得順は、発見 C の blocker ではなく判定 C の入力として残る。
+- 実行したテストコマンドと `-Filter`、対象を選んだ理由: 判断担当は追加の Unity test を実行していない。実行担当は `pwsh -NoProfile -File tools/contract-audit.ps1`、`tools/docs-audit.ps1`、`tools/Harness/Tests/Scenario.Tests.ps1`、`tools/Harness/Tests/ScenarioDriver.Tests.ps1`、`tools/Harness/Tests/ScenarioUnity.Tests.ps1` を implementation head で実行した。`contract-audit` は Phase C の必須構造契約検査であり、その他は今回の driver と Harness 変更の offline 回帰を確認するためである。
+- テスト結果（原記録の実行テスト名と件数）: `contract-audit.ps1` exit 0（errors 0、warnings 0）、`docs-audit.ps1` exit 0（既存の警告 1 件）、`Scenario.Tests.ps1` 24 executed / 0 failed、`ScenarioDriver.Tests.ps1` 15 executed / 0 failed、`ScenarioUnity.Tests.ps1` 28 executed / 0 failed。Unity XML は追加生成していない。作業ツリーは実行担当の前後と判断担当の変更前とも clean だった。
+- 判定必須のうち未実行: 発見 C では GO/NO-GO を判定しない。全 EditMode 回帰、E 系列（S0、P1、E1、P2、E2、E3、E4、E5、E6、Cleanup）の実 Editor 操作、AC10 の 4 観測、部分失敗時の Unity Mono 実測、複数 origin の実際の取得順は未実行であり、判定 C へ引き継ぐ。
+- 重い検証を発見段階で限定実行した場合の理由と範囲: 今回は implementation head の製品 code と基盤に変更がなく、対象は driver と offline test の 2 file なので、実行担当は機械検査と offline test 3 本に限定した。追加 Unity テストを走らせない起動指示に従った。
+- 未確認事項: 新しい implementation head での全 EditMode 回帰と E 系列の実 Editor 観測、AC10 の 4 観測、部分失敗時の Unity Mono 実測、複数 origin の実際の取得順は未確認である。
+- 担当・モデル: 判断担当は OpenAI（Phase A の外部計画レビューと同じ系列。独立性制約あり（owner 受容））。
 
 ## 8. Phase C'
 
