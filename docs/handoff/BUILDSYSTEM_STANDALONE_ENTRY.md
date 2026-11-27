@@ -42,7 +42,7 @@
   - preflight・Phase B・Phase C は Unity Editor が要り、S4 のラインと同じローカルの Editor を使う。S4 の merge のたびに U-B の集合に file が増えるので、P 検査の基準と GO の検査も動く。
   - S4-3b 以降は program の計画の行を読んだ評価で、未作成の HANDOFF との非衝突を確かめた物ではない。
 - **再開時にやり直すこと（A1 の改訂の入力）:**
-  1. **base の取り直し。** §1 の現況、行番号、可視性、呼び出しの数（35 箇所）、`InternalsVisibleTo` を再開時の `develop` で測り直す。S4-3a（PR #214。2026-11-27 の時点で head `97d56546`、Phase A）以降が `Runtime/BuildContent/Distribution/` と `Editor/Build/Content/` に足した file と、S4-4 が変えた登録・起動の契約を含める。
+  1. **base の取り直し。** §1 の現況、行番号、可視性、呼び出しの数（35 箇所）、`InternalsVisibleTo` を再開時の `develop` で測り直す。S4-3a（PR #214。外部計画レビューが見た head は `97d56546` で、2026-11-27 の延期の記録の時点では `88cfcba0` まで進んでいる。本書の §1 の照合は `d8bd66b3` の時点）以降が `Runtime/BuildContent/Distribution/` と `Editor/Build/Content/` に足した file と、S4-4 が変えた登録・起動の契約を含める。
   2. **§1 の「公開面の導き方」の表の作り直し。** S4 の間に増えた規則（取得、origin、head、pin）が、U-B の利用者に書き直しを強いる箇所を足すかを同じ問い方で見る。S4-3b の LAN の取得元が U-B に入るか、外部依存を持つ adapter として分けるかは、その行の A1 が決めた結果を読む。
   3. **S4 の各行との責務の境界を本文に書く（F-04）。** 取得・origin・head・pin・cache・installer は取得の側の責務で、本スライスは build の入力と単独の root の解決だけを持つ。取得の結果の target・identity・digest を読み口が独自に解釈し直さない。読み口は session の代わりではない。prefetch、Play の transaction、checkout hook、base の選び方は対象外。
   4. **`BuildContentResult.Target` の意味（F-04）。** coordinator の固定値を返すだけの property を将来の契約にしない。「この結果が実際に build した target を保持して返す」と定め、その時点で扱える target を書く。S4-5 が target の固定を解いていれば、その契約に合わせる。target の対応表や検査の規則を X7 と S4-5 で別々に作らない（所有を 1 つにする）。
