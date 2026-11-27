@@ -912,6 +912,15 @@ owner の決定 DC-2（§8）で、C' の後に PR #214 に来た外部実装レ
 - 未確認事項: 判定必須条件に関する未確認事項はない。Evidence bundle と C' blind bundle は未生成であり、進行役が取得案内を作成した後、C' 担当が保存・転送・閲覧可能性を確認する。部分失敗時の Unity Mono 実測や複数 origin の実際の取得順は §2.6 の後続スライスの入力であり、今回の GO 条件ではない。
 - 担当・モデル: 実行担当は進行役の別 session（判断なし、モデル記録はこの票にない）。判断担当は OpenAI（Phase A の外部計画レビューと同じ系列。独立性制約あり（owner 受容））。Phase B は Anthropic。C' 用の xAI/Grok は未使用・予約のままとする。
 
+### 判定 C の実行担当の記録（4 回目、2026-11-27）
+
+実行担当（進行役の session。判断はしない）が、新しい implementation head `8acd2ca5` で取り直した生の結果。HEAD は `1c019db8`（implementation head との差は `docs/handoff/` だけ）。原記録はこの worktree の `TestResults/` の下（git 管理外、未保存）。どれも sandbox の外で走らせた。E 系列は DC-2（§8）のとおり取り直していない。
+
+- (1) 全 EditMode 回帰: `pwsh tools/run-tests.ps1 -OutputRoot <worktree>\TestResults\c-judge4`（空 filter）。run-tests の出力は `TestResults/c-judge4-run.log`。XML（`c-judge4/f9b039cf-17cb-46f1-b4ec-659df7334767/results.xml`）: total 2697、passed 2637、failed 0、inconclusive 25、skipped 35、root result `Passed`、12:07:57Z〜12:22:54Z。`step.json`: status `failed`、exitCode 1、failure「Inconclusive のテストがあります」。§5 の test class の件数（XML の `TestFixture` の名前で合計、failed は全て 0）: `ContentOriginHeadTests` 16、`ContentAcquisitionRulesTests` 121、`ContentOriginGuardTests` 29、`ContentAcquisitionTests` 41、`IndexedContentOriginTests` 5、`ContentOriginHeadWriterTests` 14、`SampleGameContentBatchTests` 18、`VerifyPlaySequenceTests` 13（同名の fixture の合計）、`ContentBaseSelectionTests` 8、`PlayEntryCandidatesTests` 18、`ContentAcquireLauncherTests` 7、`PublishedOriginAcquireIntegrationTests` 1。XML ができてから 120 秒後も Unity（PID 29284）が終わらなかった。既知の終了の stall として調べずに CIM の Terminate で止めた。時刻と CPU の値は `c-judge4/f9b039cf-…/executor-note.txt` にある（10 秒で user の CPU 時間が約 10 秒増え、thread は 1）。強制終了は成功の証拠に数えない。実行の後、作業ツリーは clean。
+- (2) E 系列: 取り直していない。DC-2 のとおり `TestResults/scenario/s43a/j3/`（implementation `34673237`、判定 C の実行担当の記録（3 回目）の (2)）を使う。
+- (3) 機械検査（HEAD `1c019db8`、`pwsh -NoProfile -File <script>`、log は `TestResults/c-judge4-machine/`）: `tools/contract-audit.ps1` exit 0（違反の行は無い）。`tools/docs-audit.ps1` exit 0（警告 2 件。この HANDOFF と program の HANDOFF の「§7 と §8 が両方埋まっている」）。`Scenario.Tests.ps1` 24 executed / 0 failed。`ScenarioDriver.Tests.ps1` 15 executed / 0 failed。`ScenarioUnity.Tests.ps1` 28 executed / 0 failed。
+- 実行担当の扱い: 合否と GO / NO-GO は書かない。(1)・(3) は揃ったので、判断担当を起動する。
+
 ## 8. Phase C'
 
 ### C'（1 巡目、2026-11-27）
