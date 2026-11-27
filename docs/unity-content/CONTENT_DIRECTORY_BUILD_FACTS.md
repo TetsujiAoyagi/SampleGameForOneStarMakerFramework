@@ -257,6 +257,20 @@ SampleGame の遊べる Player に、Editor の menu `Tools/OSM/Content/Play Pla
 
 測っていないもの（結果を変えうる）: 別の PC で build した Player と base、Player に無い型を上書きが使う時、script の field を消す・型を変える時（製品の口では。harness の答えは上の節）、domain reload と Editor の再起動をまたぐ観測の読み直し、入口の停止の dialog の実窓、他の Player の構成（Mono、他の stripping の水準、development build、`-nographics`）、`spring-full` 以外の content、InGame の先の操作、Android・iOS。
 
+## 別の `Library` の base と手元の上書き（Editor、6000.6.9f1）
+
+別の checkout で publish した base を取得元から取得し、手元の checkout の Editor の Play の入口の経路 Built + local edits（[Architecture §18](../../unity/Assets/Docs/Architecture/18-asset-description.md)「宣言からの Play 経路」）で上書きを重ねた（2026-11-27、S4-3a の判定、PR #214、Unity 6000.6.9f1、1 台の PC の 1 run）。checkout X と Y は同じ PC の 2 つの worktree（それぞれの `Library`）。X で batch が `spring-full` の base を publish し、Y の窓のある Editor の「Acquire content」で取得元 X から取得・install した（Y の base はこの revision）。Y に S4-2 の固定 patch（Title の Scene・Title の UXML・新しい UXML を変える）を当て、patch が触らない保存済みの `OutGameScene` を開いて、経路 Built + local edits で Play した。Play の中の記録は `eval` で `SceneDirector` の `GetContentLoadRecord` を読み、`Title` と `HpGauge` は Play の後に `AddScene` で 1 回ずつ要求した。
+
+- **上書きの計画と登録:** record の上書きは `Built`、上書きに入れた root は 1 つ、作り直せない root は 0、上書きつきの登録の identity は計画と同じ（`overlayCheck=matched`）だった。
+- **上書きの root（`Title`）:** load の記録は上書きの identity で、由来は `ContentOverlay`・受け入れ根拠は `RecordedBaseMatch` だった。画面の `pulse-button` の文字列は patch の UXML の token だった。
+- **上書きに入らない root（`HpGauge`。`OutGameScene` の子で payload を持ち、patch が触らず開いてもいない）:** load の記録は取得した base の revision と digest で、由来は `ContentDirectory`・受け入れ根拠は `VerifiedDigest` だった。
+- **開いた Scene（`OutGameScene`）:** Play の前の複製として載り、記録の由来は `EditorSnapshot`・受け入れ根拠は `OpenSceneSnapshot` だった。
+- **Error:** 観測の前と後の record の Error と Exception は 0 だった。
+
+答えは Player の答え（上の「別の `Library` の上書きと script の field の差（Player、6000.6.9f1）」）と同じく、別の `Library` の base に重ねても上書きの root は手元の版で、他の root は base の版で載った。
+
+測っていないもの（結果を変えうる）: 別の PC で build した base、script の code・field の編集、作り直せない root のある計画、`spring-full` 以外の content、Reload Domain を有効にした Play。
+
 ## 確かめていないこと
 
 - 増分 build cache の仕組みの全体（出力の file ごとの build instruction のハッシュで再利用を決め、Scene の鍵は Scene の file のバイトであることまでは、上の「製品の build 経路で作った上書きと、prefab を編集した後の差分 build」で trace から読み、Scene の `.meta` のバイトも鍵に入ることを「印の形と検知の鍵」で観察した。他の asset の種類の鍵、cache の置き場と寿命は確かめていない）。

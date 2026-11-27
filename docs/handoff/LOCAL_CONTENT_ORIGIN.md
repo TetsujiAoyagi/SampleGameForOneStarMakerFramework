@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`（[program](PLAY_CONTENT_RESOLUTION_PROGRAM.md) §8 の S4-3 を 4 行に分けた最初の行 S4-3a。分け方は §2.2）
-- status: `C'`（**判定 C（判断担当、3 回目）が GO と判定した。次は C' 3 巡目（新しい implementation head の修正差分を中心に独立監査）であり、C' 完了前に Phase D へ進まない。** 前の implementation head `34673237` の判定 C・C' の結果は新しい head の合格に流用しない）
+- status: `D`（**判定 C（3 回目）GO、C'（3 巡目）blocker なし。Phase D で harvest し、この HANDOFF を消す。**）
 - branch: `claude/trusting-ramanujan-kxphtr`（PR の base は `develop`）
 - implementation base commit: `9e7d414833456e2c9dd930c5f96432b24d9ee919`（`develop` の head、2026-11-26、S4-V の Phase D の merge。branch に merge した。§1 の現況と §3 の行数は改訂 3 でこの base で取り直した（改訂 1・2 は `07cc2c97`、初版と初回の A2 の固定 base は `1fd200b5`）
 - implementation head commit: `8acd2ca5bc75276cca8481d8bd4958184c64df97`
@@ -980,6 +980,21 @@ owner の決定 DC-2（§8）で、C' の後に PR #214 に来た外部実装レ
 - (3) 後続へ送る項目: S4-3b の入力として、取得元の照会・open・read が Task を返す前に止まると打ち切れない件と、adapter が速やかに Task を返す契約、stream と取得口の寿命（遅れた読みが残る間に取得口が破棄される場合を含む）。driver の `Invoke-Acquire` が `Start` の応答を失った時に最大 30 分待って case を続ける件。別の書き手がいる部分失敗で前の head が backup 名のまま残る件。壊れた選んだ base の記録を書き直す時に他の cache root の entry を捨てる件。検証 Play の `RecordOriginHead` が書き込み成功時の診断を捨てる件。DC-1 のスパイク（URP の asset の件）。所有するスライスの無いものは Phase D の harvest で program の未所有の項目へ移す。
 - C' への渡し方: C' 自身の指摘ではないので C' 用決定記録には入れない。C' の 3 巡目には、修正差分と、E 系列の結果が前の implementation head のものであるという事実だけを入力の説明に書く。
 
+### C'（3 巡目、2026-11-27）
+
+- 種別: C'（独立監査、3 巡目）。implementation base / head は `9e7d4148` / `8acd2ca5`。前の巡の head は `34673237`で、修正差分（Phase B 4 巡目）が中心。
+- 入力: C' blind bundle（3 巡目。§0 の取得案内のとおりローカル固定済み、未昇格）を取得した無改変の写し、その zip の展開、新しい implementation head の tracked file の写し（この HANDOFF と binary asset を除く）、DC-1（版 1）の写し、起動指示 1 file。PR、可変 HANDOFF、外部実装レビューの本文は渡していない。
+- 担当・モデル: xAI の Grok（cursor-agent、ask mode、読み取りだけ）。1・2 巡目と同じ系列。独立性制約あり（owner 受容）。実行時間は約 20 分。
+- 結論: **blocker なし**。後片付けの例外は結果の状態へ昇格せず、返した取得結果を後から書き換えず、遅れた例外は継続の中で受け止めている。head の書き込みの失敗は後片付けの後に例外にし、前の head を保ったまま別名の file を消す。
+- 証拠の確認（C' の記述）: 全 EditMode の XML は total 2697、passed 2637、failed 0、inconclusive 25、skipped 35、root `Passed`。`ContentOriginGuardTests` 29 件・`ContentOriginHeadWriterTests` 14 件は全て Passed で、修正の test を含む。E 系列を前の head から使い回すことが凍結条件の合否を変える根拠は無い（変えたのは Dispose が投げる経路と head の書き込みが失敗する経路だけで、E 系列はそれらを通らない）。
+- 後続の入力: なし。監査できなかった範囲（C' の申告）: 修正差分の外のスライス全体の再監査、E 系列の原記録の AC9 の照合値の再計算、テストと機械検査の再実行。
+- 引き渡し: C' まで完了。Phase D へ。
+
 ## 9. Phase D
 
-未着手
+### Phase D（進行役、2026-11-27）
+
+- 保存・引渡し確認: implementation `8acd2ca5` の判定 C（3 回目）の evidence bundle と C' blind bundle（3 巡目）、前の implementation `34673237` の判定 C（2 回目）の evidence bundle と C' blind bundle（1・2 巡目）は、どれも Artifact Storage にローカル固定済み（`evidence stage`、未昇格）で、送信と別の process の `fetch` が exit 0 だった。取得案内 4 件は、消す予定の worktree の外の、main checkout の git 管理外の取得案内の置き場へ移した。`evidence schedule status` は `passed`。保持は task の終了から 30 日。
+- harvest: 13 章「取得元と取得」と「まだ保証しないこと」、18 章「配信用 transport の公開境界」と「宣言からの Play 経路」、実測の事実「別の `Library` の base と手元の上書き」、README の「試す」の手順 7、program §8 の S4-3a の行と「S4-3a から移送した入力」、§10 の U11。
+- 後続へ送ったもの: DC-1 のスパイクと DC-2 の (3) の項目（program の「S4-3a から移送した入力」と U11）。
+- 残すもの: なし。この HANDOFF は harvest の後に消す。
