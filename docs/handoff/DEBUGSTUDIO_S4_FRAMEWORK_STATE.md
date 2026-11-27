@@ -5,7 +5,7 @@
 このtracked文書の全Phase欄では、各成果物の取得案内を渡す既存の引渡し先・担当と状態（未生成／未保存／ローカル固定済み（未昇格）／引渡し未完了／確認済み）を、公開可能な範囲で記録する。取得に使うreference・期待packageSha256の実値、ローカルpath、内部catalog/receiptはこの文書へ転記しない。空欄を保存済み・引渡し済みと扱わない。
 
 - type: `slice`
-- status: `判定 C 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定必須テストと AC11 の V0〜V6 の証拠が GO 候補 head で揃った。§7。Phase B result・evidence bundle・C' blind bundle は stage 済み。次は C'）
+- status: `C' 完了`（A3 凍結済み、revision 8。GO 候補 head は implementation head。判定 C は GO、C' は現在の問いを阻害する欠陥なし。§7・§8。次は Phase D）
 - branch: `claude/magical-gauss-7rycuj`（Cloud の計画 session の branch。PR の base は `develop`。Draft PR で外部計画レビュー中）
 - implementation base commit: `07cc2c975b63cf5b668130a1c45490dd3e77c5f0`（`origin/develop` の head、2026-11-25。本書の実測は全てこの base）
 - implementation head commit: `0b933a5d8f3a90cd2e589a3a267c545e3483e286`
@@ -19,15 +19,15 @@
 - Phase A snapshot の取得案内・状態: 不要（A3 の時点に機械向けの期待値・合成 fixture・script は無い。判定 C の offline 実行。§5）。凍結版は commit で固定し、その SHA を tree の外で渡す
 - Phase B result snapshot / evidence bundle / C' blind bundle の取得案内・状態: 3 つともローカル固定済み（未昇格）。implementation head で stage し、別の process の取得で全 file が元の file と同じ SHA-256 であることを確かめた（2026-11-27）。**Phase B result snapshot:** base から head までの完全 diff・stat・name-status と head での contract-audit・docs-audit の log（6 file。所見を含まない）。引渡し先・担当は Phase D・owner。取得案内は進行役の置き場の `phase-b-result-0b933a5d.md`。**evidence bundle:** 判定 C の判定必須テストと V0〜V6 の原記録、判定 C の照合の基盤と結論、進行役の再実行、1〜4 回目の履歴（9 file、原記録の群は zip）。引渡し先・担当は Phase D・owner（C' の後の突き合わせ。C' には渡さない）。取得案内は同じ置き場の `judgement-0b933a5d.md`。**C' blind bundle:** 凍結した Phase A（A3 凍結版の本書）、Phase C の前の Phase B 結果（B の出口の §6）、本書を除いた base から head までの diff、判定 C と同じ原記録（テストと V0〜V6）、固定 manifest（338 file。発見 C・判定 C の所見と結論、照合 script と結果は含まない）。引渡し先・担当は C' の担当。取得案内は同じ置き場の `cprime-0b933a5d.md`。判定 C の 1 回目の原記録の 1 file にあった Unity の資格情報の値は、stage の前に進行役が削除した
 - task: `debugstudio-s4`（開始済み。owner が「どうにか君がやって先に進めて」と指示したので進行役が start した。2026-11-27）
-- 引継ぎ票（判定 C の出口、2026-11-27。bundle の stage 済み）:
-  - 次の Phase・役割: C'（GO 候補 head = implementation head の独立監査。1 巡目で最終 C'）。
-  - 次の作業: 進行役が C' blind bundle（取得案内 `cprime-0b933a5d.md`）を `fetch` して manifest の全 file の一致を確かめ、所見を含まない入力だけを C' の担当へ渡す。C' は本書と PR を読まない。進行役は C' の結果を §8 に転記する。GO なら次は Phase D、阻害する指摘があれば B へ返す（C' の差し戻しは別に数えて上限 3 巡）。
-  - 読む範囲: 進行役は §0・§8。C' の担当は blind bundle だけ。
-  - 必要な権限: Artifact Storage の `fetch`（非仮想化の pwsh。資格情報は要らない）。C' は読み取り専用でよい。
-  - 取得案内の所在: 上の欄のとおり。
+- 引継ぎ票（C' の出口、2026-11-27）:
+  - 次の Phase・役割: Phase D（判定 C と C' の突き合わせ、harvest、マージの準備）。
+  - 次の作業: §7 の判定 C と §8 の C' を突き合わせる（evidence bundle の取得案内 `judgement-0b933a5d.md` で取得し、閲覧できることを確かめる）。§0 の harvest to の 3 文書が implementation head の内容と一致しているかを確かめ、本書を harvest して `git rm` する。PR #216 の本文の状態ブロックより下の古い説明（計画文書だけの PR とする記述）を直し、判定 C と C' の結果を要約する。PR の base は `develop`。マージは owner が行う。task `debugstudio-s4` の終了は Phase D の最後。
+  - 読む範囲: 既定（Phase D は全文）。
+  - 必要な権限: Artifact Storage の `fetch`、PR の本文の編集、作業 branch への push。
+  - 取得案内の所在: §0 のとおり。
   - task: `debugstudio-s4`（開始済み）。
-  - 停止規則: C' に発見 C・判定 C の所見、照合 script と結果、本書、PR の会話を渡さない。bundle の file を加工しない。
-  - 引き渡すもの: C' blind bundle。evidence bundle は Phase D の突き合わせ用で、C' には渡さない。
+  - 停止規則: 実装を直さない。判定をやり直さない。新しい事実が出たら分類して owner に返す。
+  - 引き渡すもの: §0 の 3 つの bundle の取得案内。
 ### 実測の方法
 
 - base `07cc2c97` の code と文書を `grep`・`wc -l`・行範囲の読み取りで確かめた。Unity も .NET も起動していない。
@@ -618,7 +618,17 @@ harvest の文書: `05-scene.md` §5.12（`SceneEvent` の欄を code に合わ�
 
 ## 8. Phase C'
 
-未到達。
+### C'（1 巡目、2026-11-27）
+
+- 種別: 独立監査（最終 C'。高コスト証拠は無い）。
+- 対象: implementation base `07cc2c97`、GO 候補 head `0b933a5d`。
+- 入力: §0 の C' blind bundle（取得案内 `cprime-0b933a5d.md`）を進行役が取得して manifest の全 file の一致を確かめた物と、head `0b933a5d` の source の写し（`docs/handoff/` を除く）。発見 C・判定 C の所見と結論、照合 script と結果、本書、PR の会話は渡していない。
+- 担当: 新しい session（xAI の系列、cursor-agent CLI、Grok 4.7 Medium、`--mode=ask`）。選んだ理由: §5 のとおり Anthropic と OpenAI 以外の系列に予約した。owner の環境で使える未関与の系列は xAI だけ。判断の役なので中位の model にした。起動は owner の了承の後（「よいです」、2026-11-27）。Shell は使わず、file を読んで判断した。
+- 結論: 現在の問いを阻害する欠陥なし（GO 相当）。I1〜I4・E1〜E4 を同じ head の実装・判定必須テスト・V0〜V6 の原記録で満たすと読んだ。V1・V3・V4・V5・V2 の原記録の値（管理集合・状態・履歴・`canGoBack`・印・`activeSelf` と rawValue の一致・oracle の不変）を自分で読んで確かめている。
+- 後続スライスへ送る物・残存リスク: 全 EditMode の runner は Inconclusive（VFX の 25 件、`-nographics`）で step failed・exit 1 になる（Failed 0 なので本スライスの条件は破らない。Inconclusive の扱いは後続の運用）。旧 service が今の Play の SceneDirector を読みうる件の世代の識別、event の時系列、Player への公開は、計画のとおり構想へ送ったまま。`FrameworkDebugCommands` の namespace の字面は §2.1 の括弧内と違うが、同節の「既存と同じ」に沿う（§6 の記録のとおり）。contract-audit・docs-audit の log は C' bundle に無い（Phase B result snapshot にある）。
+- 監査できなかった範囲: manifest の照合とテスト・実機の再実行（Shell を使わない）、実 Player の process、V2 の hierarchy の revision の参考値（判定に使わない契約）。§5.1 は読んでいない。
+- 判定 C との突き合わせ: Phase D で行う。
+- 証拠: C' の出力は Git 外にローカル保全した。
 
 ## 9. Phase D
 
