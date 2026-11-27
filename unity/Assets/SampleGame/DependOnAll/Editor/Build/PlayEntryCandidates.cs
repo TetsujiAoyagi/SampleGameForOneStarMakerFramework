@@ -30,8 +30,15 @@ namespace SampleGame.DependOnAll.Editor.Build
     /// </summary>
     internal static class PlayEntryCandidates
     {
+        /// <summary>
+        /// <paramref name="selection"/>（取得で選んだ base の記録）を渡さない時は今と同じ並び。渡した時は、記録の組（revision と digest）と
+        /// 同じ entry の時刻を「install の時刻と、選んだ時刻の新しい方」と読み、UTC で比べて並べる。「直近の明示の操作が先」ではなく
+        /// 「選んだ後の新しい install が先」の限定した規則で、既にある revision の再利用（receipt の時刻を変えない）は後の install に数えない。
+        /// receipt の時刻は installer が copy の前に作るので、「後の install」は receipt の時刻の順で、同時の操作の公開の順ではない。
+        /// 記録の revision が無い・digest が違う・記録を読めない時は、記録を使わずに今の並びで答えて Warning に出す（Play を拒まない）。
+        /// </summary>
         internal static PlayEntryCandidateSelection Select(string cacheRoot, BuildPurposeDeclaration declaration, string target,
-            Func<string, string> firstSceneOf)
+            Func<string, string> firstSceneOf, ContentBaseSelectionRead? selection = null)
         {
             if (declaration == null) throw new ArgumentNullException(nameof(declaration));
             if (firstSceneOf == null) throw new ArgumentNullException(nameof(firstSceneOf));
@@ -58,10 +65,16 @@ namespace SampleGame.DependOnAll.Editor.Build
                 .Where(path => Path.GetFullPath(path).StartsWith(setRoot, StringComparison.OrdinalIgnoreCase))
                 .Select(path => "Corrupt receipt: " + path));
 
-            var entries = snapshot.Entries
+            var matching = snapshot.Entries
                 .Where(x => string.Equals(x.ContentSet, declaration.Name, StringComparison.Ordinal)
                             && string.Equals(x.Target, target, StringComparison.Ordinal))
-                .OrderByDescending(x => x.InstalledUtc)
+                .ToArray();
+            var selectionWarnings = new List<string>();
+            var selected = SelectedEntry(selection, matching, selectionWarnings);
+            var entries = (selected == null
+                    ? matching.OrderByDescending(x => x.InstalledUtc)
+                    : matching.OrderByDescending(x => x == selected && selection!.Entry!.SelectedUtc > x.InstalledUtc.ToUniversalTime()
+                        ? selection.Entry.SelectedUtc : x.InstalledUtc.ToUniversalTime()))
                 .ThenBy(x => x.Revision, StringComparer.Ordinal)
                 .ToArray();
 
@@ -70,10 +83,31 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var values = TryValidate(store, entry, declaration, target, firstSceneOf, out var problem, out var install);
                 if (values != null)
                     return new PlayEntryCandidateSelection(new PlayEntryCandidate(entry.Revision, values, entries.Length > 1, install),
-                        string.Empty, problems.Select(x => "Skipped while selecting content: " + x).ToArray());
+                        string.Empty, selectionWarnings.Concat(problems.Select(x => "Skipped while selecting content: " + x)).ToArray());
                 problems.Add(entry.Revision + ": " + problem);
             }
             return new PlayEntryCandidateSelection(null, string.Join(" ", problems), Array.Empty<string>());
+        }
+
+        // 記録の組と revision・digest が同じ entry。使えない記録は理由を Warning に足して null を返す（今の並びに戻る）。
+        private static ContentCacheEntry? SelectedEntry(ContentBaseSelectionRead? selection, IReadOnlyList<ContentCacheEntry> entries,
+            List<string> warnings)
+        {
+            if (selection == null) return null;
+            if (selection.Problem.Length != 0)
+            {
+                warnings.Add(selection.Problem + " The acquired base is not used; the content is ordered by install time.");
+                return null;
+            }
+            var record = selection.Entry;
+            if (record == null) return null;
+            var sameRevision = entries.Where(x => string.Equals(x.Revision, record.revision, StringComparison.Ordinal)).ToArray();
+            var entry = sameRevision.FirstOrDefault(x => string.Equals(x.ManifestSha256, record.manifestSha256, StringComparison.Ordinal));
+            if (entry != null) return entry;
+            warnings.Add("The acquired base " + record.revision + (sameRevision.Length == 0
+                ? " is no longer installed"
+                : " is installed with a different digest") + "; the content is ordered by install time.");
+            return null;
         }
 
         private static IReadOnlyList<KeyValuePair<string, string>>? TryValidate(ContentCacheStore store, ContentCacheEntry entry,

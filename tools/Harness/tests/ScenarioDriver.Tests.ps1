@@ -281,7 +281,8 @@ try {
         }
 
         Run 'AC8 AC9 drivers hold only cases and declared evidence' {
-            foreach ($driver in @((Join-Path $repoUnderTest 'tools/s42-player-overlay.ps1'), (Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'))) {
+            foreach ($driver in @((Join-Path $repoUnderTest 'tools/s42-player-overlay.ps1'), (Join-Path $repoUnderTest 'tools/Harness/scenario-editor-smoke.ps1'),
+                    (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1'))) {
                 $findings = Get-DriverScanFindings $driver
                 Assert (@($findings).Count -eq 0) "$([IO.Path]::GetFileName($driver)): $(@($findings) -join '; ')"
             }
@@ -304,6 +305,151 @@ try {
             & $smoke -RunId 'd2' -DryRun -Token 'token-0001' *>&1 | Out-Null
             $records = Read-Records (Get-RunRoot $fx 'editor-smoke' 'd2')
             Assert ($LASTEXITCODE -eq 0 -and @($records | Where-Object { $_.Contains('event') -and $_.event -ceq 'case-end' -and $_.base -ceq 'ok' }).Count -eq 2) "smoke dry-run exit $LASTEXITCODE"
+        }
+
+        Run 'AC9 the S4-3a scenario dry-run passes every case on prepared checkouts and starts no Unity' {
+            # E6 の固定 patch と同じ path に、fixture の tracked の file を変える patch を置く（dry-run でも patch は当てて戻す）。
+            $patchPath = 'unity/Assets/SampleGame/Tests/Editor/Build/PlayerOverlayEdits/ac01-title.patch'
+            $fx = New-FixtureRepo { param($repo) Write-Text (Join-Path $repo $patchPath) "diff --git a/data/value.txt b/data/value.txt`n--- a/data/value.txt`n+++ b/data/value.txt`n@@ -1 +1 @@`n-one`n+two`n" }
+            $place = Join-Path $fx.Fixture 'osm-v'
+            foreach ($name in 's43a-X', 's43a-Y') {
+                Invoke-Git $fx.Repo @('worktree', 'add', '-q', '--detach', (Join-Path $place $name)) | Out-Null
+                $r = Invoke-ScenarioCheckoutOperation -Operation register -Path (Join-Path $place $name) -RepoRoot $fx.Repo
+                Assert $r.Ok "register $name"
+            }
+            $driver = Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1'
+            $global:LASTEXITCODE = 0
+            & $driver -RunId 'd1' -DryRun *>&1 | Out-Null
+            $code = $LASTEXITCODE
+            $records = Read-Records (Get-RunRoot $fx 's43a' 'd1')
+            $ends = @($records | Where-Object { $_.Contains('event') -and $_.event -ceq 'case-end' })
+            $order = ($ends | ForEach-Object { $_.case }) -join ','
+            Assert ($code -eq 0 -and $order -ceq 'S0,P1,E1,P2,E2,E3,E4,E5,E6,Cleanup' -and @($ends | Where-Object { $_.base -cne 'ok' }).Count -eq 0) "s43a dry-run exit $code order $order"
+            foreach ($name in 's43a-X', 's43a-Y') {
+                $root = Join-Path $place $name
+                Assert ((Invoke-Git $root @('status', '--porcelain')) -eq $null -and (Read-Bytes (Join-Path $root 'data/value.txt')) -ceq "one`n") "$name not restored"
+                Assert (-not [IO.File]::Exists((Join-Path $root 'unity/UserSettings/OSMContentOrigin.json'))) "$name dry-run wrote the origin settings"
+            }
+            Assert (-not [IO.Directory]::Exists((Join-Path (Get-RunRoot $fx 's43a' 'd1') 'evidence'))) 'dry-run saved evidence'
+        }
+
+        Run 'AC9 the S4-3a driver saves receipt copies under names within the foundation limit' {
+            # -DryRun は証拠を保存しないので、driver の証拠を保存する関数だけを取り出し、基盤の本物の保存で走らせる。
+            $ast = Get-ScriptAst (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1')
+            foreach ($name in 'Save-Evidence', 'Get-CacheListing', 'Save-YState') {
+                $definition = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object { $_.Name -ceq $name })
+                Assert ($definition.Count -eq 1) "driver function $name"
+                . ([scriptblock]::Create($definition[0].Extent.Text))
+            }
+            # 時点の名前は driver の呼び出しから拾う（長い時点を足しても、この test が上限を見る）。
+            $points = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.CommandAst] }, $true) |
+                Where-Object { $_.GetCommandName() -ceq 'Save-YState' } | ForEach-Object { $_.CommandElements[2].Value } | Sort-Object -Unique)
+            Assert ($points -ccontains 'after-acquire') "points $($points -join ',')"
+
+            $fx = New-FixtureRepo
+            $purpose = 'spring-full'
+            $selectionRecord = 'unity/UserSettings/OSMContentBaseSelection.json'
+            $run = [pscustomobject]@{ Root=(Join-Path $fx.Fixture 'run'); ExternalRoot=(Join-Path $fx.Fixture 'external') }
+            $evidence = Join-Path $run.Root 'evidence/E1/1'
+            $context = [pscustomobject]@{ DryRun=$false; Roots=@{ Y=$fx.Repo }; State=[pscustomobject]@{ Run=$run }; Attempt=[pscustomobject]@{ EvidenceDirectory=$evidence } }
+            # 実際の build の identity の長さと、それより長い名前。receipt の無い directory は写しを作らない。
+            $revisions = @('20261126T150018464Z-690b81d7359d46c2828215ed2fb10f46', ('r' * 100))
+            $installed = Join-Path $run.ExternalRoot "cache/installed/$purpose"
+            foreach ($revision in $revisions) { Write-Text (Join-Path $installed "$revision/receipt.json") "{`"revision`":`"$revision`"}`n" }
+            [void][IO.Directory]::CreateDirectory((Join-Path $installed 'no-receipt'))
+            Write-Text (Join-Path $fx.Repo $selectionRecord) "{}`n"
+
+            foreach ($point in $points) {
+                Save-YState $context $point
+                $copies = @(ConvertFrom-Json -InputObject ([IO.File]::ReadAllText((Join-Path $evidence "$point-receipts.json"))))
+                Assert ((@($copies | ForEach-Object { $_.installed } | Sort-Object) -join ',') -ceq (@($revisions | ForEach-Object { "$purpose/$_" } | Sort-Object) -join ',')) "$point copied revisions"
+                Assert (@($copies | ForEach-Object { $_.evidence } | Sort-Object -Unique).Count -eq $revisions.Count) "$point evidence names are not distinct"
+                foreach ($copy in $copies) {
+                    $revision = $copy.installed.Substring($purpose.Length + 1)
+                    Assert ((Read-Bytes (Join-Path $evidence $copy.evidence)) -ceq (Read-Bytes (Join-Path $installed "$revision/receipt.json"))) "$point $($copy.evidence) is not the receipt of $revision"
+                }
+            }
+        }
+
+        Run 'AC9 AC10 the S4-3a driver observes the Play targets of HANDOFF section 5 in order' {
+            # -DryRun は Play の後の観測を飛ばすので、観測の関数と eval の code だけを取り出し、偽の Editor の応答で走らせる。
+            $ast = Get-ScriptAst (Join-Path $repoUnderTest 'tools/s43a-local-origin.ps1')
+            foreach ($name in 'Read-LoadRecord', 'Send-AddScene', 'Invoke-Play') {
+                $definition = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true) | Where-Object { $_.Name -ceq $name })
+                Assert ($definition.Count -eq 1) "driver function $name"
+                . ([scriptblock]::Create($definition[0].Extent.Text))
+            }
+            $variables = 'recordKey', 'readRecord', 'directorPrelude', 'addSceneTemplate', 'readLoadTemplate', 'readTitleToken'
+            foreach ($statement in $ast.EndBlock.Statements) {
+                if ($statement -is [Management.Automation.Language.AssignmentStatementAst] -and $variables -ccontains $statement.Left.VariablePath.UserPath) { . ([scriptblock]::Create($statement.Extent.Text)) }
+            }
+
+            # 偽の Editor: 送った・読んだ code を順に残し、Scene の名前ごとに load の記録を返す（null のままの Scene は Wait が期限切れを投げる）。
+            $script:fakeCalls = [Collections.Generic.List[string]]::new()
+            $script:fakeSaved = @{}
+            $script:fakeLoads = @{}
+            $script:fakePlaying = 'True'
+            function Send-Marker { }
+            function Write-ScenarioRecord { }
+            function Wait-PlayRecord { return @{ value="{`"record`":{`"state`":`"EnteredPlay`"}}`n@@20"; expired=$false } }
+            function Save-Evidence([psobject]$Context, [string]$Name, [object]$Content) { $script:fakeSaved[$Name] = "$Content" }
+            function Get-FakeScene([string]$Code) { if ($Code -match 'new object\[\] \{ "([^"]+)" \}|\? "([^"]+)" :') { return "$($Matches[1])$($Matches[2])" }; return '' }
+            function Get-FakeAnswer([string]$Code) {
+                if ($Code -like '*isPlaying.ToString*') { return $script:fakePlaying }
+                if ($Code -like '*GetContentLoadRecord*') { $scene = Get-FakeScene $Code; return $(if ($script:fakeLoads.ContainsKey($scene)) { $script:fakeLoads[$scene] } else { '' }) }
+                if ($Code -like '*_panelRoot*') { return 'S42-AC1-UXML-TOKEN' }
+                if ($Code -like '*SessionState.GetString*') { return "{`"record`":{`"errorCount`":0}}`n@@30" }
+                return ''
+            }
+            function Send-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code) {
+                $kind = if ($Code -like '*GetMethod("AddScene")*') { "add:$(Get-FakeScene $Code)" } else { 'send' }
+                $script:fakeCalls.Add($kind)
+                return [pscustomobject]@{ Answered=$true; Value=$(if ($kind -like 'add:*') { 'requested' } else { 'ok' }) }
+            }
+            function Read-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code) {
+                $answer = Get-FakeAnswer $Code
+                if ($Code -like '*GetContentLoadRecord*') { $script:fakeCalls.Add("read:$(Get-FakeScene $Code)") }
+                return $answer
+            }
+            function Wait-ScenarioEditor([psobject]$Context, [psobject]$Session, [string]$Code, [scriptblock]$Until, [int]$TimeoutMs, [int]$QuietMs) {
+                $answer = Get-FakeAnswer $Code
+                if ($Code -like '*GetContentLoadRecord*') { $script:fakeCalls.Add("wait:$(Get-FakeScene $Code)") }
+                elseif ($Code -like '*_panelRoot*') { $script:fakeCalls.Add('wait:title') }
+                if (-not (& $Until $answer)) { throw 'expired' }
+                return $answer
+            }
+            $context = [pscustomobject]@{ DryRun=$false; Case='E1' }
+            $r1 = '20261126T150018464Z-690b81d7359d46c2828215ed2fb10f46|' + ('a' * 64)
+
+            # 経路 Built（E1・E2・E4・E5）: AddScene を送らず、初回 Scene Title の記録を読む。
+            $script:fakeLoads = @{ Title="$r1|ContentDirectory|registered-content-directory|VerifiedDigest" }
+            [void](Invoke-Play $context $null 600000)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert (@($script:fakeCalls | Where-Object { $_ -like 'add:*' }).Count -eq 0) "built route sent AddScene: $($script:fakeCalls -join ',')"
+            Assert ((@($script:fakeCalls | Where-Object { $_ -like 'wait:*' -or $_ -like 'read:*' }) -join ',') -ceq 'wait:Title') "built route reads $($script:fakeCalls -join ',')"
+            $title = $observations.loads.Title
+            Assert ($title.observed -and $title.revision -ceq $r1.Split('|')[0] -and $title.digest -ceq ('a' * 64) -and $title.sourceKind -ceq 'ContentDirectory' -and $title.providerId -ceq 'registered-content-directory' -and $title.acceptanceBasis -ceq 'VerifiedDigest') "built route Title $($script:fakeSaved['play-observations.json'])"
+            Assert (-not $script:fakeSaved.ContainsKey('play-record-after.txt')) 'built route re-read the record'
+
+            # 経路 Built + local edits（E6）: Title を要求して読み → title → HpGauge を要求して読み → OutGameScene を 1 回読む → record の読み直し。
+            # Title の記録が期限まで null でも、後の項目を続けて読み、理由を残す。
+            $script:fakeCalls.Clear(); $script:fakeSaved = @{}
+            $script:fakeLoads = @{ HpGauge="$r1|ContentDirectory|registered-content-directory|VerifiedDigest"; OutGameScene="$r1|EditorSnapshot|editor-snapshot|EditorSnapshot" }
+            [void](Invoke-Play $context $null 1800000 -Overlay)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert ((@($script:fakeCalls | Where-Object { $_ -cne 'send' }) -join ',') -ceq 'add:Title,wait:Title,wait:title,add:HpGauge,wait:HpGauge,read:OutGameScene') "overlay order $($script:fakeCalls -join ',')"
+            Assert (-not $observations.loads.Title.observed -and "$($observations.loads.Title.reason)".Length -gt 0) 'overlay Title without a reason'
+            Assert ($observations.title.observed -and $observations.title.value -ceq 'S42-AC1-UXML-TOKEN') 'overlay title value'
+            Assert ($observations.loads.HpGauge.observed -and $observations.loads.OutGameScene.observed -and $observations.loads.OutGameScene.sourceKind -ceq 'EditorSnapshot') 'overlay HpGauge / OutGameScene'
+            Assert ($observations.addTitle.value -ceq 'requested' -and $observations.addHpGauge.value -ceq 'requested') 'overlay AddScene answers'
+            Assert ($script:fakeSaved['play-record-after.txt'] -like '*errorCount*') 'overlay record re-read'
+
+            # Play に届かない時: 観測の項目を理由つきで残し、Scene を要求しない。
+            $script:fakeCalls.Clear(); $script:fakeSaved = @{}; $script:fakePlaying = 'False'
+            [void](Invoke-Play $context $null 1800000 -Overlay)
+            $observations = ConvertFrom-Json -InputObject $script:fakeSaved['play-observations.json']
+            Assert (@($script:fakeCalls | Where-Object { $_ -cne 'send' }).Count -eq 0) "not playing sent or read $($script:fakeCalls -join ',')"
+            Assert (@(@('Title', 'HpGauge', 'OutGameScene') | Where-Object { $observations.loads.$_.observed -or "$($observations.loads.$_.reason)" -notlike 'not playing*' }).Count -eq 0 -and "$($observations.title.reason)" -like 'not playing*') 'not playing reasons'
         }
     }
 } finally {

@@ -809,9 +809,11 @@ function Read-ScenarioEditor {
 
 function Wait-ScenarioEditor {
     # 読む eval を Until（値を受けて真偽を返す）が真になるまで繰り返す。送る eval の後に fault を挟む時の待ちにも使う。
-    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Code, [Parameter(Mandatory)] [scriptblock]$Until, [int]$TimeoutMs = 60000)
+    # QuietMs を渡すと、最初の読む eval をその時間が過ぎるまで送らない（Play への移行の間に eval を送らないため）。省けば今と同じ。
+    param([Parameter(Mandatory)] [psobject]$Context, [Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Code, [Parameter(Mandatory)] [scriptblock]$Until, [int]$TimeoutMs = 60000,
+        [int]$QuietMs = 0)
     if ($Session.DryRun) { return $null }
-    return Wait-ScenarioEditorEval -Session $Session -Body $Code -Until $Until -TimeoutMs $TimeoutMs
+    return Wait-ScenarioEditorEval -Session $Session -Body $Code -Until $Until -TimeoutMs $TimeoutMs -QuietMs $QuietMs
 }
 
 function Stop-ScenarioEditor {

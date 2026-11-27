@@ -162,4 +162,44 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(second.Calls, Is.Empty);
         }
     }
+
+    /// <summary>検証 Play の publish も取得元の head を書く（AC7・S1）。書けない時は Play を止めず Warning にする。</summary>
+    public sealed class VerifyPlayOriginHeadTests
+    {
+        [Test]
+        public void HeadIsWritten_ForThePublish()
+        {
+            var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "osm-vph", Guid.NewGuid().ToString("N").Substring(0, 8));
+            try
+            {
+                var published = System.IO.Path.Combine(root, "rev-1");
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(published, "content"));
+                System.IO.File.WriteAllText(System.IO.Path.Combine(published, "transport.json"), UnityEngine.JsonUtility.ToJson(
+                    new OneStarMaker.Runtime.BuildContent.Distribution.ContentTransportManifest
+                    {
+                        version = 1, product = "OneStarMaker", contentSet = "spring-full", revision = "rev-1", target = VerifyPlayLauncher.Target,
+                        unityVersion = UnityEngine.Application.unityVersion, rootSchemaVersion = 2, playerConfigSchemaVersion = 1,
+                    }));
+                var warnings = new List<string>();
+                Assert.That(VerifyPlayLauncher.RecordOriginHead(published, OneStarMaker.Editor.Build.Content.ContentOriginHeadWriter.Write, warnings.Add), Is.True);
+                Assert.That(warnings, Is.Empty);
+                Assert.That(System.IO.File.Exists(System.IO.Path.Combine(root, ".origin", "spring-full", VerifyPlayLauncher.Target + ".json")), Is.True);
+            }
+            finally
+            {
+                if (System.IO.Directory.Exists(root)) System.IO.Directory.Delete(root, true);
+            }
+        }
+
+        [Test]
+        public void HeadFailure_IsAWarningAndDoesNotThrow()
+        {
+            var warnings = new List<string>();
+            Assert.That(VerifyPlayLauncher.RecordOriginHead("published", _ => throw new System.IO.IOException("fixture head failure"), warnings.Add),
+                Is.False);
+            Assert.That(warnings, Has.Count.EqualTo(1));
+            StringAssert.Contains("fixture head failure", warnings[0]);
+            StringAssert.Contains("Play continues", warnings[0]);
+        }
+    }
 }

@@ -360,6 +360,16 @@ namespace SampleGame.DependOnAll.Editor.Build
             return string.Concat(hash.ComputeHash(stream).Select(x => x.ToString("x2")));
         }
 
+        /// <summary>
+        /// 検証 Play の publish も batch と同じ取得元の root の head を今回の publish に向ける（書かないと head が最新の publish を指さない）。
+        /// 書けなくても Play は止めず Warning にする（head は前の値のまま）。
+        /// </summary>
+        internal static bool RecordOriginHead(string published, Func<string, ContentOriginHeadWriteResult> write, Action<string> warn)
+        {
+            try { write(published); return true; }
+            catch (Exception ex) { warn(LogPrefix + "The origin head was not updated (Play continues): " + ex.Message); return false; }
+        }
+
         internal static PublishedContent ToPublished(string publishPath, string manifestSha256, ContentTransportManifest manifest) =>
             new(publishPath, manifestSha256, manifest.revision, manifest.contentSet, manifest.declaration.name, manifest.declaration.representation,
                 (manifest.declaration.runtimeDefaults ?? Array.Empty<ContentManifestDeclarationValue>())
@@ -458,6 +468,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 var mismatch = CompareDeclaration(manifest.declaration ?? new ContentManifestDeclaration(), _declaration);
                 if (mismatch != null) throw new InvalidOperationException(mismatch);
                 Debug.Log(LogPrefix + "published " + published);
+                RecordOriginHead(published, ContentOriginHeadWriter.Write, message => Debug.LogWarning(message));
                 return ToPublished(published, Sha256(manifestPath), manifest);
             }
         }

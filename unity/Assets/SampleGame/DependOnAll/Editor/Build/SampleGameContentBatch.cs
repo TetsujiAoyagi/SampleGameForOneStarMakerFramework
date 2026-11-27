@@ -22,6 +22,11 @@ namespace SampleGame.DependOnAll.Editor.Build
     /// 成否の正は process の終了コード。結果 file（<c>artifacts/bs2b/batch/last-result.json</c>）は終了コード 0 の時だけ
     /// 今回の結果として読む。Unity がこの method を呼ぶ前に終わる場合（project が別の Editor で開かれている、compile error）は
     /// 結果 file に触れられず、前回の file が残るため。Unity の起動の仕方（wrapper、CI への組み込み）は呼ぶ側の責務。
+    /// <para>
+    /// 最後の段で、公開先の親（取得元の root）の head を今回の publish に向ける。head の失敗は公開先と結果 file を残し、
+    /// 結果 file の <c>originHeadFailure</c> と終了コード <see cref="ExitOriginHeadFailed"/> で示す（正しく作れた公開物を消さない）。
+    /// head を書き終えたら、head の path・revision・digest を持つ最後の log の行を書く。
+    /// </para>
     /// </summary>
     public static class SampleGameContentBatch
     {
@@ -31,6 +36,8 @@ namespace SampleGame.DependOnAll.Editor.Build
         public const int ExitSelectionFailed = 3;
         public const int ExitBuildFailed = 4;
         public const int ExitPublishFailed = 5;
+        /// <summary>publish と結果 file は残っているが、取得元の head を今回の publish に向けられなかった。</summary>
+        public const int ExitOriginHeadFailed = 6;
 
         internal const string PurposeArgument = "-osmPurpose";
         internal const string ResultFileName = "last-result.json";
@@ -107,7 +114,7 @@ namespace SampleGame.DependOnAll.Editor.Build
                 catch (Exception ex) { return Fail(ExitPublishFailed, ex.ToString()); }
 
                 // 欄は BS5b-2 の From published directory が期待値として読む。名前と意味を変えない。
-                var json = JsonUtility.ToJson(new SuccessFile
+                var success = new SuccessFile
                 {
                     identity = result.Identity,
                     publishPath = published,
@@ -115,10 +122,10 @@ namespace SampleGame.DependOnAll.Editor.Build
                     declaration = declaration.Name,
                     buildMode = result.Mode.ToString(),
                     exitCode = ExitSuccess,
-                }, true);
-                stages.Commit(resultPath, json);
+                };
+                stages.Commit(resultPath, JsonUtility.ToJson(success, true));
                 Debug.Log(LogPrefix + "published " + published);
-                return ExitSuccess;
+                return WriteOriginHead(stages, published, resultPath, success);
             }
             catch (Exception ex)
             {
@@ -126,6 +133,41 @@ namespace SampleGame.DependOnAll.Editor.Build
                 return Fail(ExitUnexpected, ex.ToString());
             }
         }
+
+        /// <summary>
+        /// 結果の確定の後の最後の段。head の取り消し（巻き戻し）は持たず、読み手は確定していない publish を指す head を見ない。
+        /// 置き換えが成功した時点が成功で、その後の掃除と log の失敗は診断だけ（<c>Fail</c> に入れると、公開先を消して head が
+        /// 消えた revision を指す）。失敗は公開先を残し、成功の結果に head の失敗の欄を足した結果で置き換える。その置き換えも
+        /// 失敗した時は欄の無い成功の結果 file が残りうるので、成否の正は終了コードのまま。
+        /// </summary>
+        private static int WriteOriginHead(Stages stages, string published, string resultPath, SuccessFile success)
+        {
+            ContentOriginHeadWriteResult head;
+            try { head = stages.WriteHead(published); }
+            catch (Exception ex)
+            {
+                stages.LogError(LogPrefix + "exitCode=" + ExitOriginHeadFailed + " The origin head was not updated: " + ex);
+                success.exitCode = ExitOriginHeadFailed;
+                success.originHeadFailure = ex.Message;
+                try { stages.Commit(resultPath, JsonUtility.ToJson(success, true)); }
+                catch (Exception commit) { stages.LogError(LogPrefix + "The result file could not record the head failure: " + commit); }
+                return ExitOriginHeadFailed;
+            }
+            try
+            {
+                foreach (var diagnostic in head.Diagnostics) Debug.LogWarning(LogPrefix + diagnostic);
+                Debug.Log(LogPrefix + HeadLogLine(head));
+            }
+            catch (Exception)
+            {
+                // head の置き換えは成功している。log の失敗で終了コードを変えない。
+            }
+            return ExitSuccess;
+        }
+
+        /// <summary>batch の最後の log の行。判定の担当が、期限の後に止めた batch の全ての段が終わった証拠として読む。</summary>
+        internal static string HeadLogLine(ContentOriginHeadWriteResult head) =>
+            "origin head written path=" + head.HeadPath + " revision=" + head.Head.revision + " manifestSha256=" + head.Head.manifestSha256;
 
         private static string? ReadPurpose(IReadOnlyList<string> args)
         {
@@ -137,13 +179,15 @@ namespace SampleGame.DependOnAll.Editor.Build
         }
 
         // 一時 file に書いてから move で確定する。読み手が書きかけの結果を読まない。
-        private static void CommitResult(string path, string json)
+        // head の失敗の後に、確定した成功の結果を欄つきの結果で置き換えるので、既にある file は File.Replace で置き換える。
+        internal static void CommitResult(string path, string json)
         {
             var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 File.WriteAllText(temp, json, new UTF8Encoding(false));
-                File.Move(temp, path);
+                if (File.Exists(path)) File.Replace(temp, path, null);
+                else File.Move(temp, path);
             }
             finally
             {
@@ -166,19 +210,22 @@ namespace SampleGame.DependOnAll.Editor.Build
         internal sealed class Stages
         {
             public Stages(Func<BuildPurposeDeclaration, BuildContentResult> build, Func<BuildContentResult, string, string> publish,
-                Action<string, string> commit, Action<string> logError)
-            { Build = build; Publish = publish; Commit = commit; LogError = logError; }
+                Action<string, string> commit, Action<string> logError, Func<string, ContentOriginHeadWriteResult> writeHead)
+            { Build = build; Publish = publish; Commit = commit; LogError = logError; WriteHead = writeHead; }
 
             public static Stages Default { get; } = new Stages(
                 declaration => SampleGameContentBuild.BuildUnchecked(declaration, BuildMode),
                 ContentTransportPublisher.Publish,
                 CommitResult,
-                message => Debug.LogError(message));
+                message => Debug.LogError(message),
+                ContentOriginHeadWriter.Write);
 
             public Func<BuildPurposeDeclaration, BuildContentResult> Build { get; }
             public Func<BuildContentResult, string, string> Publish { get; }
             public Action<string, string> Commit { get; }
             public Action<string> LogError { get; }
+            /// <summary>公開先の directory を受け、その親（取得元の root）の head を書く。置き換えの失敗と掃除の失敗を注入する口。</summary>
+            public Func<string, ContentOriginHeadWriteResult> WriteHead { get; }
         }
 
         [Serializable]
@@ -190,6 +237,8 @@ namespace SampleGame.DependOnAll.Editor.Build
             public string declaration = "";
             public string buildMode = "";
             public int exitCode;
+            // head の書き込みが失敗した時の理由（終了コード 6）。成功の時は空。
+            public string originHeadFailure = "";
         }
 
         [Serializable]

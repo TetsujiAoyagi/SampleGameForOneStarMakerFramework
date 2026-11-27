@@ -214,6 +214,60 @@ content の file を開かず、Content Directory を登録しない。
 - **選択が保証しないこと:** 読み口は `index` の欄だけを検査し、manifest の他の必須欄、互換性、`content/` の実在は
   見ない。選んだ build は、install と登録の検証を省かずに通す。
 
+#### 取得元と取得
+
+**取得元**（`IContentOrigin`、`Runtime/BuildContent/Distribution/`）は、検証する前の bytes を持つ場所である
+（手元の publish 済みの directory、LAN、cloud）。到着点（installed cache）でも、要求時解決の供給元（`IContentProvider`）でもない。
+取得元が答えるのは 2 つだけで、照会（`FindAsync`。contentSet・target と任意の revision を受け、`Found` / `NotFound` /
+`Unavailable` で答える。「持っていない」は例外ではなく `NotFound`）と、見つけた 1 件の bytes の取得口を開くこと
+（`OpenArtifacts`。今の `IContentArtifactSource` を返す）である。entry の所在は取得元だけが解釈する不透明な文字列である。
+差込口は `UnityEditor` に依存せず、資格情報の引数を持たない（実装は host が資格情報ごと組み立てて渡す）。
+`OpenArtifacts` と取得口の `Dispose` は同期で待たない契約で、共通の側はこの 2 つを打ち切れない。
+手元の directory の取得元は `ContentOrigins.Directory(id, root)` で、root が無い時も「無い」と答える。
+
+- **head:** 取得元が、ある contentSet と target について勧める 1 件。置き場所は取得元の root の
+  `.origin/<contentSet>/<target>.json`（`ContentOriginHead.RelativePath`）で、版 1 の欄は `version`・`contentSet`・`target`・
+  `revision`・`manifestSha256`・`path`（root からの相対の directory。その下に `transport.json` と `content/`）、上限は 64 KiB。
+  時刻の欄は持たない。読み（`ContentOriginHead.Read`）は、file の不在と版 0 を「head なし」（`NotFound`）、開けない時、版 2 以上、
+  形の失敗（型、欄の欠け、相対でない path、hash の形、照会と違う contentSet・target）を `Unavailable` にする。revision を指定した
+  照会には、head の revision と同じならその entry を、違えば root の直下の revision の名前の directory の `transport.json` を
+  開けた時に、申告の digest の無い `Found` を答える。directory の列挙は使わない。書き手は 18 章「配信用 transport の公開境界」。
+- **digest の出所:** installer は必ず期待 digest を受け取る。出所は pin（`ContentPin`。bytes と別の経路で得た revision と digest）と、
+  申告（取得元の head に書いてあった digest）の 2 つで、結果に残す（`ContentDigestAuthority`）。host は取得元ごとに信頼
+  （`ContentOriginTrust`）を渡し、Framework の既定は `PinnedOnly`、申告も使う取得元は `AcceptDeclared` である。pin があれば
+  head と申告は使わず、pin の revision を照会して pin の digest で検証する。申告を認めた取得元は、そこに書ける人による差し替えを
+  検出しない（出所は結果に出るが止めない）。`ContentLoadRecord` の由来と受け入れ根拠は変えず、どの取得元から来た revision も
+  install の後は同じ `ContentDirectory` / `VerifiedDigest` である。receipt に取得の出所の欄は無い。
+- **調停**（`ContentAcquisition.AcquireAsync(request, origins, store, token)`）: 対象の組（revision と digest）を 1 回だけ決め、
+  以後、別の revision へは進まない。取得元を当たる順は host が渡した列の順で、取得元の型や `Id` で分岐しない。
+  1. **対象を決める:** pin があれば pin の組。無ければ `AcceptDeclared` の取得元を順に照会し、最初に digest つきで `Found` と
+     答えた head（`PinnedOnly` の取得元は「pin が要る」と残して飛ばす）。照会の失敗・例外・digest の無い答え・照会と違う entry は
+     理由を残して次へ。決まらなければ `NotFound`。
+  2. **到着点を見る:** 対象の revision が在り、receipt の digest が同じで再検証が通れば `AlreadyInstalled` で、bytes の取得口を
+     開かない。digest が違えば `ArrivalDigestConflict`（上書きしない）。cache を読めない・receipt が壊れている・再検証が通らない時は
+     `ArrivalFailure`（直す操作は無い）。
+  3. **取得元から取る:** 照会の失敗、`transport.json` に届かない・読んでいる途中の失敗、bytes が対象の digest と違う時は、
+     理由を残して次の取得元で同じ対象の組を探す。digest は同じで manifest が壊れている・identity か target が違う・互換でない時は
+     `TargetUnusable`（同じ bytes なので他の取得元でも同じ）、budget を超える時と cache の側の失敗は `ArrivalFailure` で終わる。
+     installer が成功すれば `Acquired`（その間に別の操作が同じ revision を入れて再利用で返れば `AlreadyInstalled`）。取得元が尽きた時、
+     整合性の失敗が 1 件でもあれば `IntegrityFailure`、無ければ `NotFound`。
+- **失敗の振り分け**（`ContentAcquisitionRules`）: installer の失敗 code だけでは決めない（同じ code が取得元の側と到着点の側の
+  両方から出る）。段と、guard（`ContentOriginGuard`）が取得元の open・read の失敗を観測したか、guard が installer へ渡した bytes
+  そのものが対象と食い違ったか（`transport.json` の SHA-256 か上限、content の file の大きさか SHA-256）で決める。どちらも無い失敗と、
+  installer の失敗の後に cache を読み直して対象が在る時は、到着点の側とする。hash の違いと「短い」は EOF まで渡した時だけ確定する。
+- **取得元の受け止め:** 取得元を信用しない。照会の答えも bytes も検証を通るまで使わない。到着点へ書くのは installer だけで、
+  調停は cache に書かず、先に読んだ manifest を install の根拠にしない。guard は取得元の例外を installer へ
+  `ContentDeliveryException(TransportFailure)` で返し、取得元が自分で投げた `OperationCanceledException` も取得元の失敗にする。
+  取得口と stream の `Dispose` の例外と、打ち切った task の後で走る遅れた後片付けの例外は投げ直さず、結果の `Diagnostics` に入れる。
+  後片付けは成功・取消・元の失敗の結果を上書きせず、結果を作った後に来た分は入らない。
+- **取消:** 呼び手の token の取消は `Canceled`。取得元が応じなくても待たずに打ち切り、installer の staging の片付けと cache の
+  lock の解放を待ってから戻る。打ち切った読みが後で終わっても installer の buffer には書かない。installer が取消を見る最後の点
+  （最後の file の、取得元からの最後の読みが戻る時）より後の取消は見ないので、その取得は `Acquired` で終わる。
+- **古い install を消しうる:** installer の容量の確保は、budget を超える時に今回の対象でも known-good でもない古い install を消す。
+  取得は成功だけでなく、失敗や取消で終わっても、今まで Play が使っていた revision を消しうる。結果の `RemovedInstalls` は、調停が
+  installer の呼び出しの前後で cache を読んだ観測の差（`<contentSet>/<revision>`）で、transaction の外で読むので他の操作の削除も
+  入りうる（原因の帰属ではない）。staging の片付けの失敗は `Diagnostics` に載る。
+
 ---
 
 ## 3. 設計思想
@@ -387,6 +441,9 @@ loader が成功として返す record の候補の identity は、その handle
 #### まだ保証しないこと
 
 - 供給元は登録した session の層（base と任意の上書き 1 つ）と、Editor の snapshot の Play の複製だけである。上書きを Play に載せる入口、Local / LAN の供給元、要求の時点の install は無い。
+- 取得元（上の「取得元と取得」）の実装は手元の directory だけで、LAN と cloud の取得元、取得の timeout・再試行・進捗、同時の取得の合流は無い。取得元が持つ revision の一覧（head より多い物）と、互換でない head の下の古い互換な revision へ進むことも無い。照会・open・read が Task を返す前に止まる取得元は打ち切れず、取得元の adapter が速やかに Task を返す契約は決めていない。遅れた読みが残る間に取得口が破棄される時の stream と取得口の寿命も決めていない。
+- head の書き手は 1 つの取得元の root に同時に 1 つを前提にし、直列化しない。前提が破れても他の書き手の head は壊さない（後から書いた方が勝つ）が、置き換えの部分失敗の後に別の書き手が head を置いていた時は、前の head が backup の名前のまま残る（診断に path が出る）。
+- 取得の途中の script の compile（domain reload）の扱い、印を書く前に失われた staging の片付け、壊れた install を直す操作、cache の掃除の入口（known-good の昇格と `Evict` の呼び手）は無い。
 - Editor snapshot は Scene の要求にだけ答え、開いている Scene が参照する asset・prefab の手元の版を届けない。未要求の複製を要求まで load しないこと、snapshot の無い配線済みの Play で Unity が載せた同名の Scene を拒むことも無い。
 - game の code が `SceneManager` を直接呼んで載せた同名の Scene は扱わない。同じ identity を `SceneDirector` と loader の直接の呼び手が同時に持つ使い方は保証しない（台帳は identity ごとに 1 件で参照を数えないので、片方の unload がもう片方の Scene を離す）。`SceneDirector` の unload の Phase 2 と Phase 3 の間（`ExecuteAfterUnLoad` の `await`）に同じ identity を再び要求すると、Phase 3 の `ReleaseScene` が新しい entry を消しうる。directory の Scene も snapshot の Scene も同じである。
 - record が言うのは採用した **root の entry** の層までで、その Scene から見える依存の asset の版が同じ層に揃うことは言わない（上の「id による影」の限界）。

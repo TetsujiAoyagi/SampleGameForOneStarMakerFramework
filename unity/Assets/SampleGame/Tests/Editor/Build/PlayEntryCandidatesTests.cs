@@ -194,6 +194,86 @@ namespace SampleGame.Tests.Editor.Build
             Assert.That(tampered.IsNotInstalled, Is.False);
         }
 
+        // ─── 選んだ base の記録（AC6） ───
+
+        private static ContentBaseSelectionRead Selection(InstalledContent installed, DateTime selectedUtc, string? digest = null) =>
+            new(new ContentBaseSelectionEntry
+            {
+                revision = installed.Revision, manifestSha256 = digest ?? installed.ManifestSha256, contentSet = "spring-full",
+                target = VerifyPlayLauncher.Target, selectedUtc = selectedUtc.ToString("O"),
+            }, string.Empty);
+
+        private PlayEntryCandidateSelection Select(ContentBaseSelectionRead selection) =>
+            PlayEntryCandidates.Select(_cache, SampleGameBuildPurposes.SpringFull, VerifyPlayLauncher.Target, SampleGameBuildPurposes.FirstSceneOf, selection);
+
+        [Test]
+        public async Task SelectedOlderRevision_ComesFirst_UntilANewerInstall()
+        {
+            var older = await InstallAsync("rev-older", "spring-full", "Full", "Full");
+            var newer = await InstallAsync("rev-newer", "spring-full", "Full", "Full");
+            SetInstalledUtc(older.RevisionRoot, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            SetInstalledUtc(newer.RevisionRoot, new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+            var selection = Select(Selection(older, new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.That(selection.Candidate!.Revision, Is.EqualTo("rev-older"));
+            Assert.That(selection.Warnings, Is.Empty);
+            Assert.That(Select().Candidate!.Revision, Is.EqualTo("rev-newer"), "記録を渡さない時は今の並び");
+        }
+
+        [Test]
+        public async Task InstallAfterTheSelection_ComesFirst()
+        {
+            // 製品の書く経路（実の時計）で記録を作り、その後に本物の installer で別の revision を install する。
+            var selected = await InstallAsync("rev-selected", "spring-full", "Full", "Full");
+            var record = Path.Combine(_root, "selection.json");
+            ContentBaseSelection.Write(record, new ContentBaseSelectionEntry
+            {
+                cacheRoot = _cache, contentSet = "spring-full", target = VerifyPlayLauncher.Target, revision = selected.Revision,
+                manifestSha256 = selected.ManifestSha256, selectedUtc = DateTime.UtcNow.ToString("O"),
+            });
+            await InstallAsync("rev-later", "spring-full", "Full", "Full");
+            var read = ContentBaseSelection.Read(record, _cache, "spring-full", VerifyPlayLauncher.Target);
+            Assert.That(Select(read).Candidate!.Revision, Is.EqualTo("rev-later"));
+        }
+
+        [Test]
+        public async Task SelectionWithAnotherDigestOrMissingRevision_IsIgnoredWithAWarning()
+        {
+            var older = await InstallAsync("rev-older", "spring-full", "Full", "Full");
+            var newer = await InstallAsync("rev-newer", "spring-full", "Full", "Full");
+            SetInstalledUtc(older.RevisionRoot, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            SetInstalledUtc(newer.RevisionRoot, new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+            var wrongDigest = Select(Selection(older, new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), new string('f', 64)));
+            Assert.That(wrongDigest.Candidate!.Revision, Is.EqualTo("rev-newer"));
+            Assert.That(wrongDigest.Warnings, Has.Some.Contains("different digest"));
+            Directory.Delete(older.RevisionRoot, true);
+            var missing = Select(Selection(older, new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc)));
+            Assert.That(missing.Candidate!.Revision, Is.EqualTo("rev-newer"));
+            Assert.That(missing.Warnings, Has.Some.Contains("no longer installed"));
+        }
+
+        [Test]
+        public async Task UnreadableSelectionRecord_DoesNotRejectPlay()
+        {
+            await InstallAsync("rev-a", "spring-full", "Full", "Full");
+            var record = Path.Combine(_root, "selection.json");
+            File.WriteAllText(record, "{ not json");
+            var selection = Select(ContentBaseSelection.Read(record, _cache, "spring-full", VerifyPlayLauncher.Target));
+            Assert.That(selection.Candidate!.Revision, Is.EqualTo("rev-a"));
+            Assert.That(selection.Warnings, Has.Some.Contains("cannot be read"));
+        }
+
+        [Test]
+        public async Task CacheLockHeldByAnInstall_IsReportedAsUnreadable()
+        {
+            await InstallAsync("rev-a", "spring-full", "Full", "Full");
+            using (new ContentCacheStore(_cache).AcquireTransaction())
+            {
+                var selection = Select();
+                Assert.That(selection.Candidate, Is.Null);
+                StringAssert.Contains("cannot be read", selection.Failure);
+            }
+        }
+
         // ─── fixture ───
 
         private async Task<InstalledContent> InstallAsync(string revision, string declaration, string representation, string companion)

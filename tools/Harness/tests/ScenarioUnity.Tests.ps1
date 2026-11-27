@@ -536,6 +536,30 @@ try {
         Assert ($res.ExitCode -eq 0 -and $script:waited -ceq 'ready-state' -and @($global:OsmFake_editor.Calls | Where-Object { $_.Kind -ceq 'read' }).Count -eq 4 -and $global:OsmFake_sleeps -ge 6000) 'state wait'
     }
 
+    Run 'Op12b QuietMs sends no read until the quiet time has passed, and omitting it keeps the old behavior' {
+        $fx = New-FixtureRepo; [void](Use-FakeSeams $fx)
+        $e = New-ManualWorktree $fx 'e' -Register
+        $global:OsmFake_onStart = $global:OsmFake_editorStart
+        $global:OsmFake_readTimes = [Collections.Generic.List[double]]::new()
+        $body = {
+            param($c)
+            $session = Start-ScenarioEditor $c
+            [void](Send-ScenarioEditor $c $session -Code 'UnityEditor.SessionState.SetString("k", "ready-state"); return "set";')
+            $global:OsmFake_mark = $global:OsmFake_now
+            foreach ($i in 1..5) { $global:OsmFake_editor.Plan.Enqueue({ param($call, $root) if ($call.Kind -ceq 'read') { $global:OsmFake_readTimes.Add(($global:OsmFake_now - $global:OsmFake_mark).TotalMilliseconds) }; $null }) }
+            [void](Wait-ScenarioEditor $c $session -Code 'return UnityEditor.SessionState.GetString("k", "");' -Until { param($v) $v -ceq 'ready-state' } -QuietMs 45000 -TimeoutMs 120000)
+            $global:OsmFake_editor.Plan.Clear()
+            $global:OsmFake_mark = $global:OsmFake_now
+            $global:OsmFake_editor.Plan.Enqueue({ param($call, $root) if ($call.Kind -ceq 'read') { $global:OsmFake_readTimes.Add(($global:OsmFake_now - $global:OsmFake_mark).TotalMilliseconds) }; $null })
+            [void](Wait-ScenarioEditor $c $session -Code 'return UnityEditor.SessionState.GetString("k", "");' -Until { param($v) $v -ceq 'ready-state' })
+            $global:OsmFake_editor.Plan.Clear()
+            [void](Stop-ScenarioEditor $c $session)
+        }
+        $res = Invoke-Scenario (New-EditorScenario 'quiet' $body) -RunId 'r' -CheckoutRoots @{ E=$e }
+        $times = @($global:OsmFake_readTimes)
+        Assert ($res.ExitCode -eq 0 -and $times.Count -eq 2 -and $times[0] -ge 45000 -and $times[1] -eq 0) "read times $($times -join ',')"
+    }
+
     Run 'AC2 a body exception with the Editor open asks it to exit before restoring' {
         $fx = New-FixtureRepo; [void](Use-FakeSeams $fx)
         $e = New-ManualWorktree $fx 'e' -Register

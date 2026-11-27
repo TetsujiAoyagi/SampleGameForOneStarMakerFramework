@@ -136,8 +136,18 @@ function Send-ScenarioEditorEval {
 
 function Wait-ScenarioEditorEval {
     # 状態の待ち。読む eval を Until が真を返すまで繰り返し、期限で止まる。
-    param([Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Body, [Parameter(Mandatory)] [scriptblock]$Until, [int]$TimeoutMs = 60000, [int]$PollMs = 2000)
+    param([Parameter(Mandatory)] [psobject]$Session, [Parameter(Mandatory)] [string]$Body, [Parameter(Mandatory)] [scriptblock]$Until, [int]$TimeoutMs = 60000, [int]$PollMs = 2000,
+        [int]$QuietMs = 0)
     $deadline = $Session.Clock.Now().AddMilliseconds($TimeoutMs)
+    # QuietMs: 最初の読む eval を、この時計で QuietMs が過ぎるまで送らない（Play への移行の間に eval を送ると Editor が
+    # Console に Error を残し、Play の record に入りうるため）。待ちの間も Editor の終了は見る。期限は QuietMs を含めて数える。
+    if ($QuietMs -gt 0) {
+        $quietUntil = $Session.Clock.Now().AddMilliseconds($QuietMs)
+        while ($Session.Clock.Now() -lt $quietUntil) {
+            if ($Session.Handle.WaitForExit(0)) { throw "Editor（PID $($Session.Pid)）が終わっています" }
+            $Session.Clock.Sleep([int][Math]::Min($PollMs, [Math]::Ceiling(($quietUntil - $Session.Clock.Now()).TotalMilliseconds)))
+        }
+    }
     while ($true) {
         $call = Invoke-ScenarioEditorCall -Session $Session -Kind 'read' -Body $Body
         if ($call.WrongTarget) { throw "起動した Editor（PID $($Session.Pid)）ではない Editor（PID $($call.Pid)）が応答しました" }
