@@ -198,7 +198,7 @@ W-8 の前提: **実コンテンツの計測フライト中の desired はすべ
 ## 6. スライス順序
 
 順序: **M-1〜M-4（完了）→ S-4 → S-5 → S-8a（春）→ S-9 → S-8b〜d（他変奏）**。S-6 / S-7 実装スライスは WCD で廃止。現行 Content build と DIST が担う。
-**例外（owner 決定 2026-11-27）:** S-9a（純政策ベンチマーク）だけは S-5・S-8a より前に出す。S-9b・S-9c は上の順序のままで、S-9a に入れない。S-9a は小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) で 6 つの小スライスに分け、それぞれ着手時に HANDOFF を切る。
+**例外（owner 決定 2026-11-27）:** S-9a（純政策ベンチマーク）だけは S-5・S-8a より前に出す。S-9b・S-9c は上の順序のままで、S-9a に入れない。S-9a は小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) で 6 つの小スライスに分け、それぞれ着手時に HANDOFF を切る。小計画の S-9a-6 が先行するのは §21 の T-08 のうち純政策の値の emit と表示の基盤だけで、実コンテンツの T-07〜T-09 は下の表どおり S-9b まで凍結のままである。
 1 スライス = 1 ブランチ = 1 HANDOFF（着手時に切り出す）。
 
 Editor操作は [AGENTS.md](../../AGENTS.md) と [osm-unity-editor](../../.agents/skills/osm-unity-editor/SKILL.md) を正とする。ローカルでは対象project / 版 / pathを確認し、必要ならEditorを起動してよい。人間の手動起動は前提でない。Phase BはEditor操作・compile確認まで、UnityテストとBuildはPhase C。`unity test` / `unity run`、CloudのUnity CLI、Scene / asset YAML手編集は禁止し、人間のEditorを強制終了しない。`record` 禁止・`#nullable enable`・破棄されうる `UnityEngine.Object` への `?.` / `??` 禁止も維持する。
@@ -222,7 +222,7 @@ Megacity は大きな workload の証拠であり、OSM の性能を代弁しな
 
 | 段 | 目的 | workload / 計測 | 完了条件 |
 |---|---|---|---|
-| **S-9a 純政策ベンチマーク** | `WorldStreamingController` 自体の候補数スケールと収束を、シーンロードの重さから分離する | FakeBackend で **1,000 / 10,000 候補**。単一 / 複数 Focus、静止 / 等速移動 / テレポート、desired 疎 / 密を分ける。Tick 時間、1 Tick の GC allocation、`IsLoaded` 照会数、最終 `desired = resident` までの時間、in-flight 上限時の backlog と最古要求待ち時間、starvation、duplicate request / stale completion / cancel 後残留を取る | workload ごとに反復数・中央値・p95 / p99を記録し、着手時 HANDOFF の control-plane 予算内。予算外なら S-9c の判断材料にし、S-9a 中に索引や Jobs を先回り実装しない |
+| **S-9a 純政策ベンチマーク** | `WorldStreamingController` 自体の候補数スケールと収束を、シーンロードの重さから分離する | FakeBackend で **1,000 / 10,000 候補**。単一 / 複数 Focus、静止 / 等速移動 / テレポート、desired 疎 / 密を分ける。Tick 時間、1 Tick の GC allocation、`IsLoaded` 照会数、最終 `desired ⊆ resident ⊆ retain`（ヒステリシスのため `desired = resident` ではない。定義は小計画 §5.3）までの時間、in-flight 上限時の backlog と最古要求待ち時間、starvation、duplicate request / stale completion / cancel 後残留を取る | workload ごとに反復数・中央値・p95 / p99を記録し、着手時 HANDOFF の control-plane 予算内。予算外なら S-9c の判断材料にし、S-9a 中に索引や Jobs を先回り実装しない |
 | **S-9b 実コンテンツ横断** | SceneDirector / IAssetManagement / Content Directoryの通常経路とasset payloadを含む実証 | 変奏 II（夏）の背 `y=5` を等速と高速で往復。§21 A-1〜A-5に加え、ロード時間 p50 / p95 / p99、停止後の収束時間、常駐 / in-flight / cancel / pending-unload、managed / native / asset memory peak と復帰、通常経路のtoken / native resource / sessionの解放と残留を取る（互換Addressablesを別途測る場合はhandle残留も分けて記録する） | `y=4` が未昇格で、計測中 desired がすべて Generated。A-1〜A-5と着手時 HANDOFF の数値予算を満たし、例外・集合不一致・リークが 0 |
 | **S-9c 撤退・最適化判断** | 数値から次の実装を選び、推測で設計を増やさない | S-9a / b の結果を、政策計算、`IsLoaded` 全件再照合、SceneDirector状態遷移、Content Directory / asset payloadに分解する。明示Addressables互換の測定は通常経路と混ぜない | 現状維持 / 空間索引＋ロード済み identity 列の取得口 / managed・native backend 比較 / SceneDirector 撤退ライン、のいずれかを根拠付きで決定。空間索引だけを入れて遠方 resident の Unload を漏らさない |
 

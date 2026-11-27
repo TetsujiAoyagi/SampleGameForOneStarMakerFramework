@@ -9,6 +9,7 @@
 - 位置付け: 小計画 [STREAMING_POLICY_BENCHMARK.md](STREAMING_POLICY_BENCHMARK.md) §4 の S-9a-1。6 本のうちの最初の 1 本
 - 版の経緯:
   - 2026-11-27 A1 初稿（S-9a を 1 スライスで行う初稿を owner が「大きい」と判断し、小スライスに分けた後の 1 本目）
+  - 2026-11-27 A3 統合案の改訂。Draft PR #218 の外部計画レビュー（入力は head `03eb1ced`。判定「小修正後に凍結推奨」）を反映した（§5.1）
   - 2026-11-27 A3 統合案。A2 の 2 件（アーキテクチャゲート、目的レビュー）の採否を §5.1 に記録し、模型の定義と受け入れ条件を改めた
 - branch: `claude/s9a-policy-benchmark-handoff-qbq8fq`（`origin/develop` の `61b60e63` から切った計画ブランチ。PR の base は `develop`）
 - implementation base commit: `61b60e635a59c35730f39ebac52a7482eb278f43`
@@ -73,17 +74,18 @@
     - **S3** 10,000 件の id への Add を出して進めても、定義どおりに全件がロード済みになる。
 - 受け入れ条件:
   - **AC1（S1・I1）** Tick 0 に遅延 3 の Add を出す。`AdvanceTick()` を 2 回呼んだ後（Tick 2）は未ロードで task は未完了、3 回目の後（Tick 3）はロード済みで task は完了している。task に付けた継続は 3 回目の `AdvanceTick()` から戻る前に走っており、継続の中で読んだ `IsLoaded` は true である。不合格の例: 3 回目から戻った直後に継続がまだ走っていない。継続の中の `IsLoaded` が false である。
-  - **AC2（S1）** 保留中の Add に Remove を出すと、Add の期限でロード済みになり、Remove の期限で未ロードになる。次の 3 つを別々に確かめる。(a) Remove の期限が Add の期限より後: Add の期限の Tick の後はロード済み、Remove の期限の Tick の後は未ロード。(b) `現在の Tick + Remove の遅延` が Add の期限以下（等しい場合を含む）: Add の期限の 1 回の `AdvanceTick()` が Add、Remove の順に 2 件を返し、終わりは未ロード。(c) Remove の遅延が 0 で Add が保留中: Remove の task は呼び出しから戻った時点で未完了で、(b) と同じく Add の期限に配送される。
+  - **AC2（S1）** 保留中の Add に Remove を出すと、Add の期限でロード済みになり、Remove の期限で未ロードになる。次の 3 つを別々に確かめる。(a) Remove の期限が Add の期限より後: Add の期限の Tick の後はロード済み、Remove の期限の Tick の後は未ロード。(b) `現在の Tick + Remove の遅延` が Add の期限以下（等しい場合を含む）: Add の期限の 1 回の `AdvanceTick()` が Add、Remove の順に 2 件を返し、終わりは未ロード。(c) Remove の遅延が 0 で Add が保留中: Remove の task は呼び出しから戻った時点で未完了で、(b) と同じく Add の期限に配送される。(b) と (c) では Add の task と Remove の task に継続を 1 つずつ付け（同じ task を 2 回 await しない）、継続の中から読んだ状態を確かめる: Add の継続ではロード済み = true、保留中の Add = false、保留中の Remove = true。Remove の継続ではロード済み = false、保留は両方 false。Add の継続が Remove の継続より先に走る。不合格の例: Add と Remove の状態をまとめて反映してから task を順に完了する実装（Add の継続の中でロード済みが false に見える）。
   - **AC3（S1）** 遅延 0 の Add と、保留中の Add が無い id への遅延 0 の Remove は、呼び出しの中で完了し、返る task は完了済みである。
   - **AC4（I2。失敗経路）** 次の 5 つを 1 件ずつ出す: 保留中の Add がある id への Add、ロード済みの id への Add、ロード済みで Remove の保留中の id への Add、保留中の Remove がある id への Remove、未ロードで保留も無い id への Remove。それぞれ、対応する種類の duplicate の計数が 1 増え、返る task は完了済みで、呼び出しの直後の保留の数とロード済みの数は呼び出しの前と同じである。先に出した要求は元の期限で完了する。
   - **AC5（S1）** `IsLoaded`、Add、Remove の計数が呼び出しの数と一致する。有効な Add 1 回と duplicate の Add 1 回の後、Add の計数は 2、duplicate は 1 である。読み口を何回呼んでも `IsLoaded` の計数は増えない。
-  - **AC6（S2）** 同じ列を 2 つの instance に与えると、`AdvanceTick()` が返す列と全ての計数が一致する。同じ期限の完了は要求の順に並ぶ。
+  - **AC6（S2）** 同じ列を 2 つの instance に与えると、`AdvanceTick()` が返す列と全ての計数が一致する。同じ期限の完了は要求の順に並ぶ。違う id の 2 つの Add が同じ期限の時、先の Add の継続の中から読むと、後の id はまだ未ロードで、保留中の Add が true である。
   - **AC7（S3）** 10,000 件の Add を出して期限まで進めると、ロード済みの数が 10,000、保留が 0 になる。
-  - **AC8（I1・I3）** 変更 file が §3 の 5 file と一致する。`pwsh tools/contract-audit.ps1`（`Task.Delay` / `Thread.Sleep`、`#nullable enable`、`record` を含む）と `pwsh tools/docs-audit.ps1` が違反なし。全 EditMode 回帰が通る。
+  - **AC8（I1・I3）** A3 凍結 commit から Phase B の head までの差分が、§3 の 5 file と HANDOFF の記録（`docs/handoff/`）だけである（implementation base からの差分には計画の文書 4 file が入るので、基準にしない）。`pwsh tools/contract-audit.ps1`（`Task.Delay` / `Thread.Sleep`、`#nullable enable`、`record` を含む）と `pwsh tools/docs-audit.ps1` が違反なし。全 EditMode 回帰が通る。
   - **AC9（I1。失敗経路）** task の継続の中から `RequestAdd`、`RequestRemove`、`AdvanceTick` を呼ぶと、それぞれ `InvalidOperationException` になる。
   - **AC10（I2。失敗経路）** 構築時の列に無い id で `RequestAdd`、`RequestRemove`、`IsLoaded`、id ごとの読み口を呼ぶと `ArgumentException` になり、計数と状態は変わらない。
 - ここでは答えない問いと所有する後続スライス:
   - oracle と runner が件数を正しく数えるか → S-9a-2
+  - runner が、どの id に要求が出たかを知る方法 → S-9a-2。この backend は履歴を持たず、遅延 0 の完了は `AdvanceTick()` の戻り値に出ない。S-9a-2 は、正の遅延の workload で Tick の前後の id ごとの状態の差から復元できる条件を示すか、要る最小の観測の口を S-9a-2 で足す。本スライスでは履歴も通知も足さない
   - Controller が件数の予算に収まるか → S-9a-3
   - 時間と確保 → S-9a-4。backend 自身が測定中に確保しない事の確認も S-9a-4
   - 実物の SceneDirector との一致 → S-9b（`SEASON_WORLD_DESIGN.md` §6）
@@ -98,6 +100,7 @@
   - asmdef の参照を足さない。既存の `OneStarMaker.Tests` に置く。
   - repo 相対 path は 150 文字以内（`tools/path-budget.json`）。
   - 長い実行で確保が伸びない作りにする: 呼び出しの履歴を溜めない。id ごとの状態は構築時に受けた identity の列で確保する。`AdvanceTick()` の戻り値は再利用する buffer にする。保留ごとの completion source の確保は本スライスでは許容する（要求を出さない Tick では走らない。確保量の確認は S-9a-4）。
+  - backend が測定を支配しない作りにする（後続の S-9a-4 は `controller.Tick` の中の `IsLoaded` / `RequestAdd` / `RequestRemove` ごと測る）: identity から状態への索引を構築時に作る。`IsLoaded` と要求の受付で、候補の全件も保留の全件も走査・整列しない。配送の buffer は、同じ Tick に Add と Remove の両方が全候補分（候補数の 2 倍）来ても伸ばさずに済む大きさで確保する。`AdvanceTick()` の処理は Tick の時間の測定の外である。時間や確保を測る code と test は本スライスでは足さない。
   - Unity テストは Phase C。Phase B は Editor での compile 確認まで。
 - 未決事項:
   - A1 の U1（保留中の Add への Remove の模型は 1 通りで足りるか）と U2（duplicate を例外ではなく計数にする）は、A2 で「1 通りで足りる」「計数でよい」となり、その形で定義に入れた（§5.1）。
@@ -172,7 +175,21 @@
   | M6 | 目的 | Tick を進める独自の loop や UpdateSystem への登録を作らない | 採用（初稿どおり） | Tick は test が `AdvanceTick()` で進める |
 
 - **owner の裁定待ち（目的の文言）:** 目的レビューは、目的の文だけからは次が読めないと指摘した: Tick の番号の出所、完了までの Tick 数の決め方、ロード済みの状態の単位と戻り方、「照会」の意味、数える対象の区別、test 専用の範囲、差し替える抽象が既存か新設か、後続の測定が要る値。目的・利用者の文言への指摘の採否は owner が裁定する。統合担当の案は「文言を変えない」である。理由: どれも §2 の定義で答えており、目的の文に入れると定義の写しになる。文言を変える裁定なら、変えた原文で目的レビューを 1 回やり直してから凍結する。
-- 設計の変更（G4 の口の絞り込み、G6 の読み口の追加）に対するアーキテクチャゲートの再レビュー: 不要と判断した。どちらもゲートの提案をそのまま採った物で、口を減らす向きの変更である。Draft PR の外部計画レビューで見る。
+- A2 の入力の base について: A2 のゲートは `c4bf4143` を読んだ。implementation base は `61b60e63` である。2 つの差分は `docs/` の 4 file だけで、`unity/` 配下に差分は無い（`git diff --stat 61b60e6 c4bf414`）。ゲートが読んだ code は implementation base と同じである。
+- Draft PR #218 の外部計画レビュー（2026-11-27、owner のアカウントからの投稿。入力は head `03eb1ced`。判定「S-9a-1 は小修正後に凍結推奨」）。下の採否は統合担当の案で、確定は owner の凍結判断による:
+
+  | # | 指摘 | 採否（案） | 反映 |
+  |---|---|---|---|
+  | E1 | Major 1: AC2・AC6 は配送の順だけでなく、各完了の継続から見える中間の状態を固定する | 採用 | AC2、AC6 |
+  | E2 | Major 2: backend の hot path の計算量、配送 buffer、`AdvanceTick` が測定の外である事を決める。件数の runner の観測の境界を残す | 採用 | 実装制約、「ここでは答えない問い」、小計画 §4 |
+  | E3 | Minor: AC8 の差分の基準を A3 凍結 commit からにする。A2 の入力 base と implementation base の違いを確かめる | 採用 | AC8、上の行 |
+  | E4 | 申し送り（S-9a-2/3）: 観測の時系列、B4 の導出、starvation の区別、duplicate は FAIL と記録 | 後続へ移送 | 小計画 §4・§5.3・§5.4・§6 |
+  | E5 | 申し送り（S-9a-2/3）: 収束は `desired ⊆ resident ⊆ retain`。親計画の「`desired = resident`」を直す。B3 は模型の条件 | 採用 | 小計画 §5.4、`SEASON_WORLD_DESIGN.md` §6 |
+  | E6 | 申し送り（S-9a-4）: 全 Tick・要求を出した Tick・静かな Tick の分布を分けて記録する。条件を A3 で固定する | 後続へ移送 | 小計画 §4・§5.3 |
+  | E7 | 申し送り（S-9a-6）: 先行するのは純政策の値の emit と表示の基盤だけ。T-08 の完了は S-9b | 採用 | 小計画 §4、`SEASON_WORLD_DESIGN.md` §6 |
+  | E8 | 目的の文言は変えなくてよい。M4・M5 の不採用、模型 1 通り、duplicate の計数に賛成 | —（owner の裁定の入力） | — |
+
+- 設計の変更（G4 の口の絞り込み、G6 の読み口の追加）に対するアーキテクチャゲートの再レビュー: 不要と判断した。どちらもゲートの提案をそのまま採った物で、口を減らす向きの変更である。Draft PR の外部計画レビューはこの形を読んだ上で、凍結推奨とした。E1〜E3 は test と実装制約の追加で、模型の定義を変えないので、再レビューは不要と判断した。
 
 ## 6. Phase B 実装結果
 
