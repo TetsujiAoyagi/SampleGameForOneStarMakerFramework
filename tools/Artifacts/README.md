@@ -531,6 +531,18 @@ pwsh tools/docs-audit.ps1
 
 PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離store、clock/transport/scheduler注入とbarrier/signalを使い、30日待機やTask.Delay/Thread.Sleep、秘密や実E1 source、実R2 DELETEを必要としません。DPAPI/ACLの成立はowner Windowsユーザーで確認し、別sandboxユーザーの結果を流用しません。synthetic診断と過去first-useの成功を新v2、scheduler、resetの成立証拠にしません。EvidenceCleanup suiteの `fresh-process-cleanup-contract` は `rg`（ripgrep）でsource一覧を取るため、全suiteを流す前にrgをPATHへ通します。無いとこのcaseだけが失敗します。
 
+### 理由を返さない失敗の原因
+
+CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。対処は、保護名の検査やcatalogの上限を避ける手段ではありません。どれも既存の契約（秘密の保護、証拠の集合とmanifest・hash、[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md)）の中で行います。同じ固定codeには他の原因もあるので、当てはまるかを確かめてから対処します。Evidenceの `--config` と `--selection` の読取失敗は固有のcode（`invalid-evidence-config`、`invalid-selection`）を返すので、この表の対象ではありません（「終了・再開・利用中と清掃」の節）。
+
+| 症状 | 原因 | 根拠 | 対処 |
+|---|---|---|---|
+| publish・stage・fetchがどれも `unconfirmed`。一部のsuiteは起動前に止まる | そのworktreeに3 projectのRelease build（git管理外の出力）が無い。新しく作ったworktreeには無い | 観測（2026-10-16）。DLLを用意すると解消した | 出力先に3つのDLLが無いことを確かめてから、上の `dotnet build` 3行を実行する。git差分は出ない |
+| stage / publishが `unconfirmed` | bundleに保護名のfileがある（`credentials.json`、`service-account.json`、`token`、`.env` など。大小文字を区別しない）。testの結果を `<suite>.json` の名前で集めると、Credentials suiteの結果が当たる | 保護名はcodeで確認（`PackagePolicy`）。症状は観測（2026-10-16、PR #124） | 送信担当が内容を読んで非秘密と確かめたfileに限り改名し、元名・新名・内容hashの対応表を同じbundleに入れる（レビュー証拠の保護名の点検）。秘密を含むfileは改名せず、bundleから外す。保護名の規則は変えない |
+| stage / publishが `unconfirmed` | taskのcatalogが1 MiBの上限に達した。fileの1件が約1 KBを使い、同じtaskに置いた全bundleの累計で数える | 上限はcodeで確認（`record-limit`）。1件の大きさと累計で数えることは観測（2026-10-16 PR #124、2026-11-12 PR #177） | 小さなfileの群を1つのzipにまとめる。保護名の検査はselectionに載るpathだけを見て、zipの中のfile名は見ない。まとめる前に、中に入れる各fileを同じ保護名の規則で自分で点検し、当たるfileは入れない（非秘密と確かめて改名する時は上の行の手順）。中のfileの一覧と内容hashの表を同じbundleに入れ、判定が個々のfileを参照できる状態を保つ。判定に要るfileを減らす手段にしない |
+| 古いBuildの `build inspect` が `receipt-unavailable` | `--config` の置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する）。またはbuild-configがpublishの時と同じbytesでなく、receiptの `configSha256` と合わない。`inspect` はどちらも `receipt-unavailable` に畳む | codeで確認（`Read-BuildConfig`、`Read-BuildSuccessCore` のconfigの照合、`Invoke-BuildInspect` のcatch） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。configを書き直さない |
+| `build fetch` が `unconfirmed` | `--config` の置き場が上と同じ条件を満たさない、またはconfigを読めない。`fetch` はこの失敗を既定の `unconfirmed` のまま返す。`fetch` はreceiptの `configSha256` を照合しない | codeで確認（`Read-BuildConfig`、`Invoke-BuildFetch`） | 上と同じpathを渡す。`download-unconfirmed`・`invalid-reference`・`delete-pending` は別の原因で、固有のcodeが返る |
+
 ## 経緯
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口だった `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` のCURRENTは、LocalCache側のcopyと一緒に2026-10-20に削除しました。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。

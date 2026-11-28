@@ -38,7 +38,8 @@ description: >-
 2. `tools/unity-editor.cmd command` で **この Editor が公開している名前** を見る。推測でコマンド名を固定しない。一覧は長いので、名前で絞って見る（例: `tools/unity-editor.cmd command | Select-String refresh`）。出力を絞るフィルタ（`Select-String` 等）へのパイプだけは、上の「連結しない」の例外とし、他の command へはつながない。存在しない名前を呼ぶと一覧全体がエラーとして返る。
 3. 名前付き command を先に使う。Pipeline 0.4 系なら `move_asset` / `open_scene` / `save_scene` / `set_transform` / `menu` が候補。
 4. 名前付き command が足りないときだけ `tools/unity-editor.cmd eval <UTF-8 Base64>`。PowerShellなら `$encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($code))` で作る。
-5. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。
+5. `eval` で長い処理（content build など）、観測、測定を行う前、Library の無い worktree で Editor を開く前に、[実測の事実](references/editor-eval-facts.md) を読む。timeout の応答の読み方、Editor が working tree に残す差分、値が取れない観測の対象を置いている。
+6. S-4b P3 以降、`WorldCellStreamingSliceCreator` / `SeasonWorldGenerationCommand` メニューは HEAD に無い。Generate を再実行しない。
 
 ## Phase B でやってはいけない（H2未適用）
 

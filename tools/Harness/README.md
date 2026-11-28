@@ -20,6 +20,15 @@ pwsh tools/run-tests.ps1 -OutputRoot 'C:\Test Evidence\Unity'
 
 step v1 は今回の条件、Unity 実行ファイルと要求版、process の終了、XML の leaf 件数と結果、compile error、ログの hash を保存する。`cases[].reason` は XML の `reason/message` だけを写し、一般の失敗本文を表す欄ではない。`failure/message` を含む詳しい失敗内容は同じ invocation の生 `results.xml` を参照する。
 
+### 読み違えやすい結果
+
+この節は観測した挙動の説明で、上の成功判定（step の `status=passed` と `exitCode=0`。`-ObserveUnity` の run は「Unity 内観測」の条件も）を変えない。XML の root result が `Passed` であることは test の集合についての観測で、runner の合格ではない。Inconclusive、Unity の終了コード 2、強制終了を含む run は、そのまま不成立として記録する。そうした run の XML を合否に使えるのは、そのスライスの凍結した条件が、限定した観測として明示して許している時だけで、既存の gate の代わりにはならない。
+
+- **`-Filter` は正規表現の部分一致。** 値は Unity の `-testFilter` へそのまま渡り、test の完全名に部分一致する。名前が前方一致する別の test も同じ process で走り、`[Explicit]` の test も当たれば走った（2026-11-23、6000.6.9f1）。末尾に `$` を付けた形（`-Filter 'NS.Class.LaunchPlayable$'`）で `total` が 1 になることを確かめた。`.` は任意の 1 文字に当たるので、厳密に 1 件へ絞るなら完全名を正規表現として escape して `^…$` で囲む（`-Filter '^NS\.Class\.LaunchPlayable$'`。この形は実行で確かめていない）。どの形でも、XML の `total` で件数を確かめる。`-Filter` は文字列 1 つで、複数の名前を渡すと 1 本の正規表現になる。複数の case を 1 件ずつ走らせるなら、case ごとに別の process で `run-tests.ps1` を呼ぶ。
+- **`-WithGraphics` なしの全 EditMode は、test が 1 件も失敗していなくても step が `failed` になる。** `-nographics` では描画を要する test（`SampleGame.Tests.Rendering.Vfx` の PlayTests）が Inconclusive になり、runner は Inconclusive が 1 件でもあれば step を `status=failed`、exit 1 にする（`failure` は `Inconclusive のテストがあります`。runner の code で確認）。このとき XML の root result は `Passed`、failed は 0 だった（2026-11-08 以降の全 EditMode の run、6000.6.0f1 と 6000.6.9f1）。全 EditMode を条件にする計画は、`-WithGraphics` で Inconclusive 0 を取るのか、XML の読みを限定した観測として許すのかを、凍結の前に決めて条件の文に書く。書いていない計画では、step の `failed` がそのまま不成立である。
+- **同じ結果の集合でも Unity の終了コードは 0 と 2 の両方を観測した。** Failed 0・Inconclusive ありの別々の 5 回の run で、0 が 2 回、2 が 3 回だった（2026-11-26、6000.6.9f1。原因は調べていない）。2 のときは step の `failure` に `Unity process が正常終了しませんでした: 2` の行が加わる。
+- **step が `failed` の理由は `step.json` の `failure` で読む。** 理由が Inconclusive なのか、process の終了なのか、compile error なのかは、終了コードからは分からない。理由が分かっても、不成立であることは変わらない。
+
 ### 起動前の path 予算検査
 
 Windows の Unity 同梱 Mono は、260 文字以上の path を `File.OpenRead` などで開けない。runner は出力先を確保した後、Unity を起動する前に、[`tools/path-budget.json`](../path-budget.json) の予算で次を検査する。予算の数値と vendor の allowlist はこの file だけにあり、判定は [`PathBudget.psm1`](PathBudget.psm1) が持つ。contract-audit の検査 9 も同じ判定を使う。
@@ -213,3 +222,9 @@ Unity 6000.6.0f1で、全EditModeの957件Passed・skip0・観測complete後にn
 **同じ事象の次回再開では、最初の1回だけ限定調査を行い、それ以上の原因調査を続けない。** 既存証拠との差分と同一症状かを確認し、追加取得が必要なら仮説・変更条件・観測・終了条件を先に記録して最大1回に限定する。同じ症状が続けば既知リスクとして受け入れ、追加dump、filter二分探索、無変更の全件run反復、別session/taskへの持越しで調査回数を増やさない。明示的な新しいユーザー指示なしに調査を再開しない。
 
 この停止規則は原因調査の予算であり、raw結果の書換えや自動ゲート緩和ではない。test失敗・欠測・compile errorなど別の不成立へ受容を広げず、未終了/強制終了はそのまま記録する。timeout延長、skip、Burst無効化、無差別cache削除を修復成功にしない。実行中はunity.log等だけを観察し、progress/sidecarを開かない。人間所有processを停止せず、過去のPID用停止スクリプトを再利用しない。
+
+停滞したprocessを止める時の事実を次に書く。上の調査の予算と、人間所有processを停止しない規則は変えない。
+
+- **止めてよいのは、自分のrunが起動したと確かめられたUnityだけ。** PIDだけで決めない。止める前に、command lineがそのcheckoutのprojectを指すこと、作成時刻がrunの開始より後であること、PIDがそのrunのUnityか、親がそのrunの `run-tests.ps1` のpwshであることを確かめる（[検証用の checkout の操作](#検証用の-checkout-の操作実行の担当) の `release` と同じ確かめ方）。確かめられなければ止めずにownerへ返す。
+- **生存確認と停止はCIMで行う**（`Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` と `Invoke-CimMethod -MethodName Terminate`）。`Get-Process -Id` と `Stop-Process` は、生きているUnityに「見つからない」を返したことがある（2026-11-20、6000.6.9f1）ので、終了の証拠にしない。
+- **`Terminate` で止めたprocessは終了コードが0になり、`run-tests.ps1` のstepが `status=passed`・exit 0になりうる**（2026-11-12、6000.6.0f1）。このstepは自然終了を証明しない。強制終了した取得であることを、止めた時刻・PID・確かめた値（command line、作成時刻、thread数、CPU時間の増加）を書いたnoteで同じ証拠に明示する。上のとおり、強制終了した取得は成功証拠にしない。
