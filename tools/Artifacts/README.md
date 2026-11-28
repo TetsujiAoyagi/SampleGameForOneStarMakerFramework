@@ -533,15 +533,15 @@ PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離sto
 
 ### 理由を返さない失敗の原因
 
-CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。
+CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。対処は、保護名の検査やcatalogの上限を避ける手段ではありません。どれも既存の契約（秘密の保護、証拠の集合とmanifest・hash、[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md)）の中で行います。同じ固定codeには他の原因もあるので、当てはまるかを確かめてから対処します。
 
-| 症状 | 原因 | 対処 |
-|---|---|---|
-| publish・stage・fetchがどれも `unconfirmed`。一部のsuiteは起動前に止まる | そのworktreeに3 projectのRelease build（git管理外の出力）が無い。新しく作ったworktreeには無い | 上の `dotnet build` 3行を実行する。git差分は出ない |
-| `evidence publish` / `stage` が `unconfirmed`（`residue.remote` は `pre-put`） | `--config` か `--selection` が完全修飾の絶対pathでない、存在しない、空、1 MiB超のいずれか | どちらも絶対pathで渡す |
-| stage / publishが `unconfirmed` | bundleに保護名のfileがある（`credentials.json`、`service-account.json`、`token`、`.env` など。大小文字を区別しない）。testの結果を `<suite>.json` の名前で集めると、Credentials suiteの結果が当たる | 非秘密を確かめて改名する（[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md) の保護名の点検）。最初から別の名前で出す |
-| stage / publishが `unconfirmed` | taskのcatalog（1 MiB）の上限。fileの1件が約1 KBを使い、上限は同じtaskに置いた全bundleの累計で数える | 小さなfileの群はzipにまとめて入れる。やり直しの多いtaskでは最初からそうする |
-| 古いBuildの `build inspect` / `build fetch` が `receipt-unavailable` | `--config` のbuild-configがpublishの時と同じbytesでない。または置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。`content fetch` と `evidence fetch` のconfigは任意の絶対pathでよい |
+| 症状 | 原因 | 根拠 | 対処 |
+|---|---|---|---|
+| publish・stage・fetchがどれも `unconfirmed`。一部のsuiteは起動前に止まる | そのworktreeに3 projectのRelease build（git管理外の出力）が無い。新しく作ったworktreeには無い | 観測（2026-10-16）。DLLを用意すると解消した | 出力先に3つのDLLが無いことを確かめてから、上の `dotnet build` 3行を実行する。git差分は出ない |
+| `evidence publish` / `stage` が `unconfirmed`（`residue.remote` は `pre-put`） | `--config` か `--selection` が、完全修飾の絶対pathでない、存在しない、空、1 MiB超のいずれか | codeで確認（`Read-ArtifactJson`） | 4つを順に確かめる。絶対pathで渡すだけでは、欠落・空・1 MiB超は解消しない |
+| stage / publishが `unconfirmed` | bundleに保護名のfileがある（`credentials.json`、`service-account.json`、`token`、`.env` など。大小文字を区別しない）。testの結果を `<suite>.json` の名前で集めると、Credentials suiteの結果が当たる | 保護名はcodeで確認（`PackagePolicy`）。症状は観測（2026-10-16、PR #124） | 送信担当が内容を読んで非秘密と確かめたfileに限り改名し、元名・新名・内容hashの対応表を同じbundleに入れる（レビュー証拠の保護名の点検）。秘密を含むfileは改名せず、bundleから外す。保護名の規則は変えない |
+| stage / publishが `unconfirmed` | taskのcatalogが1 MiBの上限に達した。fileの1件が約1 KBを使い、同じtaskに置いた全bundleの累計で数える | 上限はcodeで確認（`record-limit`）。1件の大きさと累計で数えることは観測（2026-10-16 PR #124、2026-11-12 PR #177） | 小さなfileの群を1つのzipにまとめる。まとめる時は、中のfileの一覧と内容hashの表を同じbundleに入れ、判定が個々のfileを参照できる状態を保つ。判定に要るfileを減らす手段にしない |
+| 古いBuildの `build inspect` / `build fetch` が `receipt-unavailable` | `--config` のbuild-configがpublishの時と同じbytesでない。または置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する） | 置き場の条件はcodeで確認（`Read-BuildConfig`）。bytesの照合は観測（2026-10-17） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。configを書き直さない。`content fetch` と `evidence fetch` のconfigは任意の絶対pathでよい |
 
 ## 経緯
 
