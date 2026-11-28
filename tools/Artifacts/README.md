@@ -533,15 +533,15 @@ PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離sto
 
 ### 理由を返さない失敗の原因
 
-CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。対処は、保護名の検査やcatalogの上限を避ける手段ではありません。どれも既存の契約（秘密の保護、証拠の集合とmanifest・hash、[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md)）の中で行います。同じ固定codeには他の原因もあるので、当てはまるかを確かめてから対処します。
+CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。対処は、保護名の検査やcatalogの上限を避ける手段ではありません。どれも既存の契約（秘密の保護、証拠の集合とmanifest・hash、[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md)）の中で行います。同じ固定codeには他の原因もあるので、当てはまるかを確かめてから対処します。Evidenceの `--config` と `--selection` の読取失敗は固有のcode（`invalid-evidence-config`、`invalid-selection`）を返すので、この表の対象ではありません（「終了・再開・利用中と清掃」の節）。
 
 | 症状 | 原因 | 根拠 | 対処 |
 |---|---|---|---|
 | publish・stage・fetchがどれも `unconfirmed`。一部のsuiteは起動前に止まる | そのworktreeに3 projectのRelease build（git管理外の出力）が無い。新しく作ったworktreeには無い | 観測（2026-10-16）。DLLを用意すると解消した | 出力先に3つのDLLが無いことを確かめてから、上の `dotnet build` 3行を実行する。git差分は出ない |
-| `evidence publish` / `stage` が `unconfirmed`（`residue.remote` は `pre-put`） | `--config` か `--selection` が、完全修飾の絶対pathでない、存在しない、空、1 MiB超のいずれか | codeで確認（`Read-ArtifactJson`） | 4つを順に確かめる。絶対pathで渡すだけでは、欠落・空・1 MiB超は解消しない |
 | stage / publishが `unconfirmed` | bundleに保護名のfileがある（`credentials.json`、`service-account.json`、`token`、`.env` など。大小文字を区別しない）。testの結果を `<suite>.json` の名前で集めると、Credentials suiteの結果が当たる | 保護名はcodeで確認（`PackagePolicy`）。症状は観測（2026-10-16、PR #124） | 送信担当が内容を読んで非秘密と確かめたfileに限り改名し、元名・新名・内容hashの対応表を同じbundleに入れる（レビュー証拠の保護名の点検）。秘密を含むfileは改名せず、bundleから外す。保護名の規則は変えない |
-| stage / publishが `unconfirmed` | taskのcatalogが1 MiBの上限に達した。fileの1件が約1 KBを使い、同じtaskに置いた全bundleの累計で数える | 上限はcodeで確認（`record-limit`）。1件の大きさと累計で数えることは観測（2026-10-16 PR #124、2026-11-12 PR #177） | 小さなfileの群を1つのzipにまとめる。まとめる時は、中のfileの一覧と内容hashの表を同じbundleに入れ、判定が個々のfileを参照できる状態を保つ。判定に要るfileを減らす手段にしない |
-| 古いBuildの `build inspect` / `build fetch` が `receipt-unavailable` | `--config` のbuild-configがpublishの時と同じbytesでない。または置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する） | 置き場の条件はcodeで確認（`Read-BuildConfig`）。bytesの照合は観測（2026-10-17） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。configを書き直さない。`content fetch` と `evidence fetch` のconfigは任意の絶対pathでよい |
+| stage / publishが `unconfirmed` | taskのcatalogが1 MiBの上限に達した。fileの1件が約1 KBを使い、同じtaskに置いた全bundleの累計で数える | 上限はcodeで確認（`record-limit`）。1件の大きさと累計で数えることは観測（2026-10-16 PR #124、2026-11-12 PR #177） | 小さなfileの群を1つのzipにまとめる。保護名の検査はselectionに載るpathだけを見て、zipの中のfile名は見ない。まとめる前に、中に入れる各fileを同じ保護名の規則で自分で点検し、当たるfileは入れない（非秘密と確かめて改名する時は上の行の手順）。中のfileの一覧と内容hashの表を同じbundleに入れ、判定が個々のfileを参照できる状態を保つ。判定に要るfileを減らす手段にしない |
+| 古いBuildの `build inspect` が `receipt-unavailable` | `--config` の置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する）。またはbuild-configがpublishの時と同じbytesでなく、receiptの `configSha256` と合わない。`inspect` はどちらも `receipt-unavailable` に畳む | codeで確認（`Read-BuildConfig`、`Read-BuildSuccessCore` のconfigの照合、`Invoke-BuildInspect` のcatch） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。configを書き直さない |
+| `build fetch` が `unconfirmed` | `--config` の置き場が上と同じ条件を満たさない、またはconfigを読めない。`fetch` はこの失敗を既定の `unconfirmed` のまま返す。`fetch` はreceiptの `configSha256` を照合しない | codeで確認（`Read-BuildConfig`、`Invoke-BuildFetch`） | 上と同じpathを渡す。`download-unconfirmed`・`invalid-reference`・`delete-pending` は別の原因で、固有のcodeが返る |
 
 ## 経緯
 

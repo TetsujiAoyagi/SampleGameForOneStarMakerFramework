@@ -30,9 +30,9 @@
 
 観測: 2026-11-20〜2026-11-23（6000.6.9f1）。
 
-**作業の開始時に `git status --short` を取り、それを基準にする。戻す・消すのは、自分の run が生んだ差分だけである。** 開始時に既にあった差分と、人間の変更には触れない。終了後の確認は Editor を閉じた後に行う。
+**作業の開始時に `git status --short` を取り、それを基準にする。戻す・消すのは、自分の run が生んだ差分だけである。** 開始時に既にあった差分と、人間の変更には触れない。開始時に差分があった file に自分の run の変更が重なった時は、`git status` ではどちらの変更かを判別できない。その file は復元せず、状態を報告する。終了後の確認は Editor を閉じた後に行う。
 
-- **Dirty の asset は file に保存された。** `EditorSceneManager.SaveScene(scene, path, saveAsCopy: true)` と Editor の終了が、Scene が参照しない物も含めて Dirty の asset を書いた。Play snapshot の準備（`PlaySnapshotSession.Prepare`）もこの保存を通る。自分の測定で asset を Dirty にしたら、Editor を閉じる前に、その asset に限って値を戻して `EditorUtility.ClearDirty` を呼ぶか、reimport する。
+- **Dirty の asset は file に保存された。** `EditorSceneManager.SaveScene(scene, path, saveAsCopy: true)` と Editor の終了が、Scene が参照しない物も含めて Dirty の asset を書いた。Play snapshot の準備（`PlaySnapshotSession.Prepare`）もこの保存を通る。自分の測定で asset を Dirty にしたら、Editor を閉じる前に、その asset に限って値を戻して `EditorUtility.ClearDirty` を呼ぶか、reimport する。これは、まだ書かれていない Dirty を保存させないための手順である。`PlaySnapshotSession.Prepare` や保存が既に file へ書いた後では、`ClearDirty` は書かれた bytes を戻さない。その時は、開始時に差分が無かった file に限り、Editor を閉じた後にその file だけを戻す。
 - Dirty の object は `Resources.FindObjectsOfTypeAll` と `EditorUtility.IsPersistent`・`EditorUtility.IsDirty` で列挙できる。`Assets/` で絞らないと built-in と package の object が数百件出る。
 - Editor を開くと `unity/Assets/MobileDependencyResolver/` の下に `*.pdb.meta` が未追跡で出た。開始時に無かった物だけを、閉じた後に消す。commit に混ぜない。
 - Library の無い worktree で最初に Unity を起動すると（Editor でも batch でも）、`unity/Assets/Settings/UniversalRenderPipelineGlobalSettings.asset` の `m_RuntimeSettings.m_List` が書き換えられて保存された。開始時に差分が無かった時だけ、閉じた後に戻す。戻した後の起動では再発しなかった。戻さないまま Player を build すると、repo と違う構成の build になる。
