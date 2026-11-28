@@ -531,6 +531,18 @@ pwsh tools/docs-audit.ps1
 
 PR #106の非秘密dummy fixtureをv2に再利用します。各testは隔離store、clock/transport/scheduler注入とbarrier/signalを使い、30日待機やTask.Delay/Thread.Sleep、秘密や実E1 source、実R2 DELETEを必要としません。DPAPI/ACLの成立はowner Windowsユーザーで確認し、別sandboxユーザーの結果を流用しません。synthetic診断と過去first-useの成功を新v2、scheduler、resetの成立証拠にしません。EvidenceCleanup suiteの `fresh-process-cleanup-contract` は `rg`（ripgrep）でsource一覧を取るため、全suiteを流す前にrgをPATHへ通します。無いとこのcaseだけが失敗します。
 
+### 理由を返さない失敗の原因
+
+CLIは秘密とpathを出さないために失敗を固定codeへ畳むので、次の原因はどれも `unconfirmed` か `receipt-unavailable` だけを返します。
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| publish・stage・fetchがどれも `unconfirmed`。一部のsuiteは起動前に止まる | そのworktreeに3 projectのRelease build（git管理外の出力）が無い。新しく作ったworktreeには無い | 上の `dotnet build` 3行を実行する。git差分は出ない |
+| `evidence publish` / `stage` が `unconfirmed`（`residue.remote` は `pre-put`） | `--config` か `--selection` が完全修飾の絶対pathでない、存在しない、空、1 MiB超のいずれか | どちらも絶対pathで渡す |
+| stage / publishが `unconfirmed` | bundleに保護名のfileがある（`credentials.json`、`service-account.json`、`token`、`.env` など。大小文字を区別しない）。testの結果を `<suite>.json` の名前で集めると、Credentials suiteの結果が当たる | 非秘密を確かめて改名する（[レビュー証拠](../../.agents/skills/osm-workflow/references/review-evidence.md) の保護名の点検）。最初から別の名前で出す |
+| stage / publishが `unconfirmed` | taskのcatalog（1 MiB）の上限。fileの1件が約1 KBを使い、上限は同じtaskに置いた全bundleの累計で数える | 小さなfileの群はzipにまとめて入れる。やり直しの多いtaskでは最初からそうする |
+| 古いBuildの `build inspect` / `build fetch` が `receipt-unavailable` | `--config` のbuild-configがpublishの時と同じbytesでない。または置き場がstore配下の32桁hex名のoperation directoryでない（同じbytesの写しを別の場所に置いても拒否する） | storeの `transfers\<operation>\build-config.json` のpathをそのまま渡す。`content fetch` と `evidence fetch` のconfigは任意の絶対pathでよい |
+
 ## 経緯
 
 スライスAは[PR #109](https://github.com/TetsujiAoyagi/SampleGameForOneStarMakerFramework/pull/109)で実装・限定運用検証を完了し、同じ実装headの正式C/C′はGOです。r6は同じ既存保存領域へOS jobを接続する修正で、保存領域の移動や資格情報の複製を行いません。固定仕様・実行集合・原観測の入口だった `pwsh tools/harness.ps1 current -Task artifact-evidence-lifecycle` のCURRENTは、LocalCache側のcopyと一緒に2026-10-20に削除しました。一回の限定resetは完了済みです。既知のACL不適合copyは保護されたままで、OS jobのpartial結果と通常schedulerの正常statusは区別して記録しています。

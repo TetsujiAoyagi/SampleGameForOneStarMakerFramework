@@ -20,6 +20,13 @@ pwsh tools/run-tests.ps1 -OutputRoot 'C:\Test Evidence\Unity'
 
 step v1 は今回の条件、Unity 実行ファイルと要求版、process の終了、XML の leaf 件数と結果、compile error、ログの hash を保存する。`cases[].reason` は XML の `reason/message` だけを写し、一般の失敗本文を表す欄ではない。`failure/message` を含む詳しい失敗内容は同じ invocation の生 `results.xml` を参照する。
 
+### 読み違えやすい結果
+
+- **`-Filter` は正規表現の部分一致。** 値は Unity の `-testFilter` へそのまま渡り、test の完全名に部分一致する。名前が前方一致する別の test も同じ process で走り、`[Explicit]` の test も当たれば走る。1 件だけ走らせるなら末尾に `$` を付け（`-Filter 'NS.Class.LaunchPlayable$'`）、XML の `total` で件数を確かめる。複数の case を順に流す script では、名前の列を配列のまま渡す（`pwsh -File` に `a,b` を渡すと 1 つの文字列になる）。
+- **`-WithGraphics` なしの全 EditMode は、test が 1 件も失敗していなくても exit 1 になる。** `-nographics` では描画を要する test（`SampleGame.Tests.Rendering.Vfx` の PlayTests）が Inconclusive になり、runner は Inconclusive が 1 件でもあれば step を `status=failed`、exit 1 にする（`failure` は `Inconclusive のテストがあります`）。このとき XML の root result は `Passed`、failed は 0 である。受け入れ条件に「合格」とだけ書くと step と XML で読みが割れるので、「XML の failed 0 と root result Passed」で読むのか、`-WithGraphics` で Inconclusive 0 を取るのかを条件の文に書く。
+- **同じ結果の集合でも Unity の終了コードは 0 と 2 のどちらも出る。** 2 のときは step の `failure` に `Unity process が正常終了しませんでした: 2` の行が加わる。終了コードの行の一致を条件にしない。
+- **step が `failed` の理由は `step.json` の `failure` で読む。** exit 1 の理由が Inconclusive なのか、process の終了なのか、compile error なのかは、終了コードからは分からない。
+
 ### 起動前の path 予算検査
 
 Windows の Unity 同梱 Mono は、260 文字以上の path を `File.OpenRead` などで開けない。runner は出力先を確保した後、Unity を起動する前に、[`tools/path-budget.json`](../path-budget.json) の予算で次を検査する。予算の数値と vendor の allowlist はこの file だけにあり、判定は [`PathBudget.psm1`](PathBudget.psm1) が持つ。contract-audit の検査 9 も同じ判定を使う。
@@ -213,3 +220,5 @@ Unity 6000.6.0f1で、全EditModeの957件Passed・skip0・観測complete後にn
 **同じ事象の次回再開では、最初の1回だけ限定調査を行い、それ以上の原因調査を続けない。** 既存証拠との差分と同一症状かを確認し、追加取得が必要なら仮説・変更条件・観測・終了条件を先に記録して最大1回に限定する。同じ症状が続けば既知リスクとして受け入れ、追加dump、filter二分探索、無変更の全件run反復、別session/taskへの持越しで調査回数を増やさない。明示的な新しいユーザー指示なしに調査を再開しない。
 
 この停止規則は原因調査の予算であり、raw結果の書換えや自動ゲート緩和ではない。test失敗・欠測・compile errorなど別の不成立へ受容を広げず、未終了/強制終了はそのまま記録する。timeout延長、skip、Burst無効化、無差別cache削除を修復成功にしない。実行中はunity.log等だけを観察し、progress/sidecarを開かない。人間所有processを停止せず、過去のPID用停止スクリプトを再利用しない。
+
+自分のrunが起動したUnityの生存確認と停止は、CIMで行う（`Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` と `Invoke-CimMethod -MethodName Terminate`）。`Get-Process -Id` と `Stop-Process` は、生きているUnityに「見つからない」を返したことがあるので、終了の証拠にしない。`Terminate` で止めたprocessは終了コードが0になり、`run-tests.ps1` のstepは `status=passed`・exit 0になる。stepからは自然終了と区別できないので、止めた時刻・PID・止める前に確かめた値（thread数、CPU時間の増加）を書いたnoteを同じ証拠に添える。
